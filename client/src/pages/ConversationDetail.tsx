@@ -1,8 +1,9 @@
 import { memo, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Bot, Wrench, ChevronRight, ChevronDown, Sparkles } from 'lucide-react';
+import { ArrowLeft, User, Bot, Wrench, ChevronRight, ChevronDown, Sparkles, FileText, AlertTriangle, Loader2 } from 'lucide-react';
 import { useConversation } from '@/hooks/use-conversations.ts';
 import { useSummarize } from '@/hooks/use-notes.ts';
+import { useQueueTasks } from '@/hooks/use-queue.ts';
 import { MarkdownRenderer } from '@/components/MarkdownRenderer.tsx';
 
 export function ConversationDetail() {
@@ -10,6 +11,7 @@ export function ConversationDetail() {
   const navigate = useNavigate();
   const { data, isLoading } = useConversation(id!);
   const summarize = useSummarize();
+  const { data: queueData } = useQueueTasks();
 
   const messages = ((data?.messages ?? []) as MessageData[]);
 
@@ -65,18 +67,14 @@ export function ConversationDetail() {
             <span className="ml-2">· {messages.length} 条消息</span>
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => summarize.mutate(id!, {
-            onSuccess: (result) => navigate(`/notes/${result.noteId}`),
-          })}
-          disabled={summarize.isPending || data.status === 'summarized'}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-tertiary border border-theme hover:border-[var(--accent)] disabled:opacity-40 transition-colors shrink-0"
-          style={{ borderRadius: 'var(--radius)', color: 'var(--accent)' }}
-        >
-          <Sparkles size={12} />
-          {summarize.isPending ? '生成中...' : data.status === 'summarized' ? '已生成' : '生成摘要'}
-        </button>
+        <SummarizeButton
+          conversationId={id!}
+          status={data.status as string}
+          queueTask={queueData?.tasks.find((t) => t.id === id)}
+          onSummarize={() => summarize.mutate(id!)}
+          isPending={summarize.isPending}
+          navigate={navigate}
+        />
       </div>
 
       {/* Messages */}
@@ -196,3 +194,98 @@ const MessageBubble = memo(function MessageBubble({
     </div>
   );
 });
+
+// Summarize button with state machine
+function SummarizeButton({
+  conversationId, status, queueTask, onSummarize, isPending, navigate,
+}: {
+  conversationId: string;
+  status: string;
+  queueTask?: { status: string };
+  onSummarize: () => void;
+  isPending: boolean;
+  navigate: (path: string) => void;
+}) {
+  // Determine visual state — queue status takes priority over DB status
+  const queueStatus = queueTask?.status;
+  const isQueued = queueStatus === 'queued';
+  const isProcessing = queueStatus === 'processing' || isPending;
+  const isDone = status === 'summarized';
+  const isError = status === 'error';
+
+  if (isQueued) {
+    return (
+      <button
+        type="button"
+        disabled
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-tertiary border border-theme opacity-60 shrink-0 animate-pulse"
+        style={{ borderRadius: 'var(--radius)', color: 'var(--text-muted)' }}
+      >
+        <Loader2 size={12} />
+        排队中...
+      </button>
+    );
+  }
+
+  if (isProcessing) {
+    return (
+      <button
+        type="button"
+        disabled
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-tertiary border shrink-0"
+        style={{ borderRadius: 'var(--radius)', color: 'var(--accent)', borderColor: 'var(--accent)', boxShadow: '0 0 8px var(--accent)' }}
+      >
+        <Loader2 size={12} className="animate-spin" />
+        生成中...
+      </button>
+    );
+  }
+
+  if (isDone) {
+    return (
+      <button
+        type="button"
+        onClick={async () => {
+          const res = await fetch(`/api/notes?search=&limit=1&offset=0`);
+          const json = await res.json();
+          // Find note for this conversation
+          const noteRes = await fetch(`/api/conversations/${conversationId}`);
+          const convJson = await noteRes.json();
+          // Navigate to notes page as fallback
+          navigate('/notes');
+        }}
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-tertiary border border-theme hover:border-[var(--success)] transition-colors shrink-0"
+        style={{ borderRadius: 'var(--radius)', color: 'var(--success)' }}
+      >
+        <FileText size={12} />
+        查看笔记
+      </button>
+    );
+  }
+
+  if (isError) {
+    return (
+      <button
+        type="button"
+        onClick={onSummarize}
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-tertiary border hover:border-[var(--error)] transition-colors shrink-0"
+        style={{ borderRadius: 'var(--radius)', color: 'var(--error)', borderColor: 'var(--error)' }}
+      >
+        <AlertTriangle size={12} />
+        失败 · 重试
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onSummarize}
+      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-tertiary border border-theme hover:border-[var(--accent)] transition-colors shrink-0"
+      style={{ borderRadius: 'var(--radius)', color: 'var(--accent)' }}
+    >
+      <Sparkles size={12} />
+      生成摘要
+    </button>
+  );
+}

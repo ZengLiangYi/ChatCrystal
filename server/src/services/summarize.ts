@@ -286,7 +286,7 @@ export async function triggerSummarize(conversationId: string): Promise<number> 
  */
 export function getUnsummarizedIds(): string[] {
   const db = getDatabase();
-  const result = db.exec("SELECT id FROM conversations WHERE status = 'imported'");
+  const result = db.exec("SELECT id FROM conversations WHERE status IN ('imported', 'error', 'summarizing')");
   if (!result.length) return [];
   return result[0].values.map((row) => String(row[0]));
 }

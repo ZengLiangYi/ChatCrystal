@@ -1,12 +1,15 @@
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, FileText, Tag, Sparkles, ArrowRight } from 'lucide-react';
+import { MessageSquare, FileText, Tag, Sparkles, ArrowRight, Loader2, CheckCircle, Square } from 'lucide-react';
 import { useStatus } from '@/hooks/use-conversations.ts';
-import { useSummarizeBatch } from '@/hooks/use-notes.ts';
+import { useSummarizeBatch, useCancelQueue } from '@/hooks/use-notes.ts';
+import { useQueueTasks } from '@/hooks/use-queue.ts';
 
 export function Dashboard() {
   const { data: status, isLoading } = useStatus();
   const navigate = useNavigate();
   const summarizeBatch = useSummarizeBatch();
+  const cancelQueue = useCancelQueue();
+  const { data: queueData } = useQueueTasks();
 
   if (isLoading) {
     return <div className="p-6"><p className="text-muted">加载中...</p></div>;
@@ -44,16 +47,12 @@ export function Dashboard() {
 
       {/* Quick actions */}
       <div className="flex gap-3 mb-6">
-        <button
-          type="button"
-          onClick={() => summarizeBatch.mutate()}
-          disabled={summarizeBatch.isPending}
-          className="flex items-center gap-2 px-4 py-2 text-sm border border-theme hover:border-[var(--accent)] transition-colors"
-          style={{ borderRadius: 'var(--radius)', color: 'var(--accent)' }}
-        >
-          <Sparkles size={14} />
-          {summarizeBatch.isPending ? '处理中...' : '批量生成摘要'}
-        </button>
+        <BatchSummarizeButton
+          onBatch={() => summarizeBatch.mutate()}
+          onCancel={() => cancelQueue.mutate()}
+          isPending={summarizeBatch.isPending}
+          queueData={queueData}
+        />
       </div>
 
       {/* Recent notes */}
@@ -102,6 +101,91 @@ export function Dashboard() {
         </div>
       )}
     </div>
+  );
+}
+
+function BatchSummarizeButton({
+  onBatch, onCancel, isPending, queueData,
+}: {
+  onBatch: () => void;
+  onCancel: () => void;
+  isPending: boolean;
+  queueData?: { total: number; completed: number; failed: number; active: number };
+}) {
+  const isActive = (queueData?.active ?? 0) > 0;
+  const total = queueData?.total ?? 0;
+  const completed = queueData?.completed ?? 0;
+  const failed = queueData?.failed ?? 0;
+  const isDone = total > 0 && !isActive;
+
+  if (isPending) {
+    return (
+      <button
+        type="button"
+        disabled
+        className="flex items-center gap-2 px-4 py-2 text-sm border transition-colors"
+        style={{ borderRadius: 'var(--radius)', color: 'var(--accent)', borderColor: 'var(--accent)' }}
+      >
+        <Loader2 size={14} className="animate-spin" />
+        提交中...
+      </button>
+    );
+  }
+
+  if (isActive) {
+    const progress = total > 0 ? (completed / total) * 100 : 0;
+    return (
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          disabled
+          className="flex items-center gap-2 px-4 py-2 text-sm border transition-colors"
+          style={{ borderRadius: 'var(--radius)', color: 'var(--accent)', borderColor: 'var(--accent)' }}
+        >
+          <Loader2 size={14} className="animate-spin" />
+          生成中 {completed}/{total}
+        </button>
+        <div className="w-24 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--bg-tertiary)' }}>
+          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, background: 'var(--accent)' }} />
+        </div>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm border border-theme hover:border-[var(--error)] transition-colors"
+          style={{ borderRadius: 'var(--radius)', color: 'var(--error)' }}
+          title="取消排队中的任务"
+        >
+          <Square size={12} />
+          取消
+        </button>
+      </div>
+    );
+  }
+
+  if (isDone) {
+    return (
+      <button
+        type="button"
+        disabled
+        className="flex items-center gap-2 px-4 py-2 text-sm border border-theme"
+        style={{ borderRadius: 'var(--radius)', color: 'var(--success)' }}
+      >
+        <CheckCircle size={14} />
+        完成 {completed}/{total}{failed > 0 ? ` · ${failed} 失败` : ''}
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onBatch}
+      className="flex items-center gap-2 px-4 py-2 text-sm border border-theme hover:border-[var(--accent)] transition-colors"
+      style={{ borderRadius: 'var(--radius)', color: 'var(--accent)' }}
+    >
+      <Sparkles size={14} />
+      批量生成摘要
+    </button>
   );
 }
 

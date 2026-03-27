@@ -103,14 +103,14 @@ export interface PaginatedResponse<T> {
 // --- Config ---
 
 export interface LLMConfig {
-  provider: 'openai' | 'anthropic' | 'google' | 'ollama' | 'custom';
+  provider: 'openai' | 'anthropic' | 'google' | 'ollama' | 'azure' | 'custom';
   baseURL?: string;
   apiKey?: string;
   model: string;
 }
 
 export interface EmbeddingConfig {
-  provider: 'ollama' | 'openai' | 'custom';
+  provider: 'ollama' | 'openai' | 'google' | 'azure' | 'custom';
   baseURL?: string;
   apiKey?: string;
   model: string;

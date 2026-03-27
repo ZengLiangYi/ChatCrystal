@@ -1,34 +1,21 @@
 import { embed } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
-import { createOllama } from 'ollama-ai-provider';
 import { LocalIndex } from 'vectra';
 import { resolve } from 'node:path';
 import { getDatabase, saveDatabase } from '../db/index.js';
 import { appConfig } from '../config.js';
+import { getProvider } from './providers.js';
 
 // =============================================
 // Embedding Model Factory
 // =============================================
 
 function getEmbeddingModel() {
-  const { provider, baseURL, apiKey, model } = appConfig.embedding;
-
-  switch (provider) {
-    case 'ollama': {
-      const ollama = createOllama({ baseURL: `${baseURL}/api` });
-      return ollama.embedding(model);
-    }
-    case 'openai': {
-      const openai = createOpenAI({ baseURL, apiKey, compatibility: 'strict' });
-      return openai.textEmbeddingModel(model);
-    }
-    case 'custom': {
-      const custom = createOpenAI({ baseURL, apiKey, compatibility: 'compatible', name: 'custom' });
-      return custom.textEmbeddingModel(model);
-    }
-    default:
-      throw new Error(`Unsupported embedding provider: ${provider}`);
+  const { provider, ...config } = appConfig.embedding;
+  const entry = getProvider(provider);
+  if (!entry.createEmbeddingModel) {
+    throw new Error(`Provider "${provider}" does not support embeddings. Use ollama, openai, google, azure, or custom.`);
   }
+  return entry.createEmbeddingModel(config);
 }
 
 // =============================================

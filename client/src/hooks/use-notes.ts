@@ -25,10 +25,14 @@ export function useSummarize() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (conversationId: string) => api.summarize(conversationId),
-    onSuccess: () => {
+    onSuccess: (_data, conversationId) => {
+      // Invalidate queue so StatusBar starts polling
+      queryClient.invalidateQueries({ queryKey: ['queue-status'] });
+      // Invalidate the specific conversation detail (refreshes status from DB)
+      queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
       queryClient.invalidateQueries({ queryKey: ['notes'] });
       queryClient.invalidateQueries({ queryKey: ['status'] });
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },
   });
 }
@@ -38,7 +42,20 @@ export function useSummarizeBatch() {
   return useMutation({
     mutationFn: () => api.summarizeBatch(),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['queue-status'] });
       queryClient.invalidateQueries({ queryKey: ['notes'] });
+      queryClient.invalidateQueries({ queryKey: ['status'] });
+    },
+  });
+}
+
+export function useCancelQueue() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.cancelQueue(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['queue-status'] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
       queryClient.invalidateQueries({ queryKey: ['status'] });
     },
   });

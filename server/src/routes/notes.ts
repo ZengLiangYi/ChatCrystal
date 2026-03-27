@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { getDatabase } from '../db/index.js';
 import { resultToObjects } from '../db/utils.js';
 import { triggerSummarize, getUnsummarizedIds } from '../services/summarize.js';
-import { enqueueWithRetry, getQueueStatus } from '../queue/index.js';
+import { enqueueWithRetry, getQueueStatus, cancelQueue } from '../queue/index.js';
 import { generateEmbeddings, semanticSearch } from '../services/embedding.js';
 
 function hydrateNote(row: Record<string, unknown>): Record<string, unknown> {
@@ -19,31 +19,44 @@ export async function noteRoutes(app: FastifyInstance) {
   // Trigger summarization for one conversation
   app.post('/api/conversations/:id/summarize', async (req, reply) => {
     const { id } = req.params as { id: string };
+    const db = getDatabase();
 
-    try {
-      const noteId = await enqueueWithRetry(() => triggerSummarize(id));
-      return {
-        success: true,
-        data: { noteId, queue: getQueueStatus() },
-      };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Summarization failed';
-      if (message === 'Conversation not found') {
-        reply.status(404);
-      } else {
-        reply.status(500);
-      }
-      return { success: false, error: message };
+    // Get conversation title for tracker
+    const convResult = db.exec(
+      'SELECT project_name, slug FROM conversations WHERE id = ?',
+      [id],
+    );
+    if (!convResult.length || !convResult[0].values.length) {
+      reply.status(404);
+      return { success: false, error: 'Conversation not found' };
     }
+    const [projectName, slug] = convResult[0].values[0] as [string, string];
+    const title = `${projectName} / ${slug || id.slice(0, 8)}`;
+
+    // Fire-and-forget — don't await, let the queue handle it
+    enqueueWithRetry(id, title, () => triggerSummarize(id)).catch((err) => {
+      console.error(`[Summarize] Error for ${id}:`, err instanceof Error ? err.message : err);
+    });
+
+    return {
+      success: true,
+      data: { queued: 1, queue: getQueueStatus() },
+    };
   });
 
   // Batch summarize all unsummarized conversations
   app.post('/api/summarize/batch', async () => {
+    const db = getDatabase();
     const ids = getUnsummarizedIds();
     let queued = 0;
 
     for (const id of ids) {
-      enqueueWithRetry(() => triggerSummarize(id)).catch((err) => {
+      // Get title for tracker
+      const r = db.exec('SELECT project_name, slug FROM conversations WHERE id = ?', [id]);
+      const [pn, sl] = (r[0]?.values[0] ?? ['', '']) as [string, string];
+      const title = `${pn} / ${sl || id.slice(0, 8)}`;
+
+      enqueueWithRetry(id, title, () => triggerSummarize(id)).catch((err) => {
         console.error(`[Summarize] Error for ${id}:`, err instanceof Error ? err.message : err);
       });
       queued++;
@@ -157,6 +170,12 @@ export async function noteRoutes(app: FastifyInstance) {
     return { success: true, data: getQueueStatus() };
   });
 
+  // Cancel queued tasks
+  app.post('/api/queue/cancel', async () => {
+    const result = cancelQueue();
+    return { success: true, data: result };
+  });
+
   // Semantic search
   app.get('/api/search', async (req, reply) => {
     const { q, limit = '10' } = req.query as Record<string, string>;
@@ -222,7 +241,7 @@ export async function noteRoutes(app: FastifyInstance) {
 
     const noteIds = result[0].values.map((r) => Number(r[0]));
     for (const noteId of noteIds) {
-      enqueueWithRetry(() => generateEmbeddings(noteId)).catch((err) => {
+      enqueueWithRetry(`embed-${noteId}`, `Embedding #${noteId}`, () => generateEmbeddings(noteId)).catch((err) => {
         console.error(`[Embedding] Error for note ${noteId}:`, err instanceof Error ? err.message : err);
       });
     }

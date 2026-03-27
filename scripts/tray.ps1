@@ -66,8 +66,10 @@ function Start-Server {
 
 function Stop-Server {
     if ($script:serverProcess -and !$script:serverProcess.HasExited) {
-        $script:serverProcess.Kill()
-        $script:serverProcess.WaitForExit(3000)
+        # Kill entire process tree (node may spawn child processes)
+        $pid = $script:serverProcess.Id
+        try { taskkill /PID $pid /T /F 2>$null | Out-Null } catch {}
+        try { $script:serverProcess.WaitForExit(3000) } catch {}
     }
     $script:serverProcess = $null
     $script:isRunning = $false

@@ -85,10 +85,40 @@ export const api = {
   embedBatch: () =>
     request<{ queued: number }>('/embeddings/batch', { method: 'POST' }),
 
+  getQueueStatus: () =>
+    request<{
+      total: number; completed: number; failed: number; active: number;
+      tasks: { id: string; title: string; status: string; error?: string; addedAt: number; startedAt?: number; finishedAt?: number }[];
+    }>('/queue/status'),
+
+  cancelQueue: () =>
+    request<{ cancelled: number }>('/queue/cancel', { method: 'POST' }),
+
   getConfig: () =>
     request<{
       llm: { provider: string; baseURL: string; model: string; hasApiKey: boolean };
       embedding: { provider: string; baseURL: string; model: string };
       claudeProjectsDir: string;
     }>('/config'),
+
+  getProviders: () =>
+    request<{
+      name: string; displayName: string; supportsEmbedding: boolean;
+      requiresApiKey: boolean; requiresBaseURL: boolean;
+    }[]>('/providers'),
+
+  updateConfig: (data: {
+    llm?: { provider?: string; baseURL?: string; apiKey?: string; model?: string };
+    embedding?: { provider?: string; baseURL?: string; apiKey?: string; model?: string };
+    confirm?: boolean;
+  }) =>
+    request<{
+      requiresConfirm?: boolean;
+      warnings?: string[];
+      llm?: { provider: string; baseURL: string; model: string; hasApiKey: boolean };
+      embedding?: { provider: string; baseURL: string; model: string };
+    }>('/config', { method: 'POST', body: JSON.stringify(data) }),
+
+  testConfig: () =>
+    request<{ connected: boolean; response?: string; error?: string }>('/config/test', { method: 'POST' }),
 };

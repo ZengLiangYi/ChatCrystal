@@ -13,6 +13,7 @@ import { statusRoutes } from './routes/status.js';
 import { importRoutes } from './routes/import.js';
 import { conversationRoutes } from './routes/conversations.js';
 import { noteRoutes } from './routes/notes.js';
+import { configRoutes } from './routes/config.js';
 
 // Initialize parser adapters (registers built-in adapters)
 import './parser/index.js';
@@ -33,6 +34,7 @@ async function main() {
   await app.register(importRoutes);
   await app.register(conversationRoutes);
   await app.register(noteRoutes);
+  await app.register(configRoutes);
 
   // Graceful shutdown
   const shutdown = () => {
@@ -62,6 +64,10 @@ async function main() {
     });
     console.log('[Server] Serving frontend from', clientDist);
   }
+
+  // Log provider config
+  console.log(`[LLM] Provider: ${appConfig.llm.provider} / ${appConfig.llm.model}`);
+  console.log(`[Embedding] Provider: ${appConfig.embedding.provider} / ${appConfig.embedding.model}`);
 
   // Start file watcher
   startWatcher();
