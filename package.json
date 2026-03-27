@@ -1,0 +1,28 @@
+{
+  "name": "chatcrystal",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI conversation knowledge crystallization tool",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "npm run dev -w server",
+    "dev:client": "npm run dev -w client",
+    "build": "npm run build -w server && npm run build -w client",
+    "start": "npm run start -w server",
+    "lint": "biome check .",
+    "lint:fix": "biome check --fix .",
+    "tray": "powershell -ExecutionPolicy Bypass -File scripts/tray.ps1",
+    "tray:silent": "wscript scripts\\start-silent.vbs"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+server/dist/
+client/dist/
+
+# Runtime data
+data/
+*.db
+*.db-journal
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+
+# Editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# PM2 (deprecated)
+ecosystem.config.cjs
+
+# Shared build artifacts
+shared/types/*.js
+shared/types/*.d.ts
+shared/types/*.map

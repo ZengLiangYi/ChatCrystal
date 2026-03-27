@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "..",
+    "paths": {
+      "@chatcrystal/shared": ["../shared/types/index.ts"]
+    }
+  },
+  "include": ["src/**/*", "../shared/types/**/*"]
+}

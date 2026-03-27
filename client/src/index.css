@@ -1,0 +1,169 @@
+@import "tailwindcss";
+
+/* ========================================
+   ChatCrystal — CSS Variable Theme System
+   Variables are injected by ThemeProvider at runtime.
+   ======================================== */
+
+@layer base {
+  * {
+    border-color: var(--border);
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  #root {
+    min-height: 100vh;
+    display: flex;
+  }
+
+  code, pre, kbd {
+    font-family: var(--font-mono);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    color: var(--text-primary);
+  }
+
+  /* Scrollbar styling for dark theme */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
+}
+
+/* Utility classes referencing theme tokens */
+@utility bg-primary { background-color: var(--bg-primary); }
+@utility bg-secondary { background-color: var(--bg-secondary); }
+@utility bg-tertiary { background-color: var(--bg-tertiary); }
+@utility bg-code { background-color: var(--code-bg); }
+@utility text-primary { color: var(--text-primary); }
+@utility text-secondary { color: var(--text-secondary); }
+@utility text-muted { color: var(--text-muted); }
+@utility text-accent { color: var(--accent); }
+@utility text-info { color: var(--info); }
+@utility text-success { color: var(--success); }
+@utility text-warning { color: var(--warning); }
+@utility text-error { color: var(--error); }
+@utility border-theme { border-color: var(--border); }
+@utility accent-bg { background-color: var(--accent); }
+
+/* ========================================
+   Markdown Renderer Styles
+   ======================================== */
+
+/* Inline code */
+.cc-inline-code {
+  background: var(--code-bg);
+  color: var(--accent);
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+  font-size: 0.9em;
+  font-family: var(--font-mono);
+}
+
+/* Code block */
+.cc-code-block {
+  margin: 0.5rem 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.cc-code-header {
+  background: var(--bg-tertiary);
+  padding: 4px 12px;
+}
+
+.cc-code-lang {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Table */
+.cc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  margin: 0.5rem 0;
+}
+.cc-table th,
+.cc-table td {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  text-align: left;
+}
+.cc-table th {
+  background: var(--bg-tertiary);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Markdown prose */
+.markdown-content > * + * {
+  margin-top: 0.5rem;
+}
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
+  margin-top: 1rem;
+  margin-bottom: 0.25rem;
+  font-weight: 700;
+}
+.markdown-content h1 { font-size: 1.25rem; }
+.markdown-content h2 { font-size: 1.1rem; }
+.markdown-content h3 { font-size: 1rem; }
+.markdown-content ul,
+.markdown-content ol {
+  padding-left: 1.5em;
+}
+.markdown-content li + li {
+  margin-top: 0.15rem;
+}
+.markdown-content a {
+  color: var(--info);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.markdown-content blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 0.75rem;
+  color: var(--text-secondary);
+  margin: 0.5rem 0;
+}
+.markdown-content hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0.75rem 0;
+}
+.markdown-content p code,
+.markdown-content li code {
+  background: var(--code-bg);
+  color: var(--accent);
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+  font-size: 0.9em;
+  font-family: var(--font-mono);
+}
