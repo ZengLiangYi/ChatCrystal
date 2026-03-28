@@ -6,7 +6,7 @@ ChatCrystal 将散落在 Claude Code、Cursor 等 AI 编程工具中的对话统
 
 ## 核心功能
 
-- **对话采集** — 自动扫描并导入 Claude Code 对话记录（JSONL），支持文件监听实时同步
+- **多数据源采集** — 自动扫描并导入 Claude Code、Codex CLI、Cursor 的对话记录，支持文件监听实时同步
 - **LLM 摘要** — 通过 Vercel AI SDK 接入多种 LLM Provider，将对话提炼为结构化笔记（标题、摘要、关键结论、代码片段、标签）
 - **语义搜索** — 基于 Embedding + 向量索引（vectra），按语义相关度检索笔记
 - **对话浏览** — Markdown 渲染、代码高亮、工具调用折叠，噪音过滤
@@ -80,7 +80,7 @@ npm start                        # 启动服务（前端由后端静态托管）
 
 ## 使用流程
 
-1. 启动后，点击侧边栏「导入对话」扫描 Claude Code 对话
+1. 启动后，点击侧边栏「导入对话」扫描 Claude Code / Codex CLI / Cursor 对话
 2. 在「对话」页浏览已导入的对话
 3. 点击「生成摘要」或使用「批量生成」将对话提炼为笔记
 4. 在「搜索」页通过语义搜索查找知识
@@ -95,8 +95,10 @@ npm start                        # 启动服务（前端由后端静态托管）
 # 服务端口
 PORT=3721
 
-# Claude Code 数据源
+# 数据源
 CLAUDE_PROJECTS_DIR=~/.claude/projects
+CODEX_SESSIONS_DIR=~/.codex/sessions
+# CURSOR_DATA_DIR=          # 按平台自动检测，可手动覆盖
 
 # LLM 摘要（支持 ollama/openai/anthropic/google/azure/custom）
 LLM_PROVIDER=ollama
@@ -142,7 +144,7 @@ ChatCrystal/
 ├── shared/types/            # 共享 TypeScript 类型
 ├── server/src/
 │   ├── db/                  # SQLite schema + 工具函数
-│   ├── parser/              # 插件式对话解析器（SourceAdapter）
+│   ├── parser/              # 插件式对话解析器（Claude Code / Codex / Cursor）
 │   ├── services/            # 导入、摘要、LLM、Embedding、Provider
 │   ├── routes/              # Fastify API 路由
 │   ├── watcher/             # chokidar 文件监听
@@ -172,7 +174,15 @@ interface SourceAdapter {
 }
 ```
 
-在 `server/src/parser/adapters/` 下新建适配器文件，注册到 `parser/registry.ts`。
+目前已内置三个适配器：
+
+| 适配器 | 数据源 | 格式 |
+|---|---|---|
+| `claude-code` | `~/.claude/projects/**/*.jsonl` | JSONL 对话记录 |
+| `codex` | `~/.codex/sessions/**/rollout-*.jsonl` | JSONL 事件流 |
+| `cursor` | Cursor `workspaceStorage/state.vscdb` | SQLite KV 存储 |
+
+在 `server/src/parser/adapters/` 下新建适配器文件，注册到 `parser/index.ts`。
 
 ## API
 

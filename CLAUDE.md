@@ -51,14 +51,17 @@ Monorepo with three npm workspaces:
 - **Database:** sql.js (WASM SQLite) at `data/chatcrystal.db`, auto-saved every 30s
 - **Key modules:**
   - `db/` — Schema (7 tables), utils (`resultToObjects`)
-  - `parser/` — Plugin architecture via `SourceAdapter`. Currently: `adapters/claude-code.ts` (JSONL from `~/.claude/projects/`). Content sanitization strips `<system-reminder>`, `<command-name>` tags.
+  - `parser/` — Plugin architecture via `SourceAdapter`. Three built-in adapters:
+    - `adapters/claude-code.ts` — JSONL from `~/.claude/projects/`. Sanitizes `<system-reminder>`, `<command-name>` tags.
+    - `adapters/codex.ts` — JSONL event stream from `~/.codex/sessions/`. Reconstructs conversation from event_msg/response_item events.
+    - `adapters/cursor.ts` — SQLite `state.vscdb` from Cursor's workspaceStorage/globalStorage. Reads composer metadata + bubble data via sql.js.
   - `services/llm.ts` — Provider factory: Ollama/OpenAI/Custom via Vercel AI SDK
   - `services/summarize.ts` — Conversation preprocessing (truncate ~8000 tokens) + LLM call + JSON parsing + DB persistence. Auto-generates embeddings after summarization.
   - `services/embedding.ts` — Embedding model factory + vectra LocalIndex + text chunking
   - `services/import.ts` — Scan + dedup (file size + mtime) + batch insert
   - `routes/` — REST endpoints: status, config, import, conversations CRUD, notes CRUD, tags, search, queue status, batch operations
   - `queue/` — p-queue singleton (concurrency=1, 1 req/sec, 429 retry)
-  - `watcher/` — chokidar watches `~/.claude/projects/**/*.jsonl`, debounced auto-import
+  - `watcher/` — chokidar watches all data source paths (Claude Code JSONL, Codex sessions JSONL, Cursor global vscdb), debounced auto-import
 
 ### `client/` — React SPA
 - **Build:** Vite v8 + `@vitejs/plugin-react`
@@ -90,9 +93,10 @@ Monorepo with three npm workspaces:
 ## Data Flow
 
 ```
-~/.claude/projects/**/*.jsonl
-  → Claude Code Adapter (parse + sanitize)
-  → Import Service (dedup, insert)
+~/.claude/projects/**/*.jsonl       → Claude Code Adapter (JSONL parse + sanitize)
+~/.codex/sessions/**/*.jsonl        → Codex Adapter (event stream → conversation)
+Cursor workspaceStorage/state.vscdb → Cursor Adapter (SQLite KV → messages)
+  → Import Service (dedup by id+source, insert)
   → SQLite
   → Fastify REST API
   → React client (React Query hooks)
@@ -109,12 +113,14 @@ Search:
 Copy `.env.example` to `.env`. Key variables:
 - `PORT` (default 3721)
 - `CLAUDE_PROJECTS_DIR` — path to Claude Code projects
+- `CODEX_SESSIONS_DIR` — path to Codex CLI sessions
+- `CURSOR_DATA_DIR` — path to Cursor data (auto-detected per platform)
 - `LLM_PROVIDER` / `LLM_MODEL` — for summarization (ollama, openai, anthropic, google, custom)
 - `EMBEDDING_PROVIDER` / `EMBEDDING_MODEL` — for semantic search
 
 ## Key Patterns
 
-- **SourceAdapter plugin interface** (`parser/adapter.ts`): implement `detect()`, `scan()`, `parse()` to add new sources
+- **SourceAdapter plugin interface** (`parser/adapter.ts`): implement `detect()`, `scan()`, `parse()` to add new sources. Currently 3 adapters: claude-code (JSONL), codex (JSONL events), cursor (SQLite vscdb)
 - **Shared types are the contract**: both server and client import from `@chatcrystal/shared`
 - **No ORM**: raw SQL via sql.js with parameterized queries
 - **sanitizeContent()**: strips Claude Code system XML tags from message content
