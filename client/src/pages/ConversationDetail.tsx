@@ -68,7 +68,6 @@ export function ConversationDetail() {
           </p>
         </div>
         <SummarizeButton
-          conversationId={id!}
           status={data.status as string}
           queueTask={queueData?.tasks.find((t) => t.id === id)}
           onSummarize={() => summarize.mutate(id!)}
@@ -197,9 +196,8 @@ const MessageBubble = memo(function MessageBubble({
 
 // Summarize button with state machine
 function SummarizeButton({
-  conversationId, status, queueTask, onSummarize, isPending, navigate,
+  status, queueTask, onSummarize, isPending, navigate,
 }: {
-  conversationId: string;
   status: string;
   queueTask?: { status: string };
   onSummarize: () => void;
@@ -245,15 +243,7 @@ function SummarizeButton({
     return (
       <button
         type="button"
-        onClick={async () => {
-          const res = await fetch(`/api/notes?search=&limit=1&offset=0`);
-          const json = await res.json();
-          // Find note for this conversation
-          const noteRes = await fetch(`/api/conversations/${conversationId}`);
-          const convJson = await noteRes.json();
-          // Navigate to notes page as fallback
-          navigate('/notes');
-        }}
+        onClick={() => navigate('/notes')}
         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-tertiary border border-theme hover:border-[var(--success)] transition-colors shrink-0"
         style={{ borderRadius: 'var(--radius)', color: 'var(--success)' }}
       >

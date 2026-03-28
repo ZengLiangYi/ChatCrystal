@@ -12,7 +12,7 @@ ChatCrystal 将散落在 Claude Code、Cursor 等 AI 编程工具中的对话统
 - **对话浏览** — Markdown 渲染、代码高亮、工具调用折叠，噪音过滤
 - **多 Provider 支持** — 支持 Ollama、OpenAI、Anthropic、Google AI、Azure OpenAI 及任意 OpenAI 兼容服务，可在设置页面运行时切换
 - **任务队列** — 批量摘要/Embedding 生成通过 p-queue 排队执行，支持实时进度追踪和取消
-- **系统托盘** — Windows 托盘图标，后台静默运行，崩溃自动重启
+- **桌面应用** — Electron 打包，系统托盘驻留，关闭窗口最小化到托盘
 
 ## 技术栈
 
@@ -20,11 +20,11 @@ ChatCrystal 将散落在 Claude Code、Cursor 等 AI 编程工具中的对话统
 |---|---|
 | 后端 | Node.js + Fastify v5 + TypeScript |
 | 前端 | Vite v8 + React 19 + Tailwind CSS v4 + TanStack React Query v5 |
+| 桌面 | Electron + electron-builder (NSIS 安装包) |
 | 数据库 | sql.js (WASM SQLite) |
 | LLM | Vercel AI SDK v6 — Ollama / OpenAI / Anthropic / Google / Azure / Custom |
 | Embedding | vectra 向量索引，支持多 Provider |
 | 文件监听 | chokidar |
-| 系统托盘 | PowerShell + WinForms NotifyIcon |
 
 ## 快速开始
 
@@ -52,7 +52,16 @@ npm install
 cp .env.example .env             # 按需修改配置
 ```
 
-### 开发模式
+### 桌面应用（推荐）
+
+```bash
+npm run dev:electron             # 开发模式（Electron + Vite HMR）
+npm run build:electron           # 构建 NSIS 安装包 → release/
+```
+
+构建后的安装包在 `release/` 目录。安装后数据存储在 `%APPDATA%/chatcrystal/data/`。
+
+### Web 开发模式
 
 ```bash
 npm run dev                      # 同时启动后端 (3721) + 前端 (13721)
@@ -60,7 +69,7 @@ npm run dev                      # 同时启动后端 (3721) + 前端 (13721)
 
 访问 http://localhost:13721
 
-### 生产模式
+### Web 生产模式
 
 ```bash
 npm run build                    # 构建前后端
@@ -68,19 +77,6 @@ npm start                        # 启动服务（前端由后端静态托管）
 ```
 
 访问 http://localhost:3721
-
-### 系统托盘（Windows）
-
-```bash
-npm run tray                     # 启动托盘应用（含服务）
-npm run tray:silent              # 静默启动（无窗口弹出）
-```
-
-双击桌面快捷方式即可启动。右键托盘图标可：
-- 打开浏览器
-- 启停服务
-- 切换开机自启
-- 退出
 
 ## 使用流程
 
@@ -142,22 +138,24 @@ LLM_MODEL=anthropic/claude-sonnet-4
 
 ```
 ChatCrystal/
-├── shared/types/        # 共享 TypeScript 类型
+├── electron/                # Electron 主进程（窗口、托盘、生命周期）
+├── shared/types/            # 共享 TypeScript 类型
 ├── server/src/
-│   ├── db/              # SQLite schema + 工具函数
-│   ├── parser/          # 插件式对话解析器（SourceAdapter）
-│   ├── services/        # 导入、摘要、LLM、Embedding、Provider
-│   ├── routes/          # Fastify API 路由
-│   ├── watcher/         # chokidar 文件监听
-│   └── queue/           # p-queue 任务队列 + TaskTracker
+│   ├── db/                  # SQLite schema + 工具函数
+│   ├── parser/              # 插件式对话解析器（SourceAdapter）
+│   ├── services/            # 导入、摘要、LLM、Embedding、Provider
+│   ├── routes/              # Fastify API 路由
+│   ├── watcher/             # chokidar 文件监听
+│   └── queue/               # p-queue 任务队列 + TaskTracker
 ├── client/src/
-│   ├── pages/           # 页面组件（Dashboard、对话、笔记、搜索、设置）
-│   ├── components/      # 通用组件（StatusBar、ActivityPanel 等）
-│   ├── hooks/           # React Query hooks
-│   ├── themes/          # 主题定义
-│   └── providers/       # ThemeProvider
-├── scripts/             # 托盘、启动脚本
-└── data/                # 运行时数据（gitignored）
+│   ├── pages/               # 页面组件（Dashboard、对话、笔记、搜索、设置）
+│   ├── components/          # 通用组件（StatusBar、ActivityPanel 等）
+│   ├── hooks/               # React Query hooks
+│   ├── themes/              # 主题定义
+│   └── providers/           # ThemeProvider
+├── scripts/                 # 旧版托盘脚本（已被 Electron 替代）
+├── electron-builder.yml     # Electron 打包配置
+└── data/                    # 运行时数据（gitignored）
 ```
 
 ## 扩展数据源

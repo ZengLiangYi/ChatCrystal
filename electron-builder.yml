@@ -1,0 +1,51 @@
+appId: com.chatcrystal.app
+productName: ChatCrystal
+copyright: Copyright © 2026 Rayner Zeng
+
+directories:
+  output: release
+
+files:
+  - electron/dist/**/*
+  - electron/icon.png
+  - server/dist/**/*
+  - server/package.json
+  - client/dist/**/*
+  - shared/**/*
+  - package.json
+  - node_modules/**/*
+  - "!**/*.ts"
+  - "!**/*.map"
+  - "!**/node_modules/.cache"
+  - "!**/node_modules/*/{test,tests,__tests__,docs,example,examples}/**"
+  - "!**/node_modules/.package-lock.json"
+  - "!scripts/**"
+  - "!data/**"
+  - "!.env*"
+  - "!CLAUDE.md"
+  - "!README.md"
+  - "!release/**"
+
+extraResources:
+  - from: node_modules/sql.js/dist/sql-wasm.wasm
+    to: sql-wasm.wasm
+
+asar: true
+asarUnpack:
+  - "**/*.node"
+  - "**/sql.js/**"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: electron/icon.png
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: ChatCrystal

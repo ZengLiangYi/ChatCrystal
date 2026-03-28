@@ -88,7 +88,7 @@ export const api = {
   getQueueStatus: () =>
     request<{
       total: number; completed: number; failed: number; active: number;
-      tasks: { id: string; title: string; status: string; error?: string; addedAt: number; startedAt?: number; finishedAt?: number }[];
+      tasks: { id: string; title: string; status: 'queued' | 'processing' | 'completed' | 'failed'; error?: string; addedAt: number; startedAt?: number; finishedAt?: number }[];
     }>('/queue/status'),
 
   cancelQueue: () =>

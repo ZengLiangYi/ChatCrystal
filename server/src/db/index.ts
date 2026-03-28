@@ -1,6 +1,6 @@
 import initSqlJs, { type Database } from 'sql.js';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { resolve, dirname, join } from 'node:path';
 import { appConfig } from '../config.js';
 import { SCHEMA_SQL } from './schema.js';
 
@@ -17,7 +17,11 @@ export async function initDatabase(): Promise<Database> {
     mkdirSync(dataDir, { recursive: true });
   }
 
-  const SQL = await initSqlJs();
+  // In packaged Electron, WASM is in extraResources; otherwise use default from node_modules
+  const sqlJsOptions = process.env.ELECTRON_PACKAGED
+    ? { locateFile: () => join((process as NodeJS.Process & { resourcesPath: string }).resourcesPath, 'sql-wasm.wasm') }
+    : undefined;
+  const SQL = await initSqlJs(sqlJsOptions);
 
   // Load existing database or create new one
   if (existsSync(DB_PATH)) {

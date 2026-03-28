@@ -2,7 +2,6 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createAzure } from '@ai-sdk/azure';
-import { createOllama } from 'ollama-ai-provider';
 import type { LanguageModel, EmbeddingModel } from 'ai';
 
 export interface ProviderConfig {
@@ -23,7 +22,7 @@ export interface ProviderEntry {
 
 const providers = new Map<string, ProviderEntry>();
 
-// Ollama — local inference (ollama-ai-provider still returns V1, cast to bridge)
+// Ollama — local inference via OpenAI-compatible endpoint (/v1/)
 providers.set('ollama', {
   name: 'ollama',
   displayName: 'Ollama',
@@ -32,13 +31,13 @@ providers.set('ollama', {
   requiresBaseURL: true,
   createLanguageModel({ baseURL, model }) {
     const url = baseURL || 'http://localhost:11434';
-    const ollama = createOllama({ baseURL: url.endsWith('/api') ? url : `${url}/api` });
-    return ollama(model) as unknown as LanguageModel;
+    const ollama = createOpenAI({ baseURL: `${url.replace(/\/+$/, '')}/v1`, apiKey: 'ollama', name: 'ollama' });
+    return ollama(model);
   },
   createEmbeddingModel({ baseURL, model }) {
     const url = baseURL || 'http://localhost:11434';
-    const ollama = createOllama({ baseURL: url.endsWith('/api') ? url : `${url}/api` });
-    return ollama.embedding(model) as unknown as EmbeddingModel;
+    const ollama = createOpenAI({ baseURL: `${url.replace(/\/+$/, '')}/v1`, apiKey: 'ollama', name: 'ollama' });
+    return ollama.textEmbeddingModel(model);
   },
 });
 

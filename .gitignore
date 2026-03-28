@@ -5,6 +5,10 @@ node_modules/
 dist/
 server/dist/
 client/dist/
+electron/dist/
+
+# Electron builder output
+release/
 
 # Runtime data
 data/
@@ -40,3 +44,7 @@ ecosystem.config.cjs
 shared/types/*.js
 shared/types/*.d.ts
 shared/types/*.map
+
+# Server source-level JS artifacts (old tsc output)
+server/src/**/*.js
+server/src/**/*.js.map

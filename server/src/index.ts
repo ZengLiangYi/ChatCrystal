@@ -1,4 +1,4 @@
-import Fastify from 'fastify';
+import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import { resolve } from 'node:path';
@@ -19,7 +19,20 @@ import { configRoutes } from './routes/config.js';
 import './parser/index.js';
 import { startWatcher } from './watcher/index.js';
 
-async function main() {
+export interface ServerInstance {
+  app: FastifyInstance;
+  port: number;
+  shutdown: () => Promise<void>;
+}
+
+/**
+ * Create and start the Fastify server.
+ * Used by both standalone mode and Electron main process.
+ */
+export async function createServer(options?: {
+  port?: number;
+  host?: string;
+}): Promise<ServerInstance> {
   const app = Fastify({ logger: true });
 
   // CORS for dev (client on different port)
@@ -36,18 +49,13 @@ async function main() {
   await app.register(noteRoutes);
   await app.register(configRoutes);
 
-  // Graceful shutdown
-  const shutdown = () => {
-    console.log('\n[Server] Shutting down...');
-    closeDatabase();
-    app.close();
-    process.exit(0);
-  };
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
-
   // Serve frontend in production
-  const clientDist = resolve(import.meta.dirname, '../../client/dist');
+  // Try multiple possible paths (source layout vs compiled layout)
+  const candidatePaths = [
+    resolve(import.meta.dirname, '../../client/dist'),       // source: server/src/ → client/dist/
+    resolve(import.meta.dirname, '../../../../client/dist'),  // compiled: server/dist/server/src/ → client/dist/
+  ];
+  const clientDist = candidatePaths.find((p) => existsSync(p)) ?? candidatePaths[0];
   if (existsSync(clientDist)) {
     await app.register(fastifyStatic, {
       root: clientDist,
@@ -70,16 +78,37 @@ async function main() {
   console.log(`[Embedding] Provider: ${appConfig.embedding.provider} / ${appConfig.embedding.model}`);
 
   // Start file watcher
-  startWatcher();
+  const watcher = startWatcher();
 
   // Start server
-  await app.listen({ port: appConfig.port, host: '0.0.0.0' });
-  console.log(
-    `\n  ChatCrystal server running at http://localhost:${appConfig.port}\n`,
-  );
+  const port = options?.port ?? appConfig.port;
+  const host = options?.host ?? '0.0.0.0';
+  await app.listen({ port, host });
+  console.log(`\n  ChatCrystal server running at http://localhost:${port}\n`);
+
+  // Graceful shutdown function
+  async function shutdown() {
+    console.log('[Server] Shutting down...');
+    await watcher.close();
+    closeDatabase();
+    await app.close();
+  }
+
+  return { app, port, shutdown };
 }
 
-main().catch((err) => {
-  console.error('Failed to start server:', err);
-  process.exit(1);
-});
+// Standalone mode (not Electron)
+if (!process.env.ELECTRON) {
+  createServer()
+    .then(({ shutdown }) => {
+      const handle = () => {
+        shutdown().then(() => process.exit(0));
+      };
+      process.on('SIGINT', handle);
+      process.on('SIGTERM', handle);
+    })
+    .catch((err) => {
+      console.error('Failed to start server:', err);
+      process.exit(1);
+    });
+}

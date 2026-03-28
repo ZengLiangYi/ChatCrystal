@@ -1,9 +1,19 @@
 import { config } from 'dotenv';
-import { resolve } from 'node:path';
+import { resolve, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
-config({ path: resolve(import.meta.dirname, '../../.env') });
+// Conditionally load .env (not available inside packaged Electron ASAR)
+const envCandidates = [
+  resolve(import.meta.dirname, '../../.env'),
+  resolve(import.meta.dirname, '../../../../.env'),
+];
+for (const envPath of envCandidates) {
+  if (existsSync(envPath)) {
+    config({ path: envPath });
+    break;
+  }
+}
 
 function resolveHome(p: string): string {
   if (p.startsWith('~')) {
@@ -15,7 +25,16 @@ function resolveHome(p: string): string {
 // Defaults from .env
 const envDefaults = {
   port: Number(process.env.PORT) || 3721,
-  dataDir: resolve(import.meta.dirname, '../../', process.env.DATA_DIR || './data'),
+  dataDir: isAbsolute(process.env.DATA_DIR || '')
+    ? process.env.DATA_DIR!
+    : (() => {
+        // Try source layout first, then compiled layout
+        const rel = process.env.DATA_DIR || './data';
+        const candidate = resolve(import.meta.dirname, '../../', rel);
+        const candidate2 = resolve(import.meta.dirname, '../../../../', rel);
+        // Pick the one where the parent directory exists
+        return existsSync(resolve(candidate, '..')) ? candidate : candidate2;
+      })(),
   claudeProjectsDir: resolveHome(process.env.CLAUDE_PROJECTS_DIR || '~/.claude/projects'),
   llm: {
     provider: process.env.LLM_PROVIDER || 'ollama',
