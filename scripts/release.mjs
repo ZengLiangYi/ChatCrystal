@@ -59,7 +59,7 @@ console.log(`\nReleasing ${pkg.name} ${tag}\n`);
 run(`npm version ${nextVersion} --no-git-tag-version`);
 
 // Commit version bump
-run(`git add package.json`);
+run(`git add package.json package-lock.json`);
 run(`git commit -m "chore: release ${tag}"`);
 
 // Create annotated tag
