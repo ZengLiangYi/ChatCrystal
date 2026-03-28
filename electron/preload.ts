@@ -1,10 +1,10 @@
-import { contextBridge } from 'electron';
+import { contextBridge } from "electron";
 
-contextBridge.exposeInMainWorld('electronAPI', {
-  isElectron: true,
-  versions: {
-    electron: process.versions.electron,
-    node: process.versions.node,
-    chrome: process.versions.chrome,
-  },
+contextBridge.exposeInMainWorld("electronAPI", {
+	isElectron: true,
+	versions: {
+		electron: process.versions.electron,
+		node: process.versions.node,
+		chrome: process.versions.chrome,
+	},
 });

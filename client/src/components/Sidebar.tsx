@@ -30,10 +30,11 @@ export function Sidebar() {
       {/* Brand */}
       <div className="px-4 py-4 border-b border-theme">
         <h1
-          className="text-base font-bold tracking-tight text-accent m-0"
+          className="text-base font-bold tracking-tight text-accent m-0 flex items-center gap-2"
           style={{ fontFamily: 'var(--font-display)' }}
         >
-          💎 ChatCrystal
+          <img src="/icon.png" alt="ChatCrystal" className="w-5 h-5" />
+          ChatCrystal
         </h1>
         <p className="text-xs text-muted mt-1">知识结晶</p>
       </div>

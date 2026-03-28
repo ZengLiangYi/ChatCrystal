@@ -18,7 +18,12 @@ npm run build
 # Production server (serves frontend statically on port 3721)
 npm start
 
-# System tray (Windows)
+# Electron desktop app
+npm run dev:electron        # dev mode (Vite HMR + Electron window)
+npm run build:electron      # build NSIS installer → release/
+npm run pack:electron       # build unpacked directory (faster for testing)
+
+# System tray (legacy, replaced by Electron tray)
 npm run tray                # with console
 npm run tray:silent         # silent (VBS launcher)
 
@@ -58,9 +63,23 @@ Monorepo with three npm workspaces:
 - **Path alias:** `@/` maps to `client/src/`
 - **Theming:** Runtime CSS variable injection. Theme: `dark-workshop`
 
-### `scripts/` — System Tray & Launchers
-- `tray.ps1` — PowerShell WinForms NotifyIcon tray app. Manages server as hidden child process with auto-restart. Menu: Open Browser, Start/Stop, Auto Start toggle, Exit.
-- `start-silent.vbs` — VBS wrapper for hidden launch (no console popup)
+### `electron/` — Electron Desktop App
+- **Not an npm workspace** — compiled separately via `tsc -p electron/tsconfig.json`
+- `main.ts` — Main process: single-instance lock, port detection, Fastify server startup (embedded), BrowserWindow creation, system tray, window state persistence, data migration
+- `preload.ts` — Minimal contextBridge exposing `electronAPI.isElectron` and version info
+- `tray.ts` — System tray icon + context menu (open window, open in browser, quit)
+- `icon.svg/png/ico` — Application icon (crystal gem + chat bubble)
+- **Lifecycle:** Window close → hide to tray; tray quit → graceful shutdown (watcher stop → DB save → Fastify close → tray destroy)
+- **Data directory:**
+  - Dev mode: `./data` (project root)
+  - Packaged: `%APPDATA%/ChatCrystal/data` (auto-migrates from old `data/` on first launch)
+- **Environment vars set by Electron:** `ELECTRON=true`, `DATA_DIR`, `ELECTRON_PACKAGED` (packaged only)
+- **Server import:** Production uses dynamic `import()` via `file://` URL to load compiled server ESM
+- **Packaging:** `electron-builder.yml` → NSIS installer, `sql-wasm.wasm` as extraResource, aggressive node_modules filtering
+
+### `scripts/` — Legacy System Tray & Launchers
+- `tray.ps1` — PowerShell WinForms NotifyIcon tray app (superseded by Electron tray)
+- `start-silent.vbs` — VBS wrapper for hidden launch
 
 ## Data Flow
 
@@ -95,3 +114,6 @@ Copy `.env.example` to `.env`. Key variables:
 - **sanitizeContent()**: strips Claude Code system XML tags from message content
 - **Consecutive tool-use messages**: grouped and collapsed in frontend (ToolCallGroup component)
 - **Production SPA fallback**: Fastify serves `client/dist`, non-API 404s return `index.html`
+- **Dual mode**: `npm start` runs standalone web server; Electron embeds the same server in its main process via `createServer()` export
+- **Window state persistence**: Electron saves/restores window bounds (position, size, maximized) to `%APPDATA%/ChatCrystal/window-state.json`
+- **Single instance**: `app.requestSingleInstanceLock()` prevents duplicate instances; second launch focuses existing window

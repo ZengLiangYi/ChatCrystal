@@ -14,17 +14,57 @@ files:
   - shared/**/*
   - package.json
   - node_modules/**/*
+  # Exclude source / build artifacts
   - "!**/*.ts"
+  - "!**/*.tsx"
   - "!**/*.map"
-  - "!**/node_modules/.cache"
-  - "!**/node_modules/*/{test,tests,__tests__,docs,example,examples}/**"
+  - "!**/tsconfig*.json"
+  # Exclude node_modules bloat
+  - "!**/node_modules/.cache/**"
+  - "!**/node_modules/.bin/**"
   - "!**/node_modules/.package-lock.json"
+  - "!**/node_modules/*/{test,tests,__tests__,docs,doc,example,examples,spec}/**"
+  - "!**/node_modules/*/README.md"
+  - "!**/node_modules/*/CHANGELOG.md"
+  - "!**/node_modules/*/HISTORY.md"
+  - "!**/node_modules/*/.travis.yml"
+  - "!**/node_modules/*/.eslintrc*"
+  - "!**/node_modules/*/.prettierrc*"
+  # Exclude dev-only packages (build tools, linters, bundlers)
+  - "!**/node_modules/typescript/**"
+  - "!**/node_modules/@typescript-eslint/**"
+  - "!**/node_modules/eslint/**"
+  - "!**/node_modules/@eslint/**"
+  - "!**/node_modules/@biomejs/**"
+  - "!**/node_modules/@babel/**"
+  - "!**/node_modules/7zip-bin/**"
+  - "!**/node_modules/electron/**"
+  - "!**/node_modules/electron-builder/**"
+  - "!**/node_modules/electron-winstaller/**"
+  - "!**/node_modules/app-builder-bin/**"
+  - "!**/node_modules/app-builder-lib/**"
+  - "!**/node_modules/dmg-builder/**"
+  - "!**/node_modules/concurrently/**"
+  - "!**/node_modules/cross-env/**"
+  - "!**/node_modules/wait-on/**"
+  - "!**/node_modules/vite/**"
+  - "!**/node_modules/@vitejs/**"
+  - "!**/node_modules/@tailwindcss/**"
+  - "!**/node_modules/tailwindcss/**"
+  - "!**/node_modules/@rolldown/**"
+  - "!**/node_modules/rolldown/**"
+  - "!**/node_modules/@tanstack/react-query-devtools/**"
+  - "!**/node_modules/lightningcss/**"
+  - "!**/node_modules/biome/**"
+  # Exclude project non-app files
   - "!scripts/**"
   - "!data/**"
   - "!.env*"
   - "!CLAUDE.md"
   - "!README.md"
+  - "!LICENSE"
   - "!release/**"
+  - "!*.md"
 
 extraResources:
   - from: node_modules/sql.js/dist/sql-wasm.wasm
@@ -35,12 +75,17 @@ asarUnpack:
   - "**/*.node"
   - "**/sql.js/**"
 
+electronLanguages:
+  - en-US
+  - zh-CN
+  - zh-TW
+
 win:
   target:
     - target: nsis
       arch:
         - x64
-  icon: electron/icon.png
+  icon: electron/icon.ico
 
 nsis:
   oneClick: false
