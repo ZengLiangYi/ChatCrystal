@@ -23,6 +23,12 @@ npm run dev:electron        # dev mode (Vite HMR + Electron window)
 npm run build:electron      # build NSIS installer → release/
 npm run pack:electron       # build unpacked directory (faster for testing)
 
+# Release (bump version + git tag + push → CI builds & publishes)
+npm run release             # patch bump (0.1.0 → 0.1.1)
+npm run release -- minor    # minor bump
+npm run release -- major    # major bump
+npm run release -- 1.0.0    # explicit version
+
 # System tray (legacy, replaced by Electron tray)
 npm run tray                # with console
 npm run tray:silent         # silent (VBS launcher)

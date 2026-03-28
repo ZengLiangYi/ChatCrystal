@@ -87,6 +87,11 @@ win:
         - x64
   icon: electron/icon.ico
 
+publish:
+  provider: github
+  owner: ZengLiangYi
+  repo: ChatCrystal
+
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
