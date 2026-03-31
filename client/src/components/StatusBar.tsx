@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { ChevronUp, ChevronDown, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useQueueTasks } from '@/hooks/use-queue.ts';
 import { ActivityPanel } from './ActivityPanel.tsx';
 
 export function StatusBar() {
+  const { t } = useTranslation();
   const { data } = useQueueTasks();
   const [expanded, setExpanded] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -47,9 +49,9 @@ export function StatusBar() {
 
         {/* Status text */}
         <span className="text-secondary">
-          {isRunning && `摘要生成中 ${completed}/${total}`}
-          {doneMessage && !hasFailed && `全部完成 ${completed}/${total}`}
-          {doneMessage && hasFailed && `完成 ${completed}/${total} · ${failed} 个失败`}
+          {isRunning && t('status.summarizing', { completed, total })}
+          {doneMessage && !hasFailed && t('status.all_completed', { completed, total })}
+          {doneMessage && hasFailed && t('status.completed_with_failures', { completed, total, failed })}
         </span>
 
         {/* Progress bar */}

@@ -1,19 +1,21 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, FolderGit2, Tag, Lightbulb } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useNote } from '@/hooks/use-notes.ts';
 import { MarkdownRenderer } from '@/components/MarkdownRenderer.tsx';
 
 export function NoteDetail() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: note, isLoading } = useNote(Number(id) || 0);
 
   if (isLoading) {
-    return <div className="p-6 text-muted">加载中...</div>;
+    return <div className="p-6 text-muted">{t('status.loading')}</div>;
   }
 
   if (!note) {
-    return <div className="p-6 text-error">笔记未找到</div>;
+    return <div className="p-6 text-error">{t('error.note_not_found')}</div>;
   }
 
   const conclusions = (note.key_conclusions as string[]) ?? [];
@@ -42,7 +44,7 @@ export function NoteDetail() {
               onClick={() => navigate(`/conversations/${note.conversation_id}`)}
               className="hover:text-accent transition-colors"
             >
-              查看原始对话
+              {t('action.view_original_conversation')}
             </button>
           </div>
         </div>
@@ -76,7 +78,7 @@ export function NoteDetail() {
           <section className="mb-6">
             <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <Lightbulb size={12} />
-              关键结论
+              {t('key_conclusions')}
             </h3>
             <ul className="space-y-1.5">
               {conclusions.map((c, i) => (
@@ -92,7 +94,7 @@ export function NoteDetail() {
         {/* Code snippets */}
         {snippets.length > 0 && (
           <section className="mb-6">
-            <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-2">代码片段</h3>
+            <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-2">{t('code_snippets')}</h3>
             <div className="space-y-3">
               {snippets.map((s, i) => (
                 <div key={i}>

@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/providers/ThemeProvider.tsx';
+import '@/i18n';
 import { Layout } from '@/components/Layout.tsx';
 import { Dashboard } from '@/pages/Dashboard.tsx';
 import { Conversations } from '@/pages/Conversations.tsx';

@@ -3,11 +3,14 @@ import {
 	Brain,
 	CheckCircle,
 	FolderSearch,
+	Globe,
 	Loader2,
+	Palette,
 	Server,
 	XCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/ConfirmDialog.tsx";
 import { api } from "@/lib/api.ts";
 import { useTheme } from "@/providers/ThemeProvider.tsx";
@@ -30,6 +33,7 @@ function useConfig() {
 }
 
 export function SettingsPage() {
+	const { t, i18n } = useTranslation();
 	const { themeName, availableThemes, setTheme } = useTheme();
 	const { data: config } = useConfig();
 	const { data: providers } = useProviders();
@@ -85,7 +89,6 @@ export function SettingsPage() {
 			? enabledSources.filter((s) => s !== name)
 			: [...enabledSources, name];
 		setEnabledSources(next);
-		// Save immediately
 		api.updateConfig({ enabledSources: next }).then(() => {
 			queryClient.invalidateQueries({ queryKey: ["config"] });
 		});
@@ -132,35 +135,78 @@ export function SettingsPage() {
 		setPendingConfig(null);
 	};
 
+	const languages = [
+		{ code: "zh", label: t("language_name.zh") },
+		{ code: "en", label: t("language_name.en") },
+	];
+
 	return (
 		<div className="p-6 max-w-2xl">
-			<h2 className="text-xl font-bold mb-6">Settings</h2>
+			<h2 className="text-xl font-bold mb-6">{t("title.settings")}</h2>
 
 			{/* Theme */}
-			<Section title="Theme" icon={<span className="text-sm">🎨</span>}>
+			<Section title={t("section.theme")} icon={<Palette size={14} />}>
 				<div className="flex gap-2">
-					{availableThemes.map((name) => (
+					{availableThemes.map((theme) => (
 						<button
 							type="button"
-							key={name}
-							onClick={() => setTheme(name)}
-							className={`px-4 py-2 text-sm border transition-colors ${
-								name === themeName
+							key={theme.name}
+							onClick={() => setTheme(theme.name)}
+							className={`group relative px-4 py-2 text-sm border transition-colors ${
+								theme.name === themeName
 									? "border-[var(--accent)] text-accent"
 									: "border-theme text-secondary hover:text-primary"
 							}`}
 							style={{ borderRadius: "var(--radius)" }}
 						>
-							{name}
+							<div className="flex items-center gap-2">
+								{/* Color preview dots */}
+								<div className="flex gap-0.5">
+									<span
+										className="w-2.5 h-2.5 rounded-full border border-black/10"
+										style={{ backgroundColor: theme.colors.bgPrimary }}
+									/>
+									<span
+										className="w-2.5 h-2.5 rounded-full border border-black/10"
+										style={{ backgroundColor: theme.colors.accent }}
+									/>
+									<span
+										className="w-2.5 h-2.5 rounded-full border border-black/10"
+										style={{ backgroundColor: theme.colors.textPrimary }}
+									/>
+								</div>
+								<span>{t(`theme_name.${theme.name}`)}</span>
+							</div>
+						</button>
+					))}
+				</div>
+			</Section>
+
+			{/* Language */}
+			<Section title={t("section.language")} icon={<Globe size={14} />}>
+				<div className="flex gap-2">
+					{languages.map(({ code, label }) => (
+						<button
+							type="button"
+							key={code}
+							onClick={() => i18n.changeLanguage(code)}
+							className={`px-4 py-2 text-sm border transition-colors ${
+								i18n.language === code
+									? "border-[var(--accent)] text-accent"
+									: "border-theme text-secondary hover:text-primary"
+							}`}
+							style={{ borderRadius: "var(--radius)" }}
+						>
+							{label}
 						</button>
 					))}
 				</div>
 			</Section>
 
 			{/* LLM Config */}
-			<Section title="LLM" icon={<Brain size={14} />}>
+			<Section title={t("section.llm")} icon={<Brain size={14} />}>
 				<div className="space-y-3">
-					<FieldRow label="Provider">
+					<FieldRow label={t("label.provider")}>
 						<select
 							value={llmProvider}
 							onChange={(e) => setLlmProvider(e.target.value)}
@@ -174,28 +220,28 @@ export function SettingsPage() {
 							))}
 						</select>
 					</FieldRow>
-					<FieldRow label="Model">
+					<FieldRow label={t("label.model")}>
 						<input
 							value={llmModel}
 							onChange={(e) => setLlmModel(e.target.value)}
 							className="bg-tertiary border border-theme px-3 py-1.5 text-sm text-primary w-64 font-mono"
 							style={{ borderRadius: "var(--radius)" }}
-							placeholder="e.g. qwen2.5:7b"
+							placeholder={t("placeholder.llm_model")}
 						/>
 					</FieldRow>
 					{llmProviderInfo?.requiresBaseURL && (
-						<FieldRow label="Base URL">
+						<FieldRow label={t("label.base_url")}>
 							<input
 								value={llmBaseURL}
 								onChange={(e) => setLlmBaseURL(e.target.value)}
 								className="bg-tertiary border border-theme px-3 py-1.5 text-sm text-primary w-64 font-mono"
 								style={{ borderRadius: "var(--radius)" }}
-								placeholder="http://localhost:11434"
+								placeholder={t("placeholder.llm_base_url")}
 							/>
 						</FieldRow>
 					)}
 					{llmProviderInfo?.requiresApiKey && (
-						<FieldRow label="API Key">
+						<FieldRow label={t("label.api_key")}>
 							<input
 								type="password"
 								value={llmApiKey}
@@ -203,7 +249,9 @@ export function SettingsPage() {
 								className="bg-tertiary border border-theme px-3 py-1.5 text-sm text-primary w-64 font-mono"
 								style={{ borderRadius: "var(--radius)" }}
 								placeholder={
-									config?.llm.hasApiKey ? "••••••（已设置）" : "未设置"
+									config?.llm.hasApiKey
+										? t("placeholder.api_key_set")
+										: t("placeholder.api_key_not_set")
 								}
 							/>
 						</FieldRow>
@@ -212,9 +260,9 @@ export function SettingsPage() {
 			</Section>
 
 			{/* Embedding Config */}
-			<Section title="Embedding" icon={<Server size={14} />}>
+			<Section title={t("section.embedding")} icon={<Server size={14} />}>
 				<div className="space-y-3">
-					<FieldRow label="Provider">
+					<FieldRow label={t("label.provider")}>
 						<select
 							value={embProvider}
 							onChange={(e) => setEmbProvider(e.target.value)}
@@ -230,17 +278,17 @@ export function SettingsPage() {
 								))}
 						</select>
 					</FieldRow>
-					<FieldRow label="Model">
+					<FieldRow label={t("label.model")}>
 						<input
 							value={embModel}
 							onChange={(e) => setEmbModel(e.target.value)}
 							className="bg-tertiary border border-theme px-3 py-1.5 text-sm text-primary w-64 font-mono"
 							style={{ borderRadius: "var(--radius)" }}
-							placeholder="e.g. nomic-embed-text"
+							placeholder={t("placeholder.embedding_model")}
 						/>
 					</FieldRow>
 					{embProviderInfo?.requiresBaseURL && (
-						<FieldRow label="Base URL">
+						<FieldRow label={t("label.base_url")}>
 							<input
 								value={embBaseURL}
 								onChange={(e) => setEmbBaseURL(e.target.value)}
@@ -250,7 +298,7 @@ export function SettingsPage() {
 						</FieldRow>
 					)}
 					{embProviderInfo?.requiresApiKey && (
-						<FieldRow label="API Key">
+						<FieldRow label={t("label.api_key")}>
 							<input
 								type="password"
 								value={embApiKey}
@@ -258,7 +306,9 @@ export function SettingsPage() {
 								className="bg-tertiary border border-theme px-3 py-1.5 text-sm text-primary w-64 font-mono"
 								style={{ borderRadius: "var(--radius)" }}
 								placeholder={
-									config?.embedding.hasApiKey ? "••••••（已设置）" : "未设置"
+									config?.embedding.hasApiKey
+										? t("placeholder.api_key_set")
+										: t("placeholder.api_key_not_set")
 								}
 							/>
 						</FieldRow>
@@ -278,7 +328,7 @@ export function SettingsPage() {
 					{saveMutation.isPending ? (
 						<Loader2 size={14} className="animate-spin inline mr-1" />
 					) : null}
-					Save
+					{t("action.save")}
 				</button>
 				<button
 					type="button"
@@ -290,14 +340,14 @@ export function SettingsPage() {
 					{testMutation.isPending ? (
 						<Loader2 size={14} className="animate-spin inline mr-1" />
 					) : null}
-					Test Connection
+					{t("action.test_connection")}
 				</button>
 				{testMutation.data && (
 					<span className="flex items-center gap-1 text-xs">
 						{testMutation.data.connected ? (
 							<>
 								<CheckCircle size={12} style={{ color: "var(--success)" }} />{" "}
-								<span className="text-success">Connected</span>
+								<span className="text-success">{t("status.connected")}</span>
 							</>
 						) : (
 							<>
@@ -310,7 +360,7 @@ export function SettingsPage() {
 			</div>
 
 			{/* Data source */}
-			<Section title="Data Source" icon={<FolderSearch size={14} />}>
+			<Section title={t("section.data_source")} icon={<FolderSearch size={14} />}>
 				{config?.sources && config.sources.length > 0 ? (
 					<div className="space-y-3">
 						{config.sources.map((src) => {
@@ -349,7 +399,7 @@ export function SettingsPage() {
 										{src.displayName}
 									</span>
 									<span className="text-muted text-xs">
-										{src.conversationCount} 个对话
+										{t("data_source_conversations", { count: src.conversationCount })}
 									</span>
 									<span className="text-muted font-mono text-xs truncate max-w-64">
 										{src.dataDir}
@@ -359,16 +409,16 @@ export function SettingsPage() {
 						})}
 					</div>
 				) : (
-					<p className="text-muted text-sm">未检测到数据源</p>
+					<p className="text-muted text-sm">{t("empty_state.no_data_sources")}</p>
 				)}
 			</Section>
 
 			{/* Confirm dialog */}
 			{confirmWarnings && (
 				<ConfirmDialog
-					title="Configuration Change"
+					title={t("dialog.config_change")}
 					warnings={confirmWarnings}
-					confirmLabel="Confirm"
+					confirmLabel={t("action.confirm")}
 					onConfirm={handleConfirm}
 					onCancel={() => {
 						setConfirmWarnings(null);

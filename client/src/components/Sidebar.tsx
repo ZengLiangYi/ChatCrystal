@@ -8,17 +8,19 @@ import {
   Import,
   Loader2,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useImport, useStatus } from '@/hooks/use-conversations.ts';
 
 const navItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/conversations', icon: MessageSquare, label: '对话' },
-  { to: '/notes', icon: FileText, label: '笔记' },
-  { to: '/search', icon: Search, label: '搜索' },
-  { to: '/settings', icon: Settings, label: '设置' },
-];
+  { to: '/', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
+  { to: '/conversations', icon: MessageSquare, labelKey: 'nav.conversations' },
+  { to: '/notes', icon: FileText, labelKey: 'nav.notes' },
+  { to: '/search', icon: Search, labelKey: 'nav.search' },
+  { to: '/settings', icon: Settings, labelKey: 'nav.settings' },
+] as const;
 
 export function Sidebar() {
+  const { t } = useTranslation();
   const { data: status } = useStatus();
   const importMutation = useImport();
 
@@ -34,14 +36,14 @@ export function Sidebar() {
           style={{ fontFamily: 'var(--font-display)' }}
         >
           <img src="/icon.png" alt="ChatCrystal" className="w-5 h-5" />
-          ChatCrystal
+          {t('brand.name')}
         </h1>
-        <p className="text-xs text-muted mt-1">知识结晶</p>
+        <p className="text-xs text-muted mt-1">{t('brand.tagline')}</p>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 py-2">
-        {navItems.map(({ to, icon: Icon, label }) => (
+        {navItems.map(({ to, icon: Icon, labelKey }) => (
           <NavLink
             key={to}
             to={to}
@@ -57,7 +59,7 @@ export function Sidebar() {
             }
           >
             <Icon size={16} />
-            {label}
+            {t(labelKey)}
           </NavLink>
         ))}
       </nav>
@@ -79,11 +81,11 @@ export function Sidebar() {
           ) : (
             <Import size={14} />
           )}
-          {importMutation.isPending ? '导入中...' : '导入对话'}
+          {importMutation.isPending ? t('status.importing') : t('action.import_conversations')}
         </button>
         {importMutation.data && (
           <p className="text-xs text-muted mt-2 text-center">
-            导入 {importMutation.data.imported} 条
+            {t('import_success', { count: importMutation.data.imported })}
           </p>
         )}
       </div>
@@ -92,13 +94,13 @@ export function Sidebar() {
       {status && (
         <div className="px-4 py-3 border-t border-theme text-xs text-muted">
           <div className="flex justify-between">
-            <span>对话</span>
+            <span>{t('stat.conversations')}</span>
             <span className="text-primary">
               {status.stats.totalConversations}
             </span>
           </div>
           <div className="flex justify-between mt-1">
-            <span>笔记</span>
+            <span>{t('stat.notes')}</span>
             <span className="text-primary">{status.stats.totalNotes}</span>
           </div>
         </div>

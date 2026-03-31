@@ -1,0 +1,149 @@
+{
+  "brand": {
+    "name": "ChatCrystal",
+    "tagline": "知识结晶"
+  },
+  "nav": {
+    "dashboard": "仪表盘",
+    "conversations": "对话",
+    "notes": "笔记",
+    "search": "搜索",
+    "settings": "设置"
+  },
+  "title": {
+    "dashboard": "Dashboard",
+    "conversations": "对话列表",
+    "notes": "笔记",
+    "semantic_search": "语义搜索",
+    "settings": "设置"
+  },
+  "stat": {
+    "total_conversations": "对话总数",
+    "total_notes": "笔记总数",
+    "total_tags": "标签总数",
+    "conversations": "对话",
+    "notes": "笔记"
+  },
+  "section": {
+    "recent_notes": "最近笔记",
+    "quick_start": "快速开始",
+    "task_queue": "任务队列",
+    "theme": "主题",
+    "language": "语言",
+    "llm": "LLM",
+    "embedding": "Embedding",
+    "data_source": "数据源"
+  },
+  "action": {
+    "view_all": "查看全部",
+    "view_notes": "查看笔记",
+    "view_original_conversation": "查看原始对话",
+    "generate_summary": "生成摘要",
+    "batch_generate": "批量生成",
+    "import_conversations": "导入对话",
+    "search": "搜索",
+    "save": "保存",
+    "cancel": "取消",
+    "confirm": "确认",
+    "test_connection": "测试连接",
+    "collapse": "收起",
+    "expand_all_tags": "展开全部 {{count}} 个标签",
+    "retry": "重试"
+  },
+  "status": {
+    "loading": "加载中...",
+    "queued": "排队",
+    "queued_ellipsis": "排队中...",
+    "processing": "进行中...",
+    "generating": "生成中...",
+    "importing": "导入中...",
+    "submitting": "提交中...",
+    "connected": "已连接",
+    "failed_retry": "失败 · 重试",
+    "summarizing": "摘要生成中 {{completed}}/{{total}}",
+    "all_completed": "全部完成 {{completed}}/{{total}}",
+    "completed_with_failures": "完成 {{completed}}/{{total}} · {{failed}} 个失败",
+    "generating_with_count": "生成中 {{completed}}/{{total}}",
+    "completed_with_count": "完成 {{completed}}/{{total}}",
+    "failed_count": " · {{failed}} 失败"
+  },
+  "error": {
+    "conversation_not_found": "对话未找到",
+    "note_not_found": "笔记未找到"
+  },
+  "empty_state": {
+    "no_notes": "暂无笔记",
+    "no_notes_hint": "在对话详情页点击「生成摘要」或使用批量生成",
+    "no_tasks": "暂无任务",
+    "no_search_results": "未找到相关结果",
+    "no_search_results_hint": "确保已生成笔记和 embedding",
+    "no_data_sources": "未检测到数据源"
+  },
+  "placeholder": {
+    "search_conversations": "搜索项目名或对话...",
+    "search_notes": "搜索笔记标题或内容...",
+    "semantic_search": "输入关键词进行语义搜索...",
+    "filter_tags": "过滤标签...",
+    "llm_model": "e.g. qwen2.5:7b",
+    "llm_base_url": "http://localhost:11434",
+    "embedding_model": "e.g. nomic-embed-text",
+    "api_key_set": "••••••（已设置）",
+    "api_key_not_set": "未设置"
+  },
+  "label": {
+    "source": "来源:",
+    "provider": "Provider",
+    "model": "Model",
+    "base_url": "Base URL",
+    "api_key": "API Key"
+  },
+  "filter": {
+    "all": "全部"
+  },
+  "table": {
+    "project": "项目",
+    "source": "来源",
+    "conversation_id": "对话标识",
+    "message_count": "消息数",
+    "last_active": "最后活跃"
+  },
+  "pagination": {
+    "previous": "上一页",
+    "next": "下一页"
+  },
+  "time": {
+    "just_now": "刚刚",
+    "minutes_ago": "{{count}} 分钟前",
+    "hours_ago": "{{count}} 小时前",
+    "days_ago": "{{count}} 天前"
+  },
+  "conversation": {
+    "messages_count": "{{count}} 条消息",
+    "tool_calls_count": "{{count}} 次工具调用",
+    "tool_use_indicator": "此消息使用了工具"
+  },
+  "notes_total": "共 {{count}} 条笔记",
+  "conversations_total": "共 {{count}} 条对话",
+  "search_results_count": "找到 {{count}} 条相关结果",
+  "import_success": "导入 {{count}} 条",
+  "data_source_conversations": "{{count}} 个对话",
+  "key_conclusions": "关键结论",
+  "code_snippets": "代码片段",
+  "guide": {
+    "step1": "1. 点击左侧「导入对话」扫描 AI 对话记录",
+    "step2": "2. 前往「对话」页浏览对话，点击「生成摘要」提炼笔记",
+    "step3": "3. 在「搜索」页通过语义搜索查找知识"
+  },
+  "dialog": {
+    "config_change": "配置变更"
+  },
+  "theme_name": {
+    "dark-workshop": "暗室",
+    "dawn-haze": "晨岚",
+    "jade-abyss": "碧渊"
+  },
+  "language_name": {
+    "zh": "简体中文",
+    "en": "English"
+  }
+}

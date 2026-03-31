@@ -1,9 +1,11 @@
 import { Clock, FolderGit2, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useConversations } from "@/hooks/use-conversations.ts";
 
 export function Conversations() {
+	const { t } = useTranslation();
 	const [search, setSearch] = useState("");
 	const [sourceFilter, setSourceFilter] = useState("");
 	const [page, setPage] = useState(0);
@@ -21,15 +23,15 @@ export function Conversations() {
 	return (
 		<div className="p-6">
 			<div className="flex items-center justify-between mb-4">
-				<h2 className="text-xl font-bold">对话列表</h2>
-				<span className="text-sm text-muted">共 {data?.total ?? 0} 条对话</span>
+				<h2 className="text-xl font-bold">{t('title.conversations')}</h2>
+				<span className="text-sm text-muted">{t('conversations_total', { count: data?.total ?? 0 })}</span>
 			</div>
 
 			{/* Search */}
 			<div className="mb-4">
 				<input
 					type="text"
-					placeholder="搜索项目名或对话..."
+					placeholder={t('placeholder.search_conversations')}
 					value={search}
 					onChange={(e) => {
 						setSearch(e.target.value);
@@ -42,9 +44,9 @@ export function Conversations() {
 
 			{/* Source filter */}
 			<div className="flex items-center gap-2 mb-4">
-				<span className="text-xs text-muted">来源:</span>
+				<span className="text-xs text-muted">{t('label.source')}</span>
 				{[
-					{ key: "", label: "全部" },
+					{ key: "", label: t('filter.all') },
 					...Object.entries(SOURCE_CONFIG).map(([key, cfg]) => ({
 						key,
 						label: cfg.label,
@@ -71,7 +73,7 @@ export function Conversations() {
 
 			{/* Table */}
 			{isLoading ? (
-				<p className="text-muted text-sm">加载中...</p>
+				<p className="text-muted text-sm">{t('status.loading')}</p>
 			) : (
 				<div
 					className="border border-theme overflow-hidden"
@@ -80,11 +82,11 @@ export function Conversations() {
 					<table className="w-full text-sm">
 						<thead>
 							<tr className="bg-tertiary text-left text-xs text-muted uppercase tracking-wider">
-								<th className="px-4 py-2">项目</th>
-								<th className="px-4 py-2">来源</th>
-								<th className="px-4 py-2">对话标识</th>
-								<th className="px-4 py-2 text-center">消息数</th>
-								<th className="px-4 py-2">最后活跃</th>
+								<th className="px-4 py-2">{t('table.project')}</th>
+								<th className="px-4 py-2">{t('table.source')}</th>
+								<th className="px-4 py-2">{t('table.conversation_id')}</th>
+								<th className="px-4 py-2 text-center">{t('table.message_count')}</th>
+								<th className="px-4 py-2">{t('table.last_active')}</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -119,7 +121,7 @@ export function Conversations() {
 									<td className="px-4 py-3">
 										<div className="flex items-center gap-1 text-muted text-xs">
 											<Clock size={12} />
-											{formatTime(conv.last_message_at as string)}
+											<FormatTime iso={conv.last_message_at as string} />
 										</div>
 									</td>
 								</tr>
@@ -138,7 +140,7 @@ export function Conversations() {
 						onClick={() => setPage((p) => p - 1)}
 						className="text-sm text-secondary hover:text-primary disabled:opacity-30"
 					>
-						上一页
+						{t('pagination.previous')}
 					</button>
 					<span className="text-xs text-muted">
 						{page + 1} / {Math.ceil(data.total / limit)}
@@ -149,7 +151,7 @@ export function Conversations() {
 						onClick={() => setPage((p) => p + 1)}
 						className="text-sm text-secondary hover:text-primary disabled:opacity-30"
 					>
-						下一页
+						{t('pagination.next')}
 					</button>
 				</div>
 			)}
@@ -182,18 +184,19 @@ function SourceBadge({ source }: { source: string }) {
 	);
 }
 
-function formatTime(iso: string): string {
+function FormatTime({ iso }: { iso: string }) {
+	const { t } = useTranslation();
 	const d = new Date(iso);
 	const now = new Date();
 	const diffMs = now.getTime() - d.getTime();
 	const diffMin = Math.floor(diffMs / 60000);
 
-	if (diffMin < 1) return "刚刚";
-	if (diffMin < 60) return `${diffMin} 分钟前`;
+	if (diffMin < 1) return <>{t('time.just_now')}</>;
+	if (diffMin < 60) return <>{t('time.minutes_ago', { count: diffMin })}</>;
 	const diffH = Math.floor(diffMin / 60);
-	if (diffH < 24) return `${diffH} 小时前`;
+	if (diffH < 24) return <>{t('time.hours_ago', { count: diffH })}</>;
 	const diffD = Math.floor(diffH / 24);
-	if (diffD < 7) return `${diffD} 天前`;
+	if (diffD < 7) return <>{t('time.days_ago', { count: diffD })}</>;
 
-	return d.toLocaleDateString("zh-CN", { month: "short", day: "numeric" });
+	return <>{d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</>;
 }

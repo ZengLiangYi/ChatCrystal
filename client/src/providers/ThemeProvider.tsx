@@ -2,17 +2,21 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { ThemeDefinition } from '@/themes/theme.types.ts';
 import { themeToCSSVars } from '@/themes/theme.types.ts';
 import { darkWorkshop } from '@/themes/dark-workshop.ts';
+import { dawnHaze } from '@/themes/dawn-haze.ts';
+import { jadeAbyss } from '@/themes/jade-abyss.ts';
 
 // Registry of available themes
 const themes: Record<string, ThemeDefinition> = {
   'dark-workshop': darkWorkshop,
+  'dawn-haze': dawnHaze,
+  'jade-abyss': jadeAbyss,
 };
 
 interface ThemeContextValue {
   theme: ThemeDefinition;
   themeName: string;
   setTheme: (name: string) => void;
-  availableThemes: string[];
+  availableThemes: ThemeDefinition[];
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -39,6 +43,17 @@ function saveTheme(name: string) {
   );
 }
 
+/** Determine color-scheme from background lightness */
+function detectColorScheme(bgHex: string): 'dark' | 'light' {
+  const hex = bgHex.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  // Relative luminance approximation
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5 ? 'light' : 'dark';
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [themeName, setThemeName] = useState(loadSavedTheme);
 
@@ -50,8 +65,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     for (const [key, value] of Object.entries(vars)) {
       root.style.setProperty(key, value);
     }
-    // Set color-scheme for browser UI
-    root.style.colorScheme = theme.colors.bgPrimary.startsWith('#0') ? 'dark' : 'light';
+    root.style.colorScheme = detectColorScheme(theme.colors.bgPrimary);
   }, [theme]);
 
   const setTheme = (name: string) => {
@@ -67,7 +81,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         theme,
         themeName,
         setTheme,
-        availableThemes: Object.keys(themes),
+        availableThemes: Object.values(themes),
       }}
     >
       {children}

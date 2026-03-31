@@ -1,4 +1,5 @@
 import { X, CheckCircle, Loader2, Clock, AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { TaskEntry } from '@/hooks/use-queue.ts';
 
 interface ActivityPanelProps {
@@ -7,20 +8,22 @@ interface ActivityPanelProps {
 }
 
 export function ActivityPanel({ tasks, onClose }: ActivityPanelProps) {
+  const { t } = useTranslation();
+
   return (
     <div
       className="shrink-0 border-t border-theme bg-secondary overflow-auto"
       style={{ maxHeight: '240px' }}
     >
       <div className="flex items-center justify-between px-4 py-2 border-b border-theme">
-        <span className="text-xs font-medium text-muted uppercase tracking-wider">任务队列</span>
+        <span className="text-xs font-medium text-muted uppercase tracking-wider">{t('section.task_queue')}</span>
         <button type="button" onClick={onClose} className="text-muted hover:text-primary">
           <X size={14} />
         </button>
       </div>
       <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
         {tasks.length === 0 && (
-          <div className="px-4 py-6 text-center text-xs text-muted">暂无任务</div>
+          <div className="px-4 py-6 text-center text-xs text-muted">{t('empty_state.no_tasks')}</div>
         )}
         {tasks.map((task) => (
           <div key={task.id} className="flex items-center gap-3 px-4 py-2">
@@ -30,9 +33,9 @@ export function ActivityPanel({ tasks, onClose }: ActivityPanelProps) {
               {task.status === 'completed' && task.startedAt && task.finishedAt
                 ? `${Math.round((task.finishedAt - task.startedAt) / 1000)}s`
                 : task.status === 'processing'
-                  ? '进行中...'
+                  ? t('status.processing')
                   : task.status === 'queued'
-                    ? '排队'
+                    ? t('status.queued')
                     : ''}
             </span>
             {task.status === 'failed' && task.error && (

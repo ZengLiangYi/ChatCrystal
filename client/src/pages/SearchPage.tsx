@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, FolderGit2, Tag, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api.ts';
 
@@ -14,6 +15,7 @@ type SearchResult = {
 };
 
 export function SearchPage() {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
 
@@ -28,7 +30,7 @@ export function SearchPage() {
 
   return (
     <div className="p-6">
-      <h2 className="text-xl font-bold mb-4">语义搜索</h2>
+      <h2 className="text-xl font-bold mb-4">{t('title.semantic_search')}</h2>
 
       {/* Search input */}
       <div className="flex gap-2 mb-6">
@@ -39,7 +41,7 @@ export function SearchPage() {
           />
           <input
             type="text"
-            placeholder="输入关键词进行语义搜索..."
+            placeholder={t('placeholder.semantic_search')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -54,7 +56,7 @@ export function SearchPage() {
           className="px-4 py-2 text-sm font-medium border border-theme hover:border-[var(--accent)] disabled:opacity-40 transition-colors"
           style={{ borderRadius: 'var(--radius)', color: 'var(--accent)' }}
         >
-          {search.isPending ? <Loader2 size={14} className="animate-spin" /> : '搜索'}
+          {search.isPending ? <Loader2 size={14} className="animate-spin" /> : t('action.search')}
         </button>
       </div>
 
@@ -66,14 +68,14 @@ export function SearchPage() {
       {search.data && search.data.length === 0 && (
         <div className="text-center py-12 text-muted text-sm">
           <Search size={32} className="mx-auto mb-3 opacity-30" />
-          <p>未找到相关结果</p>
-          <p className="mt-1 text-xs">确保已生成笔记和 embedding</p>
+          <p>{t('empty_state.no_search_results')}</p>
+          <p className="mt-1 text-xs">{t('empty_state.no_search_results_hint')}</p>
         </div>
       )}
 
       {search.data && search.data.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs text-muted mb-3">找到 {search.data.length} 条相关结果</p>
+          <p className="text-xs text-muted mb-3">{t('search_results_count', { count: search.data.length })}</p>
           {search.data.map((result: SearchResult) => (
             <div
               key={result.note_id}

@@ -1,10 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import { MessageSquare, FileText, Tag, Sparkles, ArrowRight, Loader2, CheckCircle, Square } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useStatus } from '@/hooks/use-conversations.ts';
 import { useSummarizeBatch, useCancelQueue } from '@/hooks/use-notes.ts';
 import { useQueueTasks } from '@/hooks/use-queue.ts';
 
 export function Dashboard() {
+  const { t } = useTranslation();
   const { data: status, isLoading } = useStatus();
   const navigate = useNavigate();
   const summarizeBatch = useSummarizeBatch();
@@ -12,7 +14,7 @@ export function Dashboard() {
   const { data: queueData } = useQueueTasks();
 
   if (isLoading) {
-    return <div className="p-6"><p className="text-muted">加载中...</p></div>;
+    return <div className="p-6"><p className="text-muted">{t('status.loading')}</p></div>;
   }
 
   const stats = status?.stats;
@@ -21,24 +23,24 @@ export function Dashboard() {
 
   return (
     <div className="p-6">
-      <h2 className="text-xl font-bold mb-6">Dashboard</h2>
+      <h2 className="text-xl font-bold mb-6">{t('title.dashboard')}</h2>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <StatCard
-          label="对话总数"
+          label={t('stat.total_conversations')}
           value={stats?.totalConversations ?? 0}
           icon={<MessageSquare size={16} />}
           onClick={() => navigate('/conversations')}
         />
         <StatCard
-          label="笔记总数"
+          label={t('stat.total_notes')}
           value={stats?.totalNotes ?? 0}
           icon={<FileText size={16} />}
           onClick={() => navigate('/notes')}
         />
         <StatCard
-          label="标签总数"
+          label={t('stat.total_tags')}
           value={stats?.totalTags ?? 0}
           icon={<Tag size={16} />}
           onClick={() => navigate('/notes')}
@@ -59,13 +61,13 @@ export function Dashboard() {
       {recentNotes && recentNotes.length > 0 && (
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-secondary uppercase tracking-wider">最近笔记</h3>
+            <h3 className="text-sm font-medium text-secondary uppercase tracking-wider">{t('section.recent_notes')}</h3>
             <button
               type="button"
               onClick={() => navigate('/notes')}
               className="flex items-center gap-1 text-xs text-muted hover:text-accent transition-colors"
             >
-              查看全部 <ArrowRight size={12} />
+              {t('action.view_all')} <ArrowRight size={12} />
             </button>
           </div>
           <div className="space-y-2">
@@ -81,7 +83,7 @@ export function Dashboard() {
                   <p className="text-xs text-muted mt-0.5">{note.project_name}</p>
                 </div>
                 <span className="text-xs text-muted shrink-0 ml-3">
-                  {new Date(note.created_at).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
+                  {new Date(note.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                 </span>
               </div>
             ))}
@@ -92,11 +94,11 @@ export function Dashboard() {
       {/* Empty state */}
       {(!recentNotes || recentNotes.length === 0) && (
         <div className="bg-secondary border border-theme p-4" style={{ borderRadius: 'var(--radius)' }}>
-          <h3 className="text-sm font-medium text-secondary mb-2">快速开始</h3>
+          <h3 className="text-sm font-medium text-secondary mb-2">{t('section.quick_start')}</h3>
           <ul className="text-sm text-secondary space-y-2">
-            <li>1. 点击左侧「导入对话」扫描 Claude Code 对话</li>
-            <li>2. 前往「对话」页浏览对话，点击「生成摘要」提炼笔记</li>
-            <li>3. 在「搜索」页通过语义搜索查找知识</li>
+            <li>{t('guide.step1')}</li>
+            <li>{t('guide.step2')}</li>
+            <li>{t('guide.step3')}</li>
           </ul>
         </div>
       )}
@@ -112,6 +114,7 @@ function BatchSummarizeButton({
   isPending: boolean;
   queueData?: { total: number; completed: number; failed: number; active: number };
 }) {
+  const { t } = useTranslation();
   const isActive = (queueData?.active ?? 0) > 0;
   const total = queueData?.total ?? 0;
   const completed = queueData?.completed ?? 0;
@@ -127,7 +130,7 @@ function BatchSummarizeButton({
         style={{ borderRadius: 'var(--radius)', color: 'var(--accent)', borderColor: 'var(--accent)' }}
       >
         <Loader2 size={14} className="animate-spin" />
-        提交中...
+        {t('status.submitting')}
       </button>
     );
   }
@@ -143,7 +146,7 @@ function BatchSummarizeButton({
           style={{ borderRadius: 'var(--radius)', color: 'var(--accent)', borderColor: 'var(--accent)' }}
         >
           <Loader2 size={14} className="animate-spin" />
-          生成中 {completed}/{total}
+          {t('status.generating_with_count', { completed, total })}
         </button>
         <div className="w-24 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--bg-tertiary)' }}>
           <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, background: 'var(--accent)' }} />
@@ -153,10 +156,9 @@ function BatchSummarizeButton({
           onClick={onCancel}
           className="flex items-center gap-1.5 px-3 py-2 text-sm border border-theme hover:border-[var(--error)] transition-colors"
           style={{ borderRadius: 'var(--radius)', color: 'var(--error)' }}
-          title="取消排队中的任务"
         >
           <Square size={12} />
-          取消
+          {t('action.cancel')}
         </button>
       </div>
     );
@@ -171,7 +173,7 @@ function BatchSummarizeButton({
         style={{ borderRadius: 'var(--radius)', color: 'var(--success)' }}
       >
         <CheckCircle size={14} />
-        完成 {completed}/{total}{failed > 0 ? ` · ${failed} 失败` : ''}
+        {t('status.completed_with_count', { completed, total })}{failed > 0 ? t('status.failed_count', { failed }) : ''}
       </button>
     );
   }
@@ -184,7 +186,7 @@ function BatchSummarizeButton({
       style={{ borderRadius: 'var(--radius)', color: 'var(--accent)' }}
     >
       <Sparkles size={14} />
-      批量生成摘要
+      {t('action.batch_generate')}
     </button>
   );
 }

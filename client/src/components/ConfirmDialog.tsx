@@ -1,4 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface ConfirmDialogProps {
   title: string;
@@ -11,10 +12,12 @@ interface ConfirmDialogProps {
 export function ConfirmDialog({
   title,
   warnings,
-  confirmLabel = '确认',
+  confirmLabel,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const { t } = useTranslation();
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
@@ -44,7 +47,7 @@ export function ConfirmDialog({
             className="px-4 py-1.5 text-xs text-muted border border-theme hover:text-primary transition-colors"
             style={{ borderRadius: 'var(--radius)' }}
           >
-            取消
+            {t('action.cancel')}
           </button>
           <button
             type="button"
@@ -52,7 +55,7 @@ export function ConfirmDialog({
             className="px-4 py-1.5 text-xs font-medium border transition-colors"
             style={{ borderRadius: 'var(--radius)', color: 'var(--warning)', borderColor: 'var(--warning)' }}
           >
-            {confirmLabel}
+            {confirmLabel ?? t('action.confirm')}
           </button>
         </div>
       </div>

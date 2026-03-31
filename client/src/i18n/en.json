@@ -1,0 +1,149 @@
+{
+  "brand": {
+    "name": "ChatCrystal",
+    "tagline": "Knowledge Crystallized"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "conversations": "Conversations",
+    "notes": "Notes",
+    "search": "Search",
+    "settings": "Settings"
+  },
+  "title": {
+    "dashboard": "Dashboard",
+    "conversations": "Conversations",
+    "notes": "Notes",
+    "semantic_search": "Semantic Search",
+    "settings": "Settings"
+  },
+  "stat": {
+    "total_conversations": "Conversations",
+    "total_notes": "Notes",
+    "total_tags": "Tags",
+    "conversations": "Conversations",
+    "notes": "Notes"
+  },
+  "section": {
+    "recent_notes": "Recent Notes",
+    "quick_start": "Quick Start",
+    "task_queue": "Task Queue",
+    "theme": "Theme",
+    "language": "Language",
+    "llm": "LLM",
+    "embedding": "Embedding",
+    "data_source": "Data Source"
+  },
+  "action": {
+    "view_all": "View All",
+    "view_notes": "View Notes",
+    "view_original_conversation": "View Original Conversation",
+    "generate_summary": "Generate Summary",
+    "batch_generate": "Batch Generate",
+    "import_conversations": "Import",
+    "search": "Search",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "test_connection": "Test Connection",
+    "collapse": "Collapse",
+    "expand_all_tags": "Show all {{count}} tags",
+    "retry": "Retry"
+  },
+  "status": {
+    "loading": "Loading...",
+    "queued": "Queued",
+    "queued_ellipsis": "Queued...",
+    "processing": "Processing...",
+    "generating": "Generating...",
+    "importing": "Importing...",
+    "submitting": "Submitting...",
+    "connected": "Connected",
+    "failed_retry": "Failed · Retry",
+    "summarizing": "Summarizing {{completed}}/{{total}}",
+    "all_completed": "All done {{completed}}/{{total}}",
+    "completed_with_failures": "Done {{completed}}/{{total}} · {{failed}} failed",
+    "generating_with_count": "Generating {{completed}}/{{total}}",
+    "completed_with_count": "Done {{completed}}/{{total}}",
+    "failed_count": " · {{failed}} failed"
+  },
+  "error": {
+    "conversation_not_found": "Conversation not found",
+    "note_not_found": "Note not found"
+  },
+  "empty_state": {
+    "no_notes": "No notes yet",
+    "no_notes_hint": "Click \"Generate Summary\" on a conversation or use batch generate",
+    "no_tasks": "No tasks",
+    "no_search_results": "No results found",
+    "no_search_results_hint": "Make sure notes and embeddings have been generated",
+    "no_data_sources": "No data sources detected"
+  },
+  "placeholder": {
+    "search_conversations": "Search projects or conversations...",
+    "search_notes": "Search note title or content...",
+    "semantic_search": "Enter keywords for semantic search...",
+    "filter_tags": "Filter tags...",
+    "llm_model": "e.g. qwen2.5:7b",
+    "llm_base_url": "http://localhost:11434",
+    "embedding_model": "e.g. nomic-embed-text",
+    "api_key_set": "•••••• (set)",
+    "api_key_not_set": "Not set"
+  },
+  "label": {
+    "source": "Source:",
+    "provider": "Provider",
+    "model": "Model",
+    "base_url": "Base URL",
+    "api_key": "API Key"
+  },
+  "filter": {
+    "all": "All"
+  },
+  "table": {
+    "project": "Project",
+    "source": "Source",
+    "conversation_id": "Conversation ID",
+    "message_count": "Messages",
+    "last_active": "Last Active"
+  },
+  "pagination": {
+    "previous": "Previous",
+    "next": "Next"
+  },
+  "time": {
+    "just_now": "Just now",
+    "minutes_ago": "{{count}}m ago",
+    "hours_ago": "{{count}}h ago",
+    "days_ago": "{{count}}d ago"
+  },
+  "conversation": {
+    "messages_count": "{{count}} messages",
+    "tool_calls_count": "{{count}} tool calls",
+    "tool_use_indicator": "This message used tools"
+  },
+  "notes_total": "{{count}} notes total",
+  "conversations_total": "{{count}} conversations total",
+  "search_results_count": "{{count}} results found",
+  "import_success": "Imported {{count}}",
+  "data_source_conversations": "{{count}} conversations",
+  "key_conclusions": "Key Conclusions",
+  "code_snippets": "Code Snippets",
+  "guide": {
+    "step1": "1. Click \"Import\" in the sidebar to scan AI conversations",
+    "step2": "2. Go to \"Conversations\" to browse and click \"Generate Summary\"",
+    "step3": "3. Use \"Search\" for semantic knowledge discovery"
+  },
+  "dialog": {
+    "config_change": "Configuration Change"
+  },
+  "theme_name": {
+    "dark-workshop": "Dark Workshop",
+    "dawn-haze": "Dawn Haze",
+    "jade-abyss": "Jade Abyss"
+  },
+  "language_name": {
+    "zh": "简体中文",
+    "en": "English"
+  }
+}

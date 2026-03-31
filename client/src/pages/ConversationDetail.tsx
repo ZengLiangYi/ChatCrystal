@@ -1,12 +1,14 @@
 import { memo, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Bot, Wrench, ChevronRight, ChevronDown, Sparkles, FileText, AlertTriangle, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useConversation } from '@/hooks/use-conversations.ts';
 import { useSummarize } from '@/hooks/use-notes.ts';
 import { useQueueTasks } from '@/hooks/use-queue.ts';
 import { MarkdownRenderer } from '@/components/MarkdownRenderer.tsx';
 
 export function ConversationDetail() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data, isLoading } = useConversation(id!);
@@ -40,11 +42,11 @@ export function ConversationDetail() {
   }, [messages]);
 
   if (isLoading) {
-    return <div className="p-6 text-muted">加载中...</div>;
+    return <div className="p-6 text-muted">{t('status.loading')}</div>;
   }
 
   if (!data) {
-    return <div className="p-6 text-error">对话未找到</div>;
+    return <div className="p-6 text-error">{t('error.conversation_not_found')}</div>;
   }
 
   return (
@@ -64,12 +66,12 @@ export function ConversationDetail() {
           </h2>
           <p className="text-xs text-muted font-mono">
             {data.slug as string || (data.id as string).slice(0, 12)}
-            <span className="ml-2">· {messages.length} 条消息</span>
+            <span className="ml-2">· {t('conversation.messages_count', { count: messages.length })}</span>
           </p>
         </div>
         <SummarizeButton
           status={data.status as string}
-          queueTask={queueData?.tasks.find((t) => t.id === id)}
+          queueTask={queueData?.tasks.find((task) => task.id === id)}
           onSummarize={() => summarize.mutate(id!)}
           isPending={summarize.isPending}
           navigate={navigate}
@@ -101,6 +103,7 @@ interface MessageData {
 }
 
 function ToolCallGroup({ messages }: { messages: MessageData[] }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const count = messages.length;
 
@@ -113,14 +116,14 @@ function ToolCallGroup({ messages }: { messages: MessageData[] }) {
       >
         {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         <Wrench size={12} />
-        <span>{count} 次工具调用</span>
+        <span>{t('conversation.tool_calls_count', { count })}</span>
       </button>
       {expanded && (
         <div className="ml-5 pl-3 border-l border-theme space-y-0.5 mt-1 mb-1">
           {messages.map((msg) => (
             <div key={msg.id} className="text-xs text-muted py-0.5 font-mono truncate">
               {msg.timestamp
-                ? new Date(msg.timestamp).toLocaleTimeString('zh-CN', {
+                ? new Date(msg.timestamp).toLocaleTimeString(undefined, {
                     hour: '2-digit',
                     minute: '2-digit',
                     second: '2-digit',
@@ -139,6 +142,7 @@ const MessageBubble = memo(function MessageBubble({
 }: {
   message: MessageData;
 }) {
+  const { t } = useTranslation();
   const isUser = message.type === 'user';
   const isSystem = message.type === 'system';
 
@@ -174,7 +178,7 @@ const MessageBubble = memo(function MessageBubble({
       >
         {/* Tool use indicator (icon only) */}
         {message.has_tool_use === 1 && (
-          <div className="flex items-center gap-1 mb-1" title="此消息使用了工具">
+          <div className="flex items-center gap-1 mb-1" title={t('conversation.tool_use_indicator')}>
             <Wrench size={11} style={{ color: 'var(--text-muted)' }} />
           </div>
         )}
@@ -184,7 +188,7 @@ const MessageBubble = memo(function MessageBubble({
 
         {/* Timestamp */}
         <div className="text-xs text-muted mt-1 text-right">
-          {new Date(message.timestamp).toLocaleTimeString('zh-CN', {
+          {new Date(message.timestamp).toLocaleTimeString(undefined, {
             hour: '2-digit',
             minute: '2-digit',
           })}
@@ -204,6 +208,7 @@ function SummarizeButton({
   isPending: boolean;
   navigate: (path: string) => void;
 }) {
+  const { t } = useTranslation();
   // Determine visual state — queue status takes priority over DB status
   const queueStatus = queueTask?.status;
   const isQueued = queueStatus === 'queued';
@@ -220,7 +225,7 @@ function SummarizeButton({
         style={{ borderRadius: 'var(--radius)', color: 'var(--text-muted)' }}
       >
         <Loader2 size={12} />
-        排队中...
+        {t('status.queued_ellipsis')}
       </button>
     );
   }
@@ -234,7 +239,7 @@ function SummarizeButton({
         style={{ borderRadius: 'var(--radius)', color: 'var(--accent)', borderColor: 'var(--accent)', boxShadow: '0 0 8px var(--accent)' }}
       >
         <Loader2 size={12} className="animate-spin" />
-        生成中...
+        {t('status.generating')}
       </button>
     );
   }
@@ -248,7 +253,7 @@ function SummarizeButton({
         style={{ borderRadius: 'var(--radius)', color: 'var(--success)' }}
       >
         <FileText size={12} />
-        查看笔记
+        {t('action.view_notes')}
       </button>
     );
   }
@@ -262,7 +267,7 @@ function SummarizeButton({
         style={{ borderRadius: 'var(--radius)', color: 'var(--error)', borderColor: 'var(--error)' }}
       >
         <AlertTriangle size={12} />
-        失败 · 重试
+        {t('status.failed_retry')}
       </button>
     );
   }
@@ -275,7 +280,7 @@ function SummarizeButton({
       style={{ borderRadius: 'var(--radius)', color: 'var(--accent)' }}
     >
       <Sparkles size={12} />
-      生成摘要
+      {t('action.generate_summary')}
     </button>
   );
 }
