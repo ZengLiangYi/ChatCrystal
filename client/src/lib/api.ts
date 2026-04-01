@@ -100,7 +100,7 @@ export const api = {
 	getTags: () =>
 		request<{ id: number; name: string; count: number }[]>("/tags"),
 
-	search: (q: string, limit = 10) =>
+	search: (q: string, limit = 10, expand = false) =>
 		request<
 			{
 				note_id: number;
@@ -109,8 +109,11 @@ export const api = {
 				project_name: string;
 				score: number;
 				tags: string[];
+				via_relation: string | null;
 			}[]
-		>(`/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+		>(
+			`/search?q=${encodeURIComponent(q)}&limit=${limit}${expand ? "&expand=true" : ""}`,
+		),
 
 	embedBatch: () =>
 		request<{ queued: number }>("/embeddings/batch", { method: "POST" }),
@@ -134,6 +137,67 @@ export const api = {
 
 	cancelQueue: () =>
 		request<{ cancelled: number }>("/queue/cancel", { method: "POST" }),
+
+	// Relations
+	getNoteRelations: (noteId: number) =>
+		request<
+			{
+				id: number;
+				source_note_id: number;
+				target_note_id: number;
+				relation_type: string;
+				confidence: number;
+				description: string | null;
+				created_by: string;
+				created_at: string;
+				source_title: string;
+				target_title: string;
+			}[]
+		>(`/notes/${noteId}/relations`),
+
+	createRelation: (
+		noteId: number,
+		data: {
+			target_note_id: number;
+			relation_type: string;
+			description?: string;
+		},
+	) =>
+		request<Record<string, unknown>>(`/notes/${noteId}/relations`, {
+			method: "POST",
+			body: JSON.stringify(data),
+		}),
+
+	deleteRelation: (relationId: number) =>
+		request<void>(`/relations/${relationId}`, { method: "DELETE" }),
+
+	discoverRelations: (noteId: number) =>
+		request<Record<string, unknown>[]>(`/notes/${noteId}/discover-relations`, {
+			method: "POST",
+		}),
+
+	batchDiscoverRelations: () =>
+		request<{ queued: number }>("/relations/batch-discover", {
+			method: "POST",
+		}),
+
+	getRelationGraph: (project?: string) => {
+		const qs = project ? `?project=${encodeURIComponent(project)}` : "";
+		return request<{
+			nodes: {
+				id: number;
+				title: string;
+				project_name: string;
+				tags: string[];
+			}[];
+			edges: {
+				source: number;
+				target: number;
+				type: string;
+				confidence: number;
+			}[];
+		}>(`/relations/graph${qs}`);
+	},
 
 	getConfig: () =>
 		request<{

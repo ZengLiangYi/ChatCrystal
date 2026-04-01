@@ -3,6 +3,7 @@ import { ArrowLeft, FolderGit2, Tag, Lightbulb } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNote } from '@/hooks/use-notes.ts';
 import { MarkdownRenderer } from '@/components/MarkdownRenderer.tsx';
+import { RelatedNotes } from '@/components/RelatedNotes.tsx';
 
 export function NoteDetail() {
   const { t } = useTranslation();
@@ -108,6 +109,9 @@ export function NoteDetail() {
             </div>
           </section>
         )}
+
+        {/* Related notes */}
+        <RelatedNotes noteId={note.id as number} />
       </div>
     </div>
   );

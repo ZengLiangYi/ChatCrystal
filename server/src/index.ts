@@ -14,6 +14,7 @@ import { importRoutes } from './routes/import.js';
 import { conversationRoutes } from './routes/conversations.js';
 import { noteRoutes } from './routes/notes.js';
 import { configRoutes } from './routes/config.js';
+import { relationRoutes } from './routes/relations.js';
 
 // Initialize parser adapters (registers built-in adapters)
 import './parser/index.js';
@@ -48,6 +49,7 @@ export async function createServer(options?: {
   await app.register(conversationRoutes);
   await app.register(noteRoutes);
   await app.register(configRoutes);
+  await app.register(relationRoutes);
 
   // Serve frontend in production
   // Try multiple possible paths (source layout vs compiled layout)

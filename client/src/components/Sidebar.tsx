@@ -4,6 +4,7 @@ import {
   MessageSquare,
   FileText,
   Search,
+  Network,
   Settings,
   Import,
   Loader2,
@@ -16,6 +17,7 @@ const navItems = [
   { to: '/conversations', icon: MessageSquare, labelKey: 'nav.conversations' },
   { to: '/notes', icon: FileText, labelKey: 'nav.notes' },
   { to: '/search', icon: Search, labelKey: 'nav.search' },
+  { to: '/graph', icon: Network, labelKey: 'nav.graph' },
   { to: '/settings', icon: Settings, labelKey: 'nav.settings' },
 ] as const;
 

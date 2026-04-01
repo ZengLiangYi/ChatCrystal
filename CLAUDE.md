@@ -118,6 +118,13 @@ Copy `.env.example` to `.env`. Key variables:
 - `LLM_PROVIDER` / `LLM_MODEL` — for summarization (ollama, openai, anthropic, google, custom)
 - `EMBEDDING_PROVIDER` / `EMBEDDING_MODEL` — for semantic search
 
+> **注意：LLM 与 Embedding 需要分别配置。** 语义搜索要求 Embedding 模型支持 `/v1/embeddings` 端点。大语言模型（如 Claude、GPT-4、Qwen）**不能**用作 Embedding 模型。常见可用的 Embedding 模型：
+> - Ollama（本地）：`nomic-embed-text`、`mxbai-embed-large`
+> - OpenAI：`text-embedding-3-small`、`text-embedding-3-large`
+> - Google：`text-embedding-004`
+>
+> 如果语义搜索返回 500 "Not Found"，通常是 Embedding 模型配置错误导致的。
+
 ## Key Patterns
 
 - **SourceAdapter plugin interface** (`parser/adapter.ts`): implement `detect()`, `scan()`, `parse()` to add new sources. Currently 3 adapters: claude-code (JSONL), codex (JSONL events), cursor (SQLite vscdb)

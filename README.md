@@ -8,7 +8,8 @@ ChatCrystal 将散落在 Claude Code、Cursor 等 AI 编程工具中的对话统
 
 - **多数据源采集** — 自动扫描并导入 Claude Code、Codex CLI、Cursor 的对话记录，支持文件监听实时同步
 - **LLM 摘要** — 通过 Vercel AI SDK 接入多种 LLM Provider，将对话提炼为结构化笔记（标题、摘要、关键结论、代码片段、标签）
-- **语义搜索** — 基于 Embedding + 向量索引（vectra），按语义相关度检索笔记
+- **语义搜索** — 基于 Embedding + 向量索引（vectra），按语义相关度检索笔记，支持沿关系边扩展结果
+- **知识图谱** — LLM 自动发现笔记间的因果、依赖、引用等关系，力导向图可视化浏览
 - **对话浏览** — Markdown 渲染、代码高亮、工具调用折叠，噪音过滤
 - **多 Provider 支持** — 支持 Ollama、OpenAI、Anthropic、Google AI、Azure OpenAI 及任意 OpenAI 兼容服务，可在设置页面运行时切换
 - **任务队列** — 批量摘要/Embedding 生成通过 p-queue 排队执行，支持实时进度追踪和取消
@@ -83,9 +84,10 @@ npm start                        # 启动服务（前端由后端静态托管）
 1. 启动后，点击侧边栏「导入对话」扫描 Claude Code / Codex CLI / Cursor 对话
 2. 在「对话」页浏览已导入的对话
 3. 点击「生成摘要」或使用「批量生成」将对话提炼为笔记
-4. 在「搜索」页通过语义搜索查找知识
-5. 在「笔记」页按标签筛选和浏览所有笔记
-6. 在「设置」页切换 LLM/Embedding Provider 和模型
+4. 在「搜索」页通过语义搜索查找知识，可勾选「展开关联笔记」沿关系边扩展结果
+5. 在「图谱」页浏览笔记之间的关联关系（力导向图，可拖拽缩放）
+6. 在「笔记」页按标签筛选和浏览所有笔记
+7. 在「设置」页切换 LLM/Embedding Provider 和模型
 
 ## 配置
 
@@ -110,6 +112,14 @@ EMBEDDING_PROVIDER=ollama
 EMBEDDING_BASE_URL=http://localhost:11434
 EMBEDDING_MODEL=nomic-embed-text
 ```
+
+> **注意：LLM 与 Embedding 需要分别配置。** 语义搜索要求 Embedding 模型支持 `/v1/embeddings` 端点。大语言模型（如 Claude、GPT-4、Qwen）**不能**用作 Embedding 模型。常见可用的 Embedding 模型：
+>
+> | Provider | 模型 |
+> |----------|------|
+> | Ollama（本地） | `nomic-embed-text`、`mxbai-embed-large` |
+> | OpenAI | `text-embedding-3-small`、`text-embedding-3-large` |
+> | Google | `text-embedding-004` |
 
 ### Provider 配置示例
 
@@ -145,12 +155,12 @@ ChatCrystal/
 ├── server/src/
 │   ├── db/                  # SQLite schema + 工具函数
 │   ├── parser/              # 插件式对话解析器（Claude Code / Codex / Cursor）
-│   ├── services/            # 导入、摘要、LLM、Embedding、Provider
+│   ├── services/            # 导入、摘要、LLM、Embedding、关系发现、Provider
 │   ├── routes/              # Fastify API 路由
 │   ├── watcher/             # chokidar 文件监听
 │   └── queue/               # p-queue 任务队列 + TaskTracker
 ├── client/src/
-│   ├── pages/               # 页面组件（Dashboard、对话、笔记、搜索、设置）
+│   ├── pages/               # 页面组件（Dashboard、对话、笔记、搜索、图谱、设置）
 │   ├── components/          # 通用组件（StatusBar、ActivityPanel 等）
 │   ├── hooks/               # React Query hooks
 │   ├── themes/              # 主题定义
@@ -203,10 +213,55 @@ interface SourceAdapter {
 | GET | `/api/notes/:id` | 笔记详情 |
 | POST | `/api/notes/:id/embed` | 生成 Embedding |
 | POST | `/api/embeddings/batch` | 批量生成 Embedding |
-| GET | `/api/search?q=...` | 语义搜索 |
+| GET | `/api/search?q=...&expand=true` | 语义搜索（expand 展开关联笔记） |
+| GET | `/api/notes/:id/relations` | 笔记关联列表 |
+| POST | `/api/notes/:id/relations` | 手动创建关联 |
+| DELETE | `/api/relations/:id` | 删除关联 |
+| POST | `/api/notes/:id/discover-relations` | LLM 自动发现关联 |
+| POST | `/api/relations/batch-discover` | 批量发现关联 |
+| GET | `/api/relations/graph` | 知识图谱数据（nodes + edges） |
 | GET | `/api/tags` | 标签列表 |
 | GET | `/api/queue/status` | 队列状态 |
 | POST | `/api/queue/cancel` | 取消排队中的任务 |
+
+## 知识图谱
+
+笔记生成摘要后，LLM 会自动分析其与已有笔记之间的关系。支持以下关系类型：
+
+| 关系 | 含义 | 示例 |
+|------|------|------|
+| `CAUSED_BY` | 因果关系 | 登录失败 ← Token 过期逻辑改错 |
+| `LEADS_TO` | 导致 | 重构路由 → 页面闪烁 bug |
+| `RESOLVED_BY` | 被解决 | 内存泄漏 → 添加 cleanup 函数 |
+| `SIMILAR_TO` | 主题相似 | 两次对话都在讨论部署流程 |
+| `CONTRADICTS` | 观点矛盾 | 用 Redux vs 用 Context 就够了 |
+| `DEPENDS_ON` | 依赖 | 新功能依赖 auth 中间件重构 |
+| `EXTENDS` | 扩展深化 | 在缓存方案基础上加了淘汰策略 |
+| `REFERENCES` | 引用提及 | 对话中提到了之前的架构决策 |
+
+在笔记详情页底部可查看关联笔记，支持 AI 发现、手动添加、搜索选择目标笔记。在「图谱」页可通过力导向图可视化浏览整个知识网络。
+
+## 常见问题
+
+**语义搜索返回 500 "Not Found"**
+
+Embedding 模型配置错误。确保 `EMBEDDING_MODEL` 使用的是专用 Embedding 模型（如 `nomic-embed-text`），而不是大语言模型（如 `claude-haiku`、`qwen2.5`）。大语言模型不支持 `/v1/embeddings` 端点。
+
+**启动时连不上 Ollama**
+
+确保 Ollama 服务已启动，且模型已拉取：
+```bash
+ollama pull qwen2.5:7b
+ollama pull nomic-embed-text
+```
+
+**对话导入为空**
+
+检查 `.env` 中 `CLAUDE_PROJECTS_DIR` 路径是否正确，确保对应目录下有 `.jsonl` 文件。
+
+**知识图谱为空**
+
+需要先生成笔记，再在笔记详情页点击「发现」，或使用 `POST /api/relations/batch-discover` 批量发现关联。
 
 ## License
 

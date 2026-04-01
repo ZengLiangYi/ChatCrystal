@@ -160,7 +160,8 @@ export async function generateEmbeddings(noteId: number): Promise<number> {
 export async function semanticSearch(
   query: string,
   topK = 10,
-): Promise<{ noteId: number; conversationId: string; title: string; projectName: string; score: number; chunkText: string }[]> {
+  expandRelations = false,
+): Promise<{ noteId: number; conversationId: string; title: string; projectName: string; score: number; chunkText: string; viaRelation?: string }[]> {
   const index = await getIndex();
 
   // Check if index has any items
@@ -182,12 +183,65 @@ export async function semanticSearch(
     }
   }
 
-  return Array.from(seen.values()).map((r) => ({
+  const directResults = Array.from(seen.values()).map((r) => ({
     noteId: r.item.metadata.noteId,
     conversationId: r.item.metadata.conversationId,
     title: r.item.metadata.title,
     projectName: r.item.metadata.projectName,
     score: r.score,
-    chunkText: '', // Will be filled from DB if needed
+    chunkText: '' as string,
+    viaRelation: undefined as string | undefined,
   }));
+
+  if (!expandRelations || directResults.length === 0) {
+    return directResults;
+  }
+
+  // Expand along relation edges
+  const { getDatabase } = await import('../db/index.js');
+  const { resultToObjects } = await import('../db/utils.js');
+  const db = getDatabase();
+  const resultMap = new Map(directResults.map((r) => [r.noteId, r]));
+
+  for (const dr of directResults) {
+    const relResult = db.exec(
+      `SELECT r.relation_type, r.confidence,
+        CASE WHEN r.source_note_id = ? THEN r.target_note_id ELSE r.source_note_id END as linked_note_id
+       FROM note_relations r
+       WHERE (r.source_note_id = ? OR r.target_note_id = ?)
+         AND r.confidence >= 0.5`,
+      [dr.noteId, dr.noteId, dr.noteId],
+    );
+    if (!relResult.length) continue;
+
+    for (const row of resultToObjects(relResult)) {
+      const linkedId = Number(row.linked_note_id);
+      if (resultMap.has(linkedId)) continue;
+
+      // Fetch linked note info
+      const noteInfo = db.exec(
+        `SELECT n.id, n.conversation_id, n.title, c.project_name
+         FROM notes n JOIN conversations c ON c.id = n.conversation_id
+         WHERE n.id = ?`,
+        [linkedId],
+      );
+      if (!noteInfo.length || !noteInfo[0].values.length) continue;
+
+      const [id, convId, title, projName] = noteInfo[0].values[0] as [number, string, string, string];
+      const discountedScore = dr.score * 0.7 * (Number(row.confidence) || 0.5);
+
+      const entry = {
+        noteId: id,
+        conversationId: convId,
+        title,
+        projectName: projName,
+        score: Math.round(discountedScore * 1000) / 1000,
+        chunkText: '',
+        viaRelation: row.relation_type as string,
+      };
+      resultMap.set(linkedId, entry);
+    }
+  }
+
+  return Array.from(resultMap.values()).sort((a, b) => b.score - a.score);
 }

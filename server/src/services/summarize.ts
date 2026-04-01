@@ -3,6 +3,7 @@ import { getDatabase, saveDatabase } from '../db/index.js';
 import { resultToObjects } from '../db/utils.js';
 import { getLanguageModel } from './llm.js';
 import { generateEmbeddings } from './embedding.js';
+import { discoverRelations } from './relations.js';
 
 // =============================================
 // Types
@@ -267,6 +268,14 @@ export async function triggerSummarize(conversationId: string): Promise<number> 
     } catch (err) {
       console.error(`[Embedding] Failed for note ${noteId}:`, err instanceof Error ? err.message : err);
       // Don't fail the summarization if embedding fails
+    }
+
+    // Auto-discover relations after embedding
+    try {
+      await discoverRelations(noteId);
+    } catch (err) {
+      console.error(`[Relations] Failed for note ${noteId}:`, err instanceof Error ? err.message : err);
+      // Don't fail the summarization if relation discovery fails
     }
 
     return noteId;

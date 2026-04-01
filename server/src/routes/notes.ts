@@ -178,14 +178,14 @@ export async function noteRoutes(app: FastifyInstance) {
 
   // Semantic search
   app.get('/api/search', async (req, reply) => {
-    const { q, limit = '10' } = req.query as Record<string, string>;
+    const { q, limit = '10', expand } = req.query as Record<string, string>;
     if (!q?.trim()) {
       reply.status(400);
       return { success: false, error: 'Query parameter "q" is required' };
     }
 
     try {
-      const results = await semanticSearch(q, Math.min(Number(limit), 50));
+      const results = await semanticSearch(q, Math.min(Number(limit), 50), expand === 'true');
 
       // Enrich results with tags from DB
       const db = getDatabase();
@@ -204,6 +204,7 @@ export async function noteRoutes(app: FastifyInstance) {
           project_name: r.projectName,
           score: Math.round(r.score * 1000) / 1000,
           tags: tagsCsv ? tagsCsv.split(',') : [],
+          via_relation: r.viaRelation || null,
         };
       });
 

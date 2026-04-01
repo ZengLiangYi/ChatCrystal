@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, FolderGit2, Tag, Loader2 } from 'lucide-react';
+import { Search, FolderGit2, Tag, Loader2, Network } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api.ts';
@@ -12,15 +12,29 @@ type SearchResult = {
   project_name: string;
   score: number;
   tags: string[];
+  via_relation: string | null;
+};
+
+const RELATION_LABELS: Record<string, { zh: string; en: string }> = {
+  CAUSED_BY:   { zh: '因果', en: 'Caused by' },
+  LEADS_TO:    { zh: '导致', en: 'Leads to' },
+  RESOLVED_BY: { zh: '解决', en: 'Resolved by' },
+  SIMILAR_TO:  { zh: '相似', en: 'Similar' },
+  CONTRADICTS: { zh: '矛盾', en: 'Contradicts' },
+  DEPENDS_ON:  { zh: '依赖', en: 'Depends on' },
+  EXTENDS:     { zh: '扩展', en: 'Extends' },
+  REFERENCES:  { zh: '引用', en: 'References' },
 };
 
 export function SearchPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isZh = i18n.language?.startsWith('zh');
   const [query, setQuery] = useState('');
+  const [expand, setExpand] = useState(false);
   const navigate = useNavigate();
 
   const search = useMutation({
-    mutationFn: (q: string) => api.search(q),
+    mutationFn: (q: string) => api.search(q, 10, expand),
   });
 
   const handleSearch = () => {
@@ -33,7 +47,7 @@ export function SearchPage() {
       <h2 className="text-xl font-bold mb-4">{t('title.semantic_search')}</h2>
 
       {/* Search input */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-3">
         <div className="flex-1 relative">
           <Search
             size={14}
@@ -60,6 +74,18 @@ export function SearchPage() {
         </button>
       </div>
 
+      {/* Expand toggle */}
+      <label className="flex items-center gap-2 mb-6 text-xs text-muted cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={expand}
+          onChange={(e) => setExpand(e.target.checked)}
+          className="accent-[var(--accent)]"
+        />
+        <Network size={12} />
+        {isZh ? '展开关联笔记' : 'Expand related notes'}
+      </label>
+
       {/* Results */}
       {search.isError && (
         <p className="text-error text-sm mb-4">{search.error.message}</p>
@@ -84,7 +110,17 @@ export function SearchPage() {
               style={{ borderRadius: 'var(--radius)' }}
             >
               <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-bold truncate">{result.title}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold truncate">{result.title}</h3>
+                  {result.via_relation && (
+                    <span className="shrink-0 px-1.5 py-0.5 text-[10px] bg-purple-500/20 text-purple-400 border border-purple-500/30" style={{ borderRadius: '3px' }}>
+                      <Network size={9} className="inline mr-0.5 -mt-px" />
+                      {RELATION_LABELS[result.via_relation]
+                        ? (isZh ? RELATION_LABELS[result.via_relation].zh : RELATION_LABELS[result.via_relation].en)
+                        : result.via_relation}
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-3 mt-1">
                   <span className="flex items-center gap-1 text-xs text-muted">
                     <FolderGit2 size={11} />

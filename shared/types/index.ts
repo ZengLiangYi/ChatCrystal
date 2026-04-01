@@ -73,6 +73,32 @@ export interface Tag {
   count?: number;
 }
 
+// --- Note Relations ---
+
+export type RelationType =
+  | 'CAUSED_BY'
+  | 'LEADS_TO'
+  | 'RESOLVED_BY'
+  | 'SIMILAR_TO'
+  | 'CONTRADICTS'
+  | 'DEPENDS_ON'
+  | 'EXTENDS'
+  | 'REFERENCES';
+
+export interface NoteRelation {
+  id: number;
+  source_note_id: number;
+  target_note_id: number;
+  relation_type: RelationType;
+  confidence: number;
+  description: string | null;
+  created_by: 'llm' | 'manual';
+  created_at: string;
+  // Hydrated fields (joined from notes table)
+  source_title?: string;
+  target_title?: string;
+}
+
 // --- Search ---
 
 export interface SearchResult {

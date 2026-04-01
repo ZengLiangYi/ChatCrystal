@@ -91,4 +91,21 @@ CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id
 CREATE INDEX IF NOT EXISTS idx_messages_type ON messages(type);
 CREATE INDEX IF NOT EXISTS idx_note_tags_tag ON note_tags(tag_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_note ON embeddings(note_id);
+
+CREATE TABLE IF NOT EXISTS note_relations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_note_id INTEGER NOT NULL,
+  target_note_id INTEGER NOT NULL,
+  relation_type TEXT NOT NULL,
+  confidence REAL DEFAULT 1.0,
+  description TEXT,
+  created_by TEXT NOT NULL DEFAULT 'manual',
+  created_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(source_note_id, target_note_id, relation_type),
+  FOREIGN KEY (source_note_id) REFERENCES notes(id) ON DELETE CASCADE,
+  FOREIGN KEY (target_note_id) REFERENCES notes(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_note_relations_source ON note_relations(source_note_id);
+CREATE INDEX IF NOT EXISTS idx_note_relations_target ON note_relations(target_note_id);
 `;
