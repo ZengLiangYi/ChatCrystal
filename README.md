@@ -4,160 +4,160 @@
 
 # ChatCrystal
 
-**从 AI 对话中提炼自己的知识库**
+**Crystallize knowledge from your AI conversations**
 
 [![GitHub release](https://img.shields.io/github/v/release/ZengLiangYi/ChatCrystal?style=flat-square)](https://github.com/ZengLiangYi/ChatCrystal/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen?style=flat-square)](https://nodejs.org/)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey?style=flat-square)](#)
 
-[English](README.en.md) | 简体中文
+English | [简体中文](README.zh-CN.md)
 
 </div>
 
 ---
 
-ChatCrystal 将散落在 Claude Code、Cursor、Codex CLI 等 AI 编程工具中的对话统一采集到本地，用 LLM 提炼为可搜索的结构化技术笔记，形成个人知识库。
+ChatCrystal collects conversations from AI coding tools (Claude Code, Cursor, Codex CLI), uses LLM to distill them into searchable structured notes, and builds your personal knowledge base — all running locally.
 
 <div align="center">
 <table>
 <tr>
-<td align="center"><strong>对话浏览</strong></td>
-<td align="center"><strong>笔记摘要</strong></td>
+<td align="center"><strong>Conversations</strong></td>
+<td align="center"><strong>Notes</strong></td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/conversations.png" alt="对话浏览" width="400" /></td>
-<td><img src="docs/screenshots/notes.png" alt="笔记摘要" width="400" /></td>
+<td><img src="docs/screenshots/en/conversations.png" alt="Conversations" width="400" /></td>
+<td><img src="docs/screenshots/en/notes.png" alt="Notes" width="400" /></td>
 </tr>
 <tr>
-<td align="center"><strong>语义搜索</strong></td>
-<td align="center"><strong>知识图谱</strong></td>
+<td align="center"><strong>Semantic Search</strong></td>
+<td align="center"><strong>Knowledge Graph</strong></td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/search.png" alt="语义搜索" width="400" /></td>
-<td><img src="docs/screenshots/graph.png" alt="知识图谱" width="400" /></td>
+<td><img src="docs/screenshots/en/search.png" alt="Semantic Search" width="400" /></td>
+<td><img src="docs/screenshots/en/graph.png" alt="Knowledge Graph" width="400" /></td>
 </tr>
 </table>
 </div>
 
-## 核心功能
+## Features
 
-- **多数据源采集** — 自动扫描并导入 Claude Code、Codex CLI、Cursor 的对话记录，支持文件监听实时同步
-- **LLM 摘要** — 通过 Vercel AI SDK 接入多种 LLM Provider，将对话提炼为结构化笔记（标题、摘要、关键结论、代码片段、标签）
-- **语义搜索** — 基于 Embedding + 向量索引（vectra），按语义相关度检索笔记，支持沿关系边扩展结果
-- **知识图谱** — LLM 自动发现笔记间的因果、依赖、引用等关系，力导向图可视化浏览
-- **对话浏览** — Markdown 渲染、代码高亮、工具调用折叠，噪音过滤
-- **多 Provider 支持** — 支持 Ollama、OpenAI、Anthropic、Google AI、Azure OpenAI 及任意 OpenAI 兼容服务，可在设置页面运行时切换
-- **任务队列** — 批量摘要/Embedding 生成通过 p-queue 排队执行，支持实时进度追踪和取消
-- **桌面应用** — Electron 打包，系统托盘驻留，关闭窗口最小化到托盘
+- **Multi-source ingestion** — Auto-imports conversations from Claude Code, Codex CLI, and Cursor with real-time file watching
+- **LLM summarization** — Distills conversations into structured notes (title, summary, key conclusions, code snippets, tags) via Vercel AI SDK
+- **Semantic search** — Embedding-powered vector search (vectra) with relation-aware result expansion
+- **Knowledge graph** — LLM-discovered relationships (causal, dependency, similarity, etc.) with force-directed visualization
+- **Conversation viewer** — Markdown rendering, code highlighting, collapsible tool calls, noise filtering
+- **Multi-provider support** — Ollama, OpenAI, Anthropic, Google AI, Azure OpenAI, or any OpenAI-compatible API, switchable at runtime
+- **Task queue** — Batch summarization/embedding via p-queue with real-time progress tracking and cancellation
+- **Desktop app** — Electron with system tray, minimize-to-tray on close
 
-## 技术栈
+## Tech Stack
 
-| 层 | 技术 |
+| Layer | Technology |
 |---|---|
-| 后端 | Node.js + Fastify v5 + TypeScript |
-| 前端 | Vite v8 + React 19 + Tailwind CSS v4 + TanStack React Query v5 |
-| 桌面 | Electron + electron-builder (NSIS 安装包) |
-| 数据库 | sql.js (WASM SQLite) |
+| Backend | Node.js + Fastify v5 + TypeScript |
+| Frontend | Vite v8 + React 19 + Tailwind CSS v4 + TanStack React Query v5 |
+| Desktop | Electron + electron-builder (NSIS installer) |
+| Database | sql.js (WASM SQLite) |
 | LLM | Vercel AI SDK v6 — Ollama / OpenAI / Anthropic / Google / Azure / Custom |
-| Embedding | vectra 向量索引，支持多 Provider |
-| 文件监听 | chokidar |
+| Embedding | vectra vector index, multi-provider |
+| File watching | chokidar |
 
-## 快速开始
+## Getting Started
 
-### 前置依赖
+### Prerequisites
 
 - Node.js >= 20
-- LLM 服务（以下任选其一）：
-  - [Ollama](https://ollama.ai/)（本地推理，免费）
-  - OpenAI / Anthropic / Google AI API Key
-  - 任意 OpenAI 兼容服务（OpenRouter、Poe 等）
+- An LLM service (pick one):
+  - [Ollama](https://ollama.ai/) (local inference, free)
+  - OpenAI / Anthropic / Google AI API key
+  - Any OpenAI-compatible service (OpenRouter, Poe, etc.)
 
-使用 Ollama 时，拉取所需模型：
+If using Ollama, pull the required models:
 
 ```bash
-ollama pull qwen2.5:7b          # LLM 摘要
+ollama pull qwen2.5:7b          # LLM summarization
 ollama pull nomic-embed-text     # Embedding
 ```
 
-### 安装
+### Installation
 
 ```bash
 git clone https://github.com/ZengLiangYi/ChatCrystal.git
 cd ChatCrystal
 npm install
-cp .env.example .env             # 按需修改配置
+cp .env.example .env             # Edit configuration as needed
 ```
 
-### 桌面应用（推荐）
+### Desktop App (Recommended)
 
 ```bash
-npm run dev:electron             # 开发模式（Electron + Vite HMR）
-npm run build:electron           # 构建 NSIS 安装包 → release/
+npm run dev:electron             # Dev mode (Electron + Vite HMR)
+npm run build:electron           # Build NSIS installer → release/
 ```
 
-构建后的安装包在 `release/` 目录。安装后数据存储在 `%APPDATA%/chatcrystal/data/`。
+The installer is in the `release/` directory. Data is stored in `%APPDATA%/chatcrystal/data/`.
 
-### Web 开发模式
+### Web Dev Mode
 
 ```bash
-npm run dev                      # 同时启动后端 (3721) + 前端 (13721)
+npm run dev                      # Starts backend (3721) + frontend (13721)
 ```
 
-访问 http://localhost:13721
+Visit http://localhost:13721
 
-### Web 生产模式
+### Web Production Mode
 
 ```bash
-npm run build                    # 构建前后端
-npm start                        # 启动服务（前端由后端静态托管）
+npm run build                    # Build backend + frontend
+npm start                        # Start server (frontend served statically)
 ```
 
-访问 http://localhost:3721
+Visit http://localhost:3721
 
-## 使用流程
+## Workflow
 
-1. 启动后，点击侧边栏「导入对话」扫描 Claude Code / Codex CLI / Cursor 对话
-2. 在「对话」页浏览已导入的对话
-3. 点击「生成摘要」或使用「批量生成」将对话提炼为笔记
-4. 在「搜索」页通过语义搜索查找知识，可勾选「展开关联笔记」沿关系边扩展结果
-5. 在「图谱」页浏览笔记之间的关联关系（力导向图，可拖拽缩放）
-6. 在「笔记」页按标签筛选和浏览所有笔记
-7. 在「设置」页切换 LLM/Embedding Provider 和模型
+1. Click "Import" in the sidebar to scan Claude Code / Codex CLI / Cursor conversations
+2. Browse imported conversations on the Conversations page
+3. Click "Summarize" or use "Batch Summarize" to distill conversations into notes
+4. Search your knowledge on the Search page; enable "Expand related notes" to follow relation edges
+5. Explore note relationships on the Graph page (force-directed, draggable, zoomable)
+6. Filter and browse all notes by tag on the Notes page
+7. Switch LLM/Embedding providers and models on the Settings page
 
-## 配置
+## Configuration
 
-可通过 `.env` 文件或设置页面（运行时热切换）配置：
+Configure via `.env` file or the Settings page (hot-swappable at runtime):
 
 ```bash
-# 服务端口
+# Server port
 PORT=3721
 
-# 数据源
+# Data sources
 CLAUDE_PROJECTS_DIR=~/.claude/projects
 CODEX_SESSIONS_DIR=~/.codex/sessions
-# CURSOR_DATA_DIR=          # 按平台自动检测，可手动覆盖
+# CURSOR_DATA_DIR=          # Auto-detected per platform, can override
 
-# LLM 摘要（支持 ollama/openai/anthropic/google/azure/custom）
+# LLM summarization (ollama/openai/anthropic/google/azure/custom)
 LLM_PROVIDER=ollama
 LLM_BASE_URL=http://localhost:11434
 LLM_MODEL=qwen2.5:7b
 
-# Embedding（支持 ollama/openai/google/azure/custom）
+# Embedding (ollama/openai/google/azure/custom)
 EMBEDDING_PROVIDER=ollama
 EMBEDDING_BASE_URL=http://localhost:11434
 EMBEDDING_MODEL=nomic-embed-text
 ```
 
-> **注意：LLM 与 Embedding 需要分别配置。** 语义搜索要求 Embedding 模型支持 `/v1/embeddings` 端点。大语言模型（如 Claude、GPT-4、Qwen）**不能**用作 Embedding 模型。常见可用的 Embedding 模型：
+> **Note: LLM and Embedding must be configured separately.** Semantic search requires a dedicated embedding model that supports the `/v1/embeddings` endpoint. Large language models (Claude, GPT-4, Qwen, etc.) **cannot** be used as embedding models. Common embedding models:
 >
-> | Provider | 模型 |
-> |----------|------|
-> | Ollama（本地） | `nomic-embed-text`、`mxbai-embed-large` |
-> | OpenAI | `text-embedding-3-small`、`text-embedding-3-large` |
+> | Provider | Models |
+> |----------|--------|
+> | Ollama (local) | `nomic-embed-text`, `mxbai-embed-large` |
+> | OpenAI | `text-embedding-3-small`, `text-embedding-3-large` |
 > | Google | `text-embedding-004` |
 
-### Provider 配置示例
+### Provider Configuration Examples
 
 ```bash
 # OpenAI
@@ -175,40 +175,40 @@ LLM_PROVIDER=google
 LLM_API_KEY=AIza...
 LLM_MODEL=gemini-2.0-flash
 
-# OpenAI 兼容服务（Poe / OpenRouter 等）
+# OpenAI-compatible service (Poe / OpenRouter / etc.)
 LLM_PROVIDER=custom
 LLM_BASE_URL=https://openrouter.ai/api/v1
-LLM_API_KEY=你的key
+LLM_API_KEY=your-key
 LLM_MODEL=anthropic/claude-sonnet-4
 ```
 
-## 项目结构
+## Project Structure
 
 ```
 ChatCrystal/
-├── electron/                # Electron 主进程（窗口、托盘、生命周期）
-├── shared/types/            # 共享 TypeScript 类型
+├── electron/                # Electron main process (window, tray, lifecycle)
+├── shared/types/            # Shared TypeScript types
 ├── server/src/
-│   ├── db/                  # SQLite schema + 工具函数
-│   ├── parser/              # 插件式对话解析器（Claude Code / Codex / Cursor）
-│   ├── services/            # 导入、摘要、LLM、Embedding、关系发现、Provider
-│   ├── routes/              # Fastify API 路由
-│   ├── watcher/             # chokidar 文件监听
-│   └── queue/               # p-queue 任务队列 + TaskTracker
+│   ├── db/                  # SQLite schema + utilities
+│   ├── parser/              # Plugin-based conversation parsers (Claude Code / Codex / Cursor)
+│   ├── services/            # Import, summarization, LLM, embedding, relations, providers
+│   ├── routes/              # Fastify API routes
+│   ├── watcher/             # chokidar file watching
+│   └── queue/               # p-queue task queue + TaskTracker
 ├── client/src/
-│   ├── pages/               # 页面组件（Dashboard、对话、笔记、搜索、图谱、设置）
-│   ├── components/          # 通用组件（StatusBar、ActivityPanel 等）
+│   ├── pages/               # Page components (Dashboard, Conversations, Notes, Search, Graph, Settings)
+│   ├── components/          # Shared components (StatusBar, ActivityPanel, etc.)
 │   ├── hooks/               # React Query hooks
-│   ├── themes/              # 主题定义
+│   ├── themes/              # Theme definitions
 │   └── providers/           # ThemeProvider
-├── scripts/                 # 旧版托盘脚本（已被 Electron 替代）
-├── electron-builder.yml     # Electron 打包配置
-└── data/                    # 运行时数据（gitignored）
+├── scripts/                 # Legacy tray scripts (superseded by Electron)
+├── electron-builder.yml     # Electron packaging config
+└── data/                    # Runtime data (gitignored)
 ```
 
-## 扩展数据源
+## Adding Data Sources
 
-实现 `SourceAdapter` 接口即可接入新的 AI 工具对话：
+Implement the `SourceAdapter` interface to add a new AI tool:
 
 ```typescript
 interface SourceAdapter {
@@ -220,84 +220,84 @@ interface SourceAdapter {
 }
 ```
 
-目前已内置三个适配器：
+Built-in adapters:
 
-| 适配器 | 数据源 | 格式 |
+| Adapter | Data Source | Format |
 |---|---|---|
-| `claude-code` | `~/.claude/projects/**/*.jsonl` | JSONL 对话记录 |
-| `codex` | `~/.codex/sessions/**/rollout-*.jsonl` | JSONL 事件流 |
-| `cursor` | Cursor `workspaceStorage/state.vscdb` | SQLite KV 存储 |
+| `claude-code` | `~/.claude/projects/**/*.jsonl` | JSONL conversation log |
+| `codex` | `~/.codex/sessions/**/rollout-*.jsonl` | JSONL event stream |
+| `cursor` | Cursor `workspaceStorage/state.vscdb` | SQLite KV store |
 
-在 `server/src/parser/adapters/` 下新建适配器文件，注册到 `parser/index.ts`。
+Create a new adapter file in `server/src/parser/adapters/` and register it in `parser/index.ts`.
 
 ## API
 
-| 方法 | 路径 | 说明 |
+| Method | Path | Description |
 |---|---|---|
-| GET | `/api/status` | 服务状态 + 统计 |
-| GET | `/api/config` | 当前配置（不含密钥） |
-| POST | `/api/config` | 更新 Provider 配置 |
-| POST | `/api/config/test` | 测试 LLM 连接 |
-| GET | `/api/providers` | 可用 Provider 列表 |
-| POST | `/api/import/scan` | 触发全量扫描导入 |
-| GET | `/api/conversations` | 对话列表（支持筛选分页） |
-| GET | `/api/conversations/:id` | 对话详情 + 消息 |
-| POST | `/api/conversations/:id/summarize` | 生成单条摘要 |
-| POST | `/api/summarize/batch` | 批量生成摘要 |
-| POST | `/api/summarize/reset-errors` | 重置错误状态 |
-| GET | `/api/notes` | 笔记列表 |
-| GET | `/api/notes/:id` | 笔记详情 |
-| POST | `/api/notes/:id/embed` | 生成 Embedding |
-| POST | `/api/embeddings/batch` | 批量生成 Embedding |
-| GET | `/api/search?q=...&expand=true` | 语义搜索（expand 展开关联笔记） |
-| GET | `/api/notes/:id/relations` | 笔记关联列表 |
-| POST | `/api/notes/:id/relations` | 手动创建关联 |
-| DELETE | `/api/relations/:id` | 删除关联 |
-| POST | `/api/notes/:id/discover-relations` | LLM 自动发现关联 |
-| POST | `/api/relations/batch-discover` | 批量发现关联 |
-| GET | `/api/relations/graph` | 知识图谱数据（nodes + edges） |
-| GET | `/api/tags` | 标签列表 |
-| GET | `/api/queue/status` | 队列状态 |
-| POST | `/api/queue/cancel` | 取消排队中的任务 |
+| GET | `/api/status` | Server status + statistics |
+| GET | `/api/config` | Current configuration (secrets redacted) |
+| POST | `/api/config` | Update provider configuration |
+| POST | `/api/config/test` | Test LLM connection |
+| GET | `/api/providers` | Available provider list |
+| POST | `/api/import/scan` | Trigger full scan import |
+| GET | `/api/conversations` | Conversation list (filterable, paginated) |
+| GET | `/api/conversations/:id` | Conversation detail + messages |
+| POST | `/api/conversations/:id/summarize` | Generate summary for one conversation |
+| POST | `/api/summarize/batch` | Batch summarization |
+| POST | `/api/summarize/reset-errors` | Reset error status |
+| GET | `/api/notes` | Note list |
+| GET | `/api/notes/:id` | Note detail |
+| POST | `/api/notes/:id/embed` | Generate embedding |
+| POST | `/api/embeddings/batch` | Batch embedding generation |
+| GET | `/api/search?q=...&expand=true` | Semantic search (expand follows relation edges) |
+| GET | `/api/notes/:id/relations` | Note relations list |
+| POST | `/api/notes/:id/relations` | Create relation manually |
+| DELETE | `/api/relations/:id` | Delete relation |
+| POST | `/api/notes/:id/discover-relations` | LLM auto-discover relations |
+| POST | `/api/relations/batch-discover` | Batch relation discovery |
+| GET | `/api/relations/graph` | Knowledge graph data (nodes + edges) |
+| GET | `/api/tags` | Tag list |
+| GET | `/api/queue/status` | Queue status |
+| POST | `/api/queue/cancel` | Cancel queued tasks |
 
-## 知识图谱
+## Knowledge Graph
 
-笔记生成摘要后，LLM 会自动分析其与已有笔记之间的关系。支持以下关系类型：
+After generating note summaries, the LLM automatically analyzes relationships between notes. Supported relation types:
 
-| 关系 | 含义 | 示例 |
-|------|------|------|
-| `CAUSED_BY` | 因果关系 | 登录失败 ← Token 过期逻辑改错 |
-| `LEADS_TO` | 导致 | 重构路由 → 页面闪烁 bug |
-| `RESOLVED_BY` | 被解决 | 内存泄漏 → 添加 cleanup 函数 |
-| `SIMILAR_TO` | 主题相似 | 两次对话都在讨论部署流程 |
-| `CONTRADICTS` | 观点矛盾 | 用 Redux vs 用 Context 就够了 |
-| `DEPENDS_ON` | 依赖 | 新功能依赖 auth 中间件重构 |
-| `EXTENDS` | 扩展深化 | 在缓存方案基础上加了淘汰策略 |
-| `REFERENCES` | 引用提及 | 对话中提到了之前的架构决策 |
+| Relation | Meaning | Example |
+|----------|---------|---------|
+| `CAUSED_BY` | Causation | Login failure ← Token expiration logic bug |
+| `LEADS_TO` | Leads to | Route refactor → page flicker bug |
+| `RESOLVED_BY` | Resolved by | Memory leak → added cleanup function |
+| `SIMILAR_TO` | Similar topic | Two conversations both discussing deployment |
+| `CONTRADICTS` | Contradiction | Use Redux vs Context is enough |
+| `DEPENDS_ON` | Dependency | New feature depends on auth middleware refactor |
+| `EXTENDS` | Extension | Added eviction policy on top of caching solution |
+| `REFERENCES` | Reference | Conversation mentions a previous architecture decision |
 
-在笔记详情页底部可查看关联笔记，支持 AI 发现、手动添加、搜索选择目标笔记。在「图谱」页可通过力导向图可视化浏览整个知识网络。
+View related notes at the bottom of the note detail page. Supports AI discovery, manual addition, and search-to-link. Browse the entire knowledge network via the force-directed graph on the Graph page.
 
-## 常见问题
+## FAQ
 
-**语义搜索返回 500 "Not Found"**
+**Semantic search returns 500 "Not Found"**
 
-Embedding 模型配置错误。确保 `EMBEDDING_MODEL` 使用的是专用 Embedding 模型（如 `nomic-embed-text`），而不是大语言模型（如 `claude-haiku`、`qwen2.5`）。大语言模型不支持 `/v1/embeddings` 端点。
+Embedding model misconfigured. Make sure `EMBEDDING_MODEL` is a dedicated embedding model (e.g., `nomic-embed-text`), not a large language model (e.g., `claude-haiku`, `qwen2.5`). LLMs do not support the `/v1/embeddings` endpoint.
 
-**启动时连不上 Ollama**
+**Can't connect to Ollama on startup**
 
-确保 Ollama 服务已启动，且模型已拉取：
+Make sure Ollama is running and the models are pulled:
 ```bash
 ollama pull qwen2.5:7b
 ollama pull nomic-embed-text
 ```
 
-**对话导入为空**
+**No conversations after import**
 
-检查 `.env` 中 `CLAUDE_PROJECTS_DIR` 路径是否正确，确保对应目录下有 `.jsonl` 文件。
+Check that `CLAUDE_PROJECTS_DIR` in `.env` points to the correct path and contains `.jsonl` files.
 
-**知识图谱为空**
+**Knowledge graph is empty**
 
-需要先生成笔记，再在笔记详情页点击「发现」，或使用 `POST /api/relations/batch-discover` 批量发现关联。
+You need to generate notes first, then click "Discover" on a note detail page, or use `POST /api/relations/batch-discover` for batch discovery.
 
 ## License
 
