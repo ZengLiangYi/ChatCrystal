@@ -1,0 +1,87 @@
+name: Bug 报告 / Bug Report
+description: 报告一个问题 / Report a bug
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢你花时间提交 Bug 报告！请尽量填写以下信息，帮助我们更快定位问题。
+        Thanks for taking the time to report a bug! Please fill in the details below.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述 / Description
+      description: 清晰简洁地描述你遇到的问题 / A clear description of the bug
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤 / Steps to Reproduce
+      description: 如何触发这个问题？ / How can we reproduce it?
+      placeholder: |
+        1. 打开设置页 / Go to Settings
+        2. 切换 Provider 为 ... / Switch provider to ...
+        3. 点击「测试连接」 / Click "Test Connection"
+        4. 看到错误 / See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为 / Expected Behavior
+      description: 你期望发生什么？ / What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为 / Actual Behavior
+      description: 实际发生了什么？ / What actually happened?
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: ChatCrystal 版本 / Version
+      description: "可在设置页或 package.json 中查看 / Check in Settings or package.json"
+      placeholder: "v0.2.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: 运行模式 / Run Mode
+      options:
+        - Electron 桌面应用 / Electron Desktop
+        - Web 开发模式 / Web Dev Mode
+        - Web 生产模式 / Web Production
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: 操作系统 / OS
+      placeholder: "Windows 11, macOS 15, Ubuntu 24.04"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志 / Logs
+      description: 粘贴相关的控制台输出或错误日志 / Paste any relevant logs or error output
+      render: shell
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图 / Screenshots
+      description: 如有截图请附上 / Attach screenshots if applicable

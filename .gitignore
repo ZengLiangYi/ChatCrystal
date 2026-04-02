@@ -12,6 +12,7 @@ release/
 
 # Runtime data
 data/
+data-demo/
 *.db
 *.db-journal
 
