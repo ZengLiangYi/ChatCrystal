@@ -5,14 +5,13 @@
 # ChatCrystal
 
 **从 AI 对话中提炼自己的知识库**
-**Crystallize knowledge from your AI conversations**
 
 [![GitHub release](https://img.shields.io/github/v/release/ZengLiangYi/ChatCrystal?style=flat-square)](https://github.com/ZengLiangYi/ChatCrystal/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen?style=flat-square)](https://nodejs.org/)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey?style=flat-square)](#)
 
-[简体中文](#核心功能) · [English](#features)
+[English](README.en.md) | 简体中文
 
 </div>
 
@@ -20,25 +19,23 @@
 
 ChatCrystal 将散落在 Claude Code、Cursor、Codex CLI 等 AI 编程工具中的对话统一采集到本地，用 LLM 提炼为可搜索的结构化技术笔记，形成个人知识库。
 
-ChatCrystal collects conversations from AI coding tools (Claude Code, Cursor, Codex CLI), uses LLM to distill them into searchable structured notes, and builds your personal knowledge base — all running locally.
-
 <div align="center">
 <table>
 <tr>
-<td align="center"><strong>对话浏览 / Conversations</strong></td>
-<td align="center"><strong>笔记摘要 / Notes</strong></td>
+<td align="center"><strong>对话浏览</strong></td>
+<td align="center"><strong>笔记摘要</strong></td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/conversations.png" alt="Conversations" width="400" /></td>
-<td><img src="docs/screenshots/notes.png" alt="Notes" width="400" /></td>
+<td><img src="docs/screenshots/conversations.png" alt="对话浏览" width="400" /></td>
+<td><img src="docs/screenshots/notes.png" alt="笔记摘要" width="400" /></td>
 </tr>
 <tr>
-<td align="center"><strong>语义搜索 / Search</strong></td>
-<td align="center"><strong>知识图谱 / Knowledge Graph</strong></td>
+<td align="center"><strong>语义搜索</strong></td>
+<td align="center"><strong>知识图谱</strong></td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/search.png" alt="Search" width="400" /></td>
-<td><img src="docs/screenshots/graph.png" alt="Knowledge Graph" width="400" /></td>
+<td><img src="docs/screenshots/search.png" alt="语义搜索" width="400" /></td>
+<td><img src="docs/screenshots/graph.png" alt="知识图谱" width="400" /></td>
 </tr>
 </table>
 </div>
@@ -301,18 +298,6 @@ ollama pull nomic-embed-text
 **知识图谱为空**
 
 需要先生成笔记，再在笔记详情页点击「发现」，或使用 `POST /api/relations/batch-discover` 批量发现关联。
-
----
-
-## Features
-
-- **Multi-source ingestion** — Auto-imports conversations from Claude Code, Codex CLI, and Cursor with real-time file watching
-- **LLM summarization** — Distills conversations into structured notes (title, summary, key conclusions, code snippets, tags) via Vercel AI SDK
-- **Semantic search** — Embedding-powered vector search (vectra) with relation-aware result expansion
-- **Knowledge graph** — LLM-discovered relationships (causal, dependency, similarity, etc.) with force-directed visualization
-- **Multi-provider support** — Ollama, OpenAI, Anthropic, Google AI, Azure OpenAI, or any OpenAI-compatible API
-- **Local-first** — All data stays on your machine (sql.js + local embeddings via Ollama)
-- **Desktop app** — Electron with system tray, single-instance lock, and window state persistence
 
 ## License
 
