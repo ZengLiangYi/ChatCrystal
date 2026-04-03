@@ -38,6 +38,55 @@ npm run lint
 npm run lint:fix
 ```
 
+### CLI (`crystal`)
+
+Install globally: `npm install -g chatcrystal`
+
+```bash
+# Core commands
+crystal status                          # Server status and DB stats
+crystal import [--source claude-code]   # Scan and import conversations
+crystal search "query" [--limit 10]     # Semantic search
+crystal notes list [--tag X]            # Browse notes
+crystal notes get <id>                  # View note detail
+crystal notes relations <id>            # View note relations
+crystal tags                            # List tags with counts
+crystal summarize <id>                  # Summarize one conversation
+crystal summarize --all                 # Batch summarize
+crystal config get                      # View config
+crystal config set llm.provider openai  # Update config
+crystal config test                     # Test LLM connection
+
+# Server management
+crystal serve                           # Start server (foreground)
+crystal serve -d                        # Start server (daemon)
+crystal serve stop                      # Stop daemon
+crystal serve status                    # Check if running
+
+# MCP Server (for AI tool integration)
+crystal mcp                             # Start MCP stdio server
+```
+
+Global options: `--base-url` (server URL), `--json` (force JSON output), `--version`.
+
+Auto-start: commands that need the server will auto-launch it in background if not running.
+
+#### MCP Configuration
+
+Claude Code (`settings.json`):
+```json
+{
+  "mcpServers": {
+    "chatcrystal": {
+      "command": "crystal",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+MCP exposes 4 read-only tools: `search_knowledge`, `get_note`, `list_notes`, `get_relations`.
+
 ## Architecture
 
 Monorepo with three npm workspaces:
