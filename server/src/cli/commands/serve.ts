@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, openSync, mkdirSync } from 'node:fs';
 import type { Command } from 'commander';
 import { readPidFile, removePidFile } from '../client.js';
 import { printSuccess, printError, printKeyValue } from '../formatter.js';
@@ -55,15 +55,19 @@ async function startDaemon(port: number) {
     }
   } catch { /* not running */ }
 
-  const serverEntry = resolve(import.meta.dirname, '../index.js');
+  const serverEntry = resolve(import.meta.dirname, '../../index.js');
+  const dataDir = resolve(import.meta.dirname, '../../../../../../data');
+  try { mkdirSync(dataDir, { recursive: true }); } catch { /* ignore */ }
+
+  // Redirect stdout/stderr to log file (Fastify's pino logger needs a writable stdout)
+  const logFile = resolve(dataDir, 'crystal-server.log');
+  const logFd = openSync(logFile, 'a');
   const child = spawn(process.execPath, [serverEntry], {
     detached: true,
-    stdio: 'ignore',
+    stdio: ['ignore', logFd, logFd],
     env: { ...process.env, PORT: String(port) },
   });
   child.unref();
-
-  const dataDir = resolve(import.meta.dirname, '../../../../../data');
   const pidFile = resolve(dataDir, 'crystal.pid');
   try {
     writeFileSync(pidFile, String(child.pid), 'utf-8');
@@ -85,7 +89,7 @@ async function startDaemon(port: number) {
 }
 
 async function stopDaemon() {
-  const dataDir = resolve(import.meta.dirname, '../../../../../data');
+  const dataDir = resolve(import.meta.dirname, '../../../../../../data');
   const pid = readPidFile(dataDir);
 
   if (!pid) {

@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
-import { writeFileSync, readFileSync, existsSync, unlinkSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync, unlinkSync, openSync, mkdirSync } from 'node:fs';
 
 export class ServerNotAvailableError extends Error {
   constructor(baseUrl: string) {
@@ -53,16 +53,18 @@ export class CrystalClient {
     // Resolve the server entry point relative to this file
     // In compiled output: dist/server/src/cli/client.js → dist/server/src/index.js
     const serverEntry = resolve(import.meta.dirname, '../index.js');
+    const pidDir = resolve(import.meta.dirname, '../../../../../data');
+    try { mkdirSync(pidDir, { recursive: true }); } catch { /* ignore */ }
 
+    // Redirect stdout/stderr to log file (Fastify's pino logger needs a writable stdout)
+    const logFile = resolve(pidDir, 'crystal-server.log');
+    const logFd = openSync(logFile, 'a');
     const child = spawn(process.execPath, [serverEntry], {
       detached: true,
-      stdio: 'ignore',
+      stdio: ['ignore', logFd, logFd],
       env: { ...process.env },
     });
     child.unref();
-
-    // Save PID for crystal serve stop
-    const pidDir = resolve(import.meta.dirname, '../../../../data');
     const pidFile = resolve(pidDir, 'crystal.pid');
     try {
       writeFileSync(pidFile, String(child.pid), 'utf-8');
@@ -87,11 +89,9 @@ export class CrystalClient {
     await this.ensureServer();
 
     const url = `${this.baseUrl}${path}`;
-    const options: RequestInit = {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-    };
+    const options: RequestInit = { method };
     if (body !== undefined) {
+      options.headers = { 'Content-Type': 'application/json' };
       options.body = JSON.stringify(body);
     }
 
