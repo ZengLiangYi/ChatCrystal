@@ -1,6 +1,14 @@
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
+import { homedir } from 'node:os';
 import { writeFileSync, readFileSync, existsSync, unlinkSync, openSync, mkdirSync } from 'node:fs';
+
+function getDataDir(): string {
+  if (import.meta.dirname.includes('node_modules')) {
+    return resolve(homedir(), '.chatcrystal', 'data');
+  }
+  return resolve(import.meta.dirname, '../../../../../data');
+}
 
 export class ServerNotAvailableError extends Error {
   constructor(baseUrl: string) {
@@ -53,7 +61,7 @@ export class CrystalClient {
     // Resolve the server entry point relative to this file
     // In compiled output: dist/server/src/cli/client.js → dist/server/src/index.js
     const serverEntry = resolve(import.meta.dirname, '../index.js');
-    const pidDir = resolve(import.meta.dirname, '../../../../../data');
+    const pidDir = getDataDir();
     try { mkdirSync(pidDir, { recursive: true }); } catch { /* ignore */ }
 
     // Redirect stdout/stderr to log file (Fastify's pino logger needs a writable stdout)

@@ -99,8 +99,8 @@ export async function createServer(options?: {
   return { app, port, shutdown };
 }
 
-// Standalone mode (not Electron)
-if (!process.env.ELECTRON) {
+// Standalone mode (not Electron, not CLI)
+if (!process.env.ELECTRON && !process.env.CRYSTAL_CLI) {
   createServer()
     .then(({ shutdown }) => {
       const handle = () => {

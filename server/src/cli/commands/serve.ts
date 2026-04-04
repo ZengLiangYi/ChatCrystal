@@ -1,8 +1,16 @@
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
+import { homedir } from 'node:os';
 import { writeFileSync, openSync, mkdirSync } from 'node:fs';
 import type { Command } from 'commander';
 import { readPidFile, removePidFile } from '../client.js';
+
+function getDataDir(): string {
+  if (import.meta.dirname.includes('node_modules')) {
+    return resolve(homedir(), '.chatcrystal', 'data');
+  }
+  return resolve(import.meta.dirname, '../../../../../../data');
+}
 import { printSuccess, printError, printKeyValue } from '../formatter.js';
 
 export function registerServeCommand(program: Command) {
@@ -35,6 +43,7 @@ export function registerServeCommand(program: Command) {
 }
 
 async function startForeground(port: number) {
+  process.env.CRYSTAL_CLI = 'true';
   const { createServer } = await import('../../index.js');
   const { shutdown } = await createServer({ port });
 
@@ -56,7 +65,7 @@ async function startDaemon(port: number) {
   } catch { /* not running */ }
 
   const serverEntry = resolve(import.meta.dirname, '../../index.js');
-  const dataDir = resolve(import.meta.dirname, '../../../../../../data');
+  const dataDir = getDataDir();
   try { mkdirSync(dataDir, { recursive: true }); } catch { /* ignore */ }
 
   // Redirect stdout/stderr to log file (Fastify's pino logger needs a writable stdout)
@@ -89,7 +98,7 @@ async function startDaemon(port: number) {
 }
 
 async function stopDaemon() {
-  const dataDir = resolve(import.meta.dirname, '../../../../../../data');
+  const dataDir = getDataDir();
   const pid = readPidFile(dataDir);
 
   if (!pid) {

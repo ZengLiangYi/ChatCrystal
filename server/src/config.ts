@@ -28,8 +28,13 @@ const envDefaults = {
 	dataDir: isAbsolute(process.env.DATA_DIR || "")
 		? process.env.DATA_DIR!
 		: (() => {
-				// Try source layout first, then compiled layout
 				const rel = process.env.DATA_DIR || "./data";
+				// Global npm install: use ~/.chatcrystal/data
+				if (import.meta.dirname.includes("node_modules")) {
+					const globalDir = resolve(homedir(), ".chatcrystal", "data");
+					return globalDir;
+				}
+				// Try source layout first, then compiled layout
 				const candidate = resolve(import.meta.dirname, "../../", rel);
 				const candidate2 = resolve(import.meta.dirname, "../../../../", rel);
 				// Pick the one where the parent directory exists
