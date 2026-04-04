@@ -7,6 +7,7 @@
 **从 AI 对话中提炼自己的知识库**
 
 [![GitHub release](https://img.shields.io/github/v/release/ZengLiangYi/ChatCrystal?style=flat-square)](https://github.com/ZengLiangYi/ChatCrystal/releases)
+[![npm](https://img.shields.io/npm/v/chatcrystal?style=flat-square)](https://www.npmjs.com/package/chatcrystal)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen?style=flat-square)](https://nodejs.org/)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey?style=flat-square)](#)
@@ -50,6 +51,53 @@ ChatCrystal 将散落在 Claude Code、Cursor、Codex CLI 等 AI 编程工具中
 - **多 Provider 支持** — 支持 Ollama、OpenAI、Anthropic、Google AI、Azure OpenAI 及任意 OpenAI 兼容服务，可在设置页面运行时切换
 - **任务队列** — 批量摘要/Embedding 生成通过 p-queue 排队执行，支持实时进度追踪和取消
 - **桌面应用** — Electron 打包，系统托盘驻留，关闭窗口最小化到托盘
+
+## CLI 与 MCP Server
+
+ChatCrystal 同时提供 CLI 工具和 MCP Server，已发布为 npm 包。
+
+```bash
+npm install -g chatcrystal
+```
+
+### CLI 命令
+
+```bash
+crystal status                          # 服务器状态与数据库统计
+crystal import [--source claude-code]   # 扫描并导入对话
+crystal search "关键词" [--limit 10]     # 语义搜索
+crystal notes list [--tag 标签名]        # 浏览笔记
+crystal notes get <id>                  # 查看笔记详情
+crystal tags                            # 列出所有标签
+crystal summarize --all                 # 批量生成摘要
+crystal config get                      # 查看配置
+crystal serve -d                        # 后台启动服务器
+crystal serve stop                      # 停止后台服务器
+```
+
+自动拉起：需要服务器的命令会在服务未运行时自动后台启动。输出根据终端自动适配 — 终端中显示彩色表格，管道/重定向时输出 JSON。
+
+### MCP Server
+
+与 AI 编码工具（Claude Code、Cursor 等）集成，让它们在编码过程中直接检索你的对话知识库。
+
+```bash
+crystal mcp                             # 启动 MCP stdio 服务
+```
+
+**Claude Code 配置**（`settings.json`）：
+```json
+{
+  "mcpServers": {
+    "chatcrystal": {
+      "command": "crystal",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+MCP 暴露 4 个只读工具：`search_knowledge`、`get_note`、`list_notes`、`get_relations`。
 
 ## 技术栈
 

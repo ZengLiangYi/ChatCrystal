@@ -7,6 +7,7 @@
 **Crystallize knowledge from your AI conversations**
 
 [![GitHub release](https://img.shields.io/github/v/release/ZengLiangYi/ChatCrystal?style=flat-square)](https://github.com/ZengLiangYi/ChatCrystal/releases)
+[![npm](https://img.shields.io/npm/v/chatcrystal?style=flat-square)](https://www.npmjs.com/package/chatcrystal)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen?style=flat-square)](https://nodejs.org/)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey?style=flat-square)](#)
@@ -50,6 +51,53 @@ ChatCrystal collects conversations from AI coding tools (Claude Code, Cursor, Co
 - **Multi-provider support** — Ollama, OpenAI, Anthropic, Google AI, Azure OpenAI, or any OpenAI-compatible API, switchable at runtime
 - **Task queue** — Batch summarization/embedding via p-queue with real-time progress tracking and cancellation
 - **Desktop app** — Electron with system tray, minimize-to-tray on close
+
+## CLI & MCP Server
+
+ChatCrystal also provides a CLI tool and MCP Server, published as an npm package.
+
+```bash
+npm install -g chatcrystal
+```
+
+### CLI Commands
+
+```bash
+crystal status                          # Server status and DB stats
+crystal import [--source claude-code]   # Scan and import conversations
+crystal search "query" [--limit 10]     # Semantic search
+crystal notes list [--tag X]            # Browse notes
+crystal notes get <id>                  # View note detail
+crystal tags                            # List tags with counts
+crystal summarize --all                 # Batch summarize
+crystal config get                      # View config
+crystal serve -d                        # Start server in background
+crystal serve stop                      # Stop background server
+```
+
+Auto-start: commands that need the server will auto-launch it in background if not running. Output is TTY-aware — colored tables in terminal, JSON when piped.
+
+### MCP Server
+
+Integrate with AI coding tools (Claude Code, Cursor, etc.) so they can retrieve knowledge from your conversation history during coding.
+
+```bash
+crystal mcp                             # Start MCP stdio server
+```
+
+**Claude Code configuration** (`settings.json`):
+```json
+{
+  "mcpServers": {
+    "chatcrystal": {
+      "command": "crystal",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+MCP exposes 4 read-only tools: `search_knowledge`, `get_note`, `list_notes`, `get_relations`.
 
 ## Tech Stack
 
