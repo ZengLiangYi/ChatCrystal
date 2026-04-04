@@ -1,6 +1,6 @@
 {
   "name": "chatcrystal",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "description": "AI conversation knowledge crystallization tool",
   "main": "electron/dist/main.js",
