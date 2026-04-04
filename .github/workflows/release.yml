@@ -32,10 +32,21 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           npm version "$VERSION" --no-git-tag-version --allow-same-version
 
+      - name: Setup npm auth
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+
       - name: Build application
         run: |
           npm run build
           npx tsc -p electron/tsconfig.json
+
+      - name: Publish to npm
+        working-directory: server
+        run: |
+          npm version "${{ env.VERSION }}" --no-git-tag-version --allow-same-version
+          npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Package Electron app
         run: npx electron-builder --win --publish never
