@@ -4,6 +4,22 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 0.3.0). Leave empty to use current package.json version.'
+        required: false
+        type: string
+      publish_npm:
+        description: 'Publish to npm'
+        required: true
+        type: boolean
+        default: true
+      build_electron:
+        description: 'Build Electron installer & GitHub Release'
+        required: true
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -25,22 +41,51 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Sync version from tag
+      - name: Determine version
         shell: bash
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            # Tag push: extract version from tag
+            VERSION="${GITHUB_REF_NAME#v}"
+          elif [[ -n "${{ inputs.version }}" ]]; then
+            # Manual dispatch with explicit version
+            VERSION="${{ inputs.version }}"
+          else
+            # Manual dispatch without version: use package.json
+            VERSION=$(node -p "require('./package.json').version")
+          fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          echo "Resolved version: $VERSION"
 
-      - name: Setup npm auth
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+      - name: Sync version
+        shell: bash
+        run: npm version "$VERSION" --no-git-tag-version --allow-same-version
+
+      - name: Determine what to publish
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            # Tag push: publish everything
+            echo "DO_NPM=true" >> $GITHUB_ENV
+            echo "DO_ELECTRON=true" >> $GITHUB_ENV
+          else
+            # Manual dispatch: respect checkbox inputs
+            echo "DO_NPM=${{ inputs.publish_npm }}" >> $GITHUB_ENV
+            echo "DO_ELECTRON=${{ inputs.build_electron }}" >> $GITHUB_ENV
+          fi
 
       - name: Build application
         run: |
           npm run build
           npx tsc -p electron/tsconfig.json
 
+      # ── npm publish ──────────────────────────────────────────
+      - name: Setup npm auth
+        if: env.DO_NPM == 'true'
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+
       - name: Publish to npm
+        if: env.DO_NPM == 'true'
         working-directory: server
         run: |
           npm version "${{ env.VERSION }}" --no-git-tag-version --allow-same-version
@@ -48,17 +93,21 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      # ── Electron build + GitHub Release ──────────────────────
       - name: Package Electron app
+        if: env.DO_ELECTRON == 'true'
         run: npx electron-builder --win --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release
+        if: env.DO_ELECTRON == 'true'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ env.VERSION }}
           name: ChatCrystal v${{ env.VERSION }}
           draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ contains(env.VERSION, '-') }}
           generate_release_notes: true
           files: |
             release/*.exe
