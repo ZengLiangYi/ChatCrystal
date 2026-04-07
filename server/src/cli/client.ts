@@ -134,6 +134,63 @@ export class CrystalClient {
     }>('POST', '/api/import/scan', source ? { source } : undefined);
   }
 
+  /**
+   * Import with SSE progress stream.
+   * Calls onProgress for each progress event, returns final result.
+   */
+  async importScanStream(onProgress: (progress: {
+    total: number; current: number; currentFile: string;
+    imported: number; skipped: number; errors: number;
+  }) => void): Promise<{ total: number; imported: number; skipped: number; errors: number }> {
+    await this.ensureServer();
+
+    const res = await fetch(`${this.baseUrl}/api/import/scan/stream`, {
+      headers: { Accept: 'text/event-stream' },
+    });
+
+    if (!res.ok || !res.body) {
+      throw new Error(`Stream request failed: ${res.status}`);
+    }
+
+    return new Promise((resolve, reject) => {
+      let buffer = '';
+      const decoder = new TextDecoder();
+      const reader = res.body!.getReader();
+
+      function processChunk(text: string) {
+        buffer += text;
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        let eventType = '';
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            eventType = line.slice(7).trim();
+          } else if (line.startsWith('data: ')) {
+            const data = JSON.parse(line.slice(6));
+            if (eventType === 'progress') {
+              onProgress(data);
+            } else if (eventType === 'done') {
+              resolve(data);
+            } else if (eventType === 'error') {
+              reject(new Error(data.error));
+            }
+          }
+        }
+      }
+
+      function read() {
+        reader.read().then(({ done, value }) => {
+          if (done) return;
+          processChunk(decoder.decode(value, { stream: true }));
+          read();
+        }).catch(reject);
+      }
+
+      read();
+    });
+  }
+
   async search(query: string, limit = 10) {
     return this.request<Array<{
       note_id: number; title: string; project_name: string; score: number; tags: string[];
