@@ -191,6 +191,65 @@ export class CrystalClient {
     });
   }
 
+  /**
+   * Connect to queue SSE stream for real-time task status.
+   */
+  async queueStream(onStatus: (snapshot: {
+    total: number; completed: number; failed: number; active: number;
+    tasks: Array<{
+      id: string; title: string; status: string;
+      duration?: number; error?: string;
+    }>;
+  }) => void): Promise<{ total: number; completed: number; failed: number }> {
+    await this.ensureServer();
+
+    const res = await fetch(`${this.baseUrl}/api/queue/stream`, {
+      headers: { Accept: 'text/event-stream' },
+    });
+
+    if (!res.ok || !res.body) {
+      throw new Error(`Queue stream request failed: ${res.status}`);
+    }
+
+    return new Promise((resolve, reject) => {
+      let buffer = '';
+      const decoder = new TextDecoder();
+      const reader = res.body!.getReader();
+
+      function processChunk(text: string) {
+        buffer += text;
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        let eventType = '';
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            eventType = line.slice(7).trim();
+          } else if (line.startsWith('data: ')) {
+            const data = JSON.parse(line.slice(6));
+            if (eventType === 'status') {
+              onStatus(data);
+            } else if (eventType === 'done') {
+              resolve(data);
+            } else if (eventType === 'error') {
+              reject(new Error(data.error));
+            }
+          }
+        }
+      }
+
+      function read() {
+        reader.read().then(({ done, value }) => {
+          if (done) return;
+          processChunk(decoder.decode(value, { stream: true }));
+          read();
+        }).catch(reject);
+      }
+
+      read();
+    });
+  }
+
   async search(query: string, limit = 10) {
     return this.request<Array<{
       note_id: number; title: string; project_name: string; score: number; tags: string[];

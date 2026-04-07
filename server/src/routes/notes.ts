@@ -170,6 +170,56 @@ export async function noteRoutes(app: FastifyInstance) {
     return { success: true, data: getQueueStatus() };
   });
 
+  // SSE endpoint for real-time queue status
+  app.get('/api/queue/stream', async (_req, reply) => {
+    reply.raw.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    });
+
+    const send = (event: string, data: unknown) => {
+      reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    const interval = setInterval(() => {
+      const snapshot = getQueueStatus();
+
+      const tasks = snapshot.tasks.map((t) => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        error: t.error,
+        duration: t.finishedAt && t.startedAt ? t.finishedAt - t.startedAt : undefined,
+      }));
+
+      send('status', {
+        total: snapshot.total,
+        completed: snapshot.completed,
+        failed: snapshot.failed,
+        active: snapshot.active,
+        tasks,
+      });
+
+      const hasWork = snapshot.tasks.some(
+        (t) => t.status === 'queued' || t.status === 'processing',
+      );
+      if (snapshot.total > 0 && !hasWork) {
+        send('done', {
+          total: snapshot.total,
+          completed: snapshot.completed,
+          failed: snapshot.failed,
+        });
+        clearInterval(interval);
+        reply.raw.end();
+      }
+    }, 1000);
+
+    _req.raw.on('close', () => {
+      clearInterval(interval);
+    });
+  });
+
   // Cancel queued tasks
   app.post('/api/queue/cancel', async () => {
     const result = cancelQueue();
