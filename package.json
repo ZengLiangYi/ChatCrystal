@@ -37,7 +37,9 @@
     "dev:electron": "tsc -p electron/tsconfig.json && concurrently \"npm run dev:server\" \"npm run dev:client\" \"wait-on http://localhost:13721 && cross-env VITE_DEV_URL=http://localhost:13721 electron .\"",
     "build:electron": "npm run build && tsc -p electron/tsconfig.json && electron-builder --win",
     "pack:electron": "npm run build && tsc -p electron/tsconfig.json && electron-builder --win --dir",
-    "release": "node scripts/release.mjs"
+    "release": "node scripts/release.mjs",
+    "release:npm": "cross-env RELEASE_TARGET=npm node scripts/release.mjs",
+    "release:electron": "cross-env RELEASE_TARGET=electron node scripts/release.mjs"
   },
   "author": "Rayner Zeng",
   "engines": {

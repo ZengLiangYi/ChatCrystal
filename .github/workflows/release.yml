@@ -3,23 +3,29 @@ name: Build & Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*'           # Full release (npm + Electron)
+      - 'npm-v*'       # npm only
+      - 'electron-v*'  # Electron only
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Version to release (e.g. 0.3.0). Leave empty to use current package.json version.'
-        required: false
-        type: string
       publish_npm:
         description: 'Publish to npm'
         required: true
         type: boolean
-        default: true
+        default: false
+      npm_version:
+        description: 'npm version override (leave empty to use server/package.json)'
+        required: false
+        type: string
       build_electron:
         description: 'Build Electron installer & GitHub Release'
         required: true
         type: boolean
-        default: true
+        default: false
+      electron_version:
+        description: 'Electron version override (leave empty to use package.json)'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -41,38 +47,51 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Determine version
+      - name: Determine targets and versions
         shell: bash
         run: |
           if [[ "${{ github.event_name }}" == "push" ]]; then
-            # Tag push: extract version from tag
-            VERSION="${GITHUB_REF_NAME#v}"
-          elif [[ -n "${{ inputs.version }}" ]]; then
-            # Manual dispatch with explicit version
-            VERSION="${{ inputs.version }}"
+            TAG="${GITHUB_REF_NAME}"
+            if [[ "$TAG" == npm-v* ]]; then
+              echo "DO_NPM=true" >> $GITHUB_ENV
+              echo "DO_ELECTRON=false" >> $GITHUB_ENV
+              echo "NPM_VERSION=${TAG#npm-v}" >> $GITHUB_ENV
+            elif [[ "$TAG" == electron-v* ]]; then
+              echo "DO_NPM=false" >> $GITHUB_ENV
+              echo "DO_ELECTRON=true" >> $GITHUB_ENV
+              echo "ELECTRON_VERSION=${TAG#electron-v}" >> $GITHUB_ENV
+            else
+              # v* tag: full release, read versions from respective package.json
+              echo "DO_NPM=true" >> $GITHUB_ENV
+              echo "DO_ELECTRON=true" >> $GITHUB_ENV
+              echo "NPM_VERSION=$(node -p "require('./server/package.json').version")" >> $GITHUB_ENV
+              echo "ELECTRON_VERSION=${TAG#v}" >> $GITHUB_ENV
+            fi
           else
-            # Manual dispatch without version: use package.json
-            VERSION=$(node -p "require('./package.json').version")
-          fi
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Resolved version: $VERSION"
-
-      - name: Sync version
-        shell: bash
-        run: npm version "$VERSION" --no-git-tag-version --allow-same-version
-
-      - name: Determine what to publish
-        shell: bash
-        run: |
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            # Tag push: publish everything
-            echo "DO_NPM=true" >> $GITHUB_ENV
-            echo "DO_ELECTRON=true" >> $GITHUB_ENV
-          else
-            # Manual dispatch: respect checkbox inputs
+            # workflow_dispatch
             echo "DO_NPM=${{ inputs.publish_npm }}" >> $GITHUB_ENV
             echo "DO_ELECTRON=${{ inputs.build_electron }}" >> $GITHUB_ENV
+
+            if [[ -n "${{ inputs.npm_version }}" ]]; then
+              echo "NPM_VERSION=${{ inputs.npm_version }}" >> $GITHUB_ENV
+            else
+              echo "NPM_VERSION=$(node -p "require('./server/package.json').version")" >> $GITHUB_ENV
+            fi
+
+            if [[ -n "${{ inputs.electron_version }}" ]]; then
+              echo "ELECTRON_VERSION=${{ inputs.electron_version }}" >> $GITHUB_ENV
+            else
+              echo "ELECTRON_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+            fi
           fi
+
+      - name: Log resolved config
+        shell: bash
+        run: |
+          echo "DO_NPM=$DO_NPM"
+          echo "DO_ELECTRON=$DO_ELECTRON"
+          echo "NPM_VERSION=$NPM_VERSION"
+          echo "ELECTRON_VERSION=$ELECTRON_VERSION"
 
       - name: Build application
         run: |
@@ -88,12 +107,17 @@ jobs:
         if: env.DO_NPM == 'true'
         working-directory: server
         run: |
-          npm version "${{ env.VERSION }}" --no-git-tag-version --allow-same-version
+          npm version "${{ env.NPM_VERSION }}" --no-git-tag-version --allow-same-version
           npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       # ── Electron build + GitHub Release ──────────────────────
+      - name: Sync Electron version
+        if: env.DO_ELECTRON == 'true'
+        shell: bash
+        run: npm version "${{ env.ELECTRON_VERSION }}" --no-git-tag-version --allow-same-version
+
       - name: Package Electron app
         if: env.DO_ELECTRON == 'true'
         run: npx electron-builder --win --publish never
@@ -104,10 +128,10 @@ jobs:
         if: env.DO_ELECTRON == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ env.VERSION }}
-          name: ChatCrystal v${{ env.VERSION }}
+          tag_name: electron-v${{ env.ELECTRON_VERSION }}
+          name: ChatCrystal v${{ env.ELECTRON_VERSION }}
           draft: false
-          prerelease: ${{ contains(env.VERSION, '-') }}
+          prerelease: ${{ contains(env.ELECTRON_VERSION, '-') }}
           generate_release_notes: true
           files: |
             release/*.exe
