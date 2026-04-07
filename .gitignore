@@ -55,3 +55,9 @@ promo/
 
 # Design specs and plans
 docs/superpowers/
+
+# Launch posts (personal, not code)
+docs/launch/
+
+# Claude Code project instructions
+CLAUDE.md
