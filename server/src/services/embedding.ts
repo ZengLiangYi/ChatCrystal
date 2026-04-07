@@ -172,7 +172,7 @@ export async function semanticSearch(
   const model = getEmbeddingModel();
   const { embedding } = await embed({ model, value: query });
 
-  const results = await index.queryItems<NoteChunkMeta>(embedding, topK);
+  const results = await index.queryItems<NoteChunkMeta>(embedding, query, topK);
 
   // Deduplicate by noteId, keeping highest score
   const seen = new Map<number, (typeof results)[0]>();
