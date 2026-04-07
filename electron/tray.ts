@@ -27,6 +27,15 @@ export function createTray(win: BrowserWindow, port: number): Tray {
 			},
 		},
 		{
+			label: "搜索知识库",
+			click: () => {
+				win.show();
+				win.focus();
+				const baseUrl = `http://localhost:${port}`;
+				win.loadURL(`${baseUrl}/search`);
+			},
+		},
+		{
 			label: "在浏览器中打开",
 			click: () => {
 				shell.openExternal(`http://localhost:${port}`);
