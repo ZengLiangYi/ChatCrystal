@@ -130,6 +130,12 @@
   "data_source_conversations": "{{count}} conversations",
   "key_conclusions": "Key Conclusions",
   "code_snippets": "Code Snippets",
+  "onboarding": {
+    "title": "Welcome to ChatCrystal!",
+    "description": "You're viewing demo data. Configure your LLM provider and import your own AI conversations to get started.",
+    "configure_llm": "Configure LLM",
+    "browse_demo": "Browse Demo Data"
+  },
   "guide": {
     "step1": "1. Click \"Import\" in the sidebar to scan AI conversations",
     "step2": "2. Go to \"Conversations\" to browse and click \"Generate Summary\"",

@@ -20,6 +20,7 @@ export function Dashboard() {
   const stats = status?.stats;
   const recentNotes = (status as Record<string, unknown>)?.recentNotes as
     { id: number; title: string; project_name: string; created_at: string }[] | undefined;
+  const isSeeded = (status as Record<string, unknown>)?.isSeeded as boolean | undefined;
 
   return (
     <div className="p-6">
@@ -46,6 +47,31 @@ export function Dashboard() {
           onClick={() => navigate('/notes')}
         />
       </div>
+
+      {isSeeded && (
+        <div className="mb-6 bg-secondary border border-[var(--accent)] p-4" style={{ borderRadius: 'var(--radius)' }}>
+          <h3 className="text-sm font-medium text-accent mb-2">{t('onboarding.title')}</h3>
+          <p className="text-sm text-secondary mb-3">{t('onboarding.description')}</p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => navigate('/settings')}
+              className="px-3 py-1.5 text-xs border border-[var(--accent)] text-accent hover:bg-[var(--accent)] hover:text-[var(--bg-primary)] transition-colors"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              {t('onboarding.configure_llm')}
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/conversations')}
+              className="px-3 py-1.5 text-xs border border-theme text-secondary hover:border-[var(--accent)] transition-colors"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              {t('onboarding.browse_demo')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Quick actions */}
       <div className="flex gap-3 mb-6">

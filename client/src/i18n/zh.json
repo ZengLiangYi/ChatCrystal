@@ -130,6 +130,12 @@
   "data_source_conversations": "{{count}} 个对话",
   "key_conclusions": "关键结论",
   "code_snippets": "代码片段",
+  "onboarding": {
+    "title": "欢迎使用 ChatCrystal！",
+    "description": "当前为演示数据。配置你的 LLM 提供商并导入你自己的 AI 对话来开始使用。",
+    "configure_llm": "配置 LLM",
+    "browse_demo": "浏览演示数据"
+  },
   "guide": {
     "step1": "1. 点击左侧「导入对话」扫描 AI 对话记录",
     "step2": "2. 前往「对话」页浏览对话，点击「生成摘要」提炼笔记",
