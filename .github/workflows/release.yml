@@ -27,111 +27,123 @@ on:
         required: false
         type: string
 
-permissions:
-  contents: write
-
 jobs:
-  release:
-    runs-on: windows-latest
-
+  # ── Determine what to build ────────────────────────────────
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      do_npm: ${{ steps.resolve.outputs.do_npm }}
+      do_electron: ${{ steps.resolve.outputs.do_electron }}
+      npm_version: ${{ steps.resolve.outputs.npm_version }}
+      electron_version: ${{ steps.resolve.outputs.electron_version }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Determine targets and versions
+      - id: resolve
         shell: bash
         run: |
           if [[ "${{ github.event_name }}" == "push" ]]; then
             TAG="${GITHUB_REF_NAME}"
             if [[ "$TAG" == npm-v* ]]; then
-              echo "DO_NPM=true" >> $GITHUB_ENV
-              echo "DO_ELECTRON=false" >> $GITHUB_ENV
-              echo "NPM_VERSION=${TAG#npm-v}" >> $GITHUB_ENV
+              echo "do_npm=true" >> $GITHUB_OUTPUT
+              echo "do_electron=false" >> $GITHUB_OUTPUT
+              echo "npm_version=${TAG#npm-v}" >> $GITHUB_OUTPUT
             elif [[ "$TAG" == electron-v* ]]; then
-              echo "DO_NPM=false" >> $GITHUB_ENV
-              echo "DO_ELECTRON=true" >> $GITHUB_ENV
-              echo "ELECTRON_VERSION=${TAG#electron-v}" >> $GITHUB_ENV
+              echo "do_npm=false" >> $GITHUB_OUTPUT
+              echo "do_electron=true" >> $GITHUB_OUTPUT
+              echo "electron_version=${TAG#electron-v}" >> $GITHUB_OUTPUT
             else
-              # v* tag: full release, read versions from respective package.json
-              echo "DO_NPM=true" >> $GITHUB_ENV
-              echo "DO_ELECTRON=true" >> $GITHUB_ENV
-              echo "NPM_VERSION=$(node -p "require('./server/package.json').version")" >> $GITHUB_ENV
-              echo "ELECTRON_VERSION=${TAG#v}" >> $GITHUB_ENV
+              echo "do_npm=true" >> $GITHUB_OUTPUT
+              echo "do_electron=true" >> $GITHUB_OUTPUT
+              echo "npm_version=$(node -p "require('./server/package.json').version")" >> $GITHUB_OUTPUT
+              echo "electron_version=${TAG#v}" >> $GITHUB_OUTPUT
             fi
           else
-            # workflow_dispatch
-            echo "DO_NPM=${{ inputs.publish_npm }}" >> $GITHUB_ENV
-            echo "DO_ELECTRON=${{ inputs.build_electron }}" >> $GITHUB_ENV
+            echo "do_npm=${{ inputs.publish_npm }}" >> $GITHUB_OUTPUT
+            echo "do_electron=${{ inputs.build_electron }}" >> $GITHUB_OUTPUT
 
             if [[ -n "${{ inputs.npm_version }}" ]]; then
-              echo "NPM_VERSION=${{ inputs.npm_version }}" >> $GITHUB_ENV
+              echo "npm_version=${{ inputs.npm_version }}" >> $GITHUB_OUTPUT
             else
-              echo "NPM_VERSION=$(node -p "require('./server/package.json').version")" >> $GITHUB_ENV
+              echo "npm_version=$(node -p "require('./server/package.json').version")" >> $GITHUB_OUTPUT
             fi
 
             if [[ -n "${{ inputs.electron_version }}" ]]; then
-              echo "ELECTRON_VERSION=${{ inputs.electron_version }}" >> $GITHUB_ENV
+              echo "electron_version=${{ inputs.electron_version }}" >> $GITHUB_OUTPUT
             else
-              echo "ELECTRON_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+              echo "electron_version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
             fi
           fi
 
-      - name: Log resolved config
-        shell: bash
+  # ── Publish to npm (Trusted Publisher via OIDC) ────────────
+  publish-npm:
+    needs: prepare
+    if: needs.prepare.outputs.do_npm == 'true'
+    runs-on: ubuntu-latest
+    environment: npm-publish
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+
+      - name: Build server
+        run: npm run build -w server
+
+      - name: Publish to npm
+        working-directory: server
         run: |
-          echo "DO_NPM=$DO_NPM"
-          echo "DO_ELECTRON=$DO_ELECTRON"
-          echo "NPM_VERSION=$NPM_VERSION"
-          echo "ELECTRON_VERSION=$ELECTRON_VERSION"
+          npm version "${{ needs.prepare.outputs.npm_version }}" --no-git-tag-version --allow-same-version
+          npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # ── Build Electron + GitHub Release ────────────────────────
+  publish-electron:
+    needs: prepare
+    if: needs.prepare.outputs.do_electron == 'true'
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
 
       - name: Build application
         run: |
           npm run build
           npx tsc -p electron/tsconfig.json
 
-      # ── npm publish ──────────────────────────────────────────
-      - name: Setup npm auth
-        if: env.DO_NPM == 'true'
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-
-      - name: Publish to npm
-        if: env.DO_NPM == 'true'
-        working-directory: server
-        run: |
-          npm version "${{ env.NPM_VERSION }}" --no-git-tag-version --allow-same-version
-          npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      # ── Electron build + GitHub Release ──────────────────────
       - name: Sync Electron version
-        if: env.DO_ELECTRON == 'true'
         shell: bash
-        run: npm version "${{ env.ELECTRON_VERSION }}" --no-git-tag-version --allow-same-version
+        run: npm version "${{ needs.prepare.outputs.electron_version }}" --no-git-tag-version --allow-same-version
 
       - name: Package Electron app
-        if: env.DO_ELECTRON == 'true'
         run: npx electron-builder --win --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release
-        if: env.DO_ELECTRON == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: electron-v${{ env.ELECTRON_VERSION }}
-          name: ChatCrystal v${{ env.ELECTRON_VERSION }}
+          tag_name: electron-v${{ needs.prepare.outputs.electron_version }}
+          name: ChatCrystal v${{ needs.prepare.outputs.electron_version }}
           draft: false
-          prerelease: ${{ contains(env.ELECTRON_VERSION, '-') }}
+          prerelease: ${{ contains(needs.prepare.outputs.electron_version, '-') }}
           generate_release_notes: true
           files: |
             release/*.exe
