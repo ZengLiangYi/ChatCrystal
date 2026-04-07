@@ -2,6 +2,22 @@
   "name": "chatcrystal",
   "version": "0.1.0",
   "private": false,
+  "description": "Turn your AI conversations into searchable knowledge — supports Claude Code, Cursor, Codex CLI",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "ai",
+    "conversation",
+    "knowledge",
+    "knowledge-base",
+    "mcp",
+    "semantic-search",
+    "notes",
+    "codex",
+    "cursor",
+    "electron",
+    "local-first"
+  ],
   "type": "module",
   "bin": {
     "crystal": "dist/server/src/cli/index.js"
