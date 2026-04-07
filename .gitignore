@@ -49,3 +49,9 @@ shared/types/*.map
 # Server source-level JS artifacts (old tsc output)
 server/src/**/*.js
 server/src/**/*.js.map
+
+# Promo animation (Remotion source)
+promo/
+
+# Design specs and plans
+docs/superpowers/

@@ -18,6 +18,12 @@ English | [简体中文](README.zh-CN.md)
 
 ---
 
+<div align="center">
+<img src="docs/demo.webp" alt="ChatCrystal Demo" width="800" />
+</div>
+
+<br>
+
 ChatCrystal collects conversations from AI coding tools (Claude Code, Cursor, Codex CLI), uses LLM to distill them into searchable structured notes, and builds your personal knowledge base — all running locally.
 
 <div align="center">

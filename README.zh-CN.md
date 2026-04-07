@@ -18,6 +18,12 @@
 
 ---
 
+<div align="center">
+<img src="docs/demo.webp" alt="ChatCrystal 演示" width="800" />
+</div>
+
+<br>
+
 ChatCrystal 将散落在 Claude Code、Cursor、Codex CLI 等 AI 编程工具中的对话统一采集到本地，用 LLM 提炼为可搜索的结构化技术笔记，形成个人知识库。
 
 <div align="center">
