@@ -51,7 +51,6 @@
   ],
   "notes": [
     {
-      "id": 9001,
       "conversation_id": "demo-react-jwt-auth",
       "title": "React JWT 认证完整实现方案",
       "summary": "讨论了在 React SPA 中实现 JWT 认证的完整方案，包括 Token 存储策略（localStorage vs httpOnly Cookie）、自动刷新机制、Axios 拦截器配置，以及路由守卫的实现。最终选择 httpOnly Cookie 存储 Refresh Token，内存存储 Access Token，以平衡安全性与用户体验。",
@@ -60,7 +59,6 @@
       "tags": ["authentication", "jwt", "security", "react"]
     },
     {
-      "id": 9002,
       "conversation_id": "demo-api-rate-limiting",
       "title": "Token Bucket 算法实现 API 限流",
       "summary": "探讨了使用 Token Bucket（令牌桶）算法在 Node.js API 服务中实现精细化限流的方案。对比了固定窗口、滑动窗口和令牌桶三种算法的优缺点，最终采用 Redis + Lua 脚本实现原子性令牌桶，支持按用户、IP、API Key 多维度限流，并实现了优雅的限流响应头（X-RateLimit-*）。",
@@ -69,7 +67,6 @@
       "tags": ["api-design", "rate-limiting", "redis", "backend"]
     },
     {
-      "id": 9003,
       "conversation_id": "demo-sqljs-wasm-patterns",
       "title": "sql.js WASM SQLite 在 Electron 中的最佳实践",
       "summary": "深入讨论了在 Electron 桌面应用中使用 sql.js（WASM SQLite）替代 better-sqlite3（原生绑定）的方案。涵盖了 WASM 文件定位、数据库初始化、定时持久化、prepared statement 最佳实践、以及在主进程中安全使用的注意事项。sql.js 的最大优势是无需原生编译，跨平台打包零配置。",

@@ -20,7 +20,6 @@ interface SeedConversation {
 }
 
 interface SeedNote {
-  id: number;
   conversation_id: string;
   title: string;
   summary: string;
@@ -47,10 +46,9 @@ export function seedDemoData(): void {
 
   console.log('[Seed] Empty database detected — inserting demo data...');
 
-  const seedPath = join(import.meta.dirname, '../data/seed-notes.json');
-  const seedData: SeedData = JSON.parse(readFileSync(seedPath, 'utf-8'));
-
   try {
+    const seedPath = join(import.meta.dirname, '../data/seed-notes.json');
+    const seedData: SeedData = JSON.parse(readFileSync(seedPath, 'utf-8'));
     db.run('BEGIN');
 
     // Insert conversations
@@ -92,13 +90,12 @@ export function seedDemoData(): void {
 
     // Insert notes and note_tags
     const noteStmt = db.prepare(
-      `INSERT OR IGNORE INTO notes (
-        id, conversation_id, title, summary, key_conclusions, code_snippets
-      ) VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO notes (
+        conversation_id, title, summary, key_conclusions, code_snippets
+      ) VALUES (?, ?, ?, ?, ?)`,
     );
     for (const note of seedData.notes) {
       noteStmt.run([
-        note.id,
         note.conversation_id,
         note.title,
         note.summary,
@@ -106,18 +103,27 @@ export function seedDemoData(): void {
         note.code_snippets,
       ]);
 
+      // Retrieve the AUTOINCREMENT-assigned ID
+      const noteIdResult = db.exec(
+        `SELECT id FROM notes WHERE conversation_id = ?`,
+        [note.conversation_id],
+      );
+      const noteId = noteIdResult[0]?.values[0]?.[0];
+
       // Link tags to this note
-      for (const tagName of note.tags) {
-        const tagResult = db.exec(
-          `SELECT id FROM tags WHERE name = ?`,
-          [tagName],
-        );
-        const tagId = tagResult[0]?.values[0]?.[0];
-        if (tagId != null) {
-          db.run(
-            `INSERT OR IGNORE INTO note_tags (note_id, tag_id) VALUES (?, ?)`,
-            [note.id, tagId],
+      if (noteId != null) {
+        for (const tagName of note.tags) {
+          const tagResult = db.exec(
+            `SELECT id FROM tags WHERE name = ?`,
+            [tagName],
           );
+          const tagId = tagResult[0]?.values[0]?.[0];
+          if (tagId != null) {
+            db.run(
+              `INSERT OR IGNORE INTO note_tags (note_id, tag_id) VALUES (?, ?)`,
+              [noteId, tagId],
+            );
+          }
         }
       }
     }
@@ -127,7 +133,7 @@ export function seedDemoData(): void {
     saveDatabase();
     console.log('[Seed] Demo data inserted successfully.');
   } catch (err) {
-    db.run('ROLLBACK');
-    console.error('[Seed] Failed to insert demo data:', err);
+    try { db.run('ROLLBACK'); } catch { /* ignore if no transaction active */ }
+    console.error('[Seed] Failed to load demo data:', err);
   }
 }
