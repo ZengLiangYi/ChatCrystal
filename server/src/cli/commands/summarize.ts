@@ -30,6 +30,14 @@ export function registerSummarizeCommand(program: Command) {
         }
 
         if (opts.all) {
+          const isTTY = process.stdout.isTTY ?? false;
+
+          if (isTTY && !shouldOutputJson(globalOpts.json)) {
+            const { renderSummarizePanel } = await import('../ui/SummarizePanel.js');
+            await renderSummarizePanel(client);
+            return;
+          }
+
           const data = await client.summarizeBatch();
 
           if (shouldOutputJson(globalOpts.json)) {
