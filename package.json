@@ -2,7 +2,22 @@
   "name": "chatcrystal",
   "version": "0.2.3",
   "private": true,
-  "description": "AI conversation knowledge crystallization tool",
+  "description": "Turn your AI conversations into searchable knowledge — supports Claude Code, Cursor, Codex CLI",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "ai",
+    "conversation",
+    "knowledge",
+    "knowledge-base",
+    "mcp",
+    "semantic-search",
+    "notes",
+    "codex",
+    "cursor",
+    "electron",
+    "local-first"
+  ],
   "main": "electron/dist/main.js",
   "workspaces": [
     "shared",

@@ -10,9 +10,9 @@ electron/dist/
 # Electron builder output
 release/
 
-# Runtime data
-data/
-data-demo/
+# Runtime data (root-level only)
+/data/
+/data-demo/
 *.db
 *.db-journal
 

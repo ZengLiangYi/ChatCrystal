@@ -4,7 +4,7 @@
 
 # ChatCrystal
 
-**Crystallize knowledge from your AI conversations**
+**Turn your AI conversations into searchable knowledge**
 
 [![GitHub release](https://img.shields.io/github/v/release/ZengLiangYi/ChatCrystal?style=flat-square)](https://github.com/ZengLiangYi/ChatCrystal/releases)
 [![npm](https://img.shields.io/npm/v/chatcrystal?style=flat-square)](https://www.npmjs.com/package/chatcrystal)
@@ -46,6 +46,20 @@ ChatCrystal collects conversations from AI coding tools (Claude Code, Cursor, Co
 </tr>
 </table>
 </div>
+
+## Why?
+
+After 200+ AI conversations, finding that one solution you discussed last week becomes impossible. ChatCrystal watches your conversation files, auto-generates structured notes, and lets you search across everything with natural language — no cloud, no subscription, runs entirely on your machine.
+
+### Quick Start
+
+```bash
+npm install -g chatcrystal
+crystal serve -d
+crystal import
+```
+
+Then open http://localhost:3721 in your browser.
 
 ## Features
 

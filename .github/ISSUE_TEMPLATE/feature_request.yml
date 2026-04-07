@@ -42,6 +42,8 @@ body:
         - 知识图谱 / Knowledge Graph
         - 前端 UI / Frontend
         - 设置 / Settings
+        - CLI 命令行 / CLI
+        - MCP Server
         - Electron 桌面应用 / Electron
         - 其他 / Other
     validations:

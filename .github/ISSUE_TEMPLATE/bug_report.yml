@@ -62,6 +62,8 @@ body:
         - Electron 桌面应用 / Electron Desktop
         - Web 开发模式 / Web Dev Mode
         - Web 生产模式 / Web Production
+        - CLI 命令行 / CLI
+        - MCP Server
     validations:
       required: true
 

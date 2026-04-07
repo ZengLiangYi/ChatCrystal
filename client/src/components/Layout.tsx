@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar.tsx';
 import { StatusBar } from './StatusBar.tsx';
+import { StarBanner } from './StarBanner.tsx';
 
 export function Layout() {
   return (
@@ -10,6 +11,7 @@ export function Layout() {
         <div className="flex-1 overflow-auto">
           <Outlet />
         </div>
+        <StarBanner />
         <StatusBar />
       </div>
     </div>
