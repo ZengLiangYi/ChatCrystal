@@ -35,7 +35,7 @@ export function registerSummarizeCommand(program: Command) {
           if (isTTY && !shouldOutputJson(globalOpts.json)) {
             const { renderSummarizePanel } = await import('../ui/SummarizePanel.js');
             await renderSummarizePanel(client);
-            return;
+            process.exit(0);
           }
 
           const data = await client.summarizeBatch();

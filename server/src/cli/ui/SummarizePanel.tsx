@@ -101,7 +101,7 @@ function SummarizePanelApp({ client, onDone }: { client: CrystalClient; onDone: 
 
 export async function renderSummarizePanel(client: CrystalClient): Promise<void> {
   return new Promise((resolve, reject) => {
-    const { unmount } = render(
+    const { unmount, waitUntilExit } = render(
       <SummarizePanelApp
         client={client}
         onDone={(err) => {
@@ -111,5 +111,6 @@ export async function renderSummarizePanel(client: CrystalClient): Promise<void>
         }}
       />,
     );
+    waitUntilExit().then(resolve).catch(reject);
   });
 }

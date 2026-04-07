@@ -80,7 +80,7 @@ function ImportPanelApp({ client, onDone }: { client: CrystalClient; onDone: (er
 
 export async function renderImportPanel(client: CrystalClient): Promise<void> {
   return new Promise((resolve, reject) => {
-    const { unmount } = render(
+    const { unmount, waitUntilExit } = render(
       <ImportPanelApp
         client={client}
         onDone={(err) => {
@@ -90,5 +90,7 @@ export async function renderImportPanel(client: CrystalClient): Promise<void> {
         }}
       />,
     );
+    // Ensure cleanup if Ink exits unexpectedly
+    waitUntilExit().then(resolve).catch(reject);
   });
 }
