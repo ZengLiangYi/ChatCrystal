@@ -15,6 +15,9 @@ export async function statusRoutes(app: FastifyInstance) {
 			db.exec("SELECT COUNT(*) as c FROM notes")[0]?.values[0]?.[0] ?? 0;
 		const tagCount =
 			db.exec("SELECT COUNT(*) as c FROM tags")[0]?.values[0]?.[0] ?? 0;
+		const realConvCount =
+			db.exec("SELECT COUNT(*) as c FROM conversations WHERE id NOT LIKE 'demo-%'")[0]?.values[0]?.[0] ??
+			0;
 
 		// Recent notes
 		const recentNotes = resultToObjects(
@@ -30,6 +33,7 @@ export async function statusRoutes(app: FastifyInstance) {
 			data: {
 				server: true,
 				database: true,
+				isSeeded: Number(convCount) > 0 && Number(realConvCount) === 0,
 				stats: {
 					totalConversations: convCount,
 					totalNotes: noteCount,

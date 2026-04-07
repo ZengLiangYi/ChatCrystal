@@ -9,6 +9,7 @@ import {
   closeDatabase,
   startAutoSave,
 } from './db/index.js';
+import { seedDemoData } from './services/seed.js';
 import { statusRoutes } from './routes/status.js';
 import { importRoutes } from './routes/import.js';
 import { conversationRoutes } from './routes/conversations.js';
@@ -42,6 +43,7 @@ export async function createServer(options?: {
   // Initialize database
   await initDatabase();
   startAutoSave();
+  seedDemoData();
 
   // Register routes
   await app.register(statusRoutes);

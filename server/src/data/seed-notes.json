@@ -1,0 +1,82 @@
+{
+  "conversations": [
+    {
+      "id": "demo-react-jwt-auth",
+      "slug": "react-jwt-authentication",
+      "source": "claude-code",
+      "project_dir": "/demo/projects/my-app",
+      "project_name": "my-app",
+      "cwd": "/demo/projects/my-app",
+      "git_branch": "feat/auth",
+      "message_count": 18,
+      "first_message_at": "2025-03-10T09:15:00Z",
+      "last_message_at": "2025-03-10T10:42:00Z",
+      "file_path": "/demo/projects/my-app/.claude/sessions/demo-react-jwt-auth.jsonl",
+      "file_size": 24500,
+      "file_mtime": "2025-03-10T10:42:00Z",
+      "status": "summarized"
+    },
+    {
+      "id": "demo-api-rate-limiting",
+      "slug": "api-rate-limiting-token-bucket",
+      "source": "claude-code",
+      "project_dir": "/demo/projects/backend-api",
+      "project_name": "backend-api",
+      "cwd": "/demo/projects/backend-api",
+      "git_branch": "feat/rate-limit",
+      "message_count": 14,
+      "first_message_at": "2025-03-12T14:00:00Z",
+      "last_message_at": "2025-03-12T15:20:00Z",
+      "file_path": "/demo/projects/backend-api/.claude/sessions/demo-api-rate-limiting.jsonl",
+      "file_size": 18200,
+      "file_mtime": "2025-03-12T15:20:00Z",
+      "status": "summarized"
+    },
+    {
+      "id": "demo-sqljs-wasm-patterns",
+      "slug": "sqljs-wasm-sqlite-patterns",
+      "source": "claude-code",
+      "project_dir": "/demo/projects/electron-app",
+      "project_name": "electron-app",
+      "cwd": "/demo/projects/electron-app",
+      "git_branch": "feat/local-db",
+      "message_count": 22,
+      "first_message_at": "2025-03-15T10:30:00Z",
+      "last_message_at": "2025-03-15T12:05:00Z",
+      "file_path": "/demo/projects/electron-app/.claude/sessions/demo-sqljs-wasm-patterns.jsonl",
+      "file_size": 31000,
+      "file_mtime": "2025-03-15T12:05:00Z",
+      "status": "summarized"
+    }
+  ],
+  "notes": [
+    {
+      "id": 9001,
+      "conversation_id": "demo-react-jwt-auth",
+      "title": "React JWT 认证完整实现方案",
+      "summary": "讨论了在 React SPA 中实现 JWT 认证的完整方案，包括 Token 存储策略（localStorage vs httpOnly Cookie）、自动刷新机制、Axios 拦截器配置，以及路由守卫的实现。最终选择 httpOnly Cookie 存储 Refresh Token，内存存储 Access Token，以平衡安全性与用户体验。",
+      "key_conclusions": "[\"Access Token 存内存（React state/ref），Refresh Token 存 httpOnly Cookie，避免 XSS 攻击\",\"使用 Axios 请求拦截器自动附加 Authorization 头，响应拦截器处理 401 自动刷新\",\"刷新 Token 时需要队列化并发请求，防止多个请求同时触发刷新导致竞态条件\",\"React Router v6 的路由守卫通过 <ProtectedRoute> 组件包装实现，支持重定向到登录页并保存原始 URL\",\"Token 过期时间建议：Access Token 15分钟，Refresh Token 7天，配合滑动过期策略\"]",
+      "code_snippets": "[{\"language\":\"typescript\",\"description\":\"Axios 拦截器 + 自动 Token 刷新（含请求队列）\",\"code\":\"let isRefreshing = false;\\nlet failedQueue: Array<{resolve: Function, reject: Function}> = [];\\n\\nconst processQueue = (error: Error | null, token: string | null) => {\\n  failedQueue.forEach(({ resolve, reject }) => {\\n    if (error) reject(error);\\n    else resolve(token);\\n  });\\n  failedQueue = [];\\n};\\n\\naxios.interceptors.response.use(\\n  (response) => response,\\n  async (error) => {\\n    const originalRequest = error.config;\\n    if (error.response?.status === 401 && !originalRequest._retry) {\\n      if (isRefreshing) {\\n        return new Promise((resolve, reject) => {\\n          failedQueue.push({ resolve, reject });\\n        }).then((token) => {\\n          originalRequest.headers.Authorization = `Bearer ${token}`;\\n          return axios(originalRequest);\\n        });\\n      }\\n      originalRequest._retry = true;\\n      isRefreshing = true;\\n      try {\\n        const { data } = await axios.post('/api/auth/refresh');\\n        const newToken = data.accessToken;\\n        setAccessToken(newToken);\\n        processQueue(null, newToken);\\n        return axios(originalRequest);\\n      } catch (err) {\\n        processQueue(err as Error, null);\\n        logout();\\n        return Promise.reject(err);\\n      } finally {\\n        isRefreshing = false;\\n      }\\n    }\\n    return Promise.reject(error);\\n  }\\n);\"},{\"language\":\"typescript\",\"description\":\"ProtectedRoute 路由守卫组件\",\"code\":\"const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {\\n  const { isAuthenticated, isLoading } = useAuth();\\n  const location = useLocation();\\n\\n  if (isLoading) return <LoadingSpinner />;\\n  if (!isAuthenticated) {\\n    return <Navigate to=\\\"/login\\\" state={{ from: location }} replace />;\\n  }\\n  return <>{children}</>;\\n};\"}]",
+      "tags": ["authentication", "jwt", "security", "react"]
+    },
+    {
+      "id": 9002,
+      "conversation_id": "demo-api-rate-limiting",
+      "title": "Token Bucket 算法实现 API 限流",
+      "summary": "探讨了使用 Token Bucket（令牌桶）算法在 Node.js API 服务中实现精细化限流的方案。对比了固定窗口、滑动窗口和令牌桶三种算法的优缺点，最终采用 Redis + Lua 脚本实现原子性令牌桶，支持按用户、IP、API Key 多维度限流，并实现了优雅的限流响应头（X-RateLimit-*）。",
+      "key_conclusions": "[\"Token Bucket 优于固定窗口：允许突发流量（burst），同时保证长期平均速率\",\"Redis + Lua 脚本是实现原子性限流的最佳方案，避免竞态条件\",\"限流粒度建议：全局 > IP > 用户 > API Key，越精细优先级越高\",\"必须返回标准限流响应头：X-RateLimit-Limit、X-RateLimit-Remaining、X-RateLimit-Reset、Retry-After\",\"对于付费用户，可动态从数据库读取配额，通过 Redis 缓存 TTL 避免每次查库\",\"限流被触发时返回 429 Too Many Requests，响应体包含 retryAfter 字段\"]",
+      "code_snippets": "[{\"language\":\"lua\",\"description\":\"Redis Lua 脚本实现原子令牌桶\",\"code\":\"-- KEYS[1]: rate limit key\\n-- ARGV[1]: capacity (max tokens)\\n-- ARGV[2]: refill rate (tokens per second)\\n-- ARGV[3]: current timestamp (seconds)\\n-- ARGV[4]: tokens requested\\nlocal key = KEYS[1]\\nlocal capacity = tonumber(ARGV[1])\\nlocal rate = tonumber(ARGV[2])\\nlocal now = tonumber(ARGV[3])\\nlocal requested = tonumber(ARGV[4])\\n\\nlocal bucket = redis.call('HMGET', key, 'tokens', 'last_refill')\\nlocal tokens = tonumber(bucket[1]) or capacity\\nlocal last_refill = tonumber(bucket[2]) or now\\n\\n-- Refill tokens based on elapsed time\\nlocal elapsed = now - last_refill\\ntokens = math.min(capacity, tokens + elapsed * rate)\\n\\nif tokens >= requested then\\n  tokens = tokens - requested\\n  redis.call('HMSET', key, 'tokens', tokens, 'last_refill', now)\\n  redis.call('EXPIRE', key, math.ceil(capacity / rate) * 2)\\n  return {1, math.floor(tokens), 0}\\nelse\\n  local retry_after = math.ceil((requested - tokens) / rate)\\n  return {0, math.floor(tokens), retry_after}\\nend\"},{\"language\":\"typescript\",\"description\":\"Fastify 限流中间件\",\"code\":\"export async function rateLimitMiddleware(request: FastifyRequest, reply: FastifyReply) {\\n  const key = `rl:${request.user?.id ?? request.ip}`;\\n  const [allowed, remaining, retryAfter] = await tokenBucket(key, {\\n    capacity: 100,\\n    rate: 10, // tokens per second\\n  });\\n\\n  reply.headers({\\n    'X-RateLimit-Limit': '100',\\n    'X-RateLimit-Remaining': remaining.toString(),\\n    'X-RateLimit-Reset': (Date.now() / 1000 + retryAfter).toFixed(0),\\n  });\\n\\n  if (!allowed) {\\n    reply.header('Retry-After', retryAfter.toString());\\n    return reply.status(429).send({\\n      error: 'Too Many Requests',\\n      retryAfter,\\n    });\\n  }\\n}\"}]",
+      "tags": ["api-design", "rate-limiting", "redis", "backend"]
+    },
+    {
+      "id": 9003,
+      "conversation_id": "demo-sqljs-wasm-patterns",
+      "title": "sql.js WASM SQLite 在 Electron 中的最佳实践",
+      "summary": "深入讨论了在 Electron 桌面应用中使用 sql.js（WASM SQLite）替代 better-sqlite3（原生绑定）的方案。涵盖了 WASM 文件定位、数据库初始化、定时持久化、prepared statement 最佳实践、以及在主进程中安全使用的注意事项。sql.js 的最大优势是无需原生编译，跨平台打包零配置。",
+      "key_conclusions": "[\"sql.js 使用 WASM，无原生绑定，Electron 打包时无需 rebuild，跨平台兼容性极佳\",\"数据库文件需手动序列化到磁盘：db.export() 返回 Uint8Array，用 fs.writeFileSync 持久化\",\"建议定时自动保存（30秒间隔）+ 进程退出前强制保存，防止数据丢失\",\"Prepared Statement 必须手动释放：stmt.run(params); stmt.free()，否则会内存泄漏\",\"WASM 文件在 Electron 打包后路径变化，需通过 locateFile 回调指定 resourcesPath\",\"大量数据写入时使用事务（db.run('BEGIN')...db.run('COMMIT')）性能提升 10-100 倍\"]",
+      "code_snippets": "[{\"language\":\"typescript\",\"description\":\"sql.js 初始化 + Electron 打包兼容\",\"code\":\"import initSqlJs from 'sql.js';\\nimport { join } from 'node:path';\\n\\nasync function initDatabase() {\\n  // 打包后 WASM 在 extraResources 目录\\n  const sqlJsOptions = process.env.ELECTRON_PACKAGED\\n    ? { locateFile: () => join(process.resourcesPath, 'sql-wasm.wasm') }\\n    : undefined;\\n\\n  const SQL = await initSqlJs(sqlJsOptions);\\n  const db = existsSync(DB_PATH)\\n    ? new SQL.Database(readFileSync(DB_PATH))\\n    : new SQL.Database();\\n\\n  db.run('PRAGMA journal_mode = WAL;');\\n  db.run('PRAGMA foreign_keys = ON;');\\n  return db;\\n}\"},{\"language\":\"typescript\",\"description\":\"Prepared Statement 正确用法（含事务批量插入）\",\"code\":\"// 单条插入\\nconst stmt = db.prepare('INSERT INTO items (id, name) VALUES (?, ?)');\\nstmt.run([item.id, item.name]);\\nstmt.free(); // 必须释放！\\n\\n// 批量插入（使用事务提升性能）\\ndb.run('BEGIN');\\ntry {\\n  const stmt = db.prepare('INSERT OR REPLACE INTO items (id, name) VALUES (?, ?)');\\n  for (const item of items) {\\n    stmt.run([item.id, item.name]);\\n  }\\n  stmt.free();\\n  db.run('COMMIT');\\n} catch (err) {\\n  db.run('ROLLBACK');\\n  throw err;\\n}\\n\\n// SELECT 查询\\nconst results = db.exec('SELECT * FROM items WHERE type = ?', ['note']);\\nconst rows = results[0]?.values ?? [];\"}]",
+      "tags": ["sqlite", "wasm", "local-first", "electron"]
+    }
+  ],
+  "tags": ["authentication", "jwt", "security", "react", "api-design", "rate-limiting", "redis", "backend", "sqlite", "wasm", "local-first", "electron"]
+}
