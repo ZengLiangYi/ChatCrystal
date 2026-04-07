@@ -152,5 +152,8 @@
   "language_name": {
     "zh": "简体中文",
     "en": "English"
+  },
+  "star": {
+    "message": "If you find ChatCrystal useful, consider starring it on GitHub!"
   }
 }
