@@ -111,10 +111,31 @@ export function registerConfigCommand(program: Command) {
           return;
         }
 
-        if (data.connected) {
-          printSuccess(`LLM connection OK (response: "${data.response}")`);
-        } else {
-          printError(`LLM connection failed: ${data.error}`);
+        // Display both LLM and Embedding results
+        const llm = (data as Record<string, unknown>).llm as { connected: boolean; response?: string; error?: string } | undefined;
+        const embedding = (data as Record<string, unknown>).embedding as { connected: boolean; error?: string } | undefined;
+
+        if (llm) {
+          if (llm.connected) {
+            printSuccess(`LLM: connected (response: "${llm.response}")`);
+          } else {
+            printError(`LLM: ${llm.error}`);
+          }
+        }
+        if (embedding) {
+          if (embedding.connected) {
+            printSuccess('Embedding: connected');
+          } else {
+            printError(`Embedding: ${embedding.error}`);
+          }
+        }
+        // Fallback for old API format
+        if (!llm && !embedding) {
+          if (data.connected) {
+            printSuccess(`Connected (response: "${data.response}")`);
+          } else {
+            printError(`Connection failed: ${data.error}`);
+          }
         }
         console.log();
       } catch (err) {
