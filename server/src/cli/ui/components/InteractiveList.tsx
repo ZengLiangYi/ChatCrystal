@@ -130,8 +130,11 @@ export function InteractiveList<T>({
   const visibleItems = items.slice(scrollOffset, scrollOffset + viewportHeight);
   const selectedItem = items[cursor] ?? null;
 
-  // Calculate column widths
-  const colWidths = columns.map((col) => {
+  // Available width for list content (account for prefix " ▸ " = 3 chars)
+  const availableListWidth = (isWide ? Math.floor(termCols * 0.4) : termCols) - 3;
+
+  // Calculate column widths, shrinking to fit available space
+  const rawColWidths = columns.map((col) => {
     const headerW = displayWidth(col.header);
     if (col.width) return col.width;
     const maxData = items.slice(0, 100).reduce((max, item) => {
@@ -139,6 +142,12 @@ export function InteractiveList<T>({
     }, 0);
     return Math.min(Math.max(headerW, maxData), 50);
   });
+
+  // Shrink columns proportionally if total exceeds available width
+  const totalRawWidth = rawColWidths.reduce((s, w) => s + w, 0) + (rawColWidths.length - 1) * 2;
+  const colWidths = totalRawWidth > availableListWidth
+    ? rawColWidths.map(w => Math.max(4, Math.floor(w * (availableListWidth / totalRawWidth))))
+    : rawColWidths;
 
   // Render a single row
   function renderRow(item: T, index: number) {
@@ -154,9 +163,11 @@ export function InteractiveList<T>({
       return padded;
     }).join('  ');
 
+    const rowText = truncate(line, availableListWidth);
+
     return (
-      <Text key={globalIndex} inverse={isSelected}>
-        {isSelected ? ' ▸ ' : '   '}{line}
+      <Text key={globalIndex} inverse={isSelected} wrap="truncate">
+        {isSelected ? ' ▸ ' : '   '}{rowText}
       </Text>
     );
   }
@@ -192,7 +203,7 @@ export function InteractiveList<T>({
         {/* Main content area */}
         <Box flexGrow={1}>
           {/* Left: List */}
-          <Box flexDirection="column" width={listWidth}>
+          <Box flexDirection="column" width={listWidth} overflow="hidden">
             {visibleItems.map((item, i) => renderRow(item, i))}
             {items.length === 0 && !loading && (
               <Text dimColor>   {error ? `${t.loadFailed}: ${error}` : t.noNotes}</Text>
@@ -200,12 +211,10 @@ export function InteractiveList<T>({
           </Box>
 
           {/* Separator */}
-          <Box flexDirection="column" width={1}>
-            <Text dimColor>│</Text>
-          </Box>
+          <Text dimColor>│</Text>
 
           {/* Right: Preview */}
-          <Box flexDirection="column" width={previewWidth} paddingLeft={1} overflow="hidden">
+          <Box flexDirection="column" flexGrow={1} paddingLeft={1} overflow="hidden">
             {selectedItem && renderSidePreview(selectedItem)}
           </Box>
         </Box>
