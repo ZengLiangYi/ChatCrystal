@@ -15,7 +15,14 @@ const lineVariants = {
   visible: { pathLength: 1, opacity: 1 },
 };
 
-const icons = ['🔒', '📖', '🎛️'];
+const trustIcons = [
+  // Shield — data security
+  <svg key="shield" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-lavender)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+  // Code — open source
+  <svg key="code" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-lavender)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>,
+  // Sliders — control
+  <svg key="sliders" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-lavender)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>,
+];
 
 export default function LocalFirst({ t }: Props) {
   return (
@@ -40,7 +47,8 @@ export default function LocalFirst({ t }: Props) {
 
             <motion.g variants={nodeVariants} transition={{ delay: 0.4 }}>
               <rect x="130" y="130" width="140" height="40" rx="8" fill="var(--color-purple)" />
-              <text x="200" y="152" textAnchor="middle" fill="white" fontSize="13" fontWeight="600" fontFamily="Inter, sans-serif">💎 ChatCrystal</text>
+              <image href="/ChatCrystal/logo.png" x="155" y="135" width="30" height="30" />
+              <text x="215" y="155" textAnchor="middle" fill="white" fontSize="13" fontWeight="600" fontFamily="Inter, sans-serif">ChatCrystal</text>
             </motion.g>
 
             <motion.g variants={nodeVariants} transition={{ delay: 0.6 }}>
@@ -71,7 +79,7 @@ export default function LocalFirst({ t }: Props) {
           <h2 className="text-3xl font-bold">{t.localFirst.heading}</h2>
           {t.localFirst.points.map((point, i) => (
             <motion.div key={i} variants={{ hidden: { opacity: 0, x: 24 }, visible: { opacity: 1, x: 0 } }} className="flex gap-4">
-              <span className="text-2xl mt-0.5">{icons[i]}</span>
+              <span className="mt-0.5 flex-shrink-0">{trustIcons[i]}</span>
               <div>
                 <h3 className="font-semibold text-[var(--color-white)]">{point.title}</h3>
                 <p className="text-sm text-[var(--color-dim-white)] mt-1">{point.desc}</p>
