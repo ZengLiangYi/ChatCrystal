@@ -113,6 +113,9 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: write
+    env:
+      ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
+      ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
     steps:
       - uses: actions/checkout@v4
 
@@ -120,6 +123,24 @@ jobs:
         with:
           node-version: 20
           cache: npm
+
+      # Cache Electron binary (~90MB, avoids re-download each build)
+      - name: Cache Electron binary
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.cache/electron
+          key: electron-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            electron-${{ runner.os }}-
+
+      # Cache electron-builder tools (NSIS, nsis-resources, etc.)
+      - name: Cache electron-builder tools
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.cache/electron-builder
+          key: electron-builder-${{ runner.os }}-${{ hashFiles('electron-builder.yml') }}
+          restore-keys: |
+            electron-builder-${{ runner.os }}-
 
       - run: npm ci
 
