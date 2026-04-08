@@ -1,0 +1,191 @@
+import {
+  AbsoluteFill,
+  interpolate,
+  useCurrentFrame,
+} from 'remotion';
+import { BRAND, SOURCE_COLORS } from '../constants';
+import { FONT_MONO, FONT_SANS } from '../fonts';
+import { getTypedText, Cursor } from '../utils/typewriter';
+
+const RESULTS = [
+  {
+    title: 'JWT refresh token rotation strategy',
+    summary: 'Implemented sliding window rotation with…',
+    highlight: 'JWT refresh tokens',
+    score: 0.94,
+    source: 'Claude Code',
+    sourceColor: SOURCE_COLORS.claudeCode,
+  },
+  {
+    title: 'Auth middleware token validation',
+    summary: 'Added expiry check and refresh logic in…',
+    highlight: 'token',
+    score: 0.87,
+    source: 'Cursor',
+    sourceColor: SOURCE_COLORS.cursor,
+  },
+  {
+    title: 'Session management with Redis',
+    summary: 'Store refresh tokens in Redis with TTL…',
+    highlight: 'refresh tokens',
+    score: 0.72,
+    source: 'Codex',
+    sourceColor: SOURCE_COLORS.codex,
+  },
+];
+
+const scoreColor = (score: number): string => {
+  if (score >= 0.9) return '#4ADE80';
+  if (score >= 0.8) return '#F59E0B';
+  return BRAND.muted;
+};
+
+export const LandingFeatureSearch: React.FC = () => {
+  const frame = useCurrentFrame();
+
+  // Search bar typing (0-45 frames)
+  const query = 'How to handle JWT refresh tokens';
+  const typedQuery = getTypedText({ frame, text: query, charFrames: 1 });
+  const queryDone = query.length; // frame 31
+
+  // Shimmer loading (45-60)
+  const shimmerStart = 45;
+  const showShimmer = frame >= shimmerStart && frame < 60;
+
+  // Results appear (60-135)
+  const results = RESULTS.map((r, i) => {
+    const start = 60 + i * 20;
+    if (frame < start) return null;
+    const slideUp = interpolate(frame, [start, start + 10], [20, 0], {
+      extrapolateLeft: 'clamp',
+      extrapolateRight: 'clamp',
+    });
+    const fadeIn = interpolate(frame, [start, start + 10], [0, 1], {
+      extrapolateLeft: 'clamp',
+      extrapolateRight: 'clamp',
+    });
+    return { ...r, slideUp, fadeIn };
+  });
+
+  // Fade out (135-150)
+  const fadeOut = interpolate(frame, [135, 150], [1, 0], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  return (
+    <AbsoluteFill
+      style={{
+        backgroundColor: BRAND.bg,
+        justifyContent: 'center',
+        alignItems: 'center',
+        opacity: fadeOut,
+      }}
+    >
+      <div
+        style={{
+          width: '85%',
+          maxWidth: 680,
+          borderRadius: 12,
+          overflow: 'hidden',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+          border: `1px solid ${BRAND.deepPurple}40`,
+          backgroundColor: BRAND.terminalBg,
+        }}
+      >
+        {/* macOS title bar */}
+        <div style={{ backgroundColor: '#1A1D28', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#FF5F57' }} />
+          <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#FEBC2E' }} />
+          <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#28C840' }} />
+        </div>
+
+        <div style={{ padding: '20px 24px' }}>
+          {/* Search bar */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              backgroundColor: '#1A1D28',
+              borderRadius: 8,
+              padding: '10px 14px',
+              border: `1px solid ${BRAND.deepPurple}60`,
+            }}
+          >
+            {/* Magnifying glass SVG */}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={BRAND.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <span style={{ fontFamily: FONT_SANS, fontSize: 15, color: BRAND.white }}>
+              {typedQuery}
+              {frame < queryDone && <Cursor frame={frame} />}
+            </span>
+          </div>
+
+          {/* Shimmer loading */}
+          {showShimmer && (
+            <div style={{ marginTop: 16 }}>
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  style={{
+                    height: 48,
+                    borderRadius: 8,
+                    marginTop: i > 0 ? 8 : 0,
+                    background: `linear-gradient(90deg, ${BRAND.terminalBg} 25%, #1A1D28 50%, ${BRAND.terminalBg} 75%)`,
+                    backgroundSize: '200% 100%',
+                    opacity: 0.6,
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Results */}
+          <div style={{ marginTop: 16 }}>
+            {results.map((r, i) =>
+              r && (
+                <div
+                  key={i}
+                  style={{
+                    opacity: r.fadeIn,
+                    transform: `translateY(${r.slideUp}px)`,
+                    padding: '12px 14px',
+                    borderRadius: 8,
+                    backgroundColor: `${BRAND.white}08`,
+                    marginTop: i > 0 ? 8 : 0,
+                    border: `1px solid ${BRAND.white}0A`,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontFamily: FONT_SANS, fontSize: 14, fontWeight: 600, color: BRAND.white }}>{r.title}</span>
+                    <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: scoreColor(r.score) }}>{r.score.toFixed(2)}</span>
+                  </div>
+                  <div style={{ fontFamily: FONT_SANS, fontSize: 12, color: BRAND.dimWhite, marginTop: 4 }}>
+                    {r.summary}
+                  </div>
+                  <div style={{ marginTop: 6 }}>
+                    <span
+                      style={{
+                        fontFamily: FONT_SANS,
+                        fontSize: 10,
+                        color: r.sourceColor,
+                        backgroundColor: `${r.sourceColor}20`,
+                        padding: '2px 8px',
+                        borderRadius: 4,
+                      }}
+                    >
+                      {r.source}
+                    </span>
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      </div>
+    </AbsoluteFill>
+  );
+};
