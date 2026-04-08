@@ -1,0 +1,42 @@
+---
+import type { Translations } from '@/i18n';
+
+interface Props {
+  t: Translations;
+}
+
+const { t } = Astro.props;
+const steps = t.howItWorks.steps;
+const icons = ['📥', '💎', '🔍'];
+---
+
+<section class="py-24">
+  <div class="mx-auto max-w-5xl px-6">
+    <h2 class="text-3xl font-bold text-center mb-16 animate-on-scroll">
+      {t.howItWorks.heading}
+    </h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative stagger-children">
+      {steps.map((step, i) => (
+        <div class="relative text-center">
+          <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-deep-purple)] text-2xl">
+            {icons[i]}
+          </div>
+
+          <h3 class="text-xl font-semibold mb-2 text-[var(--color-white)]">
+            {step.title}
+          </h3>
+          <p class="text-sm text-[var(--color-dim-white)] leading-relaxed">
+            {step.desc}
+          </p>
+
+          {i < steps.length - 1 && (
+            <div class="hidden md:block absolute top-7 -right-4 text-[var(--color-muted)]">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

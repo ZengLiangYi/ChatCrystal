@@ -1,0 +1,42 @@
+---
+import type { Translations } from '@/i18n';
+
+interface Props {
+  t: Translations;
+  lang: 'en' | 'zh';
+}
+
+const { t, lang } = Astro.props;
+const altLang = lang === 'en' ? 'zh' : 'en';
+const altLabel = lang === 'en' ? '中文' : 'EN';
+const altHref = lang === 'en' ? '/ChatCrystal/zh/' : '/ChatCrystal/';
+---
+
+<footer class="border-t border-white/10 py-12 mt-24">
+  <div class="mx-auto max-w-6xl px-6 grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+    <!-- Left: Logo + tagline -->
+    <div class="flex items-center gap-3">
+      <img src="/ChatCrystal/logo.png" alt="ChatCrystal" class="w-8 h-8" />
+      <div>
+        <p class="font-semibold text-[var(--color-white)]">ChatCrystal</p>
+        <p class="text-sm text-[var(--color-dim-white)]">{t.footer.tagline}</p>
+      </div>
+    </div>
+
+    <!-- Center: Links -->
+    <nav class="flex gap-6 md:justify-center">
+      <a href="https://github.com/ZengLiangYi/ChatCrystal" target="_blank" rel="noopener" class="text-sm text-[var(--color-dim-white)] hover:text-[var(--color-white)] transition-colors">{t.footer.github}</a>
+      <a href="https://www.npmjs.com/package/chatcrystal" target="_blank" rel="noopener" class="text-sm text-[var(--color-dim-white)] hover:text-[var(--color-white)] transition-colors">{t.footer.npm}</a>
+      <a href="https://github.com/ZengLiangYi/ChatCrystal#readme" target="_blank" rel="noopener" class="text-sm text-[var(--color-dim-white)] hover:text-[var(--color-white)] transition-colors">{t.footer.docs}</a>
+      <a href="https://github.com/ZengLiangYi/ChatCrystal/releases" target="_blank" rel="noopener" class="text-sm text-[var(--color-dim-white)] hover:text-[var(--color-white)] transition-colors">{t.footer.releases}</a>
+    </nav>
+
+    <!-- Right: Language switch -->
+    <div class="md:text-right">
+      <a href={altHref} class="inline-flex items-center gap-1.5 text-sm text-[var(--color-dim-white)] hover:text-[var(--color-white)] transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        {altLabel}
+      </a>
+    </div>
+  </div>
+</footer>

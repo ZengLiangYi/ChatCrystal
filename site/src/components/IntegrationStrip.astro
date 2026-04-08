@@ -1,0 +1,37 @@
+---
+import type { Translations } from '@/i18n';
+
+interface Props {
+  t: Translations;
+}
+
+const { t } = Astro.props;
+
+const sources = [
+  { key: 'claudeCode' as const, color: 'var(--color-claude-code)', icon: '⚡' },
+  { key: 'cursor' as const, color: 'var(--color-cursor)', icon: '▲' },
+  { key: 'codex' as const, color: 'var(--color-codex)', icon: '◆' },
+];
+---
+
+<section class="py-16">
+  <div class="mx-auto max-w-4xl px-6 text-center">
+    <p class="text-[var(--color-dim-white)] text-sm mb-8 animate-on-scroll">
+      {t.integrations.heading}
+    </p>
+    <div class="flex flex-col sm:flex-row items-center justify-center gap-6 stagger-children">
+      {sources.map((s) => {
+        const source = t.integrations[s.key];
+        return (
+          <div class="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-6 py-4 backdrop-blur-sm">
+            <span class="text-2xl" style={`color: ${s.color}`}>{s.icon}</span>
+            <div class="text-left">
+              <p class="font-medium text-[var(--color-white)]">{source.name}</p>
+              <p class="text-xs text-[var(--color-dim-white)]">{source.desc}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+</section>
