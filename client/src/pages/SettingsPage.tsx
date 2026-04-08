@@ -343,19 +343,22 @@ export function SettingsPage() {
 					{t("action.test_connection")}
 				</button>
 				{testMutation.data && (
-					<span className="flex items-center gap-1 text-xs">
-						{testMutation.data.connected ? (
-							<>
-								<CheckCircle size={12} style={{ color: "var(--success)" }} />{" "}
-								<span className="text-success">{t("status.connected")}</span>
-							</>
-						) : (
-							<>
-								<XCircle size={12} style={{ color: "var(--error)" }} />{" "}
-								<span className="text-error">{testMutation.data.error}</span>
-							</>
-						)}
-					</span>
+					<div className="flex flex-col gap-1 text-xs">
+						<span className="flex items-center gap-1">
+							{testMutation.data.llm?.connected ? (
+								<><CheckCircle size={12} style={{ color: "var(--success)" }} /> <span className="text-success">LLM {t("status.connected")}</span></>
+							) : (
+								<><XCircle size={12} style={{ color: "var(--error)" }} /> <span className="text-error">LLM: {testMutation.data.llm?.error}</span></>
+							)}
+						</span>
+						<span className="flex items-center gap-1">
+							{testMutation.data.embedding?.connected ? (
+								<><CheckCircle size={12} style={{ color: "var(--success)" }} /> <span className="text-success">Embedding {t("status.connected")}</span></>
+							) : (
+								<><XCircle size={12} style={{ color: "var(--error)" }} /> <span className="text-error">Embedding: {testMutation.data.embedding?.error}</span></>
+							)}
+						</span>
+					</div>
 				)}
 			</div>
 

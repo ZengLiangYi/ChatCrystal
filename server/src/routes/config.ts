@@ -1,10 +1,10 @@
-import { generateText } from "ai";
+import { generateText, embed } from "ai";
 import type { FastifyInstance } from "fastify";
 import { appConfig, updateConfig } from "../config.js";
 import { getDatabase, saveDatabase } from "../db/index.js";
 import { taskTracker } from "../queue/index.js";
 import { getLanguageModel } from "../services/llm.js";
-import { listProviders } from "../services/providers.js";
+import { getProvider, listProviders } from "../services/providers.js";
 
 export async function configRoutes(app: FastifyInstance) {
 	// List available providers
@@ -134,26 +134,65 @@ export async function configRoutes(app: FastifyInstance) {
 		};
 	});
 
-	// Test connection
+	// Test connection (LLM + Embedding)
 	app.post("/api/config/test", async (_req, reply) => {
+		const result: {
+			llm: { connected: boolean; response?: string; error?: string };
+			embedding: { connected: boolean; error?: string };
+		} = {
+			llm: { connected: false },
+			embedding: { connected: false },
+		};
+
+		// Test LLM
 		try {
 			const model = getLanguageModel();
-			const result = await generateText({
+			const llmResult = await generateText({
 				model,
 				prompt: "Reply with exactly: OK",
 				maxOutputTokens: 5,
 			});
-			return {
-				success: true,
-				data: { connected: true, response: result.text.trim() },
-			};
+			result.llm = { connected: true, response: llmResult.text.trim() };
 		} catch (err) {
-			const message = err instanceof Error ? err.message : "Connection failed";
-			reply.status(200); // Don't 500 for connection test
-			return {
-				success: true,
-				data: { connected: false, error: message },
+			result.llm = {
+				connected: false,
+				error: err instanceof Error ? err.message : "LLM connection failed",
 			};
 		}
+
+		// Test Embedding
+		try {
+			const entry = getProvider(appConfig.embedding.provider);
+			if (!entry.createEmbeddingModel) {
+				result.embedding = {
+					connected: false,
+					error: `Provider "${appConfig.embedding.provider}" does not support embeddings`,
+				};
+			} else {
+				const embeddingModel = entry.createEmbeddingModel(appConfig.embedding);
+				await embed({ model: embeddingModel, value: "test" });
+				result.embedding = { connected: true };
+			}
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : "Embedding connection failed";
+			// Detect common misconfig: using LLM model as embedding model
+			const hint = msg.includes("Not Found") || msg.includes("404")
+				? ". This model may not support embeddings — use a dedicated embedding model (e.g. nomic-embed-text, text-embedding-3-small)"
+				: "";
+			result.embedding = { connected: false, error: msg + hint };
+		}
+
+		// Backward compat: top-level connected = both connected
+		reply.status(200);
+		return {
+			success: true,
+			data: {
+				connected: result.llm.connected && result.embedding.connected,
+				response: result.llm.response,
+				error: !result.llm.connected ? result.llm.error : !result.embedding.connected ? result.embedding.error : undefined,
+				llm: result.llm,
+				embedding: result.embedding,
+			},
+		};
 	});
 }
