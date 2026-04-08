@@ -15,7 +15,8 @@ program
   .description('ChatCrystal — AI conversation knowledge crystallization tool')
   .version(pkg.version)
   .option('-b, --base-url <url>', 'Server base URL', 'http://localhost:3721')
-  .option('--json', 'Force JSON output (override TTY detection)');
+  .option('--json', 'Force JSON output (override TTY detection)')
+  .option('--no-interactive', 'Disable interactive mode (always use plain output)');
 
 // Import and register subcommands
 import { registerStatusCommand } from './commands/status.js';

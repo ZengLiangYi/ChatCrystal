@@ -4,6 +4,8 @@ import {
   shouldOutputJson, outputJson,
   printHeader, printTable, printError, truncate,
 } from '../formatter.js';
+import { isInteractive } from '../interactive.js';
+import { renderApp } from '../ui/renderApp.js';
 
 export function registerSearchCommand(program: Command) {
   program
@@ -15,6 +17,15 @@ export function registerSearchCommand(program: Command) {
       const client = new CrystalClient(globalOpts.baseUrl);
 
       try {
+        // Interactive mode
+        if (isInteractive(globalOpts)) {
+          await renderApp(client, {
+            type: 'search',
+            props: { initialQuery: query },
+          });
+          return;
+        }
+
         const results = await client.search(query, Number(opts.limit));
 
         if (shouldOutputJson(globalOpts.json)) {

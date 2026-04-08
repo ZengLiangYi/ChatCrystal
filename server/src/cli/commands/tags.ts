@@ -4,6 +4,8 @@ import {
   shouldOutputJson, outputJson,
   printHeader, printTable, printError,
 } from '../formatter.js';
+import { isInteractive } from '../interactive.js';
+import { renderApp } from '../ui/renderApp.js';
 
 export function registerTagsCommand(program: Command) {
   program
@@ -14,6 +16,15 @@ export function registerTagsCommand(program: Command) {
       const client = new CrystalClient(globalOpts.baseUrl);
 
       try {
+        // Interactive mode
+        if (isInteractive(globalOpts)) {
+          await renderApp(client, {
+            type: 'tags',
+            props: {},
+          });
+          return;
+        }
+
         const tags = await client.listTags();
 
         if (shouldOutputJson(globalOpts.json)) {
