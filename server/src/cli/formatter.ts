@@ -46,7 +46,7 @@ export function printKeyValue(key: string, value: string | number | boolean): vo
  * Get the display width of a string in terminal columns.
  * CJK characters occupy 2 columns; ASCII characters occupy 1.
  */
-function displayWidth(str: string): number {
+export function displayWidth(str: string): number {
   let w = 0;
   for (const ch of str) {
     const code = ch.codePointAt(0)!;
@@ -72,12 +72,12 @@ function displayWidth(str: string): number {
 }
 
 /** Pad string to target display width (handles CJK double-width characters). */
-function padEndDisplay(str: string, targetWidth: number): string {
+export function padEndDisplay(str: string, targetWidth: number): string {
   const gap = targetWidth - displayWidth(str);
   return gap > 0 ? str + ' '.repeat(gap) : str;
 }
 
-function padStartDisplay(str: string, targetWidth: number): string {
+export function padStartDisplay(str: string, targetWidth: number): string {
   const gap = targetWidth - displayWidth(str);
   return gap > 0 ? ' '.repeat(gap) + str : str;
 }
