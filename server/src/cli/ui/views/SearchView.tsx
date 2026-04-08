@@ -62,7 +62,7 @@ export function SearchView({ client, initialQuery, onSelectNote, onBack }: Searc
 
   if (phase === 'input') {
     return (
-      <Box flexDirection="column" paddingTop={1} paddingLeft={1}>
+      <Box key="search-input" flexDirection="column" paddingTop={1} paddingLeft={1}>
         <SearchBar
           onSubmit={doSearch}
           onCancel={onBack}
@@ -75,15 +75,16 @@ export function SearchView({ client, initialQuery, onSelectNote, onBack }: Searc
 
   if (phase === 'searching') {
     return (
-      <Box flexDirection="column" paddingTop={1} paddingLeft={2}>
+      <Box key="search-loading" flexDirection="column" paddingTop={1} paddingLeft={2}>
         <Spinner label={`${t.searching} "${query}"`} />
       </Box>
     );
   }
 
-  // Results phase
+  // Results phase — key forces full remount so useInput registers correctly
   return (
     <InteractiveList<SearchResult>
+      key="search-results"
       items={results}
       columns={columns}
       total={results.length}
