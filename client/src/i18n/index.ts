@@ -14,7 +14,7 @@ i18n
       zh: { translation: zh },
       en: { translation: en },
     },
-    fallbackLng: 'zh',
+    fallbackLng: 'en',
     interpolation: {
       escapeValue: false,
     },
