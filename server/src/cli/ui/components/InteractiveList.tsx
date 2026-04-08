@@ -46,10 +46,10 @@ interface InteractiveListProps<T> {
   keyboardActive?: boolean;
 }
 
-// Reserve lines for: header(1) + separator(1) + status bar(1) + padding(1)
-const CHROME_LINES = 4;
-// Inline preview takes extra lines
-const PREVIEW_LINES = 4;
+// Chrome lines: header(1) + status bar(1)
+const CHROME_LINES = 2;
+// Inline preview: separator(1) + text(1) + separator(1)
+const PREVIEW_LINES = 3;
 
 /**
  * Keyboard-navigable list with viewport clipping, inline preview (narrow),
@@ -178,7 +178,7 @@ export function InteractiveList<T>({
     const previewText = renderPreview(selectedItem);
     if (!previewText) return null;
     return (
-      <Box flexDirection="column">
+      <Box flexDirection="column" height={termRows}>
         <Text dimColor> {'┄'.repeat(Math.min(termCols - 2, 60))}</Text>
         <Text dimColor> {truncate(previewText, (termCols - 4) * 2)}</Text>
         <Text dimColor> {'┄'.repeat(Math.min(termCols - 2, 60))}</Text>
@@ -192,7 +192,7 @@ export function InteractiveList<T>({
     const previewWidth = termCols - listWidth - 3;
 
     return (
-      <Box flexDirection="column">
+      <Box flexDirection="column" height={termRows}>
         {/* Header */}
         <Box>
           <Text bold> {title} ({total})</Text>
@@ -239,7 +239,7 @@ export function InteractiveList<T>({
       </Box>
 
       {/* List */}
-      <Box flexDirection="column" flexGrow={1}>
+      <Box flexDirection="column" flexGrow={1} overflow="hidden">
         {visibleItems.map((item, i) => renderRow(item, i))}
         {items.length === 0 && !loading && !error && (
           <Box flexDirection="column" paddingLeft={2} paddingTop={1}>

@@ -87,8 +87,9 @@ export function DetailView({ note, onBack, onPrev, onNext, position, relations }
     }
   }
 
-  // Viewport
-  const contentHeight = termRows - 3;
+  // Viewport: status bar = 1 line, scroll indicator = 1 line (always reserve)
+  const chromeLines = 2;
+  const contentHeight = Math.max(1, termRows - chromeLines);
   const maxScroll = Math.max(0, lines.length - contentHeight);
   const visibleLines = lines.slice(scrollY, scrollY + contentHeight);
 
@@ -125,9 +126,9 @@ export function DetailView({ note, onBack, onPrev, onNext, position, relations }
   hints.push({ key: '↑↓', label: t.hints.scroll.split(':')[1] });
 
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" height={termRows}>
       {/* Content */}
-      <Box flexDirection="column" paddingLeft={1}>
+      <Box flexDirection="column" flexGrow={1} paddingLeft={1} overflow="hidden">
         {visibleLines.map((line, i) => (
           <Text
             key={scrollY + i}
@@ -142,8 +143,10 @@ export function DetailView({ note, onBack, onPrev, onNext, position, relations }
       </Box>
 
       {/* Scroll indicator + Status bar */}
-      {maxScroll > 0 && (
+      {maxScroll > 0 ? (
         <Text dimColor> [{scrollY + 1}-{Math.min(scrollY + contentHeight, lines.length)}/{lines.length}]</Text>
+      ) : (
+        <Text> </Text>
       )}
       <StatusBar
         info={position ? `[${position}]` : undefined}
