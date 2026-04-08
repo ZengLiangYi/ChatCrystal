@@ -37,7 +37,10 @@
     "pack:electron": "npm run build && tsc -p electron/tsconfig.json && electron-builder --win --dir",
     "release": "node scripts/release.mjs",
     "release:npm": "cross-env RELEASE_TARGET=npm node scripts/release.mjs",
-    "release:electron": "cross-env RELEASE_TARGET=electron node scripts/release.mjs"
+    "release:electron": "cross-env RELEASE_TARGET=electron node scripts/release.mjs",
+    "dev:site": "cd site && npm run dev",
+    "build:site": "cd site && npm run build",
+    "preview:site": "cd site && npm run preview"
   },
   "author": "Rayner Zeng",
   "engines": {
