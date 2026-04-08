@@ -34,6 +34,8 @@ export function SearchView({ client, initialQuery, onSelectNote, onBack }: Searc
   const [error, setError] = useState<string | null>(null);
   const t = getLocale();
 
+  // Counter to generate unique keys for each phase transition
+  const phaseCounterRef = useRef(0);
   // I3 fix: AbortController to cancel previous search on new search
   const abortRef = useRef<AbortController | null>(null);
 
@@ -45,6 +47,7 @@ export function SearchView({ client, initialQuery, onSelectNote, onBack }: Searc
     setQuery(q);
     setPhase('searching');
     setError(null);
+    phaseCounterRef.current++;
     try {
       const data = await client.search(q, 50);
       if (controller.signal.aborted) return;
@@ -69,9 +72,11 @@ export function SearchView({ client, initialQuery, onSelectNote, onBack }: Searc
     { header: t.headerTags, accessor: (r: SearchResult) => r.tags.slice(0, 3).join(', '), width: 20 },
   ], [t]);
 
+  const phaseKey = `${phase}-${phaseCounterRef.current}`;
+
   if (phase === 'input') {
     return (
-      <Box key="search-input" flexDirection="column" paddingTop={1} paddingLeft={1}>
+      <Box key={phaseKey} flexDirection="column" paddingTop={1} paddingLeft={1}>
         <SearchBar
           onSubmit={doSearch}
           onCancel={onBack}
@@ -84,16 +89,16 @@ export function SearchView({ client, initialQuery, onSelectNote, onBack }: Searc
 
   if (phase === 'searching') {
     return (
-      <Box key="search-loading" flexDirection="column" paddingTop={1} paddingLeft={2}>
+      <Box key={phaseKey} flexDirection="column" paddingTop={1} paddingLeft={2}>
         <Spinner label={`${t.searching} "${query}"`} />
       </Box>
     );
   }
 
-  // Results phase — key forces full remount so useInput registers correctly
+  // Results phase — unique key forces full remount so useInput registers correctly
   return (
     <InteractiveList<SearchResult>
-      key="search-results"
+      key={phaseKey}
       items={results}
       columns={columns}
       total={results.length}
