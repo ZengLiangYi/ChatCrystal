@@ -69,9 +69,9 @@ export function registerSummarizeCommand(program: Command) {
 
           printHeader(`Unsummarized conversations (${data.total} total)`);
           printTable(
-            ['ID', 'Source', 'Project', 'Messages'],
+            ['ID', 'Source', 'Project', 'Msgs'],
             data.items.map((c) => [
-              truncate(c.id, 24),
+              c.id,
               c.source,
               truncate(c.project_name || '', 20),
               c.message_count,

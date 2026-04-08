@@ -39,9 +39,9 @@ export function registerConversationsCommand(program: Command) {
         }
 
         printTable(
-          ['ID', 'Source', 'Project', 'Messages', 'Status', 'Last Active'],
+          ['ID', 'Source', 'Project', 'Msgs', 'Status', 'Last Active'],
           data.items.map((c) => [
-            truncate(c.id, 20),
+            c.id,
             c.source,
             truncate(c.project_name || '', 20),
             c.message_count,
