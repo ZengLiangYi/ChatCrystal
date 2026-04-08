@@ -91,6 +91,6 @@ export async function renderImportPanel(client: CrystalClient): Promise<void> {
       />,
     );
     // Ensure cleanup if Ink exits unexpectedly
-    waitUntilExit().then(resolve).catch(reject);
+    waitUntilExit().then(() => resolve()).catch(reject);
   });
 }

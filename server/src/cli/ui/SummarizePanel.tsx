@@ -111,6 +111,6 @@ export async function renderSummarizePanel(client: CrystalClient): Promise<void>
         }}
       />,
     );
-    waitUntilExit().then(resolve).catch(reject);
+    waitUntilExit().then(() => resolve()).catch(reject);
   });
 }
