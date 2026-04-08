@@ -1,0 +1,56 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  lang: 'en' | 'zh';
+  title: string;
+  description: string;
+}
+
+const { lang, title, description } = Astro.props;
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+const ogImage = new URL('/ChatCrystal/og-image.png', Astro.site);
+const altLang = lang === 'en' ? 'zh' : 'en';
+const altPath = lang === 'en' ? '/ChatCrystal/zh/' : '/ChatCrystal/';
+const altURL = new URL(altPath, Astro.site);
+---
+
+<!doctype html>
+<html lang={lang === 'zh' ? 'zh-CN' : 'en'}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/ChatCrystal/favicon.svg" />
+
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalURL} />
+
+    <!-- i18n alternates -->
+    <link rel="alternate" hreflang="en" href={lang === 'en' ? canonicalURL : altURL} />
+    <link rel="alternate" hreflang="zh-CN" href={lang === 'zh' ? canonicalURL : altURL} />
+    <link rel="alternate" hreflang="x-default" href={new URL('/ChatCrystal/', Astro.site)} />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:locale" content={lang === 'zh' ? 'zh_CN' : 'en_US'} />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  </head>
+  <body class="min-h-screen antialiased">
+    <slot />
+  </body>
+</html>
