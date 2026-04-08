@@ -1,0 +1,27 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import { getTranslations } from '@/i18n';
+import Hero from '@/components/Hero.tsx';
+import IntegrationStrip from '@/components/IntegrationStrip.astro';
+import HowItWorks from '@/components/HowItWorks.astro';
+import FeatureBento from '@/components/FeatureBento.tsx';
+import LocalFirst from '@/components/LocalFirst.tsx';
+import CliShowcase from '@/components/CliShowcase.tsx';
+import Footer from '@/components/Footer.astro';
+
+const lang = 'en';
+const t = getTranslations(lang);
+const basePath = '/ChatCrystal';
+---
+
+<Layout lang={lang} title={t.meta.title} description={t.meta.description}>
+  <main>
+    <Hero client:load t={t} basePath={basePath} />
+    <IntegrationStrip t={t} />
+    <HowItWorks t={t} />
+    <FeatureBento client:visible t={t} lang={lang} basePath={basePath} />
+    <LocalFirst client:visible t={t} />
+    <CliShowcase client:visible t={t} basePath={basePath} />
+  </main>
+  <Footer t={t} lang={lang} />
+</Layout>
