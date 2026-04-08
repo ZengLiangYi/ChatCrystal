@@ -19,6 +19,7 @@ program
 
 // Import and register subcommands
 import { registerStatusCommand } from './commands/status.js';
+import { registerConversationsCommand } from './commands/conversations.js';
 import { registerImportCommand } from './commands/import.js';
 import { registerSearchCommand } from './commands/search.js';
 import { registerNotesCommand } from './commands/notes.js';
@@ -29,6 +30,7 @@ import { registerServeCommand } from './commands/serve.js';
 import { registerMcpCommand } from './commands/mcp.js';
 
 registerStatusCommand(program);
+registerConversationsCommand(program);
 registerImportCommand(program);
 registerSearchCommand(program);
 registerNotesCommand(program);

@@ -2,7 +2,7 @@ import type { Command } from 'commander';
 import { CrystalClient } from '../client.js';
 import {
   shouldOutputJson, outputJson,
-  printSuccess, printError, printKeyValue,
+  printSuccess, printError, printKeyValue, printHeader, printTable, truncate,
 } from '../formatter.js';
 
 export function registerSummarizeCommand(program: Command) {
@@ -53,8 +53,33 @@ export function registerSummarizeCommand(program: Command) {
         }
 
         if (!id) {
-          printError('Provide a conversation ID or use --all / --retry-errors');
-          process.exit(1);
+          // No ID and no flags: show unsummarized conversations to help user pick
+          const data = await client.getConversations({ status: 'imported', limit: 15 });
+
+          if (shouldOutputJson(globalOpts.json)) {
+            outputJson(data);
+            return;
+          }
+
+          if (data.total === 0) {
+            printSuccess('All conversations have been summarized!');
+            console.log();
+            return;
+          }
+
+          printHeader(`Unsummarized conversations (${data.total} total)`);
+          printTable(
+            ['ID', 'Source', 'Project', 'Messages'],
+            data.items.map((c) => [
+              truncate(c.id, 24),
+              c.source,
+              truncate(c.project_name || '', 20),
+              c.message_count,
+            ]),
+          );
+          console.log('  Usage: crystal summarize <ID>');
+          console.log('     or: crystal summarize --all\n');
+          return;
         }
 
         const data = await client.summarize(id);

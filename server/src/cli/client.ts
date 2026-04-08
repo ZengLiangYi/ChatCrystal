@@ -250,6 +250,20 @@ export class CrystalClient {
     });
   }
 
+  async getConversations(options?: { source?: string; status?: string; search?: string; offset?: number; limit?: number }) {
+    const params = new URLSearchParams();
+    if (options?.source) params.set('source', options.source);
+    if (options?.status) params.set('status', options.status);
+    if (options?.search) params.set('search', options.search);
+    if (options?.offset) params.set('offset', String(options.offset));
+    if (options?.limit) params.set('limit', String(options.limit));
+    const qs = params.toString();
+    return this.request<{
+      items: Array<{ id: string; source: string; project_name: string; status: string; message_count: number; last_message_at: string }>;
+      total: number; offset: number; limit: number;
+    }>('GET', `/api/conversations${qs ? `?${qs}` : ''}`);
+  }
+
   async search(query: string, limit = 10) {
     return this.request<Array<{
       note_id: number; title: string; project_name: string; score: number; tags: string[];
