@@ -55,8 +55,8 @@ export function SearchView({ client, initialQuery, onSelectNote, onBack }: Searc
 
   const columns: ColumnDef[] = useMemo(() => [
     { header: t.headerScore, accessor: (r: SearchResult) => r.score.toFixed(3), width: 7 },
-    { header: t.headerTitle, accessor: (r: SearchResult) => truncate(r.title, 40), width: 42 },
-    { header: t.headerProject, accessor: (r: SearchResult) => truncate(r.project_name, 15), width: 17 },
+    { header: t.headerTitle, accessor: (r: SearchResult) => r.title },
+    { header: t.headerProject, accessor: (r: SearchResult) => r.project_name, width: 17 },
     { header: t.headerTags, accessor: (r: SearchResult) => r.tags.slice(0, 3).join(', '), width: 20 },
   ], [t]);
 

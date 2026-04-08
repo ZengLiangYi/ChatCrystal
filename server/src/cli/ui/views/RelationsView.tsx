@@ -51,7 +51,7 @@ export function RelationsView({ client, noteId, onSelectNote, onBack }: Relation
   const columns: ColumnDef[] = useMemo(() => [
     { header: t.headerType, accessor: (r: RelationItem) => r.relation_type, width: 14 },
     { header: '#', accessor: (r: RelationItem) => r.relatedNoteId, width: 5 },
-    { header: t.headerTitle, accessor: (r: RelationItem) => truncate(r.title, 40), width: 42 },
+    { header: t.headerTitle, accessor: (r: RelationItem) => r.title },
     { header: t.headerConfidence, accessor: (r: RelationItem) => (r.confidence * 100).toFixed(0) + '%', width: 10 },
   ], [t]);
 
