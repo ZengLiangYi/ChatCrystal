@@ -19,9 +19,6 @@ interface AppProps {
  * Root interactive app. Manages view stack and routes to view components.
  * Each command creates an <App> with the appropriate initial view.
  */
-// I6 fix: monotonic counter for stable unique keys (avoids JSON.stringify every render)
-let viewCounter = 0;
-
 export function App({ client, initialView }: AppProps) {
   const { current, depth, push, pop, replace } = useViewStack(initialView);
   const { columns, rows } = useTerminalSize();
@@ -32,7 +29,7 @@ export function App({ client, initialView }: AppProps) {
   const prevDepthRef = React.useRef(depth);
   const prevTypeRef = React.useRef(current.type);
   if (depth !== prevDepthRef.current || current.type !== prevTypeRef.current) {
-    viewKeyRef.current = ++viewCounter;
+    viewKeyRef.current++;
     prevDepthRef.current = depth;
     prevTypeRef.current = current.type;
   }

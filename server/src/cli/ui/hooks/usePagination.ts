@@ -100,9 +100,11 @@ export function usePagination<T>({ pageSize = 20, fetchPage }: UsePaginationOpti
   }, [doFetch]);
 
   // C4 fix: initial fetch in useEffect instead of render phase
+  // Note: empty deps is intentional — views remount via key={} when fetchPage changes
   useEffect(() => {
     doFetch(0, true);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- mount only
+    return () => { abortRef.current?.abort(); }; // M6: cancel in-flight on unmount
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     ...state,
