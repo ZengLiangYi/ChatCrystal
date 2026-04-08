@@ -1,5 +1,5 @@
-import { type BrowserWindow, Menu, nativeImage, shell, Tray } from "electron";
-import path from "path";
+import { app, type BrowserWindow, Menu, nativeImage, shell, Tray } from "electron";
+import path from "node:path";
 
 let tray: Tray | null = null;
 
@@ -20,14 +20,14 @@ export function createTray(win: BrowserWindow, port: number): Tray {
 		},
 		{ type: "separator" },
 		{
-			label: "打开窗口",
+			label: "Open Window",
 			click: () => {
 				win.show();
 				win.focus();
 			},
 		},
 		{
-			label: "搜索知识库",
+			label: "Search Knowledge",
 			click: () => {
 				win.show();
 				win.focus();
@@ -36,18 +36,17 @@ export function createTray(win: BrowserWindow, port: number): Tray {
 			},
 		},
 		{
-			label: "在浏览器中打开",
+			label: "Open in Browser",
 			click: () => {
 				shell.openExternal(`http://localhost:${port}`);
 			},
 		},
 		{ type: "separator" },
 		{
-			label: "退出",
+			label: "Quit",
 			click: () => {
-				// Setting this before quit so the window close handler knows to actually quit
-				(win as BrowserWindow & { isQuitting?: boolean }).isQuitting = true;
-				require("electron").app.quit();
+				// I-5: app.quit() triggers before-quit which sets isQuitting in main.ts
+				app.quit();
 			},
 		},
 	]);

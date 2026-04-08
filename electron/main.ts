@@ -8,7 +8,7 @@ import {
 import net from "node:net";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { app, BrowserWindow, dialog, Menu } from "electron";
+import { app, BrowserWindow, dialog, Menu, screen, session } from "electron";
 import { createTray, destroyTray } from "./tray";
 
 // --------------------------------------------------
@@ -82,7 +82,7 @@ let serverPort = 3721;
 // Port detection: try preferred port, fall back to random
 // --------------------------------------------------
 function findFreePort(preferred: number): Promise<number> {
-	return new Promise((resolve) => {
+	return new Promise((resolve, reject) => {
 		const srv = net.createServer();
 		srv.listen(preferred, "127.0.0.1", () => {
 			srv.close(() => resolve(preferred));
@@ -94,6 +94,9 @@ function findFreePort(preferred: number): Promise<number> {
 				const port = (srv2.address() as net.AddressInfo).port;
 				srv2.close(() => resolve(port));
 			});
+			srv2.on("error", (err) => {
+				reject(new Error(`Cannot find a free port: ${err.message}`));
+			});
 		});
 	});
 }
@@ -104,7 +107,27 @@ function findFreePort(preferred: number): Promise<number> {
 function createWindow(): BrowserWindow {
 	const state = loadWindowState();
 
-	const iconPath = path.join(__dirname, "..", "electron", "icon.png");
+	// S-1: Validate saved position against current screen bounds
+	// If window would be off-screen (e.g., external monitor disconnected), reset position
+	if (state.x !== undefined && state.y !== undefined) {
+		const displays = screen.getAllDisplays();
+		const visible = displays.some((d) => {
+			const b = d.bounds;
+			return (
+				state.x! >= b.x - 50 &&
+				state.x! < b.x + b.width &&
+				state.y! >= b.y - 50 &&
+				state.y! < b.y + b.height
+			);
+		});
+		if (!visible) {
+			state.x = undefined;
+			state.y = undefined;
+		}
+	}
+
+	// I-3: icon path — __dirname is electron/dist/ in both dev and packaged
+	const iconPath = path.join(__dirname, "..", "icon.png");
 	const win = new BrowserWindow({
 		width: state.width,
 		height: state.height,
@@ -119,6 +142,7 @@ function createWindow(): BrowserWindow {
 			preload: path.join(__dirname, "preload.js"),
 			contextIsolation: true,
 			nodeIntegration: false,
+			sandbox: true, // I-6: explicit sandbox
 		},
 	});
 
@@ -178,12 +202,21 @@ app.on("second-instance", () => {
 	}
 });
 
-app.on("before-quit", async (e) => {
+app.on("before-quit", (e) => {
 	if (!isQuitting) {
 		e.preventDefault();
 		isQuitting = true;
-		await gracefulShutdown();
-		app.quit();
+		// I-1: timeout prevents infinite hang if shutdown gets stuck
+		const timeout = setTimeout(() => {
+			console.error("[Electron] Shutdown timed out, forcing exit");
+			app.exit(1);
+		}, 10000);
+		gracefulShutdown()
+			.catch((err) => console.error("[Electron] Shutdown error:", err))
+			.finally(() => {
+				clearTimeout(timeout);
+				app.quit();
+			});
 	}
 });
 
@@ -229,6 +262,10 @@ async function startServer(port: number): Promise<{
 	const serverEntry = pathToFileURL(
 		path.join(app.getAppPath(), "server", "dist", "server", "src", "index.js"),
 	).href;
+	// C-1: Function() constructor is used intentionally to bypass Electron's CJS
+	// bundler restrictions on dynamic import(). This is a known workaround for
+	// loading ESM server modules from a CJS main process. Replace with direct
+	// import() if the Electron main process is ever migrated to ESM.
 	const serverModule = (await Function(
 		"specifier",
 		"return import(specifier)",
@@ -267,27 +304,47 @@ app.whenReady().then(async () => {
 			process.env.ELECTRON_PACKAGED = "true";
 		}
 
-		// 5. Find free port
+		// 5. Set Content Security Policy (C-2)
+		// Restricts script execution to prevent XSS from rendered AI conversation content
+		session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+			callback({
+				responseHeaders: {
+					...details.responseHeaders,
+					"Content-Security-Policy": [
+						"default-src 'self';" +
+						" script-src 'self';" +
+						" style-src 'self' 'unsafe-inline';" +
+						" img-src 'self' data: blob:;" +
+						" font-src 'self' data:;" +
+						" connect-src 'self' http://localhost:* ws://localhost:*;" +
+						" object-src 'none';" +
+						" base-uri 'self'",
+					],
+				},
+			});
+		});
+
+		// 6. Find free port
 		serverPort = await findFreePort(3721);
 		if (serverPort !== 3721) {
 			console.log(`[Electron] Port 3721 occupied, using port ${serverPort}`);
 		}
 
-		// 6. Start the Fastify server (skip in dev — server runs separately via tsx)
+		// 7. Start the Fastify server (skip in dev — server runs separately via tsx)
 		const devUrl = process.env.VITE_DEV_URL;
 		if (!devUrl) {
 			const server = await startServer(serverPort);
 			serverShutdown = server.shutdown;
 		}
 
-		// 7. Create window
+		// 8. Create window
 		mainWindow = createWindow();
 
-		// 8. Load the app
+		// 9. Load the app
 		const url = devUrl || `http://localhost:${serverPort}`;
 		await mainWindow.loadURL(url);
 
-		// 9. Create tray
+		// 10. Create tray
 		createTray(mainWindow, serverPort);
 
 		console.log(`[Electron] ChatCrystal ready at ${url}`);
@@ -296,8 +353,8 @@ app.whenReady().then(async () => {
 		const message = err instanceof Error ? err.message : String(err);
 
 		dialog.showErrorBox(
-			"ChatCrystal 启动失败",
-			`应用启动时遇到错误：\n\n${message}\n\n请检查端口是否被占用或数据目录权限。`,
+			"ChatCrystal failed to start",
+			`An error occurred during startup:\n\n${message}\n\nPlease check if the port is in use or data directory permissions.`,
 		);
 		app.quit();
 	}
