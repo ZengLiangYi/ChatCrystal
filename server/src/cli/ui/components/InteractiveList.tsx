@@ -131,29 +131,38 @@ export function InteractiveList<T>({
   const selectedItem = items[cursor] ?? null;
 
   // Available width for list content (account for prefix " ▸ " = 3 chars)
-  const availableListWidth = (isWide ? Math.floor(termCols * 0.4) : termCols) - 3;
+  const listPanelWidth = isWide ? Math.floor(termCols * 0.4) : termCols;
+  const availableListWidth = listPanelWidth - 3;
 
-  // Calculate column widths, shrinking to fit available space
-  const rawColWidths = columns.map((col) => {
-    const headerW = displayWidth(col.header);
+  // Filter columns that fit: drop optional columns (marked via priority) when space is tight
+  const visibleColumns = (() => {
+    const totalFixed = columns.reduce((s, c) => s + (c.width || 10), 0) + (columns.length - 1) * 2;
+    if (totalFixed <= availableListWidth) return columns;
+    // Drop columns from the end until they fit, but always keep at least 2
+    const result = [...columns];
+    while (result.length > 2) {
+      const tryTotal = result.reduce((s, c) => s + (c.width || 10), 0) + (result.length - 1) * 2;
+      if (tryTotal <= availableListWidth) break;
+      // Remove second-to-last (keep first and last which are usually ID and date)
+      result.splice(result.length - 2, 1);
+    }
+    return result;
+  })();
+
+  // Calculate column widths, shrinking title to fill remaining space
+  const colWidths = visibleColumns.map((col, i) => {
     if (col.width) return col.width;
-    const maxData = items.slice(0, 100).reduce((max, item) => {
-      return Math.max(max, displayWidth(String(col.accessor(item))));
-    }, 0);
-    return Math.min(Math.max(headerW, maxData), 50);
+    // Auto-width column (typically title): fill remaining space
+    const fixedTotal = visibleColumns.reduce((s, c, j) => j === i ? s : s + (c.width || 10), 0)
+      + (visibleColumns.length - 1) * 2;
+    return Math.max(8, availableListWidth - fixedTotal);
   });
-
-  // Shrink columns proportionally if total exceeds available width
-  const totalRawWidth = rawColWidths.reduce((s, w) => s + w, 0) + (rawColWidths.length - 1) * 2;
-  const colWidths = totalRawWidth > availableListWidth
-    ? rawColWidths.map(w => Math.max(4, Math.floor(w * (availableListWidth / totalRawWidth))))
-    : rawColWidths;
 
   // Render a single row
   function renderRow(item: T, index: number) {
     const globalIndex = scrollOffset + index;
     const isSelected = globalIndex === cursor;
-    const cells = columns.map((col, ci) => {
+    const cells = visibleColumns.map((col, ci) => {
       const raw = String(col.accessor(item));
       return truncate(raw, colWidths[ci]);
     });
@@ -163,6 +172,7 @@ export function InteractiveList<T>({
       return padded;
     }).join('  ');
 
+    // Final safety truncation to prevent any terminal wrapping
     const rowText = truncate(line, availableListWidth);
 
     return (
@@ -172,16 +182,21 @@ export function InteractiveList<T>({
     );
   }
 
-  // Inline preview for narrow mode
+  // Inline preview for narrow mode — fixed height, always at bottom
   function renderInlinePreview() {
-    if (isWide || !selectedItem || !renderPreview) return null;
-    const previewText = renderPreview(selectedItem);
-    if (!previewText) return null;
+    if (isWide || !renderPreview) return null;
+    const previewText = selectedItem ? renderPreview(selectedItem) : null;
+    const sepLine = '┄'.repeat(Math.min(termCols - 2, 60));
+    const maxPreviewWidth = termCols - 4;
     return (
-      <Box flexDirection="column" height={termRows}>
-        <Text dimColor> {'┄'.repeat(Math.min(termCols - 2, 60))}</Text>
-        <Text dimColor> {truncate(previewText, (termCols - 4) * 2)}</Text>
-        <Text dimColor> {'┄'.repeat(Math.min(termCols - 2, 60))}</Text>
+      <Box flexDirection="column" height={PREVIEW_LINES}>
+        <Text dimColor> {sepLine}</Text>
+        {previewText ? (
+          <Text dimColor> {truncate(previewText, maxPreviewWidth)}</Text>
+        ) : (
+          <Text> </Text>
+        )}
+        <Text dimColor> {sepLine}</Text>
       </Box>
     );
   }
@@ -238,8 +253,8 @@ export function InteractiveList<T>({
         {loading && <Text color="yellow">⟳ </Text>}
       </Box>
 
-      {/* List */}
-      <Box flexDirection="column" flexGrow={1} overflow="hidden">
+      {/* List — fixed height to keep preview position stable */}
+      <Box flexDirection="column" height={viewportHeight} overflow="hidden">
         {visibleItems.map((item, i) => renderRow(item, i))}
         {items.length === 0 && !loading && !error && (
           <Box flexDirection="column" paddingLeft={2} paddingTop={1}>
@@ -255,7 +270,7 @@ export function InteractiveList<T>({
         )}
       </Box>
 
-      {/* Inline preview */}
+      {/* Inline preview — fixed at bottom */}
       {renderInlinePreview()}
 
       {/* Status bar */}
