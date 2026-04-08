@@ -8,9 +8,13 @@ import {
   Settings,
   Import,
   Loader2,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useImport, useStatus } from '@/hooks/use-conversations.ts';
+import { useStatus } from '@/hooks/use-conversations.ts';
+import { useImportStream } from '@/hooks/use-import-stream.ts';
+import { useEffect } from 'react';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
@@ -24,7 +28,15 @@ const navItems = [
 export function Sidebar() {
   const { t } = useTranslation();
   const { data: status } = useStatus();
-  const importMutation = useImport();
+  const { state: importState, start: startImport, reset: resetImport } = useImportStream();
+
+  // Auto-dismiss done/error state after 5 seconds
+  useEffect(() => {
+    if (importState.status === 'done' || importState.status === 'error') {
+      const timer = setTimeout(resetImport, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [importState.status, resetImport]);
 
   return (
     <aside
@@ -70,24 +82,57 @@ export function Sidebar() {
       <div className="px-3 py-3 border-t border-theme">
         <button
           type="button"
-          onClick={() => importMutation.mutate()}
-          disabled={importMutation.isPending}
+          onClick={startImport}
+          disabled={importState.status === 'running'}
           className="flex items-center justify-center gap-2 w-full px-3 py-2 text-sm rounded transition-colors accent-bg hover:opacity-90 disabled:opacity-50"
           style={{
             color: 'var(--bg-primary)',
             borderRadius: 'var(--radius)',
           }}
         >
-          {importMutation.isPending ? (
+          {importState.status === 'running' ? (
             <Loader2 size={14} className="animate-spin" />
           ) : (
             <Import size={14} />
           )}
-          {importMutation.isPending ? t('status.importing') : t('action.import_conversations')}
+          {importState.status === 'running'
+            ? importState.progress
+              ? `${t('status.importing')} ${importState.progress.current}/${importState.progress.total}`
+              : t('status.scanning')
+            : t('action.import_conversations')}
         </button>
-        {importMutation.data && (
-          <p className="text-xs text-muted mt-2 text-center">
-            {t('import_success', { count: importMutation.data.imported })}
+
+        {/* Progress details */}
+        {importState.status === 'running' && importState.progress && (
+          <div className="mt-2 space-y-1">
+            <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: 'var(--bg-tertiary)' }}>
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{
+                  width: `${importState.progress.total > 0 ? (importState.progress.current / importState.progress.total) * 100 : 0}%`,
+                  background: 'var(--accent)',
+                }}
+              />
+            </div>
+            <p className="text-xs text-muted text-center">
+              {t('import.imported')}: {importState.progress.imported} · {t('import.skipped')}: {importState.progress.skipped}
+            </p>
+          </div>
+        )}
+
+        {/* Done */}
+        {importState.status === 'done' && (
+          <p className="flex items-center justify-center gap-1 text-xs mt-2" style={{ color: 'var(--success)' }}>
+            <CheckCircle size={12} />
+            {t('import.complete', { imported: importState.result.imported, total: importState.result.total })}
+          </p>
+        )}
+
+        {/* Error */}
+        {importState.status === 'error' && (
+          <p className="flex items-center justify-center gap-1 text-xs mt-2" style={{ color: 'var(--error)' }}>
+            <XCircle size={12} />
+            {importState.error}
           </p>
         )}
       </div>

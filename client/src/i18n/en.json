@@ -57,7 +57,8 @@
     "queued_ellipsis": "Queued...",
     "processing": "Processing...",
     "generating": "Generating...",
-    "importing": "Importing...",
+    "importing": "Importing",
+    "scanning": "Scanning...",
     "submitting": "Submitting...",
     "connected": "Connected",
     "failed_retry": "Failed · Retry",
@@ -127,6 +128,11 @@
   "conversations_total": "{{count}} conversations total",
   "search_results_count": "{{count}} results found",
   "import_success": "Imported {{count}}",
+  "import": {
+    "imported": "Imported",
+    "skipped": "Skipped",
+    "complete": "Done: {{imported}} imported / {{total}} scanned"
+  },
   "data_source_conversations": "{{count}} conversations",
   "key_conclusions": "Key Conclusions",
   "code_snippets": "Code Snippets",

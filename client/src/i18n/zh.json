@@ -57,7 +57,8 @@
     "queued_ellipsis": "排队中...",
     "processing": "进行中...",
     "generating": "生成中...",
-    "importing": "导入中...",
+    "importing": "导入中",
+    "scanning": "扫描中...",
     "submitting": "提交中...",
     "connected": "已连接",
     "failed_retry": "失败 · 重试",
@@ -127,6 +128,11 @@
   "conversations_total": "共 {{count}} 条对话",
   "search_results_count": "找到 {{count}} 条相关结果",
   "import_success": "导入 {{count}} 条",
+  "import": {
+    "imported": "已导入",
+    "skipped": "已跳过",
+    "complete": "完成：导入 {{imported}} 条 / 共扫描 {{total}} 条"
+  },
   "data_source_conversations": "{{count}} 个对话",
   "key_conclusions": "关键结论",
   "code_snippets": "代码片段",
