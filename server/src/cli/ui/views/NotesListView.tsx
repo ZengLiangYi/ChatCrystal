@@ -61,15 +61,20 @@ export function NotesListView({ client, tagFilter, onSelectNote, onSearch, onQui
       onRetry={retry}
       title={title}
       renderPreview={(item) => item.summary}
-      renderSidePreview={(item) => (
-        <>
-          <Text bold wrap="truncate">{item.title}</Text>
-          <Text dimColor wrap="truncate">{t.tags}: {(item.tags || []).map(tag => `#${tag}`).join(' ')}</Text>
-          <Text dimColor>{t.created}: {item.created_at.slice(0, 10)}</Text>
-          <Text dimColor>{'─'.repeat(30)}</Text>
-          <Text wrap="truncate-end">{truncate(item.summary, 200)}</Text>
-        </>
-      )}
+      renderSidePreview={(item, width) => {
+        const w = width || 40;
+        return (
+          <>
+            <Text bold>{truncate(item.title, w)}</Text>
+            <Text dimColor>{truncate(`${t.tags}: ${(item.tags || []).map(tag => `#${tag}`).join(' ')}`, w)}</Text>
+            <Text dimColor>{truncate(`${t.created}: ${item.created_at.slice(0, 10)}`, w)}</Text>
+            <Text dimColor>{'─'.repeat(Math.min(w, 30))}</Text>
+            {item.summary.split('\n').slice(0, 8).map((line, i) => (
+              <Text key={i} dimColor>{truncate(line, w)}</Text>
+            ))}
+          </>
+        );
+      }}
     />
   );
 }

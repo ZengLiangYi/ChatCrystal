@@ -36,8 +36,8 @@ interface InteractiveListProps<T> {
   onRetry?: () => void;
   /** Render inline preview for selected item (narrow mode) */
   renderPreview?: (item: T) => string | null;
-  /** Render side panel preview (wide mode) */
-  renderSidePreview?: (item: T) => React.ReactNode;
+  /** Render side panel preview (wide mode). Receives available width for truncation. */
+  renderSidePreview?: (item: T, width: number) => React.ReactNode;
   /** Extra hints to show in status bar */
   extraHints?: Hint[];
   /** Title shown in header */
@@ -214,8 +214,8 @@ export function InteractiveList<T>({
           <Text dimColor>│</Text>
 
           {/* Right: Preview */}
-          <Box flexDirection="column" flexGrow={1} paddingLeft={1} overflow="hidden">
-            {selectedItem && renderSidePreview(selectedItem)}
+          <Box flexDirection="column" width={previewWidth} paddingLeft={1}>
+            {selectedItem && renderSidePreview(selectedItem, previewWidth - 2)}
           </Box>
         </Box>
 
