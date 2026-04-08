@@ -2,9 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { Box, Text } from 'ink';
 import { SearchBar } from '../components/SearchBar.js';
 import { InteractiveList, type ColumnDef } from '../components/InteractiveList.js';
-import { Spinner } from '../components/Spinner.js';
 import { getLocale } from '../locale/index.js';
-import { truncate } from '../../formatter.js';
 import type { CrystalClient } from '../../client.js';
 
 interface SearchResult {
@@ -14,8 +12,6 @@ interface SearchResult {
   score: number;
   tags: string[];
 }
-
-type SearchPhase = 'input' | 'searching' | 'results';
 
 interface SearchViewProps {
   client: CrystalClient;
@@ -28,15 +24,13 @@ interface SearchViewProps {
 }
 
 export function SearchView({ client, initialQuery, onSelectNote, onBack }: SearchViewProps) {
-  const [phase, setPhase] = useState<SearchPhase>(initialQuery ? 'searching' : 'input');
+  const [showInput, setShowInput] = useState(!initialQuery);
   const [query, setQuery] = useState(initialQuery || '');
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const t = getLocale();
 
-  // Counter to generate unique keys for each phase transition
-  const phaseCounterRef = useRef(0);
-  // I3 fix: AbortController to cancel previous search on new search
   const abortRef = useRef<AbortController | null>(null);
 
   const doSearch = useCallback(async (q: string) => {
@@ -45,22 +39,22 @@ export function SearchView({ client, initialQuery, onSelectNote, onBack }: Searc
     abortRef.current = controller;
 
     setQuery(q);
-    setPhase('searching');
+    setShowInput(false);
+    setSearching(true);
     setError(null);
-    phaseCounterRef.current++;
+    setResults([]);
     try {
       const data = await client.search(q, 50);
       if (controller.signal.aborted) return;
       setResults(data as SearchResult[]);
-      setPhase('results');
     } catch (err) {
       if (controller.signal.aborted) return;
       setError(err instanceof Error ? err.message : String(err));
-      setPhase('results');
+    } finally {
+      if (!controller.signal.aborted) setSearching(false);
     }
   }, [client]);
 
-  // I4 fix: auto-search with correct deps
   useEffect(() => {
     if (initialQuery) doSearch(initialQuery);
   }, [initialQuery, doSearch]);
@@ -72,11 +66,10 @@ export function SearchView({ client, initialQuery, onSelectNote, onBack }: Searc
     { header: t.headerTags, accessor: (r: SearchResult) => r.tags.slice(0, 3).join(', '), width: 20 },
   ], [t]);
 
-  const phaseKey = `${phase}-${phaseCounterRef.current}`;
-
-  if (phase === 'input') {
+  // Input mode: only SearchBar, no InteractiveList
+  if (showInput) {
     return (
-      <Box key={phaseKey} flexDirection="column" paddingTop={1} paddingLeft={1}>
+      <Box flexDirection="column" paddingTop={1} paddingLeft={1}>
         <SearchBar
           onSubmit={doSearch}
           onCancel={onBack}
@@ -87,29 +80,26 @@ export function SearchView({ client, initialQuery, onSelectNote, onBack }: Searc
     );
   }
 
-  if (phase === 'searching') {
-    return (
-      <Box key={phaseKey} flexDirection="column" paddingTop={1} paddingLeft={2}>
-        <Spinner label={`${t.searching} "${query}"`} />
-      </Box>
-    );
-  }
+  // Searching + results: single InteractiveList instance, never unmounted between states.
+  // This avoids Ink useInput re-registration issues on phase transitions.
+  const titleText = searching
+    ? `${t.searching} "${query}"`
+    : `${t.searchTitle}: "${query}" (${t.searchResult(results.length)})`;
 
-  // Results phase — unique key forces full remount so useInput registers correctly
   return (
     <InteractiveList<SearchResult>
-      key={phaseKey}
       items={results}
       columns={columns}
       total={results.length}
-      loading={false}
+      loading={searching}
       error={error}
       hasMore={false}
       onLoadMore={() => {}}
       onSelect={(item, index) => onSelectNote(item.note_id, index)}
-      onSearch={() => setPhase('input')}
+      onSearch={() => setShowInput(true)}
       onQuit={onBack}
-      title={`${t.searchTitle}: "${query}" (${t.searchResult(results.length)})`}
+      title={titleText}
+      keyboardActive={!searching}
     />
   );
 }
