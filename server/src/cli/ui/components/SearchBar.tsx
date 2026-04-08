@@ -29,7 +29,7 @@ export function SearchBar({ onSubmit, onCancel, placeholder, initialValue = '' }
       }
       return;
     }
-    if (key.backspace || key.delete) {
+    if (key.backspace) {
       setValue(prev => prev.slice(0, -1));
       return;
     }
