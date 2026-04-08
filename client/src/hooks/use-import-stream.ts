@@ -23,7 +23,8 @@ type ImportState =
   | { status: 'done'; result: ImportResult }
   | { status: 'error'; error: string };
 
-const API_BASE = import.meta.env.DEV ? 'http://localhost:3721' : '';
+// In dev mode, use relative path so the request goes through Vite's proxy
+const API_BASE = '';
 
 export function useImportStream() {
   const [state, setState] = useState<ImportState>({ status: 'idle' });
