@@ -1,6 +1,6 @@
 {
   "name": "chatcrystal",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "private": true,
   "description": "Turn your AI conversations into searchable knowledge — supports Claude Code, Cursor, Codex CLI",
   "keywords": [
