@@ -82,14 +82,33 @@ export function registerSummarizeCommand(program: Command) {
           return;
         }
 
-        const data = await client.summarize(id);
+        await client.summarize(id);
 
         if (shouldOutputJson(globalOpts.json)) {
+          // JSON mode: poll once for result
+          const data = await client.summarize(id);
           outputJson(data);
           return;
         }
 
-        printSuccess(`Summarization queued for conversation ${id}`);
+        // Wait for the task to finish via queue stream
+        const isTTY = process.stdout.isTTY ?? false;
+        if (isTTY) {
+          const { renderSummarizePanel } = await import('../ui/SummarizePanel.js');
+          await renderSummarizePanel(client);
+          process.exit(0);
+        }
+
+        // Non-TTY: simple polling
+        process.stderr.write(`Summarizing ${id}...`);
+        const result = await client.queueStream((snapshot) => {
+          const task = snapshot.tasks.find((t) => t.id === id);
+          if (task?.status === 'processing') {
+            process.stderr.write(`\rSummarizing ${id}... processing`);
+          }
+        });
+        process.stderr.write('\r' + ' '.repeat(60) + '\r');
+        printSuccess(`Summarization complete (${result.completed} completed, ${result.failed} failed)`);
         console.log();
       } catch (err) {
         printError(err instanceof Error ? err.message : 'Summarize failed');
