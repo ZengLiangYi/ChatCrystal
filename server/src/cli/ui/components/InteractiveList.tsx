@@ -130,33 +130,48 @@ export function InteractiveList<T>({
   const visibleItems = items.slice(scrollOffset, scrollOffset + viewportHeight);
   const selectedItem = items[cursor] ?? null;
 
-  // Available width for list content (account for prefix " ▸ " = 3 chars)
+  // Available width for list content (prefix " ▸ " = 3 chars)
   const listPanelWidth = isWide ? Math.floor(termCols * 0.4) : termCols;
   const availableListWidth = listPanelWidth - 3;
 
-  // Filter columns that fit: drop optional columns (marked via priority) when space is tight
-  const visibleColumns = (() => {
-    const totalFixed = columns.reduce((s, c) => s + (c.width || 10), 0) + (columns.length - 1) * 2;
-    if (totalFixed <= availableListWidth) return columns;
-    // Drop columns from the end until they fit, but always keep at least 2
-    const result = [...columns];
-    while (result.length > 2) {
-      const tryTotal = result.reduce((s, c) => s + (c.width || 10), 0) + (result.length - 1) * 2;
-      if (tryTotal <= availableListWidth) break;
-      // Remove second-to-last (keep first and last which are usually ID and date)
-      result.splice(result.length - 2, 1);
-    }
-    return result;
-  })();
+  // Column layout: flex column (no width) fills remaining space.
+  // Drop fixed-width columns from the right when flex column would be too narrow.
+  const MIN_FLEX_WIDTH = 12;
 
-  // Calculate column widths, shrinking title to fill remaining space
-  const colWidths = visibleColumns.map((col, i) => {
-    if (col.width) return col.width;
-    // Auto-width column (typically title): fill remaining space
-    const fixedTotal = visibleColumns.reduce((s, c, j) => j === i ? s : s + (c.width || 10), 0)
-      + (visibleColumns.length - 1) * 2;
-    return Math.max(8, availableListWidth - fixedTotal);
-  });
+  const { visibleColumns, colWidths } = (() => {
+    // Find the flex column (first column without explicit width)
+    const flexIdx = columns.findIndex(c => !c.width);
+
+    // Start with all columns, drop rightmost fixed columns until flex has enough space
+    let cols = [...columns];
+    const calcFlexWidth = (arr: typeof columns) => {
+      const fixedSum = arr.reduce((s, c, i) => i === flexIdx ? s : s + (c.width || 10), 0);
+      const gaps = (arr.length - 1) * 2;
+      return availableListWidth - fixedSum - gaps;
+    };
+
+    // Drop from the right, but never drop the flex column
+    while (cols.length > 1 && (flexIdx < 0 || calcFlexWidth(cols) < MIN_FLEX_WIDTH)) {
+      // Find rightmost droppable column (not the flex column)
+      let dropIdx = -1;
+      for (let i = cols.length - 1; i >= 0; i--) {
+        if (i !== flexIdx && cols[i].width) { dropIdx = i; break; }
+      }
+      if (dropIdx < 0) break;
+      cols.splice(dropIdx, 1);
+    }
+
+    // Compute final widths
+    const widths = cols.map((col, i) => {
+      if (col.width) return col.width;
+      // Flex column: fill remaining space
+      const fixedSum = cols.reduce((s, c, j) => j === i ? s : s + (c.width || 10), 0);
+      const gaps = (cols.length - 1) * 2;
+      return Math.max(MIN_FLEX_WIDTH, availableListWidth - fixedSum - gaps);
+    });
+
+    return { visibleColumns: cols, colWidths: widths };
+  })();
 
   // Render a single row
   function renderRow(item: T, index: number) {
@@ -172,27 +187,28 @@ export function InteractiveList<T>({
       return padded;
     }).join('  ');
 
-    // Final safety truncation to prevent any terminal wrapping
+    // Truncate to prevent wrapping, then pad to fill width (for inverse highlight)
     const rowText = truncate(line, availableListWidth);
+    const pad = Math.max(0, availableListWidth - displayWidth(rowText));
 
     return (
       <Text key={globalIndex} inverse={isSelected} wrap="truncate">
-        {isSelected ? ' ▸ ' : '   '}{rowText}
+        {isSelected ? ' ▸ ' : '   '}{rowText}{pad > 0 ? ' '.repeat(pad) : ''}
       </Text>
     );
   }
 
-  // Inline preview for narrow mode — fixed height, always at bottom
+  // Inline preview for narrow mode — fixed height, pinned at bottom
   function renderInlinePreview() {
     if (isWide || !renderPreview) return null;
     const previewText = selectedItem ? renderPreview(selectedItem) : null;
-    const sepLine = '┄'.repeat(Math.min(termCols - 2, 60));
-    const maxPreviewWidth = termCols - 4;
+    const previewContentWidth = termCols - 2; // 1 char padding each side
+    const sepLine = '┄'.repeat(previewContentWidth);
     return (
       <Box flexDirection="column" height={PREVIEW_LINES}>
         <Text dimColor> {sepLine}</Text>
         {previewText ? (
-          <Text dimColor> {truncate(previewText, maxPreviewWidth)}</Text>
+          <Text dimColor> {truncate(previewText, previewContentWidth)}</Text>
         ) : (
           <Text> </Text>
         )}

@@ -39,7 +39,7 @@ export function NotesListView({ client, tagFilter, onSelectNote, onSearch, onQui
 
   const columns: ColumnDef[] = useMemo(() => [
     { header: 'ID', accessor: (n: NoteItem) => n.id, width: 5, align: 'right' as const },
-    { header: t.headerTitle, accessor: (n: NoteItem) => truncate(n.title, 40), width: 42 },
+    { header: t.headerTitle, accessor: (n: NoteItem) => n.title },
     { header: t.headerTags, accessor: (n: NoteItem) => (n.tags || []).slice(0, 3).join(', '), width: 20 },
     { header: t.headerCreated, accessor: (n: NoteItem) => n.created_at.slice(0, 10), width: 10 },
   ], [t]);
