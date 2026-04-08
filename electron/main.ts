@@ -305,24 +305,27 @@ app.whenReady().then(async () => {
 		}
 
 		// 5. Set Content Security Policy (C-2)
-		// Restricts script execution to prevent XSS from rendered AI conversation content
-		session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-			callback({
-				responseHeaders: {
-					...details.responseHeaders,
-					"Content-Security-Policy": [
-						"default-src 'self';" +
-						" script-src 'self';" +
-						" style-src 'self' 'unsafe-inline';" +
-						" img-src 'self' data: blob:;" +
-						" font-src 'self' data:;" +
-						" connect-src 'self' http://localhost:* ws://localhost:*;" +
-						" object-src 'none';" +
-						" base-uri 'self'",
-					],
-				},
+		// Restricts script execution to prevent XSS from rendered AI conversation content.
+		// Skipped in dev mode — Vite's HMR injects inline scripts incompatible with strict CSP.
+		if (!process.env.VITE_DEV_URL) {
+			session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+				callback({
+					responseHeaders: {
+						...details.responseHeaders,
+						"Content-Security-Policy": [
+							"default-src 'self';" +
+							" script-src 'self';" +
+							" style-src 'self' 'unsafe-inline';" +
+							" img-src 'self' data: blob:;" +
+							" font-src 'self' data:;" +
+							" connect-src 'self' http://localhost:* ws://localhost:*;" +
+							" object-src 'none';" +
+							" base-uri 'self'",
+						],
+					},
+				});
 			});
-		});
+		}
 
 		// 6. Find free port
 		serverPort = await findFreePort(3721);
