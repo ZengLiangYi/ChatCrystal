@@ -4,6 +4,8 @@ import {
   shouldOutputJson, outputJson,
   printHeader, printTable, printKeyValue, printError, truncate,
 } from '../formatter.js';
+import { isInteractive } from '../interactive.js';
+import { renderApp } from '../ui/renderApp.js';
 
 export function registerNotesCommand(program: Command) {
   const notes = program
@@ -22,6 +24,15 @@ export function registerNotesCommand(program: Command) {
       const client = new CrystalClient(globalOpts.baseUrl);
 
       try {
+        // Interactive mode
+        if (isInteractive(globalOpts)) {
+          await renderApp(client, {
+            type: 'notes-list',
+            props: { tagFilter: opts.tag },
+          });
+          return;
+        }
+
         const page = Math.max(1, Number(opts.page));
         const limit = Number(opts.limit);
         const offset = (page - 1) * limit;
@@ -69,6 +80,15 @@ export function registerNotesCommand(program: Command) {
       const client = new CrystalClient(globalOpts.baseUrl);
 
       try {
+        // Interactive mode
+        if (isInteractive(globalOpts)) {
+          await renderApp(client, {
+            type: 'note-detail',
+            props: { noteId: Number(id) },
+          });
+          return;
+        }
+
         const note = await client.getNote(Number(id));
 
         if (shouldOutputJson(globalOpts.json)) {
@@ -122,6 +142,15 @@ export function registerNotesCommand(program: Command) {
       const client = new CrystalClient(globalOpts.baseUrl);
 
       try {
+        // Interactive mode
+        if (isInteractive(globalOpts)) {
+          await renderApp(client, {
+            type: 'relations',
+            props: { noteId: Number(id) },
+          });
+          return;
+        }
+
         const relations = await client.getNoteRelations(Number(id));
 
         if (shouldOutputJson(globalOpts.json)) {

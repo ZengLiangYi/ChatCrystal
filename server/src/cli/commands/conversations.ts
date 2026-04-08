@@ -4,6 +4,8 @@ import {
   shouldOutputJson, outputJson,
   printHeader, printTable, truncate,
 } from '../formatter.js';
+import { isInteractive } from '../interactive.js';
+import { renderApp } from '../ui/renderApp.js';
 
 export function registerConversationsCommand(program: Command) {
   program
@@ -19,6 +21,19 @@ export function registerConversationsCommand(program: Command) {
       const client = new CrystalClient(globalOpts.baseUrl);
 
       try {
+        // Interactive mode
+        if (isInteractive(globalOpts)) {
+          await renderApp(client, {
+            type: 'conversations',
+            props: {
+              source: opts.source,
+              status: opts.status,
+              search: opts.search,
+            },
+          });
+          return;
+        }
+
         const data = await client.getConversations({
           source: opts.source,
           status: opts.status,
