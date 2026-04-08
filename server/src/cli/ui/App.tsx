@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { Box, Text, useApp } from 'ink';
+import { Box, Text, useApp, useInput } from 'ink';
 import { useViewStack, type ViewState } from './hooks/useViewStack.js';
 import { useTerminalSize, MIN_WIDTH, MIN_HEIGHT } from './hooks/useTerminalSize.js';
 import { NotesListView } from './views/NotesListView.js';
@@ -23,6 +23,11 @@ export function App({ client, initialView }: AppProps) {
   const { current, depth, push, pop, replace } = useViewStack(initialView);
   const { columns, rows } = useTerminalSize();
   const { exit } = useApp();
+
+  // Ink raw mode workaround (vadimdemedes/ink#625): persistent useInput keeps
+  // rawModeEnabledCount >= 1 during component transitions, preventing stdin teardown.
+  // Still needed in Ink 7 despite useEffectEvent — React effect batching order unchanged.
+  useInput(() => {});
 
   // Unique key per view — increment on every stack change to force remount
   const viewKeyRef = React.useRef(0);
