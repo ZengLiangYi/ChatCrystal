@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Text } from 'ink';
+import { Box, Text, useInput } from 'ink';
 import { DetailView, type NoteDetail } from '../components/DetailView.js';
 import { Spinner } from '../components/Spinner.js';
 import { getLocale } from '../locale/index.js';
@@ -44,6 +44,13 @@ export function NoteDetailView({
       setError(err instanceof Error ? err.message : String(err));
     });
   }, [noteId]);
+
+  // Allow Esc to go back even during loading/error states
+  useInput((_input, key) => {
+    if (key.escape || _input === 'q') {
+      onBack();
+    }
+  }, { isActive: !note }); // Only active when DetailView's own handler isn't mounted
 
   if (error) {
     return (

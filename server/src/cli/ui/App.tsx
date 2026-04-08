@@ -20,9 +20,12 @@ interface AppProps {
  * Each command creates an <App> with the appropriate initial view.
  */
 export function App({ client, initialView }: AppProps) {
-  const { current, push, pop } = useViewStack(initialView);
+  const { current, depth, push, pop } = useViewStack(initialView);
   const { columns, rows } = useTerminalSize();
   const { exit } = useApp();
+
+  // Unique key per view instance to force full remount (fixes useInput re-registration)
+  const viewKey = `${current.type}-${depth}-${JSON.stringify(current.props)}`;
 
   const quit = useCallback(() => {
     exit();
@@ -48,6 +51,7 @@ export function App({ client, initialView }: AppProps) {
     case 'notes-list':
       return (
         <NotesListView
+          key={viewKey}
           client={client}
           tagFilter={props.tagFilter as string | undefined}
           onSelectNote={(noteId, index) => {
@@ -61,6 +65,7 @@ export function App({ client, initialView }: AppProps) {
     case 'note-detail':
       return (
         <NoteDetailView
+          key={viewKey}
           client={client}
           noteId={props.noteId as number}
           noteIds={props.noteIds as number[] | undefined}
@@ -76,6 +81,7 @@ export function App({ client, initialView }: AppProps) {
     case 'search':
       return (
         <SearchView
+          key={viewKey}
           client={client}
           initialQuery={props.initialQuery as string | undefined}
           onSelectNote={(noteId, index) => {
@@ -88,6 +94,7 @@ export function App({ client, initialView }: AppProps) {
     case 'tags':
       return (
         <TagsView
+          key={viewKey}
           client={client}
           onSelectTag={(tagName) => {
             push({ type: 'notes-list', props: { tagFilter: tagName } });
@@ -99,6 +106,7 @@ export function App({ client, initialView }: AppProps) {
     case 'conversations':
       return (
         <ConversationsView
+          key={viewKey}
           client={client}
           source={props.source as string | undefined}
           status={props.status as string | undefined}
@@ -116,6 +124,7 @@ export function App({ client, initialView }: AppProps) {
     case 'relations':
       return (
         <RelationsView
+          key={viewKey}
           client={client}
           noteId={props.noteId as number}
           onSelectNote={(noteId, index) => {

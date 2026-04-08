@@ -181,7 +181,7 @@ export function InteractiveList<T>({
     const previewWidth = termCols - listWidth - 3;
 
     return (
-      <Box flexDirection="column" height={termRows}>
+      <Box flexDirection="column">
         {/* Header */}
         <Box>
           <Text bold> {title} ({total})</Text>
@@ -205,7 +205,7 @@ export function InteractiveList<T>({
           </Box>
 
           {/* Right: Preview */}
-          <Box flexDirection="column" width={previewWidth} paddingLeft={1}>
+          <Box flexDirection="column" width={previewWidth} paddingLeft={1} overflow="hidden">
             {selectedItem && renderSidePreview(selectedItem)}
           </Box>
         </Box>

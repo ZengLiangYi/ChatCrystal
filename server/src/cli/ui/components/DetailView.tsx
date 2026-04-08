@@ -125,27 +125,26 @@ export function DetailView({ note, onBack, onPrev, onNext, position, relations }
   hints.push({ key: '↑↓', label: t.hints.scroll.split(':')[1] });
 
   return (
-    <Box flexDirection="column" height={termRows}>
+    <Box flexDirection="column">
       {/* Content */}
-      <Box flexDirection="column" flexGrow={1} paddingLeft={1}>
+      <Box flexDirection="column" paddingLeft={1}>
         {visibleLines.map((line, i) => (
           <Text
             key={scrollY + i}
             bold={line.bold}
             dimColor={line.dimColor}
             color={line.color as any}
+            wrap="truncate"
           >
             {line.text}
           </Text>
         ))}
       </Box>
 
-      {/* Scroll indicator */}
+      {/* Scroll indicator + Status bar */}
       {maxScroll > 0 && (
         <Text dimColor> [{scrollY + 1}-{Math.min(scrollY + contentHeight, lines.length)}/{lines.length}]</Text>
       )}
-
-      {/* Status bar */}
       <StatusBar
         info={position ? `[${position}]` : undefined}
         hints={hints}

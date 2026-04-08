@@ -63,11 +63,11 @@ export function NotesListView({ client, tagFilter, onSelectNote, onSearch, onQui
       renderPreview={(item) => item.summary}
       renderSidePreview={(item) => (
         <>
-          <Text bold>{item.title}</Text>
-          <Text dimColor>{t.tags}: {(item.tags || []).map(tag => `#${tag}`).join(' ')}</Text>
+          <Text bold wrap="truncate">{item.title}</Text>
+          <Text dimColor wrap="truncate">{t.tags}: {(item.tags || []).map(tag => `#${tag}`).join(' ')}</Text>
           <Text dimColor>{t.created}: {item.created_at.slice(0, 10)}</Text>
           <Text dimColor>{'─'.repeat(30)}</Text>
-          <Text>{truncate(item.summary, 200)}</Text>
+          <Text wrap="truncate-end">{truncate(item.summary, 200)}</Text>
         </>
       )}
     />
