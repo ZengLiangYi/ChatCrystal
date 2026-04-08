@@ -9,6 +9,7 @@ import {
 } from 'remotion';
 import { BRAND, ANSI, SOURCE_COLORS } from '../constants';
 import { FONT_MONO, FONT_SANS } from '../fonts';
+import { Cursor } from '../utils/typewriter';
 
 const CONVERSATION = [
   { role: 'user', text: 'How should I implement JWT refresh tokens?' },
@@ -23,20 +24,34 @@ const TAGS = [
   { label: 'security', color: SOURCE_COLORS.cursor },
 ];
 
+// Pre-calculate sequential timing: each message starts after the previous finishes
+const CHAR_FRAMES = 0.5;
+const MSG_GAP = 8; // frames gap between messages
+const MSG_TIMINGS = CONVERSATION.reduce<{ start: number; end: number }[]>((acc, msg, i) => {
+  const start = i === 0 ? 0 : acc[i - 1].end + MSG_GAP;
+  const end = start + Math.ceil(msg.text.length * CHAR_FRAMES);
+  acc.push({ start, end });
+  return acc;
+}, []);
+// Total conversation typing ends at last message end
+const CONV_END = MSG_TIMINGS[MSG_TIMINGS.length - 1].end; // ~frame 56
+
 export const LandingHero: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // === Phase 1: Conversation scroll (0-60 / 0-2s) ===
+  // === Phase 1: Sequential conversation (0 to ~56) ===
   const convLines = CONVERSATION.map((msg, i) => {
-    const start = i * 12;
+    const { start, end } = MSG_TIMINGS[i];
     if (frame < start) return null;
-    const charsDone = Math.min(msg.text.length, Math.floor((frame - start) / 0.5));
-    return { ...msg, text: msg.text.slice(0, charsDone) };
+    const elapsed = frame - start;
+    const charsDone = Math.min(msg.text.length, Math.floor(elapsed / CHAR_FRAMES));
+    const isTyping = frame >= start && frame < end;
+    return { ...msg, text: msg.text.slice(0, charsDone), isTyping };
   });
 
-  // === Phase 2: Import notification (60-90 / 2-3s) ===
-  const importStart = 60;
+  // === Phase 2: Import notification (CONV_END+4 to dissolve) ===
+  const importStart = CONV_END + 4;
   const importSlideIn = interpolate(frame, [importStart, importStart + 8], [60, 0], {
     extrapolateLeft: 'clamp', extrapolateRight: 'clamp',
   });
@@ -44,7 +59,7 @@ export const LandingHero: React.FC = () => {
     extrapolateLeft: 'clamp', extrapolateRight: 'clamp',
   });
 
-  // === Phase 3: Dissolve + Logo (90-150 / 3-5s) ===
+  // === Phase 3: Dissolve + Logo (90-150) ===
   const dissolveStart = 90;
   const convOpacity = interpolate(frame, [dissolveStart, dissolveStart + 15], [1, 0], {
     extrapolateLeft: 'clamp', extrapolateRight: 'clamp',
@@ -64,15 +79,20 @@ export const LandingHero: React.FC = () => {
     extrapolateLeft: 'clamp', extrapolateRight: 'clamp',
   });
 
-  // === Phase 4: Note card (150-270 / 5-9s) ===
+  // === Phase 4: Logo moves to top-left, note card appears (150-270) ===
   const noteStart = 150;
-  const logoShrink = interpolate(frame, [noteStart, noteStart + 15], [1, 0.5], {
+
+  // Logo shrinks and moves to top-left corner of the content area
+  // From center (50%,50%) to top-left (~16px, ~16px) of the content div
+  // Content area is roughly 680px x 300px, center is (340, 150)
+  // Target: (24, 20) — so offset is (24-340, 20-150) = (-316, -130)
+  const logoShrink = interpolate(frame, [noteStart, noteStart + 15], [1, 0.4], {
     extrapolateLeft: 'clamp', extrapolateRight: 'clamp',
   });
-  const logoMoveX = interpolate(frame, [noteStart, noteStart + 15], [0, -220], {
+  const logoMoveX = interpolate(frame, [noteStart, noteStart + 15], [0, -280], {
     extrapolateLeft: 'clamp', extrapolateRight: 'clamp',
   });
-  const logoMoveY = interpolate(frame, [noteStart, noteStart + 15], [0, -140], {
+  const logoMoveY = interpolate(frame, [noteStart, noteStart + 15], [0, -120], {
     extrapolateLeft: 'clamp', extrapolateRight: 'clamp',
   });
 
@@ -94,7 +114,7 @@ export const LandingHero: React.FC = () => {
   const tagsOpacity = interpolate(frame, [tagsFrame, tagsFrame + 8], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
   const codeOpacity = interpolate(frame, [codeFrame, codeFrame + 8], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
 
-  // === Phase 5: Fade out (270-300 / 9-10s) ===
+  // === Phase 5: Fade out (270-300) ===
   const fadeOut = interpolate(frame, [270, 300], [1, 0], {
     extrapolateLeft: 'clamp', extrapolateRight: 'clamp',
   });
@@ -116,12 +136,12 @@ export const LandingHero: React.FC = () => {
         style={{
           width: '88%',
           maxWidth: 720,
+          height: 370,
           borderRadius: 12,
           overflow: 'hidden',
           boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
           border: `1px solid ${BRAND.deepPurple}40`,
           backgroundColor: BRAND.terminalBg,
-          minHeight: 340,
           position: 'relative',
         }}
       >
@@ -132,8 +152,8 @@ export const LandingHero: React.FC = () => {
           <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#28C840' }} />
         </div>
 
-        <div style={{ padding: '20px 24px', position: 'relative', minHeight: 300 }}>
-          {/* Phase 1: Conversation */}
+        <div style={{ padding: '20px 24px', position: 'relative', height: 338, overflow: 'hidden' }}>
+          {/* Phase 1: Conversation — sequential typewriter */}
           {showConversation && (
             <div style={{ opacity: convOpacity, fontFamily: FONT_SANS, fontSize: 13 }}>
               {convLines.map((msg, i) =>
@@ -144,6 +164,7 @@ export const LandingHero: React.FC = () => {
                     </div>
                     <div style={{ color: msg.role === 'user' ? BRAND.white : BRAND.lavender }}>
                       {msg.text}
+                      {msg.isTyping && <Cursor frame={frame} />}
                     </div>
                   </div>
                 )
@@ -172,7 +193,7 @@ export const LandingHero: React.FC = () => {
             </div>
           )}
 
-          {/* Phase 3: Logo + Crystallizing */}
+          {/* Phase 3: Logo + Crystallizing — centered, then moves to top-left */}
           {showLogo && (
             <div
               style={{
@@ -193,14 +214,16 @@ export const LandingHero: React.FC = () => {
             </div>
           )}
 
-          {/* Phase 4: Note card */}
+          {/* Phase 4: Note card — slides in from right of logo */}
           {showNote && (
             <div
               style={{
+                position: 'absolute',
+                top: 50,
+                left: 60,
+                right: 20,
                 opacity: cardOpacity,
                 transform: `translateX(${cardSlideIn}px)`,
-                marginLeft: 40,
-                marginTop: 10,
               }}
             >
               <div style={{ opacity: titleOpacity, fontFamily: FONT_SANS, fontSize: 16, fontWeight: 700, color: BRAND.white }}>

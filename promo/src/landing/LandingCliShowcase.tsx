@@ -97,6 +97,17 @@ export const LandingCliShowcase: React.FC = () => {
     extrapolateLeft: 'clamp', extrapolateRight: 'clamp',
   });
 
+  // Scroll: 3 blocks accumulate content well beyond terminal height
+  // Block 1 (import): ~8 lines ≈ 210px
+  // Block 2 (search): ~6 lines ≈ 160px → total 370px, overflows
+  // Block 3 (notes): ~9 lines ≈ 230px → total 600px
+  const scrollY = interpolate(
+    frame,
+    [block2Start, block2Start + 15, block3Start, block3Start + 15],
+    [0, -160, -160, -340],
+    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
+  );
+
   return (
     <AbsoluteFill
       style={{
@@ -107,7 +118,7 @@ export const LandingCliShowcase: React.FC = () => {
       }}
     >
       <TerminalWindow variant="B">
-        <div>
+        <div style={{ transform: `translateY(${scrollY}px)` }}>
           {/* Block 1: import */}
           <div style={{ color: ANSI.white }}>
             {cmd1Text}

@@ -72,6 +72,18 @@ export const LandingFeatureCli: React.FC = () => {
     extrapolateRight: 'clamp',
   });
 
+  // Scroll: content grows taller than terminal, scroll up smoothly
+  // Each block adds ~5 lines (~16px line-height * 1.6 = ~26px each)
+  // Block 1: cmd + 4 status lines ≈ 130px
+  // Block 2: cmd + 5 tags ≈ 160px → total 290px, starts overflowing
+  // Block 3: cmd + progress ≈ 60px → total 350px
+  const scrollY = interpolate(
+    frame,
+    [block2Start, block2Start + 10, block3Start, block3Start + 10],
+    [0, 0, 0, -80],
+    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
+  );
+
   return (
     <AbsoluteFill
       style={{
@@ -82,7 +94,7 @@ export const LandingFeatureCli: React.FC = () => {
       }}
     >
       <TerminalWindow variant="B">
-        <div>
+        <div style={{ transform: `translateY(${scrollY}px)` }}>
           {/* Block 1 */}
           <div style={{ color: ANSI.white }}>
             {cmd1Text}
