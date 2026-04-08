@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { Box, Text, useApp } from 'ink';
+import { Box, Text, useApp, useInput } from 'ink';
 import { useViewStack, type ViewState } from './hooks/useViewStack.js';
 import { useTerminalSize, MIN_WIDTH, MIN_HEIGHT } from './hooks/useTerminalSize.js';
 import { NotesListView } from './views/NotesListView.js';
@@ -23,6 +23,11 @@ export function App({ client, initialView }: AppProps) {
   const { current, depth, push, pop, replace } = useViewStack(initialView);
   const { columns, rows } = useTerminalSize();
   const { exit } = useApp();
+
+  // Ink bug workaround (vadimdemedes/ink#625): keep a persistent useInput handler
+  // so rawModeEnabledCount never drops to 0 during component transitions.
+  // Without this, arrow keys (multi-byte ANSI sequences) break after unmount/remount.
+  useInput(() => {});
 
   // Unique key per view — increment on every stack change to force remount
   const viewKeyRef = React.useRef(0);
