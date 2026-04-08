@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { InteractiveList, type ColumnDef } from '../components/InteractiveList.js';
 import { getLocale } from '../locale/index.js';
 import type { CrystalClient } from '../../client.js';
@@ -22,15 +22,15 @@ export function TagsView({ client, onSelectTag, onQuit }: TagsViewProps) {
   const [error, setError] = useState<string | null>(null);
   const t = getLocale();
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
     setError(null);
     client.listTags()
       .then(data => { setTags(data as TagItem[]); setLoading(false); })
       .catch(err => { setError(err instanceof Error ? err.message : String(err)); setLoading(false); });
-  };
+  }, [client]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const columns: ColumnDef[] = useMemo(() => [
     { header: t.tagsTitle, accessor: (tag: TagItem) => `#${tag.name}`, width: 30 },

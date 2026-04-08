@@ -25,7 +25,9 @@ export function NoteDetailView({
   const [error, setError] = useState<string | null>(null);
   const t = getLocale();
 
+  // I2 fix: abort flag prevents stale responses on rapid prev/next navigation
   useEffect(() => {
+    let cancelled = false;
     setNote(null);
     setError(null);
 
@@ -33,6 +35,7 @@ export function NoteDetailView({
       client.getNote(noteId),
       client.getNoteRelations(noteId).catch(() => []),
     ]).then(([noteData, relData]) => {
+      if (cancelled) return;
       setNote(noteData as NoteDetail);
       const mapped = relData.map(r => ({
         id: r.target_note_id === noteId ? r.source_note_id : r.target_note_id,
@@ -41,9 +44,12 @@ export function NoteDetailView({
       }));
       setRelations(mapped);
     }).catch(err => {
+      if (cancelled) return;
       setError(err instanceof Error ? err.message : String(err));
     });
-  }, [noteId]);
+
+    return () => { cancelled = true; };
+  }, [noteId, client]);
 
   // Allow Esc to go back even during loading/error states
   useInput((_input, key) => {

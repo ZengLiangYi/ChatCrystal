@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { InteractiveList, type ColumnDef } from '../components/InteractiveList.js';
 import { getLocale } from '../locale/index.js';
 import { truncate } from '../../formatter.js';
@@ -25,7 +25,7 @@ export function RelationsView({ client, noteId, onSelectNote, onBack }: Relation
   const [error, setError] = useState<string | null>(null);
   const t = getLocale();
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
     setError(null);
     client.getNoteRelations(noteId)
@@ -44,9 +44,9 @@ export function RelationsView({ client, noteId, onSelectNote, onBack }: Relation
         setError(err instanceof Error ? err.message : String(err));
         setLoading(false);
       });
-  };
+  }, [client, noteId]);
 
-  useEffect(() => { load(); }, [noteId]);
+  useEffect(() => { load(); }, [load]);
 
   const columns: ColumnDef[] = useMemo(() => [
     { header: t.headerType, accessor: (r: RelationItem) => r.relation_type, width: 14 },

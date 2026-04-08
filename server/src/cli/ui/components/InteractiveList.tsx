@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Box, Text } from 'ink';
 import { useKeyboard, type KeyAction } from '../hooks/useKeyboard.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
@@ -69,38 +69,51 @@ export function InteractiveList<T>({
   // Calculate viewport height
   const viewportHeight = Math.max(3, termRows - CHROME_LINES - (isWide ? 0 : PREVIEW_LINES));
 
-  // Clamp cursor when items change
+  // C2 fix: refs for values read in handleAction to avoid stale closures
+  const cursorRef = useRef(cursor);
+  cursorRef.current = cursor;
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  const scrollOffsetRef = useRef(scrollOffset);
+  scrollOffsetRef.current = scrollOffset;
+
+  // I5 fix: clamp cursor via functional setState
   useEffect(() => {
-    if (cursor >= items.length && items.length > 0) {
-      setCursor(items.length - 1);
+    if (items.length > 0) {
+      setCursor(prev => (prev >= items.length ? items.length - 1 : prev));
     }
   }, [items.length]);
 
-  // Auto-load more when cursor is near bottom
+  // C3 fix: auto-load-more with onLoadMore in deps
   useEffect(() => {
     if (cursor >= items.length - 5 && hasMore && !loading) {
       onLoadMore();
     }
-  }, [cursor, items.length, hasMore, loading]);
+  }, [cursor, items.length, hasMore, loading, onLoadMore]);
 
   const handleAction = useCallback((action: KeyAction) => {
+    const currentItems = itemsRef.current;
     switch (action) {
       case 'up':
         setCursor(prev => {
           const next = Math.max(0, prev - 1);
-          if (next < scrollOffset) setScrollOffset(next);
+          if (next < scrollOffsetRef.current) setScrollOffset(next);
           return next;
         });
         break;
       case 'down':
         setCursor(prev => {
-          const next = Math.min(items.length - 1, prev + 1);
-          if (next >= scrollOffset + viewportHeight) setScrollOffset(next - viewportHeight + 1);
+          const next = Math.min(currentItems.length - 1, prev + 1);
+          if (next >= scrollOffsetRef.current + viewportHeight) {
+            setScrollOffset(next - viewportHeight + 1);
+          }
           return next;
         });
         break;
       case 'enter':
-        if (items.length > 0) onSelect(items[cursor], cursor);
+        if (currentItems.length > 0) {
+          onSelect(currentItems[cursorRef.current], cursorRef.current);
+        }
         break;
       case 'search':
         onSearch?.();
@@ -113,7 +126,7 @@ export function InteractiveList<T>({
         onRetry?.();
         break;
     }
-  }, [items, cursor, scrollOffset, viewportHeight, onSelect, onSearch, onQuit, onRetry]);
+  }, [viewportHeight, onSelect, onSearch, onQuit, onRetry]);
 
   useKeyboard({ active: keyboardActive, onAction: handleAction });
 

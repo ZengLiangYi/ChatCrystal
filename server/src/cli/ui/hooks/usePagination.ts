@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 export interface PaginationState<T> {
   /** All loaded items so far */
@@ -42,14 +42,16 @@ export function usePagination<T>({ pageSize = 20, fetchPage }: UsePaginationOpti
 
   const abortRef = useRef<AbortController | null>(null);
   const offsetRef = useRef(0);
-  const initialLoadDone = useRef(false);
+  // Refs to avoid stale closures in loadMore (C1 fix)
+  const loadingRef = useRef(true);
+  const hasMoreRef = useRef(true);
 
   const doFetch = useCallback((offset: number, replace: boolean) => {
-    // Cancel any in-flight request
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
+    loadingRef.current = true;
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     fetchPage(offset, pageSize)
@@ -57,18 +59,22 @@ export function usePagination<T>({ pageSize = 20, fetchPage }: UsePaginationOpti
         if (controller.signal.aborted) return;
         setState(prev => {
           const merged = replace ? result.items : [...prev.items, ...result.items];
+          const more = merged.length < result.total;
+          loadingRef.current = false;
+          hasMoreRef.current = more;
           return {
             items: merged,
             total: result.total,
             loading: false,
             error: null,
-            hasMore: merged.length < result.total,
+            hasMore: more,
           };
         });
         offsetRef.current = offset + result.items.length;
       })
       .catch(err => {
         if (controller.signal.aborted) return;
+        loadingRef.current = false;
         setState(prev => ({
           ...prev,
           loading: false,
@@ -77,10 +83,11 @@ export function usePagination<T>({ pageSize = 20, fetchPage }: UsePaginationOpti
       });
   }, [fetchPage, pageSize]);
 
+  // C1 fix: loadMore reads refs instead of stale state closure
   const loadMore = useCallback(() => {
-    if (state.loading || !state.hasMore) return;
+    if (loadingRef.current || !hasMoreRef.current) return;
     doFetch(offsetRef.current, false);
-  }, [state.loading, state.hasMore, doFetch]);
+  }, [doFetch]);
 
   const reload = useCallback(() => {
     offsetRef.current = 0;
@@ -92,11 +99,10 @@ export function usePagination<T>({ pageSize = 20, fetchPage }: UsePaginationOpti
     doFetch(offsetRef.current, offsetRef.current === 0);
   }, [doFetch]);
 
-  // Auto-load first page on mount
-  if (!initialLoadDone.current) {
-    initialLoadDone.current = true;
+  // C4 fix: initial fetch in useEffect instead of render phase
+  useEffect(() => {
     doFetch(0, true);
-  }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- mount only
 
   return {
     ...state,

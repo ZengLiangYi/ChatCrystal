@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Box, Text } from 'ink';
 import { useKeyboard, type KeyAction } from '../hooks/useKeyboard.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
@@ -91,7 +91,17 @@ export function DetailView({ note, onBack, onPrev, onNext, position, relations }
   const chromeLines = 2;
   const contentHeight = Math.max(1, termRows - chromeLines);
   const maxScroll = Math.max(0, lines.length - contentHeight);
+
+  // I1 fix: clamp scrollY when content shrinks (e.g., relations load async)
+  useEffect(() => {
+    setScrollY(prev => Math.min(prev, maxScroll));
+  }, [maxScroll]);
+
   const visibleLines = lines.slice(scrollY, scrollY + contentHeight);
+
+  // Use ref to avoid stale maxScroll in handleAction
+  const maxScrollRef = useRef(maxScroll);
+  maxScrollRef.current = maxScroll;
 
   const handleAction = useCallback((action: KeyAction) => {
     switch (action) {
@@ -99,7 +109,7 @@ export function DetailView({ note, onBack, onPrev, onNext, position, relations }
         setScrollY(prev => Math.max(0, prev - 1));
         break;
       case 'down':
-        setScrollY(prev => Math.min(maxScroll, prev + 1));
+        setScrollY(prev => Math.min(maxScrollRef.current, prev + 1));
         break;
       case 'left':
         onPrev?.();
@@ -112,7 +122,7 @@ export function DetailView({ note, onBack, onPrev, onNext, position, relations }
         onBack();
         break;
     }
-  }, [maxScroll, onBack, onPrev, onNext]);
+  }, [onBack, onPrev, onNext]);
 
   useKeyboard({ onAction: handleAction });
 

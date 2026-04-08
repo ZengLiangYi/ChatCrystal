@@ -19,13 +19,24 @@ interface AppProps {
  * Root interactive app. Manages view stack and routes to view components.
  * Each command creates an <App> with the appropriate initial view.
  */
+// I6 fix: monotonic counter for stable unique keys (avoids JSON.stringify every render)
+let viewCounter = 0;
+
 export function App({ client, initialView }: AppProps) {
-  const { current, depth, push, pop } = useViewStack(initialView);
+  const { current, depth, push, pop, replace } = useViewStack(initialView);
   const { columns, rows } = useTerminalSize();
   const { exit } = useApp();
 
-  // Unique key per view instance to force full remount (fixes useInput re-registration)
-  const viewKey = `${current.type}-${depth}-${JSON.stringify(current.props)}`;
+  // Unique key per view — increment on every stack change to force remount
+  const viewKeyRef = React.useRef(0);
+  const prevDepthRef = React.useRef(depth);
+  const prevTypeRef = React.useRef(current.type);
+  if (depth !== prevDepthRef.current || current.type !== prevTypeRef.current) {
+    viewKeyRef.current = ++viewCounter;
+    prevDepthRef.current = depth;
+    prevTypeRef.current = current.type;
+  }
+  const viewKey = `${current.type}-${viewKeyRef.current}`;
 
   const quit = useCallback(() => {
     exit();
@@ -73,7 +84,7 @@ export function App({ client, initialView }: AppProps) {
           total={props.total as number | undefined}
           onBack={goBack}
           onNavigate={(noteId, index) => {
-            push({ type: 'note-detail', props: { ...props, noteId, currentIndex: index } });
+            replace({ type: 'note-detail', props: { ...props, noteId, currentIndex: index } });
           }}
         />
       );

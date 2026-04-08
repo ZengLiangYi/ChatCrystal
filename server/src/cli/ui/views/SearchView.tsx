@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Box, Text } from 'ink';
 import { SearchBar } from '../components/SearchBar.js';
 import { InteractiveList, type ColumnDef } from '../components/InteractiveList.js';
@@ -34,24 +34,33 @@ export function SearchView({ client, initialQuery, onSelectNote, onBack }: Searc
   const [error, setError] = useState<string | null>(null);
   const t = getLocale();
 
+  // I3 fix: AbortController to cancel previous search on new search
+  const abortRef = useRef<AbortController | null>(null);
+
   const doSearch = useCallback(async (q: string) => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setQuery(q);
     setPhase('searching');
     setError(null);
     try {
       const data = await client.search(q, 50);
+      if (controller.signal.aborted) return;
       setResults(data as SearchResult[]);
       setPhase('results');
     } catch (err) {
+      if (controller.signal.aborted) return;
       setError(err instanceof Error ? err.message : String(err));
       setPhase('results');
     }
   }, [client]);
 
-  // Auto-search if initialQuery provided
+  // I4 fix: auto-search with correct deps
   useEffect(() => {
     if (initialQuery) doSearch(initialQuery);
-  }, []);
+  }, [initialQuery, doSearch]);
 
   const columns: ColumnDef[] = useMemo(() => [
     { header: t.headerScore, accessor: (r: SearchResult) => r.score.toFixed(3), width: 7 },
