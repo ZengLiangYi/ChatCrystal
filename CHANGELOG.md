@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.3.0] - 2026-04-09
+
+### Core: Turn-Based Transcript Engine
+
+- **Turn-based selection algorithm** — Replaced naive head+tail truncation with an intelligent turn-based approach. Messages are grouped into turns (user instruction + assistant response), scored by `user_text_length × (1 + assistant_reply_count)`, and selected within a character budget. Skipped turns are compressed to one-line summaries preserving the causal chain.
+- **New module: `transcript.ts`** — Extracted transcript preparation into a dedicated module with clean separation from the summarization orchestration in `summarize.ts` (net -67 lines from summarize.ts).
+- **Configurable token budget** — Added `LLM_MAX_INPUT_CHARS` env var and `llm.maxInputChars` config (default 32,000). Users with large-context models can increase for better summarization quality.
+- **Noise filtering** — Tool call chains within turns are stripped. Short confirmation turns (< 20 chars) are collapsed. Only first and last substantial assistant replies are kept per turn.
+
+### Core: Relations Structured Output
+
+- **Relations migrated to `generateObject`** — Replaced `generateText` + fragile `extractJSONArray` with `generateObject({ output: 'array' })` + Zod element schema. Same reliability upgrade as the v0.2.9 summarization migration.
+- **Deleted legacy parser** — Removed `extractJSONArray()` and `VALID_RELATION_TYPES` array (validation now handled by Zod enum). Net -36 lines.
+
+### Core: Embedding Status Tracking
+
+- **`embedding_status` column** — New column on `notes` table (`pending` / `done` / `failed`) with automatic migration for existing databases.
+- **Failure visibility** — Embedding failures are now persisted as `failed` status instead of silently swallowed. Notes that failed embedding are visible to users and automatically picked up by batch rebuild.
+- **Batch rebuild covers failures** — `POST /api/embeddings/batch` now queries `embedding_status IN ('pending', 'failed')` instead of checking the embeddings table.
+
+### Documentation
+
+- **README: "How Summarization Works" section** — Technical explanation of the turn-based algorithm and structured output approach, in both English and Chinese READMEs.
+
 ## [0.2.9] - 2026-04-09
 
 ### Core: Summarization Engine Overhaul

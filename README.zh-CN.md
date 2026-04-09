@@ -51,13 +51,35 @@ ChatCrystal 将散落在 Claude Code、Cursor、Codex CLI 等 AI 编程工具中
 ## 核心功能
 
 - **多数据源采集** — 自动扫描并导入 Claude Code、Codex CLI、Cursor 的对话记录，支持文件监听实时同步
-- **LLM 摘要** — 通过 Vercel AI SDK 接入多种 LLM Provider，将对话提炼为结构化笔记（标题、摘要、关键结论、代码片段、标签）
-- **语义搜索** — 基于 Embedding + 向量索引（vectra），按语义相关度检索笔记，支持沿关系边扩展结果
-- **知识图谱** — LLM 自动发现笔记间的因果、依赖、引用等关系，力导向图可视化浏览
+- **结构化 LLM 摘要** — 通过 `generateObject` + Zod Schema 生成笔记（保证输出结构合法，schema 校验失败自动重试）。Turn-based 对话预处理算法在可配置的 token 预算内选择最有价值的对话片段。
+- **语义搜索** — 基于 Embedding + 向量索引（vectra），搜索结果包含文本预览，支持沿关系边扩展。Embedding 内容涵盖标题、摘要、结论、标签和代码片段描述。
+- **知识图谱** — 通过 `generateObject` + 类型化 Schema 发现笔记关系。8 种关系类型 + 置信度评分 + 力导向图可视化。
 - **对话浏览** — Markdown 渲染、代码高亮、工具调用折叠，噪音过滤
 - **多 Provider 支持** — 支持 Ollama、OpenAI、Anthropic、Google AI、Azure OpenAI 及任意 OpenAI 兼容服务，可在设置页面运行时切换
 - **任务队列** — 批量摘要/Embedding 生成通过 p-queue 排队执行，支持实时进度追踪和取消
 - **桌面应用** — Electron 打包，系统托盘驻留，关闭窗口最小化到托盘
+
+## 摘要引擎原理
+
+ChatCrystal 通过多阶段流水线将原始对话转化为可搜索的知识：
+
+### Turn-Based 对话预处理
+
+AI 编程对话有天然的 **turn 结构** — 用户发指令，助手响应（可能包含大量工具调用），然后循环。长对话（100+ 消息，大量 MCP 工具调用）无法塞进单次 LLM 上下文窗口。
+
+相比简单的首尾截断，ChatCrystal 使用 **Turn-Based 选择算法**：
+
+1. **分割** — 在用户→助手边界处将消息分组为 turn。连续用户消息（如粘贴日志 + 补充说明）归入同一个 turn。
+2. **过滤** — 每个 turn 内只保留用户指令 + 助手的首条和末条实质回复，中间的工具调用链全部砍掉。
+3. **评分** — 每个 turn 的分数 = `用户消息总长度 × (1 + 助手回复条数)`。越长的指令 + 越多的助手交互 = 越重要。
+4. **选择** — 第一个 turn（需求描述）和最后两个 turn（最终结论）固定保留。剩余预算分配给评分最高的中间 turn。
+5. **摘要压缩** — 被跳过的 turn 压缩为单行概要（`[跳过] 用户: 修复登录页面的 CSS 样式问题...`），让 LLM 仍能看到对话的因果链。
+
+字符预算默认 32,000（约 8K tokens），可通过 `LLM_MAX_INPUT_CHARS` 配置，适配大上下文模型。
+
+### 结构化输出
+
+摘要生成使用 Vercel AI SDK 的 `generateObject()` + Zod Schema，而非依赖 prompt 工程让模型"自觉"输出 JSON。Schema 校验失败时自动重试（最多 3 次），彻底消除了 `generateText()` + 手动 JSON 解析带来的截断和解析失败问题。
 
 ## CLI 与 MCP Server
 
@@ -197,6 +219,7 @@ CODEX_SESSIONS_DIR=~/.codex/sessions
 LLM_PROVIDER=ollama
 LLM_BASE_URL=http://localhost:11434
 LLM_MODEL=qwen2.5:7b
+# LLM_MAX_INPUT_CHARS=32000   # 大上下文模型可调大（如 128K 模型设为 80000）
 
 # Embedding（支持 ollama/openai/google/azure/custom）
 EMBEDDING_PROVIDER=ollama

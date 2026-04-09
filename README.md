@@ -65,13 +65,35 @@ Then open http://localhost:3721 in your browser.
 ## Features
 
 - **Multi-source ingestion** — Auto-imports conversations from Claude Code, Codex CLI, and Cursor with real-time file watching
-- **LLM summarization** — Distills conversations into structured notes (title, summary, key conclusions, code snippets, tags) via Vercel AI SDK
-- **Semantic search** — Embedding-powered vector search (vectra) with relation-aware result expansion
-- **Knowledge graph** — LLM-discovered relationships (causal, dependency, similarity, etc.) with force-directed visualization
+- **Structured LLM summarization** — Generates notes via `generateObject` + Zod schema (guaranteed valid output, auto-retry on schema violation). Turn-based transcript preprocessing selects the most valuable conversation segments within a configurable token budget.
+- **Semantic search** — Embedding-powered vector search (vectra) with text preview snippets and relation-aware result expansion. Embedding content includes title, summary, conclusions, tags, and code snippet descriptions.
+- **Knowledge graph** — Structured relation discovery via `generateObject` with typed schemas. 8 relation types with confidence scoring and force-directed visualization.
 - **Conversation viewer** — Markdown rendering, code highlighting, collapsible tool calls, noise filtering
 - **Multi-provider support** — Ollama, OpenAI, Anthropic, Google AI, Azure OpenAI, or any OpenAI-compatible API, switchable at runtime
 - **Task queue** — Batch summarization/embedding via p-queue with real-time progress tracking and cancellation
 - **Desktop app** — Electron with system tray, minimize-to-tray on close
+
+## How Summarization Works
+
+ChatCrystal uses a multi-stage pipeline to turn raw conversations into searchable knowledge:
+
+### Turn-Based Transcript Preparation
+
+AI coding conversations have a natural **turn** structure — a user gives an instruction, the assistant responds (potentially with many tool calls), and the cycle repeats. Long conversations (100+ messages with heavy MCP tool usage) can't fit in a single LLM context window.
+
+Instead of naive head+tail truncation, ChatCrystal uses a **turn-based selection algorithm**:
+
+1. **Split** — Messages are grouped into turns at user→assistant boundaries. Consecutive user messages (e.g., pasting logs + follow-up) stay in the same turn.
+2. **Filter** — Within each turn, only the user instruction and the first/last substantial assistant reply are kept. Tool call chains in between are discarded.
+3. **Score** — Each turn is scored: `user_text_length × (1 + assistant_reply_count)`. Longer instructions with more assistant engagement = higher importance.
+4. **Select** — The first turn (requirements) and last two turns (conclusions) are always included. Remaining budget goes to the highest-scored middle turns.
+5. **Summarize skipped turns** — Skipped turns are compressed into one-line previews (`[skipped] User: fix the CSS issue with login page...`) so the LLM still sees the conversation's causal chain.
+
+The character budget defaults to 32,000 (~8K tokens) and is configurable via `LLM_MAX_INPUT_CHARS` for users with larger-context models.
+
+### Structured Output
+
+Summarization uses Vercel AI SDK's `generateObject()` with a Zod schema instead of prompt-engineered JSON. This guarantees valid output structure with automatic retry (up to 3 attempts) when schema validation fails — eliminating the truncation and parse failures common with `generateText()` + manual JSON extraction.
 
 ## CLI & MCP Server
 
@@ -211,6 +233,7 @@ CODEX_SESSIONS_DIR=~/.codex/sessions
 LLM_PROVIDER=ollama
 LLM_BASE_URL=http://localhost:11434
 LLM_MODEL=qwen2.5:7b
+# LLM_MAX_INPUT_CHARS=32000   # Increase for large-context models (e.g., 80000 for 128K models)
 
 # Embedding (ollama/openai/google/azure/custom)
 EMBEDDING_PROVIDER=ollama
