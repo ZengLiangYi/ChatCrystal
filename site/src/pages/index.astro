@@ -1,6 +1,7 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import { getTranslations } from '@/i18n';
+import Header from '@/components/Header.astro';
 import Hero from '@/components/Hero.tsx';
 import IntegrationStrip from '@/components/IntegrationStrip.astro';
 import HowItWorks from '@/components/HowItWorks.astro';
@@ -15,10 +16,11 @@ const basePath = '/ChatCrystal';
 ---
 
 <Layout lang={lang} title={t.meta.title} description={t.meta.description}>
-  <main>
-    <Hero client:load t={t} basePath={basePath} />
+  <Header t={t} lang={lang} basePath={basePath} />
+  <main class="pt-14">
+    <Hero client:load t={t} lang={lang} basePath={basePath} />
     <IntegrationStrip t={t} />
-    <HowItWorks t={t} />
+    <HowItWorks t={t} basePath={basePath} />
     <FeatureBento client:visible t={t} lang={lang} basePath={basePath} />
     <LocalFirst client:visible t={t} />
     <CliShowcase client:visible t={t} basePath={basePath} />

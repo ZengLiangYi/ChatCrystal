@@ -4,6 +4,7 @@ import type { Translations } from '@/i18n';
 
 interface Props {
   t: Translations;
+  lang: 'en' | 'zh';
   basePath: string;
 }
 
@@ -16,7 +17,7 @@ const stagger = {
   visible: { transition: { staggerChildren: 0.12 } },
 };
 
-export default function Hero({ t, basePath }: Props) {
+export default function Hero({ t, lang, basePath }: Props) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -37,7 +38,7 @@ export default function Hero({ t, basePath }: Props) {
         >
           <motion.span
             variants={fadeUp}
-            className="inline-flex self-start rounded-full border border-[var(--color-purple)]/40 bg-[var(--color-purple)]/10 px-4 py-1.5 text-xs font-medium text-[var(--color-lavender)]"
+            className="inline-flex self-start rounded-full border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 px-4 py-1.5 text-xs font-medium text-[var(--color-accent)]"
           >
             {t.hero.badge}
           </motion.span>
@@ -60,12 +61,16 @@ export default function Hero({ t, basePath }: Props) {
           <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-3">
             <button
               onClick={handleCopy}
-              className="group inline-flex items-center gap-2 rounded-lg bg-[var(--color-purple)] px-5 py-3 font-mono text-sm font-medium text-white hover:bg-[var(--color-deep-purple)] transition-colors cursor-pointer"
+              className="group inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-5 py-3 font-mono text-sm font-medium text-white hover:bg-[var(--color-primary-deep)] transition-colors cursor-pointer"
             >
               <span className="opacity-50">$</span>
               <span>{t.hero.installCmd}</span>
               <span className="ml-1 text-white/60 group-hover:text-white transition-colors">
-                {copied ? '✓' : '⎘'}
+                {copied ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                )}
               </span>
             </button>
 
@@ -83,7 +88,7 @@ export default function Hero({ t, basePath }: Props) {
           <motion.div variants={fadeUp}>
             <a href="https://github.com/ZengLiangYi/ChatCrystal" target="_blank" rel="noopener">
               <img
-                src="https://img.shields.io/github/stars/ZengLiangYi/ChatCrystal?style=flat&logo=github&color=7B4DAA"
+                src="https://img.shields.io/github/stars/ZengLiangYi/ChatCrystal?style=flat&logo=github&color=5A5FD6"
                 alt="GitHub stars"
                 loading="lazy"
               />
@@ -103,12 +108,12 @@ export default function Hero({ t, basePath }: Props) {
             loop
             muted
             playsInline
-            poster={`${basePath}/screenshots/en/conversations.png`}
+            poster={`${basePath}/screenshots/${lang}/conversations.png`}
             className="w-full"
           >
             <source src={`${basePath}/demos/hero.webm`} type="video/webm" />
             <source src={`${basePath}/demos/hero.mp4`} type="video/mp4" />
-            <img src={`${basePath}/screenshots/en/conversations.png`} alt="ChatCrystal" />
+            <img src={`${basePath}/screenshots/${lang}/conversations.png`} alt="ChatCrystal" />
           </video>
         </motion.div>
       </div>

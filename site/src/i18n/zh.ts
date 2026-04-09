@@ -5,6 +5,12 @@ export const zh: Translations = {
     title: 'ChatCrystal — 将 AI 对话结晶为可搜索的知识',
     description: '开源本地优先工具，将你的 AI 编程对话（Claude Code、Cursor、Codex）结晶为结构化、可语义搜索的知识库。',
   },
+  nav: {
+    features: '功能',
+    howItWorks: '原理',
+    cli: '命令行',
+    github: 'GitHub',
+  },
   hero: {
     badge: '开源 · 本地优先',
     title: '将 AI 对话结晶为可搜索的知识',
@@ -40,6 +46,7 @@ export const zh: Translations = {
   },
   localFirst: {
     heading: '你的数据留在本地',
+    yourMachine: '你的电脑',
     points: [
       { title: '数据不离开你的电脑', desc: 'SQLite 本地存储，无云端依赖' },
       { title: '完全开源', desc: 'MIT License，代码透明可审计' },

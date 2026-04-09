@@ -3,13 +3,14 @@ import type { Translations } from '@/i18n';
 
 interface Props {
   t: Translations;
+  basePath: string;
 }
 
-const { t } = Astro.props;
+const { t, basePath } = Astro.props;
 const steps = t.howItWorks.steps;
 ---
 
-<section class="py-24">
+<section id="how-it-works" class="py-24">
   <div class="mx-auto max-w-5xl px-6">
     <h2 class="text-3xl font-bold text-center mb-16 animate-on-scroll">
       {t.howItWorks.heading}
@@ -18,15 +19,15 @@ const steps = t.howItWorks.steps;
     <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative stagger-children">
       {steps.map((step, i) => (
         <div class="relative text-center">
-          <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-deep-purple)]">
+          <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-primary-deep)]">
             {i === 0 && (
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-lavender)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             )}
             {i === 1 && (
-              <img src="/ChatCrystal/logo.png" alt="Crystallize" class="w-7 h-7" />
+              <img src={`${basePath}/logo.png`} alt="Crystallize" class="w-7 h-7" />
             )}
             {i === 2 && (
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-lavender)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             )}
           </div>
 

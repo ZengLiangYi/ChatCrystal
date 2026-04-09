@@ -3,6 +3,12 @@ export const en = {
     title: 'ChatCrystal — Turn AI Conversations into Searchable Knowledge',
     description: 'Open-source, local-first tool that crystallizes your AI coding conversations (Claude Code, Cursor, Codex) into structured, searchable knowledge.',
   },
+  nav: {
+    features: 'Features',
+    howItWorks: 'How It Works',
+    cli: 'CLI',
+    github: 'GitHub',
+  },
   hero: {
     badge: 'Open Source · Local First',
     title: 'Turn AI Conversations into Searchable Knowledge',
@@ -38,6 +44,7 @@ export const en = {
   },
   localFirst: {
     heading: 'Your data stays local',
+    yourMachine: 'Your machine',
     points: [
       { title: 'Never leaves your machine', desc: 'SQLite local storage, zero cloud dependency' },
       { title: 'Fully open source', desc: 'MIT License, transparent and auditable' },

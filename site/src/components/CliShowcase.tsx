@@ -25,7 +25,7 @@ export default function CliShowcase({ t, basePath }: Props) {
   }, []);
 
   return (
-    <section className="py-24">
+    <section id="cli" className="py-24">
       <div className="mx-auto max-w-4xl px-6">
         <h2 className="text-3xl font-bold text-center mb-12">
           {t.cli.heading}

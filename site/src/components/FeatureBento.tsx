@@ -52,9 +52,15 @@ function VideoCard({ src }: { src: string }) {
   );
 }
 
+// Cards 0 (Semantic Search) and 2 (MCP Integration) span 2 columns on large screens
+const spanClasses: Record<number, string> = {
+  0: 'lg:col-span-2',
+  2: 'lg:col-span-2',
+};
+
 export default function FeatureBento({ t, lang, basePath }: Props) {
   return (
-    <section className="py-24">
+    <section id="features" className="py-24">
       <div className="mx-auto max-w-6xl px-6">
         <h2 className="text-3xl font-bold text-center mb-16">
           {t.features.heading}
@@ -70,7 +76,7 @@ export default function FeatureBento({ t, lang, basePath }: Props) {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-50px' }}
                 transition={{ delay: i * 0.08, duration: 0.5 }}
-                className="rounded-xl border border-white/10 bg-white/5 overflow-hidden"
+                className={`rounded-xl border border-white/10 bg-white/5 overflow-hidden ${spanClasses[i] ?? ''}`}
               >
                 <div className="bg-[var(--color-terminal-bg)]">
                   {asset.type === 'video' ? (

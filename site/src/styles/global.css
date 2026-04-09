@@ -3,17 +3,17 @@
 :root {
   --color-bg: #0A0C10;
   --color-terminal-bg: #0D0F14;
-  --color-deep-purple: #4A2D7A;
-  --color-purple: #7B4DAA;
-  --color-lavender: #B488D9;
+  --color-primary-deep: #2A1B5E;
+  --color-primary: #5A5FD6;
+  --color-accent: #C4ADF0;
   --color-cobalt-blue: #3B6DC6;
   --color-blue: #5B8DEF;
   --color-white: #E8E9ED;
   --color-dim-white: #8B8FA3;
   --color-muted: #5C5F6E;
-  --color-claude-code: #E8A838;
-  --color-codex: #4ADE80;
-  --color-cursor: #5B8DEF;
+  --color-claude-code: #D97757;
+  --color-codex: #E8E9ED;
+  --color-cursor: #E8E9ED;
 }
 
 html {
@@ -23,7 +23,7 @@ html {
 body {
   background-color: var(--color-bg);
   color: var(--color-white);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
 }
 
 @keyframes fade-up {
@@ -37,23 +37,36 @@ body {
   }
 }
 
-.animate-on-scroll {
-  animation: fade-up linear both;
-  animation-timeline: view();
-  animation-range: entry 0% entry 30%;
+/* Scroll-driven animations (Chrome 115+) with fallback for unsupported browsers */
+@supports (animation-timeline: view()) {
+  .animate-on-scroll {
+    animation: fade-up linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 30%;
+  }
+
+  .stagger-children > * {
+    animation: fade-up linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 35%;
+  }
+  .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger-children > *:nth-child(2) { animation-delay: 100ms; }
+  .stagger-children > *:nth-child(3) { animation-delay: 200ms; }
+  .stagger-children > *:nth-child(4) { animation-delay: 300ms; }
+  .stagger-children > *:nth-child(5) { animation-delay: 400ms; }
+  .stagger-children > *:nth-child(6) { animation-delay: 500ms; }
 }
 
-.stagger-children > * {
-  animation: fade-up linear both;
-  animation-timeline: view();
-  animation-range: entry 0% entry 35%;
+/* Reduced motion: disable all animations */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
-.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
-.stagger-children > *:nth-child(2) { animation-delay: 100ms; }
-.stagger-children > *:nth-child(3) { animation-delay: 200ms; }
-.stagger-children > *:nth-child(4) { animation-delay: 300ms; }
-.stagger-children > *:nth-child(5) { animation-delay: 400ms; }
-.stagger-children > *:nth-child(6) { animation-delay: 500ms; }
 
 .font-mono {
   font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
