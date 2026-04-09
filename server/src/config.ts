@@ -52,6 +52,7 @@ const envDefaults = {
 		baseURL: process.env.LLM_BASE_URL || "http://localhost:11434",
 		apiKey: process.env.LLM_API_KEY || "",
 		model: process.env.LLM_MODEL || "qwen2.5:7b",
+		maxInputChars: Number(process.env.LLM_MAX_INPUT_CHARS) || 32000,
 	},
 	embedding: {
 		provider: process.env.EMBEDDING_PROVIDER || "ollama",
