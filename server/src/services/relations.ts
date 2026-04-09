@@ -1,4 +1,5 @@
-import { generateText } from 'ai';
+import { generateObject } from 'ai';
+import { z } from 'zod';
 import { getDatabase, saveDatabase } from '../db/index.js';
 import { resultToObjects } from '../db/utils.js';
 import { getLanguageModel } from './llm.js';
@@ -13,6 +14,16 @@ const VALID_RELATION_TYPES: RelationType[] = [
   'CAUSED_BY', 'LEADS_TO', 'RESOLVED_BY', 'SIMILAR_TO',
   'CONTRADICTS', 'DEPENDS_ON', 'EXTENDS', 'REFERENCES',
 ];
+
+const RelationElementSchema = z.object({
+  target_note_id: z.number().describe('目标笔记的 ID'),
+  relation_type: z.enum([
+    'CAUSED_BY', 'LEADS_TO', 'RESOLVED_BY', 'SIMILAR_TO',
+    'CONTRADICTS', 'DEPENDS_ON', 'EXTENDS', 'REFERENCES',
+  ]).describe('关系类型'),
+  confidence: z.number().min(0).max(1).describe('置信度，0.0-1.0'),
+  description: z.string().describe('简短说明关系，20字以内'),
+});
 
 const MAX_CANDIDATES = 20;
 const MAX_RELATIONS = 5;
@@ -34,54 +45,11 @@ const RELATION_SYSTEM_PROMPT = `你是一个知识关联分析助手。给定一
 - EXTENDS: 新笔记是对目标笔记内容的扩展或深化
 - REFERENCES: 新笔记引用或提及了目标笔记相关的内容
 
-请严格按以下 JSON 格式回复（不要包含任何其他文字或 markdown 代码块标记）：
-[
-  {
-    "target_note_id": 数字,
-    "relation_type": "关系类型",
-    "confidence": 0.0到1.0的置信度,
-    "description": "简短说明关系（20字以内）"
-  }
-]
-
 注意：
 - 只返回有意义的关系（confidence >= 0.5）
 - 最多返回 5 个关系
-- 如果没有有意义的关系，返回空数组 []
+- 如果没有有意义的关系，返回空数组
 - 不要编造不存在的关系`;
-
-// =============================================
-// JSON Extraction (reused pattern from summarize.ts)
-// =============================================
-
-function extractJSONArray(text: string): Record<string, unknown>[] {
-  // Try direct parse
-  try {
-    const parsed = JSON.parse(text);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch { /* continue */ }
-
-  // Try stripping markdown fences
-  const fenceStripped = text
-    .replace(/^```(?:json)?\s*\n?/m, '')
-    .replace(/\n?\s*```\s*$/m, '');
-  try {
-    const parsed = JSON.parse(fenceStripped);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch { /* continue */ }
-
-  // Try extracting first [...] block
-  const start = text.indexOf('[');
-  const end = text.lastIndexOf(']');
-  if (start >= 0 && end > start) {
-    try {
-      const parsed = JSON.parse(text.slice(start, end + 1));
-      return Array.isArray(parsed) ? parsed : [];
-    } catch { /* continue */ }
-  }
-
-  return [];
-}
 
 // =============================================
 // Candidate Discovery
@@ -181,27 +149,23 @@ export async function discoverRelations(noteId: number): Promise<NoteRelation[]>
 ${candidateList}`;
 
   // Call LLM
-  const { text } = await generateText({
+  const { object: rawRelations } = await generateObject({
     model: getLanguageModel(),
+    output: 'array',
+    schema: RelationElementSchema,
     system: RELATION_SYSTEM_PROMPT,
     prompt,
+    maxOutputTokens: 1024,
+    maxRetries: 2,
   });
 
-  // Parse response
-  const rawRelations = extractJSONArray(text);
+  // Filter and persist
   const validRelations: NoteRelation[] = [];
   const candidateIdSet = new Set(candidates.map((c) => c.id));
 
   for (const rel of rawRelations) {
-    const targetId = Number(rel.target_note_id);
-    const relType = rel.relation_type as RelationType;
-    const confidence = Number(rel.confidence) || 0;
-    const description = typeof rel.description === 'string' ? rel.description : null;
-
-    // Validate
-    if (!candidateIdSet.has(targetId)) continue;
-    if (!VALID_RELATION_TYPES.includes(relType)) continue;
-    if (confidence < MIN_CONFIDENCE) continue;
+    if (!candidateIdSet.has(rel.target_note_id)) continue;
+    if (rel.confidence < MIN_CONFIDENCE) continue;
     if (validRelations.length >= MAX_RELATIONS) break;
 
     // Insert into DB
@@ -210,16 +174,16 @@ ${candidateList}`;
         `INSERT OR IGNORE INTO note_relations
           (source_note_id, target_note_id, relation_type, confidence, description, created_by)
          VALUES (?, ?, ?, ?, ?, 'llm')`,
-        [noteId, targetId, relType, Math.round(confidence * 100) / 100, description],
+        [noteId, rel.target_note_id, rel.relation_type, Math.round(rel.confidence * 100) / 100, rel.description],
       );
 
       validRelations.push({
-        id: 0, // Will be filled by DB
+        id: 0,
         source_note_id: noteId,
-        target_note_id: targetId,
-        relation_type: relType,
-        confidence,
-        description,
+        target_note_id: rel.target_note_id,
+        relation_type: rel.relation_type,
+        confidence: rel.confidence,
+        description: rel.description,
         created_by: 'llm',
         created_at: new Date().toISOString(),
       });
