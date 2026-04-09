@@ -1,4 +1,5 @@
-import { generateText } from 'ai';
+import { generateObject } from 'ai';
+import { z } from 'zod';
 import { getDatabase, saveDatabase } from '../db/index.js';
 import { resultToObjects } from '../db/utils.js';
 import { getLanguageModel } from './llm.js';
@@ -6,41 +7,57 @@ import { generateEmbeddings } from './embedding.js';
 import { discoverRelations } from './relations.js';
 
 // =============================================
-// Types
+// Schema
 // =============================================
 
-interface SummarizeResult {
-  title: string;
-  summary: string;
-  key_conclusions: string[];
-  code_snippets: { language: string; code: string; description: string }[];
-  tags: string[];
-  raw_response: string;
-}
+const SummarizeSchema = z.object({
+  title: z.string().describe('简洁的标题，概括对话主题，20字以内'),
+  summary: z.string().describe('2-4 段 markdown 摘要，涵盖决策上下文和可复用知识'),
+  key_conclusions: z.array(z.string()).describe('3-5 个关键结论或决策'),
+  code_snippets: z
+    .array(
+      z.object({
+        language: z.string(),
+        code: z.string(),
+        description: z.string(),
+      }),
+    )
+    .describe('0-3 个最关键的代码片段'),
+  tags: z.array(z.string()).describe('3-6 个小写英文标签'),
+});
+
+type SummarizeResult = z.infer<typeof SummarizeSchema> & { raw_response: string };
 
 // =============================================
 // System Prompt
 // =============================================
 
-const SYSTEM_PROMPT = `你是一个技术对话摘要助手。请分析以下 AI 编程助手的对话记录，生成结构化笔记。
+const SYSTEM_PROMPT = `你是一个技术对话分析专家，擅长从 AI 编程助手的对话中提炼结构化知识。
 
-请严格按以下 JSON 格式回复（不要包含任何其他文字或 markdown 代码块标记）：
-{
-  "title": "简洁的中文标题（15字以内）",
-  "summary": "2-4 段 markdown 格式的摘要，描述对话的主要内容、解决的问题和采用的方案",
-  "key_conclusions": ["结论1", "结论2", "结论3"],
-  "code_snippets": [
-    {"language": "typescript", "code": "关键代码片段", "description": "这段代码的作用"}
-  ],
-  "tags": ["tag1", "tag2", "tag3"]
-}
+## 分析要求
 
-注意事项：
-- title 应简明概括对话主题
-- summary 使用 markdown 格式，重点描述解决了什么问题、采用了什么方案
-- key_conclusions 提取 3-5 个关键结论或决策
-- code_snippets 只包含最关键的代码片段（0-3个），不要包含过长的代码
-- tags 使用小写英文，3-6 个标签，涵盖技术栈、问题类型等`;
+### 标题
+用一句话概括对话的核心主题。使用与对话相同的语言。
+
+### 摘要
+写 2-4 段 markdown 格式的摘要，需要涵盖：
+- **决策上下文**：遇到了什么问题，考虑了哪些方案，最终选择了什么，为什么
+- **实施要点**：具体做了什么改动，涉及哪些文件/模块/技术
+- **可复用知识**：从这次对话中可以提炼出什么通用的经验、模式或注意事项
+
+### 关键结论
+提取 3-5 个最重要的结论或决策，每条应当独立可理解。
+
+### 代码片段
+只保留最关键的 0-3 个代码片段。选择标准：能独立说明核心方案的代码，而非冗长的完整实现。
+
+### 标签
+3-6 个小写英文标签，涵盖：技术栈（语言、框架）、问题类型（bug-fix, refactor, feature）、领域（auth, database, ui）。
+
+## 注意事项
+- 使用与对话相同的语言撰写总结（中文对话用中文，英文对话用英文）
+- 如果对话记录标注了"中间省略了 N 条消息"，基于可见内容总结，不要猜测省略的内容
+- 技术术语、函数名、包名保留原文，不翻译`;
 
 // =============================================
 // Conversation Preprocessing
@@ -109,77 +126,27 @@ function prepareTranscript(conversationId: string): string {
 }
 
 // =============================================
-// JSON Extraction
-// =============================================
-
-function extractJSON(text: string): Record<string, unknown> {
-  // Try direct parse
-  try {
-    return JSON.parse(text);
-  } catch {
-    // continue
-  }
-
-  // Try stripping markdown fences
-  const fenceStripped = text
-    .replace(/^```(?:json)?\s*\n?/m, '')
-    .replace(/\n?\s*```\s*$/m, '');
-  try {
-    return JSON.parse(fenceStripped);
-  } catch {
-    // continue
-  }
-
-  // Try extracting first {...} block
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
-  if (start >= 0 && end > start) {
-    try {
-      return JSON.parse(text.slice(start, end + 1));
-    } catch {
-      // continue
-    }
-  }
-
-  throw new Error('Failed to parse LLM response as JSON');
-}
-
-function validateResult(parsed: Record<string, unknown>): SummarizeResult & { raw_response: string } {
-  return {
-    title: typeof parsed.title === 'string' ? parsed.title : '无标题',
-    summary: typeof parsed.summary === 'string' ? parsed.summary : '',
-    key_conclusions: Array.isArray(parsed.key_conclusions)
-      ? parsed.key_conclusions.filter((c): c is string => typeof c === 'string')
-      : [],
-    code_snippets: Array.isArray(parsed.code_snippets)
-      ? parsed.code_snippets.filter(
-          (s): s is { language: string; code: string; description: string } =>
-            typeof s === 'object' && s !== null && 'code' in s,
-        )
-      : [],
-    tags: Array.isArray(parsed.tags)
-      ? parsed.tags.filter((t): t is string => typeof t === 'string').map((t) => t.toLowerCase())
-      : [],
-    raw_response: '',
-  };
-}
-
-// =============================================
 // LLM Call
 // =============================================
 
 async function summarizeConversation(conversationId: string): Promise<SummarizeResult> {
   const transcript = prepareTranscript(conversationId);
 
-  const { text } = await generateText({
+  const { object } = await generateObject({
     model: getLanguageModel(),
+    schema: SummarizeSchema,
     system: SYSTEM_PROMPT,
     prompt: transcript,
+    maxOutputTokens: 4096,
+    maxRetries: 3,
   });
 
-  const parsed = extractJSON(text);
-  const result = validateResult(parsed);
-  result.raw_response = text;
+  // Normalize tags to lowercase
+  const result: SummarizeResult = {
+    ...object,
+    tags: object.tags.map((t) => t.toLowerCase()),
+    raw_response: JSON.stringify(object),
+  };
 
   return result;
 }
