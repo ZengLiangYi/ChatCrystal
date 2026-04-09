@@ -69,7 +69,7 @@ export default function FeatureBento({ t, lang, basePath }: Props) {
           {t.features.heading}
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
           {t.features.items.map((item, i) => {
             const asset = getAsset(i, lang, basePath);
             return (
@@ -81,7 +81,7 @@ export default function FeatureBento({ t, lang, basePath }: Props) {
                 transition={{ delay: i * 0.08, duration: 0.5 }}
                 className={`rounded-xl border border-white/10 bg-white/5 overflow-hidden ${spanClasses[i]}`}
               >
-                <div className="aspect-video bg-[var(--color-terminal-bg)]">
+                <div className="bg-[var(--color-terminal-bg)]">
                   {asset.type === 'video' ? (
                     <VideoCard src={asset.src} />
                   ) : (
