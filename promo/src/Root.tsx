@@ -64,7 +64,7 @@ export const RemotionRoot: React.FC = () => {
         <Composition id="LandingHero" component={LandingHero} durationInFrames={300} fps={FPS} width={WIDTH} height={HEIGHT} />
         <Composition id="LandingFeatureSearch" component={LandingFeatureSearch} durationInFrames={150} fps={FPS} width={WIDTH} height={HEIGHT} />
         <Composition id="LandingFeatureMcp" component={LandingFeatureMcp} durationInFrames={150} fps={FPS} width={WIDTH} height={HEIGHT} />
-        <Composition id="LandingFeatureCli" component={LandingFeatureCli} durationInFrames={180} fps={FPS} width={WIDTH} height={HEIGHT} />
+        <Composition id="LandingFeatureCli" component={LandingFeatureCli} durationInFrames={210} fps={FPS} width={WIDTH} height={HEIGHT} />
         <Composition id="LandingCliShowcase" component={LandingCliShowcase} durationInFrames={360} fps={FPS} width={WIDTH} height={HEIGHT} />
       </Folder>
     </>
