@@ -173,6 +173,9 @@ export async function generateEmbeddings(noteId: number): Promise<number> {
     );
   }
 
+  // Mark embedding as done
+  db.run("UPDATE notes SET embedding_status = 'done' WHERE id = ?", [noteId]);
+
   saveDatabase();
   return chunks.length;
 }

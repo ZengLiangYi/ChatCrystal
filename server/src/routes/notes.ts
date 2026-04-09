@@ -284,7 +284,7 @@ export async function noteRoutes(app: FastifyInstance) {
     const db = getDatabase();
     const result = db.exec(
       `SELECT n.id FROM notes n
-       WHERE n.id NOT IN (SELECT DISTINCT note_id FROM embeddings)`,
+       WHERE n.embedding_status IN ('pending', 'failed')`,
     );
     if (!result.length || !result[0].values.length) {
       return { success: true, data: { queued: 0 } };
