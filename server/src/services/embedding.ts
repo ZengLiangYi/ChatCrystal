@@ -83,7 +83,7 @@ export async function generateEmbeddings(noteId: number): Promise<number> {
 
   // Get note data
   const noteResult = db.exec(
-    `SELECT n.id, n.conversation_id, n.title, n.summary, n.key_conclusions, c.project_name
+    `SELECT n.id, n.conversation_id, n.title, n.summary, n.key_conclusions, n.code_snippets, c.project_name
      FROM notes n JOIN conversations c ON c.id = n.conversation_id
      WHERE n.id = ?`,
     [noteId],
@@ -92,8 +92,8 @@ export async function generateEmbeddings(noteId: number): Promise<number> {
     throw new Error('Note not found');
   }
 
-  const [id, conversationId, title, summary, keyConclusions, projectName] = noteResult[0].values[0] as [
-    number, string, string, string, string, string,
+  const [id, conversationId, title, summary, keyConclusions, codeSnippets, projectName] = noteResult[0].values[0] as [
+    number, string, string, string, string, string, string,
   ];
 
   // Build text to embed: title + summary + conclusions
@@ -102,6 +102,28 @@ export async function generateEmbeddings(noteId: number): Promise<number> {
     const conclusions = JSON.parse(keyConclusions || '[]') as string[];
     if (conclusions.length > 0) {
       fullText += '\n\n' + conclusions.join('\n');
+    }
+  } catch {
+    // ignore parse errors
+  }
+
+  // Append tags for keyword matching
+  const tagsResult = db.exec(
+    `SELECT GROUP_CONCAT(t.name, ' ') FROM note_tags nt
+     JOIN tags t ON t.id = nt.tag_id WHERE nt.note_id = ?`,
+    [noteId],
+  );
+  const tagsText = tagsResult[0]?.values[0]?.[0] as string | null;
+  if (tagsText) {
+    fullText += '\n\n' + tagsText;
+  }
+
+  // Append code snippet descriptions
+  try {
+    const snippets = JSON.parse(codeSnippets || '[]') as { description?: string }[];
+    const descriptions = snippets.map((s) => s.description).filter(Boolean);
+    if (descriptions.length > 0) {
+      fullText += '\n\n' + descriptions.join('\n');
     }
   } catch {
     // ignore parse errors
