@@ -60,8 +60,7 @@ export default function FeatureBento({ t, lang, basePath }: Props) {
           {t.features.heading}
         </h2>
 
-        {/* CSS columns masonry — each card flows at natural height, no blank gaps */}
-        <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {t.features.items.map((item, i) => {
             const asset = getAsset(i, lang, basePath);
             return (
@@ -71,7 +70,7 @@ export default function FeatureBento({ t, lang, basePath }: Props) {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-50px' }}
                 transition={{ delay: i * 0.08, duration: 0.5 }}
-                className="break-inside-avoid rounded-xl border border-white/10 bg-white/5 overflow-hidden"
+                className="rounded-xl border border-white/10 bg-white/5 overflow-hidden"
               >
                 <div className="bg-[var(--color-terminal-bg)]">
                   {asset.type === 'video' ? (
