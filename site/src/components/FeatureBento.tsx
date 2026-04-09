@@ -45,23 +45,12 @@ function VideoCard({ src }: { src: string }) {
   }, []);
 
   return (
-    <video ref={ref} loop muted playsInline className="w-full h-full object-contain">
+    <video ref={ref} loop muted playsInline className="w-full rounded-t-xl">
       <source src={`${src}.webm`} type="video/webm" />
       <source src={`${src}.mp4`} type="video/mp4" />
     </video>
   );
 }
-
-// Bento grid config per card:
-// col-span controls width, row-span controls height via auto-rows-[80px] unit
-const CARD_CONFIG = [
-  { colSpan: 'md:col-span-2', rowSpan: 'md:row-span-5' },  // Semantic Search — wide video
-  { colSpan: '',              rowSpan: 'md:row-span-5' },  // Structured Notes — screenshot
-  { colSpan: '',              rowSpan: 'md:row-span-5' },  // MCP — video
-  { colSpan: '',              rowSpan: 'md:row-span-5' },  // Smart Tags — screenshot
-  { colSpan: '',              rowSpan: 'md:row-span-5' },  // CLI — video
-  { colSpan: 'md:col-span-2', rowSpan: 'md:row-span-5' },  // Desktop — screenshot wide
-];
 
 export default function FeatureBento({ t, lang, basePath }: Props) {
   return (
@@ -71,10 +60,10 @@ export default function FeatureBento({ t, lang, basePath }: Props) {
           {t.features.heading}
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 md:auto-rows-[80px] gap-4">
+        {/* CSS columns masonry — each card flows at natural height, no blank gaps */}
+        <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4">
           {t.features.items.map((item, i) => {
             const asset = getAsset(i, lang, basePath);
-            const { colSpan, rowSpan } = CARD_CONFIG[i];
             return (
               <motion.div
                 key={i}
@@ -82,10 +71,9 @@ export default function FeatureBento({ t, lang, basePath }: Props) {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-50px' }}
                 transition={{ delay: i * 0.08, duration: 0.5 }}
-                className={`rounded-xl border border-white/10 bg-white/5 overflow-hidden flex flex-col ${colSpan} ${rowSpan}`}
+                className="break-inside-avoid rounded-xl border border-white/10 bg-white/5 overflow-hidden"
               >
-                {/* Media area — flex-1 fills available space, object-contain keeps content intact */}
-                <div className="flex-1 min-h-0 bg-[var(--color-terminal-bg)]">
+                <div className="bg-[var(--color-terminal-bg)]">
                   {asset.type === 'video' ? (
                     <VideoCard src={asset.src} />
                   ) : (
@@ -93,11 +81,10 @@ export default function FeatureBento({ t, lang, basePath }: Props) {
                       src={asset.src}
                       alt={item.title}
                       loading="lazy"
-                      className="w-full h-full object-contain"
+                      className="w-full"
                     />
                   )}
                 </div>
-                {/* Text area — fixed height */}
                 <div className="p-5">
                   <h3 className="font-semibold text-[var(--color-white)] mb-1">{item.title}</h3>
                   <p className="text-sm text-[var(--color-dim-white)]">{item.desc}</p>
