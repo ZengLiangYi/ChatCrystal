@@ -2,6 +2,7 @@ import { embed } from 'ai';
 import { LocalIndex } from 'vectra';
 import { resolve } from 'node:path';
 import { getDatabase, saveDatabase } from '../db/index.js';
+import { resultToObjects } from '../db/utils.js';
 import { appConfig } from '../config.js';
 import { getProvider } from './providers.js';
 
@@ -183,24 +184,30 @@ export async function semanticSearch(
     }
   }
 
-  const directResults = Array.from(seen.values()).map((r) => ({
-    noteId: r.item.metadata.noteId,
-    conversationId: r.item.metadata.conversationId,
-    title: r.item.metadata.title,
-    projectName: r.item.metadata.projectName,
-    score: r.score,
-    chunkText: '' as string,
-    viaRelation: undefined as string | undefined,
-  }));
+  const db = getDatabase();
+  const directResults = Array.from(seen.values()).map((r) => {
+    const chunkResult = db.exec(
+      'SELECT chunk_text FROM embeddings WHERE note_id = ? AND chunk_index = ?',
+      [r.item.metadata.noteId, r.item.metadata.chunkIndex],
+    );
+    const chunkText = (chunkResult[0]?.values[0]?.[0] as string) || '';
+
+    return {
+      noteId: r.item.metadata.noteId,
+      conversationId: r.item.metadata.conversationId,
+      title: r.item.metadata.title,
+      projectName: r.item.metadata.projectName,
+      score: r.score,
+      chunkText,
+      viaRelation: undefined as string | undefined,
+    };
+  });
 
   if (!expandRelations || directResults.length === 0) {
     return directResults;
   }
 
   // Expand along relation edges
-  const { getDatabase } = await import('../db/index.js');
-  const { resultToObjects } = await import('../db/utils.js');
-  const db = getDatabase();
   const resultMap = new Map(directResults.map((r) => [r.noteId, r]));
 
   for (const dr of directResults) {
