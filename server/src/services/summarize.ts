@@ -1,8 +1,8 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { getDatabase, saveDatabase } from '../db/index.js';
-import { resultToObjects } from '../db/utils.js';
 import { getLanguageModel } from './llm.js';
+import { prepareTranscript } from './transcript.js';
 import { generateEmbeddings } from './embedding.js';
 import { discoverRelations } from './relations.js';
 
@@ -58,72 +58,6 @@ const SYSTEM_PROMPT = `你是一个技术对话分析专家，擅长从 AI 编�
 - 使用与对话相同的语言撰写总结（中文对话用中文，英文对话用英文）
 - 如果对话记录标注了"中间省略了 N 条消息"，基于可见内容总结，不要猜测省略的内容
 - 技术术语、函数名、包名保留原文，不翻译`;
-
-// =============================================
-// Conversation Preprocessing
-// =============================================
-
-const MAX_CHARS = 32000; // ~8000 tokens
-
-function prepareTranscript(conversationId: string): string {
-  const db = getDatabase();
-
-  // Get conversation metadata
-  const convResult = db.exec(
-    'SELECT project_name, slug, git_branch FROM conversations WHERE id = ?',
-    [conversationId],
-  );
-  const conv = resultToObjects(convResult)[0];
-  if (!conv) throw new Error('Conversation not found');
-
-  // Get messages, skip tool-use-only
-  const msgResult = db.exec(
-    `SELECT type, content, has_tool_use FROM messages
-     WHERE conversation_id = ? AND NOT (has_tool_use = 1 AND (content = '' OR content IS NULL))
-     ORDER BY sort_order ASC`,
-    [conversationId],
-  );
-  const messages = resultToObjects(msgResult);
-
-  if (messages.length === 0) {
-    throw new Error('No meaningful messages in conversation');
-  }
-
-  // Format messages
-  const formatted = messages.map((m) => {
-    const role = m.type === 'user' ? 'User' : 'Assistant';
-    return `[${role}]:\n${m.content}`;
-  });
-
-  // Truncation: keep first message + as many from the end as fit
-  const header = `项目: ${conv.project_name}\n分支: ${conv.git_branch || 'unknown'}\n\n--- 对话记录 ---\n\n`;
-  const budget = MAX_CHARS - header.length;
-
-  const first = formatted[0];
-  if (formatted.length === 1 || first.length >= budget) {
-    return header + first.slice(0, budget);
-  }
-
-  const parts: string[] = [first];
-  let usedChars = first.length;
-  const rest: string[] = [];
-
-  // Fill from the end
-  for (let i = formatted.length - 1; i >= 1; i--) {
-    const entry = formatted[i];
-    if (usedChars + entry.length + 60 > budget) break; // 60 chars for truncation marker
-    rest.unshift(entry);
-    usedChars += entry.length;
-  }
-
-  const skipped = formatted.length - 1 - rest.length;
-  if (skipped > 0) {
-    parts.push(`\n[... 中间省略了 ${skipped} 条消息 ...]\n`);
-  }
-  parts.push(...rest);
-
-  return header + parts.join('\n\n');
-}
 
 // =============================================
 // LLM Call
