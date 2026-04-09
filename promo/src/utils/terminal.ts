@@ -11,9 +11,8 @@ export const getSpinnerChar = (frame: number, speed = 3): string => {
 export const TerminalWindow: React.FC<{
   variant: Variant;
   fullWidth?: boolean;
-  fixedHeight?: number;
   children: React.ReactNode;
-}> = ({ variant, fullWidth, fixedHeight, children }) => {
+}> = ({ variant, fullWidth, children }) => {
   if (variant === 'A') {
     return React.createElement(
       'div',
@@ -77,9 +76,7 @@ export const TerminalWindow: React.FC<{
           fontSize: 16,
           lineHeight: 1.6,
           color: BRAND.white,
-          ...(fixedHeight
-            ? { height: fixedHeight, overflow: 'hidden' as const }
-            : { minHeight: 280 }),
+          minHeight: 280,
         },
       },
       children,
