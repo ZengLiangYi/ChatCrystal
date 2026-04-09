@@ -4,8 +4,9 @@ import {
   useCurrentFrame,
 } from 'remotion';
 import { BRAND, ANSI } from '../constants';
+import { FONT_MONO } from '../fonts';
 import { getTypedText, Cursor } from '../utils/typewriter';
-import { TerminalWindow } from '../utils/terminal';
+import { getSpinnerChar } from '../utils/terminal';
 
 const STATUS_LINES = [
   { text: '  Server:        running on :3721', color: ANSI.green },
@@ -22,13 +23,16 @@ const TAGS = [
   { name: 'deploy', count: 4, color: ANSI.purple },
 ];
 
+// Fixed terminal height (matching TerminalWindow Variant B content area)
+const TERMINAL_HEIGHT = 280;
+
 export const LandingFeatureCli: React.FC = () => {
   const frame = useCurrentFrame();
 
   // --- Block 1: crystal status (0-54 frames / 0-1.8s) ---
   const cmd1 = '$ crystal status';
   const cmd1Text = getTypedText({ frame, text: cmd1, charFrames: 1 });
-  const cmd1Done = cmd1.length; // frame 16
+  const cmd1Done = cmd1.length;
 
   const statusLines = STATUS_LINES.map((line, i) => {
     const start = cmd1Done + 4 + i * 4;
@@ -66,23 +70,22 @@ export const LandingFeatureCli: React.FC = () => {
   );
   const progressDone = frame >= progressEnd;
 
-  // --- Fade out (165-180) ---
+  // Scroll content up as blocks accumulate
+  // Block 1 height: cmd + 4 lines ≈ 130px
+  // Block 2 height: gap + cmd + 5 tags ≈ 160px, cumulative ≈ 290px (starts overflowing)
+  // Block 3 height: gap + cmd + progress ≈ 70px, cumulative ≈ 360px
+  const scrollY = interpolate(
+    frame,
+    [block2Start, block2Start + 12, block3Start, block3Start + 12],
+    [0, -40, -40, -120],
+    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
+  );
+
+  // Fade out (165-180)
   const fadeOut = interpolate(frame, [165, 180], [1, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
-
-  // Scroll: content grows taller than terminal, scroll up smoothly
-  // Each block adds ~5 lines (~16px line-height * 1.6 = ~26px each)
-  // Block 1: cmd + 4 status lines ≈ 130px
-  // Block 2: cmd + 5 tags ≈ 160px → total 290px, starts overflowing
-  // Block 3: cmd + progress ≈ 60px → total 350px
-  const scrollY = interpolate(
-    frame,
-    [block2Start, block2Start + 10, block3Start, block3Start + 10],
-    [0, 0, 0, -80],
-    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
-  );
 
   return (
     <AbsoluteFill
@@ -93,59 +96,95 @@ export const LandingFeatureCli: React.FC = () => {
         opacity: fadeOut,
       }}
     >
-      <TerminalWindow variant="B">
-        <div style={{ transform: `translateY(${scrollY}px)` }}>
-          {/* Block 1 */}
-          <div style={{ color: ANSI.white }}>
-            {cmd1Text}
-            {frame < cmd1Done && <Cursor frame={frame} />}
-          </div>
-          {statusLines.map((line, i) =>
-            line && <div key={`s${i}`} style={{ color: line.color, marginTop: 2 }}>{line.text}</div>
-          )}
-
-          {/* Block 2 */}
-          {frame >= block2Start && (
-            <>
-              <div style={{ marginTop: 14, color: ANSI.white }}>
-                {cmd2Text}
-                {frame >= block2Start && frame < cmd2Done && <Cursor frame={frame} />}
-              </div>
-              {tagLines.map((tag, i) =>
-                tag && (
-                  <div key={`t${i}`} style={{ marginTop: 2 }}>
-                    <span style={{ color: tag.color }}>  {tag.name}</span>
-                    <span style={{ color: ANSI.gray }}>{' '.repeat(12 - tag.name.length)}{tag.count} notes</span>
-                  </div>
-                )
-              )}
-            </>
-          )}
-
-          {/* Block 3 */}
-          {frame >= block3Start && (
-            <>
-              <div style={{ marginTop: 14, color: ANSI.white }}>
-                {cmd3Text}
-                {frame >= block3Start && frame < cmd3Done && <Cursor frame={frame} />}
-              </div>
-              {frame >= progressStart && !progressDone && (
-                <div style={{ marginTop: 4 }}>
-                  <span style={{ color: ANSI.gray }}>  Summarizing... </span>
-                  <span style={{ color: BRAND.purple }}>{'█'.repeat(Math.floor(progressPct / 5))}</span>
-                  <span style={{ color: ANSI.gray }}>{'░'.repeat(20 - Math.floor(progressPct / 5))}</span>
-                  <span style={{ color: ANSI.cyan }}> {Math.floor(progressPct)}%</span>
-                </div>
-              )}
-              {progressDone && (
-                <div style={{ marginTop: 4, color: ANSI.green }}>
-                  {'  ✓ 15 notes generated'}
-                </div>
-              )}
-            </>
-          )}
+      {/* Custom terminal window with fixed height — not using TerminalWindow
+          because we need strict height control + overflow clipping */}
+      <div
+        style={{
+          width: '90%',
+          maxWidth: 720,
+          borderRadius: 12,
+          overflow: 'hidden',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+          border: `1px solid ${BRAND.deepPurple}40`,
+        }}
+      >
+        {/* Title bar */}
+        <div style={{
+          backgroundColor: '#1A1D28',
+          padding: '10px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}>
+          <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#FF5F57' }} />
+          <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#FEBC2E' }} />
+          <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#28C840' }} />
         </div>
-      </TerminalWindow>
+
+        {/* Content — fixed height, overflow hidden, content scrolls via translateY */}
+        <div style={{
+          backgroundColor: BRAND.terminalBg,
+          padding: '24px 28px',
+          fontFamily: FONT_MONO,
+          fontSize: 16,
+          lineHeight: 1.6,
+          color: BRAND.white,
+          height: TERMINAL_HEIGHT,
+          overflow: 'hidden',
+        }}>
+          <div style={{ transform: `translateY(${scrollY}px)` }}>
+            {/* Block 1: status */}
+            <div style={{ color: ANSI.white }}>
+              {cmd1Text}
+              {frame < cmd1Done && <Cursor frame={frame} />}
+            </div>
+            {statusLines.map((line, i) =>
+              line && <div key={`s${i}`} style={{ color: line.color, marginTop: 2 }}>{line.text}</div>
+            )}
+
+            {/* Block 2: tags */}
+            {frame >= block2Start && (
+              <>
+                <div style={{ marginTop: 14, color: ANSI.white }}>
+                  {cmd2Text}
+                  {frame >= block2Start && frame < cmd2Done && <Cursor frame={frame} />}
+                </div>
+                {tagLines.map((tag, i) =>
+                  tag && (
+                    <div key={`t${i}`} style={{ marginTop: 2 }}>
+                      <span style={{ color: tag.color }}>  {tag.name}</span>
+                      <span style={{ color: ANSI.gray }}>{' '.repeat(12 - tag.name.length)}{tag.count} notes</span>
+                    </div>
+                  )
+                )}
+              </>
+            )}
+
+            {/* Block 3: summarize */}
+            {frame >= block3Start && (
+              <>
+                <div style={{ marginTop: 14, color: ANSI.white }}>
+                  {cmd3Text}
+                  {frame >= block3Start && frame < cmd3Done && <Cursor frame={frame} />}
+                </div>
+                {frame >= progressStart && !progressDone && (
+                  <div style={{ marginTop: 4 }}>
+                    <span style={{ color: ANSI.gray }}>  Summarizing... </span>
+                    <span style={{ color: BRAND.purple }}>{'█'.repeat(Math.floor(progressPct / 5))}</span>
+                    <span style={{ color: ANSI.gray }}>{'░'.repeat(20 - Math.floor(progressPct / 5))}</span>
+                    <span style={{ color: ANSI.cyan }}> {Math.floor(progressPct)}%</span>
+                  </div>
+                )}
+                {progressDone && (
+                  <div style={{ marginTop: 4, color: ANSI.green }}>
+                    {'  ✓ 15 notes generated'}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
     </AbsoluteFill>
   );
 };

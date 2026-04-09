@@ -4,8 +4,9 @@ import {
   useCurrentFrame,
 } from 'remotion';
 import { BRAND, ANSI, SOURCE_COLORS } from '../constants';
+import { FONT_MONO } from '../fonts';
 import { getTypedText, Cursor } from '../utils/typewriter';
-import { TerminalWindow, getSpinnerChar } from '../utils/terminal';
+import { getSpinnerChar } from '../utils/terminal';
 
 const SOURCES = [
   { name: 'Claude Code', count: 128, color: SOURCE_COLORS.claudeCode },
@@ -28,6 +29,8 @@ const NOTE_LINES = [
   { label: '  •', value: 'Store refresh tokens in Redis with 7d TTL', color: BRAND.lavender },
   { label: 'Tags:', value: 'auth, jwt, middleware, security', color: ANSI.cyan },
 ];
+
+const TERMINAL_HEIGHT = 280;
 
 export const LandingCliShowcase: React.FC = () => {
   const frame = useCurrentFrame();
@@ -97,14 +100,14 @@ export const LandingCliShowcase: React.FC = () => {
     extrapolateLeft: 'clamp', extrapolateRight: 'clamp',
   });
 
-  // Scroll: 3 blocks accumulate content well beyond terminal height
-  // Block 1 (import): ~8 lines ≈ 210px
-  // Block 2 (search): ~6 lines ≈ 160px → total 370px, overflows
-  // Block 3 (notes): ~9 lines ≈ 230px → total 600px
+  // Scroll: content grows far beyond terminal height across 3 blocks
+  // Block 1 (import): cmd + scan + 3 sources + total ≈ 180px
+  // Block 2 (search): cmd + header + 3 results ≈ 140px, cumulative ≈ 320px
+  // Block 3 (notes):  cmd + 7 note lines ≈ 200px, cumulative ≈ 520px
   const scrollY = interpolate(
     frame,
     [block2Start, block2Start + 15, block3Start, block3Start + 15],
-    [0, -160, -160, -340],
+    [0, -130, -130, -300],
     { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
   );
 
@@ -117,71 +120,106 @@ export const LandingCliShowcase: React.FC = () => {
         opacity: fadeOut,
       }}
     >
-      <TerminalWindow variant="B">
-        <div style={{ transform: `translateY(${scrollY}px)` }}>
-          {/* Block 1: import */}
-          <div style={{ color: ANSI.white }}>
-            {cmd1Text}
-            {frame < cmd1Done && <Cursor frame={frame} />}
-          </div>
-          {scanText && <div style={{ color: ANSI.gray, marginTop: 4 }}>{scanText}</div>}
-          {sourceLines.map((s, i) =>
-            s && (
-              <div key={`src${i}`} style={{ marginTop: 2 }}>
-                <span style={{ color: s.isDone ? ANSI.green : ANSI.yellow }}>  {s.prefix} </span>
-                <span style={{ color: s.color }}>{s.name}</span>
-                <span style={{ color: ANSI.gray }}> — {s.count} conversations</span>
-              </div>
-            )
-          )}
-          {importTotal && (
-            <div style={{ marginTop: 6, color: ANSI.brightWhite, fontWeight: 700, opacity: importTotalOpacity }}>
-              {importTotal}
-            </div>
-          )}
-
-          {/* Block 2: search */}
-          {frame >= block2Start && (
-            <>
-              <div style={{ marginTop: 16, color: ANSI.white }}>
-                {cmd2Text}
-                {frame >= block2Start && frame < cmd2Done && <Cursor frame={frame} />}
-              </div>
-              {searchHeader && <div style={{ color: ANSI.gray, marginTop: 6 }}>{searchHeader}</div>}
-              {searchResults.map((r, i) =>
-                r && (
-                  <div key={`r${i}`} style={{ marginTop: 4, opacity: r.opacity }}>
-                    <span style={{ color: ANSI.cyan }}>  #{r.rank}  </span>
-                    <span style={{ color: ANSI.white, fontWeight: 700 }}>{r.title}</span>
-                    <span style={{ color: r.score >= 0.9 ? ANSI.green : r.score >= 0.8 ? ANSI.yellow : ANSI.gray, marginLeft: 12 }}>
-                      {r.score.toFixed(2)}
-                    </span>
-                    <span style={{ color: r.sourceColor, marginLeft: 8, fontSize: 12 }}>[{r.source}]</span>
-                  </div>
-                )
-              )}
-            </>
-          )}
-
-          {/* Block 3: notes get */}
-          {frame >= block3Start && (
-            <>
-              <div style={{ marginTop: 16, color: ANSI.white }}>
-                {cmd3Text}
-                {frame >= block3Start && frame < cmd3Done && <Cursor frame={frame} />}
-              </div>
-              {noteLines.map((line, i) =>
-                line && (
-                  <div key={`n${i}`} style={{ marginTop: 2, opacity: line.opacity }}>
-                    {line.label && <span style={{ color: ANSI.gray }}>{line.label} </span>}
-                    <span style={{ color: line.color }}>{line.value}</span>
-                  </div>
-                )
-              )}
-            </>
-          )}
+      {/* Custom terminal — fixed height with overflow clipping */}
+      <div
+        style={{
+          width: '90%',
+          maxWidth: 720,
+          borderRadius: 12,
+          overflow: 'hidden',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+          border: `1px solid ${BRAND.deepPurple}40`,
+        }}
+      >
+        {/* Title bar */}
+        <div style={{
+          backgroundColor: '#1A1D28',
+          padding: '10px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}>
+          <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#FF5F57' }} />
+          <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#FEBC2E' }} />
+          <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#28C840' }} />
         </div>
-      </TerminalWindow>
+
+        {/* Content — fixed height, clipped, scrolls via translateY */}
+        <div style={{
+          backgroundColor: BRAND.terminalBg,
+          padding: '24px 28px',
+          fontFamily: FONT_MONO,
+          fontSize: 16,
+          lineHeight: 1.6,
+          color: BRAND.white,
+          height: TERMINAL_HEIGHT,
+          overflow: 'hidden',
+        }}>
+          <div style={{ transform: `translateY(${scrollY}px)` }}>
+            {/* Block 1: import */}
+            <div style={{ color: ANSI.white }}>
+              {cmd1Text}
+              {frame < cmd1Done && <Cursor frame={frame} />}
+            </div>
+            {scanText && <div style={{ color: ANSI.gray, marginTop: 4 }}>{scanText}</div>}
+            {sourceLines.map((s, i) =>
+              s && (
+                <div key={`src${i}`} style={{ marginTop: 2 }}>
+                  <span style={{ color: s.isDone ? ANSI.green : ANSI.yellow }}>  {s.prefix} </span>
+                  <span style={{ color: s.color }}>{s.name}</span>
+                  <span style={{ color: ANSI.gray }}> — {s.count} conversations</span>
+                </div>
+              )
+            )}
+            {importTotal && (
+              <div style={{ marginTop: 6, color: ANSI.brightWhite, fontWeight: 700, opacity: importTotalOpacity }}>
+                {importTotal}
+              </div>
+            )}
+
+            {/* Block 2: search */}
+            {frame >= block2Start && (
+              <>
+                <div style={{ marginTop: 16, color: ANSI.white }}>
+                  {cmd2Text}
+                  {frame >= block2Start && frame < cmd2Done && <Cursor frame={frame} />}
+                </div>
+                {searchHeader && <div style={{ color: ANSI.gray, marginTop: 6 }}>{searchHeader}</div>}
+                {searchResults.map((r, i) =>
+                  r && (
+                    <div key={`r${i}`} style={{ marginTop: 4, opacity: r.opacity }}>
+                      <span style={{ color: ANSI.cyan }}>  #{r.rank}  </span>
+                      <span style={{ color: ANSI.white, fontWeight: 700 }}>{r.title}</span>
+                      <span style={{ color: r.score >= 0.9 ? ANSI.green : r.score >= 0.8 ? ANSI.yellow : ANSI.gray, marginLeft: 12 }}>
+                        {r.score.toFixed(2)}
+                      </span>
+                      <span style={{ color: r.sourceColor, marginLeft: 8, fontSize: 12 }}>[{r.source}]</span>
+                    </div>
+                  )
+                )}
+              </>
+            )}
+
+            {/* Block 3: notes get */}
+            {frame >= block3Start && (
+              <>
+                <div style={{ marginTop: 16, color: ANSI.white }}>
+                  {cmd3Text}
+                  {frame >= block3Start && frame < cmd3Done && <Cursor frame={frame} />}
+                </div>
+                {noteLines.map((line, i) =>
+                  line && (
+                    <div key={`n${i}`} style={{ marginTop: 2, opacity: line.opacity }}>
+                      {line.label && <span style={{ color: ANSI.gray }}>{line.label} </span>}
+                      <span style={{ color: line.color }}>{line.value}</span>
+                    </div>
+                  )
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
     </AbsoluteFill>
   );
 };
