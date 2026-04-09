@@ -170,8 +170,8 @@ export async function triggerSummarize(conversationId: string): Promise<number> 
       console.error(`[Embedding] Failed for note ${noteId}:`, err instanceof Error ? err.message : err);
       // Mark as failed so batch rebuild can pick it up
       db.run(
-        "UPDATE notes SET embedding_status = 'failed' WHERE conversation_id = ?",
-        [conversationId],
+        "UPDATE notes SET embedding_status = 'failed' WHERE id = ?",
+        [noteId],
       );
       saveDatabase();
       // Don't fail the summarization if embedding fails

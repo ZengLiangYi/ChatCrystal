@@ -177,23 +177,26 @@ export function prepareTranscript(conversationId: string): string {
 
   const middleTurns = turns.slice(1, -2);
 
-  const maxSummaryChars = middleTurns.length * 100;
-  const remainingBudget = budget - fixedChars - maxSummaryChars;
+  // Budget for middle section: total minus fixed turns
+  const middleBudget = Math.max(0, budget - fixedChars);
 
   const scored = middleTurns.map((turn) => ({
     turn,
     score: isConfirmationTurn(turn) ? 0 : scoreTurn(turn),
-    rendered: isConfirmationTurn(turn) ? `[确认] 用户: ${turn.userMessages.map(m => m.content).join(' ').trim()}` : renderTurn(turn),
+    rendered: isConfirmationTurn(turn) ? `[确认] 用户: ${turn.userMessages.map(m => m.content || '').join(' ').trim()}` : renderTurn(turn),
   }));
 
+  // Start with all turns as summaries (~100 chars each)
   const sortedByScore = [...scored].sort((a, b) => b.score - a.score);
   const selectedIndices = new Set<number>();
-  let usedChars = 0;
+  let middleChars = middleTurns.length * 100; // baseline: all summaries
 
   for (const item of sortedByScore) {
-    if (usedChars + item.rendered.length + 2 > remainingBudget) continue;
+    // Replacing a ~100 char summary with the full rendered turn
+    const addedCost = item.rendered.length + 2 - 100;
+    if (middleChars + addedCost > middleBudget) continue;
     selectedIndices.add(item.turn.index);
-    usedChars += item.rendered.length + 2;
+    middleChars += addedCost;
   }
 
   const output: string[] = [fixedRendered[0]];

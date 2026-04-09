@@ -10,11 +10,6 @@ import type { RelationType, NoteRelation } from '@chatcrystal/shared';
 // Constants
 // =============================================
 
-const VALID_RELATION_TYPES: RelationType[] = [
-  'CAUSED_BY', 'LEADS_TO', 'RESOLVED_BY', 'SIMILAR_TO',
-  'CONTRADICTS', 'DEPENDS_ON', 'EXTENDS', 'REFERENCES',
-];
-
 const RelationElementSchema = z.object({
   target_note_id: z.number().describe('目标笔记的 ID'),
   relation_type: z.enum([
@@ -228,7 +223,8 @@ export function createRelation(
   relationType: RelationType,
   description?: string,
 ): NoteRelation {
-  if (!VALID_RELATION_TYPES.includes(relationType)) {
+  const validTypes = RelationElementSchema.shape.relation_type.options;
+  if (!validTypes.includes(relationType as typeof validTypes[number])) {
     throw new Error(`Invalid relation type: ${relationType}`);
   }
 
