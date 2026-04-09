@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS notes (
   code_snippets TEXT,
   raw_llm_response TEXT,
   is_edited INTEGER DEFAULT 0,
+  embedding_status TEXT DEFAULT 'pending',
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE

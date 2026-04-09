@@ -38,6 +38,17 @@ export async function initDatabase(): Promise<Database> {
   // Run schema migration
   db.exec(SCHEMA_SQL);
 
+  // Migrate: add embedding_status column if missing (for existing DBs)
+  const colCheck = db.exec("PRAGMA table_info(notes)");
+  const columns = colCheck[0]?.values.map((row) => row[1] as string) ?? [];
+  if (!columns.includes('embedding_status')) {
+    db.run("ALTER TABLE notes ADD COLUMN embedding_status TEXT DEFAULT 'pending'");
+    // Mark notes that already have embeddings as done
+    db.run(`UPDATE notes SET embedding_status = 'done'
+            WHERE id IN (SELECT DISTINCT note_id FROM embeddings)`);
+    console.log('[DB] Migrated: added embedding_status column to notes');
+  }
+
   // Persist to disk
   saveDatabase();
 
