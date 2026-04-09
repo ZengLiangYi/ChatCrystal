@@ -48,13 +48,15 @@ export const LandingFeatureSearch: React.FC = () => {
   const typedQuery = getTypedText({ frame, text: query, charFrames: 1 });
   const queryDone = query.length; // frame 31
 
-  // Shimmer loading (45-60)
-  const shimmerStart = 45;
-  const showShimmer = frame >= shimmerStart && frame < 60;
+  // Shimmer loading — starts right after typing done, overlaps into results
+  const shimmerStart = queryDone + 4; // ~35
+  const shimmerEnd = shimmerStart + 20; // ~55
+  const showShimmer = frame >= shimmerStart && frame < shimmerEnd;
 
-  // Results appear (60-135)
+  // Results appear — first result starts before shimmer fully ends for smooth handoff
+  const resultsStart = shimmerStart + 12; // ~47, overlaps with shimmer tail
   const results = RESULTS.map((r, i) => {
-    const start = 60 + i * 20;
+    const start = resultsStart + i * 18;
     if (frame < start) return null;
     const slideUp = interpolate(frame, [start, start + 10], [20, 0], {
       extrapolateLeft: 'clamp',
@@ -100,7 +102,8 @@ export const LandingFeatureSearch: React.FC = () => {
           <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#28C840' }} />
         </div>
 
-        <div style={{ padding: '20px 24px' }}>
+        {/* Fixed min-height prevents window from jumping as content appears */}
+        <div style={{ padding: '20px 24px', minHeight: 300 }}>
           {/* Search bar */}
           <div
             style={{
@@ -124,24 +127,31 @@ export const LandingFeatureSearch: React.FC = () => {
             </span>
           </div>
 
-          {/* Shimmer loading */}
-          {showShimmer && (
-            <div style={{ marginTop: 16 }}>
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  style={{
-                    height: 48,
-                    borderRadius: 8,
-                    marginTop: i > 0 ? 8 : 0,
-                    background: `linear-gradient(90deg, ${BRAND.terminalBg} 25%, #1A1D28 50%, ${BRAND.terminalBg} 75%)`,
-                    backgroundSize: '200% 100%',
-                    opacity: 0.6,
-                  }}
-                />
-              ))}
-            </div>
-          )}
+          {/* Shimmer loading — fades out as results start appearing */}
+          {showShimmer && (() => {
+            const shimmerOpacity = interpolate(
+              frame,
+              [shimmerStart, shimmerStart + 5, shimmerEnd - 5, shimmerEnd],
+              [0, 0.6, 0.6, 0],
+              { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
+            );
+            return (
+              <div style={{ marginTop: 16, opacity: shimmerOpacity }}>
+                {[0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    style={{
+                      height: 48,
+                      borderRadius: 8,
+                      marginTop: i > 0 ? 8 : 0,
+                      background: `linear-gradient(90deg, ${BRAND.terminalBg} 25%, #1A1D28 50%, ${BRAND.terminalBg} 75%)`,
+                      backgroundSize: '200% 100%',
+                    }}
+                  />
+                ))}
+              </div>
+            );
+          })()}
 
           {/* Results */}
           <div style={{ marginTop: 16 }}>

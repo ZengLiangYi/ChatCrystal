@@ -133,29 +133,32 @@ const SegmentSummarize: React.FC = () => {
 };
 
 // --- Main composition: 3 segments with fade transitions ---
-// Segment durations: 54 + 54 + 57 = 165, minus 2 transitions of 10 = 145
-// Pad remaining frames (180 - 145 = 35) into segment 3 for hold time
+// Total: 180 frames. Transitions: 2 × 10 = 20. Segments sum = 200.
+// Status content ends ~frame 32, need hold → 70 frames total.
+// Tags content ends ~frame 38, need hold → 70 frames total.
+// Summarize content ends ~frame 55, need hold → 60 frames total.
+// 70 + 70 + 60 = 200. 200 - 20 = 180. ✓
 
 const TRANSITION_FRAMES = 10;
 
 export const LandingFeatureCli: React.FC = () => {
   return (
     <TransitionSeries>
-      <TransitionSeries.Sequence durationInFrames={54}>
+      <TransitionSeries.Sequence durationInFrames={70}>
         <SegmentStatus />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
         presentation={fade()}
         timing={linearTiming({ durationInFrames: TRANSITION_FRAMES })}
       />
-      <TransitionSeries.Sequence durationInFrames={54}>
+      <TransitionSeries.Sequence durationInFrames={70}>
         <SegmentTags />
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition
         presentation={fade()}
         timing={linearTiming({ durationInFrames: TRANSITION_FRAMES })}
       />
-      <TransitionSeries.Sequence durationInFrames={92}>
+      <TransitionSeries.Sequence durationInFrames={60}>
         <SegmentSummarize />
       </TransitionSeries.Sequence>
     </TransitionSeries>
