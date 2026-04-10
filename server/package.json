@@ -7,7 +7,7 @@
     "type": "git",
     "url": "https://github.com/ZengLiangYi/ChatCrystal"
   },
-  "description": "Turn your AI conversations into searchable knowledge — supports Claude Code, Cursor, Codex CLI",
+  "description": "Turn your AI conversations into searchable knowledge — supports Claude Code, Cursor, Codex CLI, Trae, GitHub Copilot",
   "keywords": [
     "claude",
     "claude-code",

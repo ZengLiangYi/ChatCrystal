@@ -3,7 +3,7 @@
   "version": "0.4.1",
   "private": true,
   "license": "MIT",
-  "description": "Turn your AI conversations into searchable knowledge — supports Claude Code, Cursor, Codex CLI",
+  "description": "Turn your AI conversations into searchable knowledge — supports Claude Code, Cursor, Codex CLI, Trae, GitHub Copilot",
   "keywords": [
     "claude",
     "claude-code",
