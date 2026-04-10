@@ -2,6 +2,7 @@
   "name": "@chatcrystal/shared",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "main": "./types/index.ts",
   "types": "./types/index.ts"
