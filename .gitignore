@@ -50,9 +50,6 @@ shared/types/*.map
 server/src/**/*.js
 server/src/**/*.js.map
 
-# Promo animation (Remotion source)
-promo/
-
 # Design specs and plans
 docs/superpowers/
 
@@ -61,3 +58,17 @@ docs/launch/
 
 # Claude Code project instructions
 CLAUDE.md
+
+# AI tool project configs
+.claude/
+.trae/
+.codebuddy/
+.kiro/
+.agents/
+
+# Claude Code skills
+skills/
+skills-lock.json
+
+# Astro build cache
+.astro/

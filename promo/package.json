@@ -1,0 +1,23 @@
+{
+  "name": "chatcrystal-promo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ChatCrystal promotional animation built with Remotion",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "bash render.sh"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.261",
+    "@remotion/google-fonts": "4.0.261",
+    "@remotion/transitions": "4.0.261",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "4.0.261"
+  },
+  "devDependencies": {
+    "@remotion/eslint-config": "4.0.261",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.9.0"
+  }
+}
