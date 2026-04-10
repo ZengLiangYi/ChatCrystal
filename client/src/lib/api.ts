@@ -268,7 +268,13 @@ export const api = {
 		}>("/config", { method: "POST", body: JSON.stringify(data) }),
 
 	testConfig: () =>
-		request<{ connected: boolean; response?: string; error?: string }>(
+		request<{
+			connected: boolean;
+			response?: string;
+			error?: string;
+			llm: { connected: boolean; response?: string; error?: string };
+			embedding: { connected: boolean; error?: string };
+		}>(
 			"/config/test",
 			{ method: "POST" },
 		),
