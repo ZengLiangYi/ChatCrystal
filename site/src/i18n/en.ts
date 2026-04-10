@@ -1,7 +1,7 @@
 export const en = {
   meta: {
     title: 'ChatCrystal — Turn AI Conversations into Searchable Knowledge',
-    description: 'Open-source, local-first tool that crystallizes your AI coding conversations (Claude Code, Cursor, Codex) into structured, searchable knowledge.',
+    description: 'Open-source, local-first tool that crystallizes your AI coding conversations (Claude Code, Cursor, Codex CLI, Trae, GitHub Copilot) into structured, searchable knowledge.',
   },
   nav: {
     features: 'Features',
@@ -12,7 +12,7 @@ export const en = {
   hero: {
     badge: 'Open Source · Local First',
     title: 'Turn AI Conversations into Searchable Knowledge',
-    subtitle: 'Import conversations from Claude Code, Cursor, and Codex CLI. AI crystallizes them into structured notes with semantic search. Everything stays on your machine.',
+    subtitle: 'Import conversations from your favorite AI coding tools. AI crystallizes them into structured notes with semantic search. Everything stays on your machine.',
     installCmd: 'npm i -g chatcrystal',
     copied: 'Copied!',
     downloadDesktop: 'Download Desktop App',
@@ -22,6 +22,8 @@ export const en = {
     claudeCode: { name: 'Claude Code', desc: 'JSONL conversations' },
     cursor: { name: 'Cursor', desc: 'Workspace history' },
     codex: { name: 'Codex CLI', desc: 'Session events' },
+    trae: { name: 'Trae', desc: 'Agent task history' },
+    copilot: { name: 'GitHub Copilot', desc: 'Chat sessions' },
   },
   howItWorks: {
     heading: 'How It Works',
