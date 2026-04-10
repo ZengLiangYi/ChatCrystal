@@ -81,7 +81,13 @@ function extractUserPrompt(message: string): string {
 // Recursive file discovery
 // =============================================
 
+// Brief cache to avoid double walk during detect() → scan() cycle
+let rolloutCache: { result: string[]; expiry: number } | null = null;
+
 async function findRolloutFiles(dir: string): Promise<string[]> {
+	if (rolloutCache && Date.now() < rolloutCache.expiry) {
+		return rolloutCache.result;
+	}
 	const results: string[] = [];
 	if (!existsSync(dir)) return results;
 
@@ -101,6 +107,7 @@ async function findRolloutFiles(dir: string): Promise<string[]> {
 	}
 
 	await walk(dir);
+	rolloutCache = { result: results, expiry: Date.now() + 5000 };
 	return results;
 }
 
@@ -147,54 +154,41 @@ export const codexAdapter: SourceAdapter = {
 		if (!existsSync(dir)) return [];
 
 		const files = await findRolloutFiles(dir);
+
+		// Parallel stat in batches (skip readFirstLine — extract sessionId from filename)
+		const BATCH = 20;
 		const metas: ConversationMeta[] = [];
 
-		for (const filePath of files) {
-			try {
-				const fileStat = await stat(filePath);
-
-				// Skip very small files
-				if (fileStat.size < 50) continue;
-
-				// Read first line to get session_meta for id and cwd
-				let sessionId: string | null = null;
-				let projectDir = "";
-
-				const firstLine = await readFirstLine(filePath);
-				if (firstLine) {
+		for (let i = 0; i < files.length; i += BATCH) {
+			const batch = files.slice(i, i + BATCH);
+			const results = await Promise.all(
+				batch.map(async (filePath) => {
 					try {
-						const parsed = JSON.parse(firstLine) as CodexLine;
-						if (parsed.type === "session_meta" && parsed.payload) {
-							const meta = parsed.payload as unknown as SessionMeta;
-							sessionId = meta.id;
-							projectDir = meta.cwd || "";
-						}
+						const fileStat = await stat(filePath);
+						if (fileStat.size < 50) return null;
+
+						const name = basename(filePath, ".jsonl");
+						const match = name.match(
+							/rollout-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-(.+)/,
+						);
+						const sessionId = match ? match[1] : name;
+
+						return {
+							id: sessionId,
+							source: "codex" as const,
+							filePath,
+							fileSize: fileStat.size,
+							fileMtime: fileStat.mtime.toISOString(),
+							// projectDir deferred to parse() — avoids reading file content in scan
+							projectDir: "",
+						};
 					} catch {
-						// malformed first line
+						return null;
 					}
-				}
-
-				// Fallback: extract session id from filename
-				// Format: rollout-2025-10-01T21-43-32-0199a003-9348-72f3-82b7-fe1435ce085b.jsonl
-				if (!sessionId) {
-					const name = basename(filePath, ".jsonl");
-					// The UUID is after the timestamp part (rollout-YYYY-MM-DDTHH-MM-SS-)
-					const match = name.match(
-						/rollout-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-(.+)/,
-					);
-					sessionId = match ? match[1] : name;
-				}
-
-				metas.push({
-					id: sessionId,
-					source: "codex",
-					filePath,
-					fileSize: fileStat.size,
-					fileMtime: fileStat.mtime.toISOString(),
-					projectDir,
-				});
-			} catch {
-				// Skip files we can't stat
+				}),
+			);
+			for (const r of results) {
+				if (r) metas.push(r);
 			}
 		}
 
@@ -372,22 +366,3 @@ export const codexAdapter: SourceAdapter = {
 		};
 	},
 };
-
-// =============================================
-// Helper: read first line of a file
-// =============================================
-
-async function readFirstLine(filePath: string): Promise<string | null> {
-	const stream = createReadStream(filePath, { encoding: "utf-8" });
-	const rl = createInterface({
-		input: stream,
-		crlfDelay: Number.POSITIVE_INFINITY,
-	});
-
-	for await (const line of rl) {
-		rl.close();
-		stream.destroy();
-		return line;
-	}
-	return null;
-}

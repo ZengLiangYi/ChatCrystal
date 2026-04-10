@@ -25,7 +25,7 @@
 
 <br>
 
-ChatCrystal 将散落在 Claude Code、Cursor、Codex CLI 等 AI 编程工具中的对话统一采集到本地，用 LLM 提炼为可搜索的结构化技术笔记，形成个人知识库。
+ChatCrystal 将散落在 Claude Code、Cursor、Codex CLI、Trae、GitHub Copilot 等 AI 编程工具中的对话统一采集到本地，用 LLM 提炼为可搜索的结构化技术笔记，形成个人知识库。
 
 <div align="center">
 <table>
@@ -50,7 +50,7 @@ ChatCrystal 将散落在 Claude Code、Cursor、Codex CLI 等 AI 编程工具中
 
 ## 核心功能
 
-- **多数据源采集** — 自动扫描并导入 Claude Code、Codex CLI、Cursor 的对话记录，支持文件监听实时同步
+- **多数据源采集** — 自动扫描并导入 Claude Code、Codex CLI、Cursor、Trae、GitHub Copilot 的对话记录，支持文件监听实时同步
 - **结构化 LLM 摘要** — 通过 `generateObject` + Zod Schema 生成笔记（保证输出结构合法，schema 校验失败自动重试）。Turn-based 对话预处理算法在可配置的 token 预算内选择最有价值的对话片段。
 - **语义搜索** — 基于 Embedding + 向量索引（vectra），搜索结果包含文本预览，支持沿关系边扩展。Embedding 内容涵盖标题、摘要、结论、标签和代码片段描述。
 - **知识图谱** — 通过 `generateObject` + 类型化 Schema 发现笔记关系。8 种关系类型 + 置信度评分 + 力导向图可视化。
@@ -194,7 +194,7 @@ npm start                        # 启动服务（前端由后端静态托管）
 
 ## 使用流程
 
-1. 启动后，点击侧边栏「导入对话」扫描 Claude Code / Codex CLI / Cursor 对话
+1. 启动后，点击侧边栏「导入对话」扫描 Claude Code / Codex CLI / Cursor / Trae / GitHub Copilot 对话
 2. 在「对话」页浏览已导入的对话
 3. 点击「生成摘要」或使用「批量生成」将对话提炼为笔记
 4. 在「搜索」页通过语义搜索查找知识，可勾选「展开关联笔记」沿关系边扩展结果
@@ -268,7 +268,7 @@ ChatCrystal/
 ├── shared/types/            # 共享 TypeScript 类型
 ├── server/src/
 │   ├── db/                  # SQLite schema + 工具函数
-│   ├── parser/              # 插件式对话解析器（Claude Code / Codex / Cursor）
+│   ├── parser/              # 插件式对话解析器（Claude Code / Codex / Cursor / Trae / Copilot）
 │   ├── services/            # 导入、摘要、LLM、Embedding、关系发现、Provider
 │   ├── routes/              # Fastify API 路由
 │   ├── watcher/             # chokidar 文件监听
@@ -298,13 +298,15 @@ interface SourceAdapter {
 }
 ```
 
-目前已内置三个适配器：
+目前已内置五个适配器：
 
 | 适配器 | 数据源 | 格式 |
 |---|---|---|
 | `claude-code` | `~/.claude/projects/**/*.jsonl` | JSONL 对话记录 |
 | `codex` | `~/.codex/sessions/**/rollout-*.jsonl` | JSONL 事件流 |
 | `cursor` | Cursor `workspaceStorage/state.vscdb` | SQLite KV 存储 |
+| `trae` | Trae `workspaceStorage/state.vscdb` | SQLite KV 存储 |
+| `copilot` | VS Code `workspaceStorage/chatSessions/*.jsonl` | JSONL 会话快照 |
 
 在 `server/src/parser/adapters/` 下新建适配器文件，注册到 `parser/index.ts`。
 

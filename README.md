@@ -25,7 +25,7 @@ English | [简体中文](README.zh-CN.md)
 
 <br>
 
-ChatCrystal collects conversations from AI coding tools (Claude Code, Cursor, Codex CLI), uses LLM to distill them into searchable structured notes, and builds your personal knowledge base — all running locally.
+ChatCrystal collects conversations from AI coding tools (Claude Code, Cursor, Codex CLI, Trae, GitHub Copilot), uses LLM to distill them into searchable structured notes, and builds your personal knowledge base — all running locally.
 
 <div align="center">
 <table>
@@ -64,7 +64,7 @@ Then open http://localhost:3721 in your browser.
 
 ## Features
 
-- **Multi-source ingestion** — Auto-imports conversations from Claude Code, Codex CLI, and Cursor with real-time file watching
+- **Multi-source ingestion** — Auto-imports conversations from Claude Code, Codex CLI, Cursor, Trae, and GitHub Copilot with real-time file watching
 - **Structured LLM summarization** — Generates notes via `generateObject` + Zod schema (guaranteed valid output, auto-retry on schema violation). Turn-based transcript preprocessing selects the most valuable conversation segments within a configurable token budget.
 - **Semantic search** — Embedding-powered vector search (vectra) with text preview snippets and relation-aware result expansion. Embedding content includes title, summary, conclusions, tags, and code snippet descriptions.
 - **Knowledge graph** — Structured relation discovery via `generateObject` with typed schemas. 8 relation types with confidence scoring and force-directed visualization.
@@ -208,7 +208,7 @@ Visit http://localhost:3721
 
 ## Workflow
 
-1. Click "Import" in the sidebar to scan Claude Code / Codex CLI / Cursor conversations
+1. Click "Import" in the sidebar to scan Claude Code / Codex CLI / Cursor / Trae / GitHub Copilot conversations
 2. Browse imported conversations on the Conversations page
 3. Click "Summarize" or use "Batch Summarize" to distill conversations into notes
 4. Search your knowledge on the Search page; enable "Expand related notes" to follow relation edges
@@ -282,7 +282,7 @@ ChatCrystal/
 ├── shared/types/            # Shared TypeScript types
 ├── server/src/
 │   ├── db/                  # SQLite schema + utilities
-│   ├── parser/              # Plugin-based conversation parsers (Claude Code / Codex / Cursor)
+│   ├── parser/              # Plugin-based conversation parsers (Claude Code / Codex / Cursor / Trae / Copilot)
 │   ├── services/            # Import, summarization, LLM, embedding, relations, providers
 │   ├── routes/              # Fastify API routes
 │   ├── watcher/             # chokidar file watching
@@ -319,6 +319,8 @@ Built-in adapters:
 | `claude-code` | `~/.claude/projects/**/*.jsonl` | JSONL conversation log |
 | `codex` | `~/.codex/sessions/**/rollout-*.jsonl` | JSONL event stream |
 | `cursor` | Cursor `workspaceStorage/state.vscdb` | SQLite KV store |
+| `trae` | Trae `workspaceStorage/state.vscdb` | SQLite KV store |
+| `copilot` | VS Code `workspaceStorage/chatSessions/*.jsonl` | JSONL session snapshots |
 
 Create a new adapter file in `server/src/parser/adapters/` and register it in `parser/index.ts`.
 

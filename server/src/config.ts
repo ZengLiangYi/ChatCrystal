@@ -47,6 +47,8 @@ const envDefaults = {
 		process.env.CODEX_SESSIONS_DIR || "~/.codex/sessions",
 	),
 	cursorDataDir: process.env.CURSOR_DATA_DIR || "",
+	traeDataDir: process.env.TRAE_DATA_DIR || "",
+	copilotDataDir: process.env.COPILOT_DATA_DIR || "",
 	llm: {
 		provider: process.env.LLM_PROVIDER || "ollama",
 		baseURL: process.env.LLM_BASE_URL || "http://localhost:11434",
@@ -68,20 +70,26 @@ function loadPersistedConfig() {
 	if (!existsSync(configPath))
 		return {
 			...envDefaults,
-			enabledSources: ["claude-code", "codex", "cursor"],
+			enabledSources: ["claude-code", "codex", "cursor", "trae", "copilot"],
 		};
 
 	try {
 		const saved = JSON.parse(readFileSync(configPath, "utf-8"));
+
+		// Migrate: ensure newly added sources are present in existing configs
+		const ALL_SOURCES = ["claude-code", "codex", "cursor", "trae", "copilot"];
+		const enabledSources: string[] = saved.enabledSources ?? ALL_SOURCES;
+		for (const src of ALL_SOURCES) {
+			if (!enabledSources.includes(src)) {
+				enabledSources.push(src);
+			}
+		}
+
 		return {
 			...envDefaults,
 			llm: { ...envDefaults.llm, ...saved.llm },
 			embedding: { ...envDefaults.embedding, ...saved.embedding },
-			enabledSources: saved.enabledSources ?? [
-				"claude-code",
-				"codex",
-				"cursor",
-			],
+			enabledSources,
 		};
 	} catch (err) {
 		console.warn(
@@ -90,7 +98,7 @@ function loadPersistedConfig() {
 		);
 		return {
 			...envDefaults,
-			enabledSources: ["claude-code", "codex", "cursor"],
+			enabledSources: ["claude-code", "codex", "cursor", "trae", "copilot"],
 		};
 	}
 }

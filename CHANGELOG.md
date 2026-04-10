@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.0] - 2026-04-10
+
+### New Data Sources
+
+- **Trae adapter** — Imports conversations from Trae IDE. Reads `memento/icube-ai-agent-storage` from workspace `state.vscdb`. Extracts assistant responses from `agentTaskContent.guideline.planItems`, reasoning content as thinking, and handles unreliable timestamps via `turnIndex` ordering.
+- **GitHub Copilot adapter** — Imports conversations from VS Code's GitHub Copilot Chat. Supports both `.jsonl` (session snapshots) and `.json` (older format) from `workspaceStorage/chatSessions/` and `globalStorage/emptyWindowChatSessions/`. Extracts thinking blocks, tool invocations, and `customTitle` as slug.
+
+### Improvements
+
+- **Shared sql.js module** — Extracted `openVscdb()` into `parser/vscdb.ts`, shared by Cursor and Trae adapters. Single sql.js instance across the process.
+- **Cursor orphan bubble discovery** — Scans `cursorDiskKV` for composers with bubble data not listed in any workspace's `composerData`. Filters out empty shells (no text content) to avoid noise.
+- **Codex scan 65x faster** — Replaced serial `readFirstLine()` (97ms/file) with filename-based sessionId extraction + parallel `stat()` in batches of 20. Scan time: 40s → 0.6s for 337 files.
+- **Scan caching** — All adapters with expensive detect→scan cycles (Cursor, Codex, Copilot) now use 5-second TTL caches to avoid redundant filesystem traversal.
+- **Config migration** — Existing `config.json` files automatically gain new `trae` and `copilot` entries in `enabledSources` on upgrade.
+- **Frontend source badges** — Added Trae (indigo) and Copilot (GitHub blue) to `SOURCE_CONFIG` and `SOURCE_COLORS` maps.
+- **Platform path robustness** — All adapters now use `homedir()` from `node:os` instead of `process.env.HOME` for macOS/Linux paths.
+
 ## [0.3.0] - 2026-04-09
 
 ### Core: Turn-Based Transcript Engine

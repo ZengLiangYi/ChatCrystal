@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { homedir, platform } from "node:os";
 import { resolve } from "node:path";
@@ -8,9 +8,9 @@ import type {
 	ParsedMessage,
 	SourceInfo,
 } from "@chatcrystal/shared";
-import initSqlJs, { type Database } from "sql.js";
 import { appConfig } from "../../config.js";
 import type { SourceAdapter } from "../adapter.js";
+import { openVscdb } from "../vscdb.js";
 
 // =============================================
 // Platform-specific paths
@@ -50,37 +50,6 @@ export function getCursorGlobalVscdbPath(): string | null {
 }
 
 // =============================================
-// Open SQLite DB safely via sql.js (from buffer, read-only)
-// =============================================
-
-let sqlJsInstance: Awaited<ReturnType<typeof initSqlJs>> | null = null;
-
-async function getSqlJs() {
-	if (!sqlJsInstance) {
-		sqlJsInstance = await initSqlJs();
-	}
-	return sqlJsInstance;
-}
-
-async function openVscdb(dbPath: string): Promise<Database | null> {
-	try {
-		const SQL = await getSqlJs();
-		const buf = readFileSync(dbPath);
-		return new SQL.Database(buf);
-	} catch {
-		// File locked or corrupted — retry once after short delay
-		try {
-			await new Promise((r) => setTimeout(r, 500));
-			const SQL = await getSqlJs();
-			const buf = readFileSync(dbPath);
-			return new SQL.Database(buf);
-		} catch {
-			return null;
-		}
-	}
-}
-
-// =============================================
 // Composer metadata from workspace DB
 // =============================================
 
@@ -103,7 +72,17 @@ interface WorkspaceInfo {
 	composers: ComposerHead[];
 }
 
+// Brief cache to avoid double scan during detect() → scan() cycle
+let wsCache: { result: WorkspaceInfo[]; expiry: number } | null = null;
+
 async function scanWorkspaces(): Promise<WorkspaceInfo[]> {
+	if (wsCache && Date.now() < wsCache.expiry) return wsCache.result;
+	const result = await scanWorkspacesImpl();
+	wsCache = { result, expiry: Date.now() + 5000 };
+	return result;
+}
+
+async function scanWorkspacesImpl(): Promise<WorkspaceInfo[]> {
 	const wsStoragePath = getWorkspaceStoragePath();
 	if (!existsSync(wsStoragePath)) return [];
 
@@ -184,6 +163,64 @@ interface BubbleData {
 }
 
 // =============================================
+// Orphan bubble discovery
+// =============================================
+
+let orphanCache: { result: string[]; expiry: number } | null = null;
+
+/**
+ * Scan global cursorDiskKV for composerIds that have bubble data
+ * but are NOT listed in any workspace's composerData.
+ * These are "orphan" conversations (e.g. from deleted workspaces).
+ * Only returns composers that have at least one bubble with text content.
+ */
+async function findOrphanBubbleComposers(
+	knownIds: Set<string>,
+): Promise<string[]> {
+	if (orphanCache && Date.now() < orphanCache.expiry) return orphanCache.result;
+	const globalDbPath = getGlobalVscdbPath();
+	if (!existsSync(globalDbPath)) return [];
+
+	const db = await openVscdb(globalDbPath);
+	if (!db) return [];
+
+	try {
+		const result = db.exec(
+			"SELECT DISTINCT SUBSTR([key], 10, INSTR(SUBSTR([key], 10), ':') - 1) FROM cursorDiskKV WHERE [key] LIKE 'bubbleId:%'",
+		);
+		if (!result.length || !result[0].values.length) return [];
+
+		const candidates = result[0].values
+			.map((r) => r[0] as string)
+			.filter((id) => !knownIds.has(id));
+
+		// Filter: only keep composers that have at least one bubble with text
+		const valid: string[] = [];
+		for (const composerId of candidates) {
+			const bubbles = db.exec(
+				`SELECT value FROM cursorDiskKV WHERE [key] LIKE 'bubbleId:${composerId}:%' LIMIT 20`,
+			);
+			if (!bubbles.length || !bubbles[0].values.length) continue;
+
+			const hasContent = bubbles[0].values.some((row) => {
+				try {
+					const bubble = JSON.parse(row[0] as string) as BubbleData;
+					return (bubble.text || "").trim().length > 0;
+				} catch {
+					return false;
+				}
+			});
+			if (hasContent) valid.push(composerId);
+		}
+
+		orphanCache = { result: valid, expiry: Date.now() + 5000 };
+		return valid;
+	} finally {
+		db.close();
+	}
+}
+
+// =============================================
 // Cursor Adapter
 // =============================================
 
@@ -197,10 +234,13 @@ export const cursorAdapter: SourceAdapter = {
 
 		try {
 			const workspaces = await scanWorkspaces();
-			const totalComposers = workspaces.reduce(
-				(sum, ws) => sum + ws.composers.length,
-				0,
-			);
+			const knownIds = new Set<string>();
+			for (const ws of workspaces) {
+				for (const c of ws.composers) knownIds.add(c.composerId);
+			}
+
+			const orphans = await findOrphanBubbleComposers(knownIds);
+			const totalComposers = knownIds.size + orphans.length;
 
 			if (totalComposers === 0) return null;
 
@@ -222,11 +262,12 @@ export const cursorAdapter: SourceAdapter = {
 		const workspaces = await scanWorkspaces();
 		const globalStat = await stat(globalDbPath);
 		const metas: ConversationMeta[] = [];
+		const knownIds = new Set<string>();
 
 		for (const ws of workspaces) {
 			for (const composer of ws.composers) {
-				// Use composer's createdAt as fileMtime for change detection
-				// (more precise than global DB mtime since many composers share one DB)
+				knownIds.add(composer.composerId);
+
 				const composerMtime = composer.createdAt
 					? new Date(composer.createdAt).toISOString()
 					: globalStat.mtime.toISOString();
@@ -240,6 +281,19 @@ export const cursorAdapter: SourceAdapter = {
 					projectDir: ws.folder,
 				});
 			}
+		}
+
+		// Discover orphan composers with bubble data but no workspace entry
+		const orphans = await findOrphanBubbleComposers(knownIds);
+		for (const composerId of orphans) {
+			metas.push({
+				id: composerId,
+				source: "cursor",
+				filePath: globalDbPath,
+				fileSize: globalStat.size,
+				fileMtime: globalStat.mtime.toISOString(),
+				projectDir: "",
+			});
 		}
 
 		return metas;

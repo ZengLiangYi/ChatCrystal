@@ -1,7 +1,9 @@
 import { existsSync } from "node:fs";
 import { watch } from "chokidar";
 import { appConfig } from "../config.js";
+import { getCopilotWatchPaths } from "../parser/adapters/copilot.js";
 import { getCursorGlobalVscdbPath } from "../parser/adapters/cursor.js";
+import { getTraeWatchPaths } from "../parser/adapters/trae.js";
 import { importAll } from "../services/import.js";
 
 let isImporting = false;
@@ -59,6 +61,12 @@ export function startWatcher() {
 	if (cursorVscdb) {
 		watchTargets.push(cursorVscdb);
 	}
+
+	// Trae (watch workspace vscdb files)
+	watchTargets.push(...getTraeWatchPaths());
+
+	// GitHub Copilot (watch chatSessions JSONL files)
+	watchTargets.push(...getCopilotWatchPaths());
 
 	console.log(`[Watcher] Watching ${watchTargets.length} target(s):`);
 	for (const t of watchTargets) {

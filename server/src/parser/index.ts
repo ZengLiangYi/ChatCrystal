@@ -14,9 +14,13 @@ export {
 // Register built-in adapters
 import { claudeCodeAdapter } from "./adapters/claude-code.js";
 import { codexAdapter } from "./adapters/codex.js";
+import { copilotAdapter } from "./adapters/copilot.js";
 import { cursorAdapter } from "./adapters/cursor.js";
+import { traeAdapter } from "./adapters/trae.js";
 import { registerAdapter } from "./registry.js";
 
 registerAdapter(claudeCodeAdapter);
 registerAdapter(codexAdapter);
 registerAdapter(cursorAdapter);
+registerAdapter(traeAdapter);
+registerAdapter(copilotAdapter);

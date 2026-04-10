@@ -19,6 +19,8 @@ const SOURCE_COLORS: Record<string, string> = {
 	"claude-code": "#e8784a",
 	codex: "#10a37f",
 	cursor: "#a855f7",
+	trae: "#6366f1",
+	copilot: "#1f6feb",
 };
 
 function useProviders() {

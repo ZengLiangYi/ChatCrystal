@@ -163,6 +163,8 @@ const SOURCE_CONFIG: Record<string, { label: string; color: string }> = {
 	"claude-code": { label: "Claude", color: "var(--accent)" },
 	codex: { label: "Codex", color: "#10a37f" },
 	cursor: { label: "Cursor", color: "#a855f7" },
+	trae: { label: "Trae", color: "#6366f1" },
+	copilot: { label: "Copilot", color: "#1f6feb" },
 };
 
 function SourceBadge({ source }: { source: string }) {

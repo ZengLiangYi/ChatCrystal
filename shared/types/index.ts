@@ -7,7 +7,7 @@
 export interface Conversation {
   id: string;
   slug: string | null;
-  source: string; // 'claude-code' | 'cursor' | etc.
+  source: string; // 'claude-code' | 'codex' | 'cursor' | 'trae' | 'copilot'
   project_dir: string;
   project_name: string;
   cwd: string | null;

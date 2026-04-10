@@ -158,14 +158,39 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract changelog
+        id: changelog
+        shell: bash
+        run: |
+          VERSION="${{ needs.prepare.outputs.electron_version }}"
+          # Extract the section for this version from CHANGELOG.md
+          BODY=$(awk "/^## \\[${VERSION}\\]/{found=1; next} /^## \\[/{if(found) exit} found{print}" CHANGELOG.md)
+          if [ -z "$BODY" ]; then
+            BODY="Release v${VERSION}"
+          fi
+          # Write to file to avoid escaping issues
+          echo "$BODY" > release_body.md
+
+      - name: Determine release tag
+        id: release_tag
+        shell: bash
+        run: |
+          # Use the original push tag if available (v* for full release),
+          # otherwise fall back to electron-v* prefix
+          if [[ "${{ github.ref_name }}" == v* ]]; then
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=electron-v${{ needs.prepare.outputs.electron_version }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: electron-v${{ needs.prepare.outputs.electron_version }}
+          tag_name: ${{ steps.release_tag.outputs.tag }}
           name: ChatCrystal v${{ needs.prepare.outputs.electron_version }}
+          body_path: release_body.md
           draft: false
           prerelease: ${{ contains(needs.prepare.outputs.electron_version, '-') }}
-          generate_release_notes: true
           files: |
             release/*.exe
             release/*.yml
