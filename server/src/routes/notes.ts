@@ -125,6 +125,22 @@ export async function noteRoutes(app: FastifyInstance) {
     };
   });
 
+  // Get note ID by conversation ID
+  app.get('/api/notes/by-conversation/:conversationId', async (req, reply) => {
+    const { conversationId } = req.params as { conversationId: string };
+    const db = getDatabase();
+    const result = db.exec(
+      'SELECT id FROM notes WHERE conversation_id = ?',
+      [conversationId],
+    );
+    if (!result.length || !result[0].values.length) {
+      reply.status(404);
+      return { success: false, error: 'Note not found for this conversation' };
+    }
+    const noteId = Number(result[0].values[0][0]);
+    return { success: true, data: { id: noteId } };
+  });
+
   // Get single note
   app.get('/api/notes/:id', async (req, reply) => {
     const { id } = req.params as { id: string };

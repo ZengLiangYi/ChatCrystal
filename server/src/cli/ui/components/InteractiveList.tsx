@@ -34,6 +34,8 @@ interface InteractiveListProps<T> {
   onQuit: () => void;
   /** Called when user presses r to retry */
   onRetry?: () => void;
+  /** Called when user presses s to summarize the current item */
+  onSummarize?: (item: T | null) => void;
   /** Render inline preview for selected item (narrow mode) */
   renderPreview?: (item: T) => string | null;
   /** Render side panel preview (wide mode). Receives available width for truncation. */
@@ -57,7 +59,7 @@ const PREVIEW_LINES = 3;
  */
 export function InteractiveList<T>({
   items, columns, total, loading, error, hasMore,
-  onLoadMore, onSelect, onSearch, onQuit, onRetry,
+  onLoadMore, onSelect, onSearch, onQuit, onRetry, onSummarize,
   renderPreview, renderSidePreview,
   extraHints, title, keyboardActive = true,
 }: InteractiveListProps<T>) {
@@ -66,8 +68,11 @@ export function InteractiveList<T>({
   const { columns: termCols, rows: termRows, isWide } = useTerminalSize();
   const t = getLocale();
 
+  // Only use dual-pane layout when wide AND side preview is provided
+  const useSideLayout = isWide && !!renderSidePreview;
+
   // Calculate viewport height
-  const viewportHeight = Math.max(3, termRows - CHROME_LINES - (isWide ? 0 : PREVIEW_LINES));
+  const viewportHeight = Math.max(3, termRows - CHROME_LINES - (useSideLayout ? 0 : PREVIEW_LINES));
 
   // C2 fix: refs for values read in handleAction to avoid stale closures
   const cursorRef = useRef(cursor);
@@ -125,8 +130,11 @@ export function InteractiveList<T>({
       case 'retry':
         onRetry?.();
         break;
+      case 'summarize':
+        onSummarize?.(currentItems.length > 0 ? currentItems[cursorRef.current] : null);
+        break;
     }
-  }, [viewportHeight, onSelect, onSearch, onQuit, onRetry]);
+  }, [viewportHeight, onSelect, onSearch, onQuit, onRetry, onSummarize]);
 
   useKeyboard({ active: keyboardActive, onAction: handleAction });
 
@@ -144,7 +152,7 @@ export function InteractiveList<T>({
   const selectedItem = items[cursor] ?? null;
 
   // Available width for list content (prefix " ▸ " = 3 chars)
-  const listPanelWidth = isWide ? Math.floor(termCols * 0.4) : termCols;
+  const listPanelWidth = useSideLayout ? Math.floor(termCols * 0.4) : termCols;
   const availableListWidth = listPanelWidth - 3;
 
   // Column layout: flex column (no width) fills remaining space.
@@ -155,8 +163,13 @@ export function InteractiveList<T>({
     // Find the flex column (first column without explicit width)
     const flexIdx = columns.findIndex(c => !c.width);
 
-    // Start with all columns, drop rightmost fixed columns until flex has enough space
+    // Start with all columns, drop rightmost fixed columns until content fits
     let cols = [...columns];
+    const calcTotalWidth = (arr: typeof columns) => {
+      const fixedSum = arr.reduce((s, c) => s + (c.width || 10), 0);
+      const gaps = (arr.length - 1) * 2;
+      return fixedSum + gaps;
+    };
     const calcFlexWidth = (arr: typeof columns) => {
       const fixedSum = arr.reduce((s, c, i) => i === flexIdx ? s : s + (c.width || 10), 0);
       const gaps = (arr.length - 1) * 2;
@@ -164,7 +177,12 @@ export function InteractiveList<T>({
     };
 
     // Drop from the right, but never drop the flex column
-    while (cols.length > 1 && (flexIdx < 0 || calcFlexWidth(cols) < MIN_FLEX_WIDTH)) {
+    const shouldDrop = () => {
+      if (flexIdx >= 0) return calcFlexWidth(cols) < MIN_FLEX_WIDTH;
+      // All fixed-width columns: drop when total exceeds available width
+      return calcTotalWidth(cols) > availableListWidth;
+    };
+    while (cols.length > 1 && shouldDrop()) {
       // Find rightmost droppable column (not the flex column)
       let dropIdx = -1;
       for (let i = cols.length - 1; i >= 0; i--) {
@@ -213,7 +231,7 @@ export function InteractiveList<T>({
 
   // Inline preview for narrow mode — fixed height, pinned at bottom
   function renderInlinePreview() {
-    if (isWide || !renderPreview) return null;
+    if (useSideLayout || !renderPreview) return null;
     const previewText = selectedItem ? renderPreview(selectedItem) : null;
     const previewContentWidth = termCols - 2; // 1 char padding each side
     const sepLine = '┄'.repeat(previewContentWidth);
@@ -231,7 +249,7 @@ export function InteractiveList<T>({
   }
 
   // Wide mode: side-by-side layout
-  if (isWide && renderSidePreview) {
+  if (useSideLayout) {
     const listWidth = Math.floor(termCols * 0.4);
     const previewWidth = termCols - listWidth - 3;
 

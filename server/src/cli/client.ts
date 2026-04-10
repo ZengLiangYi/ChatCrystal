@@ -264,6 +264,10 @@ export class CrystalClient {
     }>('GET', `/api/conversations${qs ? `?${qs}` : ''}`);
   }
 
+  async getNoteByConversation(conversationId: string) {
+    return this.request<{ id: number } | null>('GET', `/api/notes/by-conversation/${encodeURIComponent(conversationId)}`);
+  }
+
   async search(query: string, limit = 10) {
     return this.request<Array<{
       note_id: number; title: string; project_name: string; score: number; tags: string[];

@@ -124,9 +124,14 @@ export function App({ client, initialView }: AppProps) {
           source={props.source as string | undefined}
           status={props.status as string | undefined}
           search={props.search as string | undefined}
-          onSelect={(conv: ConversationItem) => {
-            if (conv.status === 'summarized') {
-              push({ type: 'search', props: { initialQuery: conv.project_name || conv.id } });
+          onSelect={async (conv: ConversationItem) => {
+            try {
+              const note = await client.getNoteByConversation(conv.id);
+              if (note) {
+                push({ type: 'note-detail', props: { noteId: note.id } });
+              }
+            } catch {
+              // note not found — no-op, view handles the hint
             }
           }}
           onSearch={() => push({ type: 'search', props: {} })}
