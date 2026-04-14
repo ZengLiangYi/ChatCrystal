@@ -1,6 +1,7 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { getDatabase, saveDatabase } from '../db/index.js';
+import { withTransaction } from '../db/transaction.js';
 import { getLanguageModel } from './llm.js';
 import { prepareTranscript } from './transcript.js';
 import { generateEmbeddings } from './embedding.js';
@@ -92,40 +93,41 @@ async function summarizeConversation(conversationId: string): Promise<SummarizeR
 function saveNote(conversationId: string, result: SummarizeResult): number {
   const db = getDatabase();
 
-  db.run(
-    `INSERT OR REPLACE INTO notes
-      (conversation_id, title, summary, key_conclusions, code_snippets, raw_llm_response, is_edited)
-     VALUES (?, ?, ?, ?, ?, ?, 0)`,
-    [
-      conversationId,
-      result.title,
-      result.summary,
-      JSON.stringify(result.key_conclusions),
-      JSON.stringify(result.code_snippets),
-      result.raw_response,
-    ],
-  );
+  const noteId = withTransaction(db, () => {
+    db.run(
+      `INSERT OR REPLACE INTO notes
+        (conversation_id, title, summary, key_conclusions, code_snippets, raw_llm_response, is_edited)
+       VALUES (?, ?, ?, ?, ?, ?, 0)`,
+      [
+        conversationId,
+        result.title,
+        result.summary,
+        JSON.stringify(result.key_conclusions),
+        JSON.stringify(result.code_snippets),
+        result.raw_response,
+      ],
+    );
 
-  // Get note ID
-  const noteResult = db.exec(
-    'SELECT id FROM notes WHERE conversation_id = ?',
-    [conversationId],
-  );
-  const noteId = Number(noteResult[0]?.values[0]?.[0]);
+    const noteResult = db.exec(
+      'SELECT id FROM notes WHERE conversation_id = ?',
+      [conversationId],
+    );
+    const nextNoteId = Number(noteResult[0]?.values[0]?.[0]);
 
-  // Upsert tags
-  for (const tagName of result.tags) {
-    db.run('INSERT OR IGNORE INTO tags (name) VALUES (?)', [tagName]);
-    const tagResult = db.exec('SELECT id FROM tags WHERE name = ?', [tagName]);
-    const tagId = Number(tagResult[0]?.values[0]?.[0]);
-    db.run('INSERT OR IGNORE INTO note_tags (note_id, tag_id) VALUES (?, ?)', [noteId, tagId]);
-  }
+    for (const tagName of result.tags) {
+      db.run('INSERT OR IGNORE INTO tags (name) VALUES (?)', [tagName]);
+      const tagResult = db.exec('SELECT id FROM tags WHERE name = ?', [tagName]);
+      const tagId = Number(tagResult[0]?.values[0]?.[0]);
+      db.run('INSERT OR IGNORE INTO note_tags (note_id, tag_id) VALUES (?, ?)', [nextNoteId, tagId]);
+    }
 
-  // Update conversation status
-  db.run(
-    `UPDATE conversations SET status = 'summarized', updated_at = datetime('now') WHERE id = ?`,
-    [conversationId],
-  );
+    db.run(
+      `UPDATE conversations SET status = 'summarized', updated_at = datetime('now') WHERE id = ?`,
+      [conversationId],
+    );
+
+    return nextNoteId;
+  });
 
   saveDatabase();
   return noteId;
