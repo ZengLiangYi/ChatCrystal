@@ -34,7 +34,7 @@
   ],
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-seed-data.mjs",
     "start": "node dist/server/src/index.js"
   },
   "dependencies": {
