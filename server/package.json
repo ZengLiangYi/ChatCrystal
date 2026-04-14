@@ -34,8 +34,8 @@
   ],
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js"
+    "build": "tsc && node scripts/copy-seed-data.mjs",
+    "start": "node dist/server/src/index.js"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.64",

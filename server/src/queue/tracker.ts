@@ -16,7 +16,7 @@ export interface TaskSnapshot {
   tasks: TaskEntry[];
 }
 
-class TaskTracker {
+export class TaskTracker {
   private tasks = new Map<string, TaskEntry>();
   private resetTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -91,6 +91,11 @@ class TaskTracker {
     return [...this.tasks.values()].some(
       (t) => t.status === 'queued' || t.status === 'processing',
     );
+  }
+
+  isTaskActive(id: string): boolean {
+    const task = this.tasks.get(id);
+    return task?.status === 'queued' || task?.status === 'processing';
   }
 
   private scheduleResetIfIdle() {

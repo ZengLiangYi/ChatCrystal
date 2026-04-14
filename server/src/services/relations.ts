@@ -1,6 +1,7 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { getDatabase, saveDatabase } from '../db/index.js';
+import { withTransaction } from '../db/transaction.js';
 import { resultToObjects } from '../db/utils.js';
 import { getLanguageModel } from './llm.js';
 import { semanticSearch } from './embedding.js';
@@ -157,38 +158,48 @@ ${candidateList}`;
   // Filter and persist
   const validRelations: NoteRelation[] = [];
   const candidateIdSet = new Set(candidates.map((c) => c.id));
+  const filteredRelations = rawRelations
+    .filter(
+      (rel) => candidateIdSet.has(rel.target_note_id) && rel.confidence >= MIN_CONFIDENCE,
+    )
+    .slice(0, MAX_RELATIONS);
 
-  for (const rel of rawRelations) {
-    if (!candidateIdSet.has(rel.target_note_id)) continue;
-    if (rel.confidence < MIN_CONFIDENCE) continue;
-    if (validRelations.length >= MAX_RELATIONS) break;
+  if (filteredRelations.length > 0) {
+    withTransaction(db, () => {
+      for (const relation of filteredRelations) {
+        db.run(
+          `INSERT OR IGNORE INTO note_relations
+            (source_note_id, target_note_id, relation_type, confidence, description, created_by)
+           VALUES (?, ?, ?, ?, ?, 'llm')`,
+          [
+            noteId,
+            relation.target_note_id,
+            relation.relation_type,
+            Math.round(relation.confidence * 100) / 100,
+            relation.description,
+          ],
+        );
 
-    // Insert into DB
-    try {
-      db.run(
-        `INSERT OR IGNORE INTO note_relations
-          (source_note_id, target_note_id, relation_type, confidence, description, created_by)
-         VALUES (?, ?, ?, ?, ?, 'llm')`,
-        [noteId, rel.target_note_id, rel.relation_type, Math.round(rel.confidence * 100) / 100, rel.description],
-      );
+        if (db.getRowsModified() === 0) {
+          continue;
+        }
 
-      validRelations.push({
-        id: 0,
-        source_note_id: noteId,
-        target_note_id: rel.target_note_id,
-        relation_type: rel.relation_type,
-        confidence: rel.confidence,
-        description: rel.description,
-        created_by: 'llm',
-        created_at: new Date().toISOString(),
-      });
-    } catch {
-      // UNIQUE constraint violation — relation already exists, skip
+        validRelations.push({
+          id: 0,
+          source_note_id: noteId,
+          target_note_id: relation.target_note_id,
+          relation_type: relation.relation_type,
+          confidence: relation.confidence,
+          description: relation.description,
+          created_by: 'llm',
+          created_at: new Date().toISOString(),
+        });
+      }
+    });
+
+    if (validRelations.length > 0) {
+      saveDatabase();
     }
-  }
-
-  if (validRelations.length > 0) {
-    saveDatabase();
   }
 
   console.log(`[Relations] Discovered ${validRelations.length} relations for note ${noteId}`);
@@ -229,35 +240,36 @@ export function createRelation(
   }
 
   const db = getDatabase();
+  const relation = withTransaction(db, () => {
+    const check = db.exec(
+      'SELECT COUNT(*) FROM notes WHERE id IN (?, ?)',
+      [sourceNoteId, targetNoteId],
+    );
+    if (Number(check[0]?.values[0]?.[0]) < 2) {
+      throw new Error('One or both notes not found');
+    }
 
-  // Verify both notes exist
-  const check = db.exec(
-    'SELECT COUNT(*) FROM notes WHERE id IN (?, ?)',
-    [sourceNoteId, targetNoteId],
-  );
-  if (Number(check[0]?.values[0]?.[0]) < 2) {
-    throw new Error('One or both notes not found');
-  }
+    db.run(
+      `INSERT INTO note_relations
+        (source_note_id, target_note_id, relation_type, confidence, description, created_by)
+       VALUES (?, ?, ?, 1.0, ?, 'manual')`,
+      [sourceNoteId, targetNoteId, relationType, description || null],
+    );
 
-  db.run(
-    `INSERT INTO note_relations
-      (source_note_id, target_note_id, relation_type, confidence, description, created_by)
-     VALUES (?, ?, ?, 1.0, ?, 'manual')`,
-    [sourceNoteId, targetNoteId, relationType, description || null],
-  );
+    const result = db.exec(
+      `SELECT r.*, sn.title as source_title, tn.title as target_title
+       FROM note_relations r
+       JOIN notes sn ON sn.id = r.source_note_id
+       JOIN notes tn ON tn.id = r.target_note_id
+       WHERE r.source_note_id = ? AND r.target_note_id = ? AND r.relation_type = ?`,
+      [sourceNoteId, targetNoteId, relationType],
+    );
+
+    return resultToObjects(result)[0] as unknown as NoteRelation;
+  });
 
   saveDatabase();
-
-  // Fetch the inserted relation
-  const result = db.exec(
-    `SELECT r.*, sn.title as source_title, tn.title as target_title
-     FROM note_relations r
-     JOIN notes sn ON sn.id = r.source_note_id
-     JOIN notes tn ON tn.id = r.target_note_id
-     WHERE r.source_note_id = ? AND r.target_note_id = ? AND r.relation_type = ?`,
-    [sourceNoteId, targetNoteId, relationType],
-  );
-  return resultToObjects(result)[0] as unknown as NoteRelation;
+  return relation;
 }
 
 /**

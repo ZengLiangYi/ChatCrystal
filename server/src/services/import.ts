@@ -1,6 +1,7 @@
 import type { ConversationMeta, ParsedConversation } from "@chatcrystal/shared";
 import { appConfig } from "../config.js";
 import { getDatabase, saveDatabase } from "../db/index.js";
+import { withTransaction } from "../db/transaction.js";
 import { getAdapter, getAllAdapters } from "../parser/index.js";
 
 export interface ImportProgress {
@@ -68,8 +69,6 @@ export async function importAll(
 					progress.skipped++;
 					continue;
 				}
-				// File changed — delete old data and re-import
-				db.run(`DELETE FROM conversations WHERE id = ?`, [meta.id]);
 			}
 
 			// Parse the conversation
@@ -87,19 +86,21 @@ export async function importAll(
 				continue;
 			}
 
-			// Insert conversation
-			insertConversation(db, parsed, meta);
+			withTransaction(db, () => {
+				if (existing.length > 0 && existing[0].values.length > 0) {
+					db.run(`DELETE FROM conversations WHERE id = ?`, [meta.id]);
+				}
 
-			// Insert messages
-			insertMessages(db, parsed);
+				insertConversation(db, parsed, meta);
+				insertMessages(db, parsed);
+
+				db.run(
+					`INSERT INTO import_log (file_path, status, message) VALUES (?, 'success', ?)`,
+					[meta.filePath, `Imported ${parsed.messages.length} messages`],
+				);
+			});
 
 			progress.imported++;
-
-			// Log import
-			db.run(
-				`INSERT INTO import_log (file_path, status, message) VALUES (?, 'success', ?)`,
-				[meta.filePath, `Imported ${parsed.messages.length} messages`],
-			);
 		} catch (err) {
 			progress.errors++;
 			const errorMsg = err instanceof Error ? err.message : "Unknown error";
