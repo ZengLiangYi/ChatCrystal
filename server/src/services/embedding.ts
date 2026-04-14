@@ -84,6 +84,83 @@ type NoteChunkMeta = Record<string, string | number> & {
   projectName: string;
 };
 
+type SemanticSearchHit = {
+  item: {
+    metadata: NoteChunkMeta;
+  };
+  score: number;
+};
+
+type DirectSearchHit = {
+  noteId: number;
+  conversationId: string;
+  title: string;
+  projectName: string;
+  score: number;
+  chunkText: string;
+  viaRelation?: string;
+};
+
+type DatabaseLike = ReturnType<typeof getDatabase>;
+
+export async function committedVectraIdsForNote(index: LocalIndex, noteId: number): Promise<string[]> {
+  const items = await index.listItemsByMetadata({ noteId });
+  return items.map((item) => item.id);
+}
+
+export async function currentVectraIdsCommitted(index: LocalIndex, vectraIds: string[]): Promise<boolean> {
+  if (vectraIds.length === 0) {
+    return false;
+  }
+
+  for (const vectraId of vectraIds) {
+    if (!(await index.getItem(vectraId))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export async function materializeDirectSearchHits(
+  db: Pick<DatabaseLike, 'exec'>,
+  results: SemanticSearchHit[],
+): Promise<DirectSearchHit[]> {
+  const materialized: DirectSearchHit[] = [];
+
+  for (const result of results) {
+    const chunkResult = db.exec(
+      `SELECT e.chunk_text
+       FROM embeddings e
+       JOIN notes n ON n.id = e.note_id
+       WHERE e.note_id = ? AND e.chunk_index = ? AND n.embedding_status = 'done'`,
+      [result.item.metadata.noteId, result.item.metadata.chunkIndex],
+    );
+    if (!chunkResult.length || !chunkResult[0].values.length) {
+      continue;
+    }
+
+    materialized.push({
+      noteId: result.item.metadata.noteId,
+      conversationId: result.item.metadata.conversationId,
+      title: result.item.metadata.title,
+      projectName: result.item.metadata.projectName,
+      score: result.score,
+      chunkText: String(chunkResult[0].values[0][0]),
+      viaRelation: undefined,
+    });
+  }
+
+  const seen = new Map<number, DirectSearchHit>();
+  for (const result of materialized) {
+    if (!seen.has(result.noteId) || seen.get(result.noteId)!.score < result.score) {
+      seen.set(result.noteId, result);
+    }
+  }
+
+  return Array.from(seen.values());
+}
+
 /**
  * Generate embeddings for a note and store in vectra index + DB.
  */
@@ -161,12 +238,25 @@ export async function generateEmbeddings(noteId: number): Promise<number> {
     'SELECT vectra_id FROM embeddings WHERE note_id = ?',
     [noteId],
   );
-  const index = await getIndex();
-  const oldVectraIds = existingResult.length > 0
+  const currentDbVectraIds = existingResult.length > 0
     ? existingResult[0].values
       .map((row) => row[0] as string | null)
       .filter((vectraId): vectraId is string => Boolean(vectraId))
     : [];
+  const noteStatusResult = db.exec(
+    'SELECT embedding_status FROM notes WHERE id = ?',
+    [noteId],
+  );
+  const noteStatus = String(noteStatusResult[0]?.values[0]?.[0] ?? 'pending');
+  const index = await getIndex();
+
+  if (noteStatus === 'syncing' && await currentVectraIdsCommitted(index, currentDbVectraIds)) {
+    db.run("UPDATE notes SET embedding_status = 'done' WHERE id = ?", [noteId]);
+    saveDatabase();
+    return chunks.length;
+  }
+
+  const oldVectraIds = await committedVectraIdsForNote(index, noteId);
 
   let updateOpen = false;
   let dbSwapped = false;
@@ -260,37 +350,8 @@ export async function semanticSearch(
   const results = await index.queryItems<NoteChunkMeta>(embedding, query, topK);
 
   // Deduplicate by noteId, keeping highest score
-  const seen = new Map<number, (typeof results)[0]>();
-  for (const r of results) {
-    const noteId = r.item.metadata.noteId;
-    if (!seen.has(noteId) || seen.get(noteId)!.score < r.score) {
-      seen.set(noteId, r);
-    }
-  }
-
   const db = getDatabase();
-  const directResults = Array.from(seen.values()).flatMap((result) => {
-    const chunkResult = db.exec(
-      `SELECT e.chunk_text
-       FROM embeddings e
-       JOIN notes n ON n.id = e.note_id
-       WHERE e.note_id = ? AND e.chunk_index = ? AND n.embedding_status = 'done'`,
-      [result.item.metadata.noteId, result.item.metadata.chunkIndex],
-    );
-    if (!chunkResult.length || !chunkResult[0].values.length) {
-      return [];
-    }
-
-    return [{
-      noteId: result.item.metadata.noteId,
-      conversationId: result.item.metadata.conversationId,
-      title: result.item.metadata.title,
-      projectName: result.item.metadata.projectName,
-      score: result.score,
-      chunkText: String(chunkResult[0].values[0][0]),
-      viaRelation: undefined as string | undefined,
-    }];
-  });
+  const directResults = await materializeDirectSearchHits(db, results);
 
   if (!expandRelations || directResults.length === 0) {
     return directResults;
