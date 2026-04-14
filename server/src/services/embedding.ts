@@ -1,7 +1,9 @@
 import { embed } from 'ai';
 import { LocalIndex } from 'vectra';
+import { existsSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { getDatabase, saveDatabase } from '../db/index.js';
+import { withTransaction } from '../db/transaction.js';
 import { resultToObjects } from '../db/utils.js';
 import { appConfig } from '../config.js';
 import { getProvider } from './providers.js';
@@ -34,6 +36,13 @@ async function getIndex(): Promise<LocalIndex> {
     await _index.createIndex();
   }
   return _index;
+}
+
+export function clearEmbeddingIndex(): void {
+  _index = null;
+  if (existsSync(INDEX_PATH)) {
+    rmSync(INDEX_PATH, { recursive: true, force: true });
+  }
 }
 
 // =============================================
@@ -132,52 +141,102 @@ export async function generateEmbeddings(noteId: number): Promise<number> {
   // Chunk the text
   const chunks = chunkText(fullText);
 
-  // Delete existing embeddings for this note
+  const embeddings = chunks.map((chunkText, chunkIndex) => ({
+    chunkIndex,
+    chunkText,
+  }));
+
+  const model = getEmbeddingModel();
+  const vectors: { chunkIndex: number; chunkText: string; vector: number[] }[] = [];
+  for (const chunk of embeddings) {
+    const { embedding } = await embed({ model, value: chunk.chunkText });
+    vectors.push({
+      chunkIndex: chunk.chunkIndex,
+      chunkText: chunk.chunkText,
+      vector: embedding,
+    });
+  }
+
   const existingResult = db.exec(
     'SELECT vectra_id FROM embeddings WHERE note_id = ?',
     [noteId],
   );
-  if (existingResult.length > 0) {
-    const index = await getIndex();
-    for (const row of existingResult[0].values) {
-      const vectraId = row[0] as string;
-      if (vectraId) {
-        try { await index.deleteItem(vectraId); } catch { /* ignore */ }
+  const index = await getIndex();
+  const oldVectraIds = existingResult.length > 0
+    ? existingResult[0].values
+      .map((row) => row[0] as string | null)
+      .filter((vectraId): vectraId is string => Boolean(vectraId))
+    : [];
+
+  let updateOpen = false;
+  let dbSwapped = false;
+
+  try {
+    await index.beginUpdate();
+    updateOpen = true;
+
+    const newItems: { chunkIndex: number; chunkText: string; vectraId: string }[] = [];
+    for (const chunk of vectors) {
+      const item = await index.insertItem({
+        vector: chunk.vector,
+        metadata: {
+          noteId: id,
+          chunkIndex: chunk.chunkIndex,
+          conversationId,
+          title,
+          projectName,
+        } as NoteChunkMeta,
+      });
+
+      newItems.push({
+        chunkIndex: chunk.chunkIndex,
+        chunkText: chunk.chunkText,
+        vectraId: item.id,
+      });
+    }
+
+    withTransaction(db, () => {
+      db.run('DELETE FROM embeddings WHERE note_id = ?', [noteId]);
+
+      for (const item of newItems) {
+        db.run(
+          `INSERT INTO embeddings (note_id, chunk_index, chunk_text, vectra_id)
+           VALUES (?, ?, ?, ?)`,
+          [noteId, item.chunkIndex, item.chunkText, item.vectraId],
+        );
+      }
+
+      db.run("UPDATE notes SET embedding_status = 'syncing' WHERE id = ?", [noteId]);
+    });
+    dbSwapped = true;
+    saveDatabase();
+
+    for (const vectraId of oldVectraIds) {
+      await index.deleteItem(vectraId);
+    }
+
+    await index.endUpdate();
+    updateOpen = false;
+
+    db.run("UPDATE notes SET embedding_status = 'done' WHERE id = ?", [noteId]);
+    saveDatabase();
+    return chunks.length;
+  } catch (error) {
+    if (updateOpen) {
+      try {
+        index.cancelUpdate();
+      } catch {
+        // Ignore cancel failures and prefer surfacing the original error.
       }
     }
-    db.run('DELETE FROM embeddings WHERE note_id = ?', [noteId]);
+
+    if (dbSwapped) {
+      db.run("UPDATE notes SET embedding_status = 'failed' WHERE id = ?", [noteId]);
+      saveDatabase();
+    }
+
+    throw error;
   }
-
-  const index = await getIndex();
-  const model = getEmbeddingModel();
-
-  // Generate embeddings and insert
-  for (let i = 0; i < chunks.length; i++) {
-    const { embedding } = await embed({ model, value: chunks[i] });
-
-    const item = await index.insertItem({
-      vector: embedding,
-      metadata: {
-        noteId: id,
-        chunkIndex: i,
-        conversationId,
-        title,
-        projectName,
-      } as NoteChunkMeta,
-    });
-
-    db.run(
-      `INSERT INTO embeddings (note_id, chunk_index, chunk_text, vectra_id)
-       VALUES (?, ?, ?, ?)`,
-      [noteId, i, chunks[i], item.id],
-    );
-  }
-
-  // Mark embedding as done
-  db.run("UPDATE notes SET embedding_status = 'done' WHERE id = ?", [noteId]);
-
-  saveDatabase();
-  return chunks.length;
 }
 
 /**
@@ -210,22 +269,27 @@ export async function semanticSearch(
   }
 
   const db = getDatabase();
-  const directResults = Array.from(seen.values()).map((r) => {
+  const directResults = Array.from(seen.values()).flatMap((result) => {
     const chunkResult = db.exec(
-      'SELECT chunk_text FROM embeddings WHERE note_id = ? AND chunk_index = ?',
-      [r.item.metadata.noteId, r.item.metadata.chunkIndex],
+      `SELECT e.chunk_text
+       FROM embeddings e
+       JOIN notes n ON n.id = e.note_id
+       WHERE e.note_id = ? AND e.chunk_index = ? AND n.embedding_status = 'done'`,
+      [result.item.metadata.noteId, result.item.metadata.chunkIndex],
     );
-    const chunkText = (chunkResult[0]?.values[0]?.[0] as string) || '';
+    if (!chunkResult.length || !chunkResult[0].values.length) {
+      return [];
+    }
 
-    return {
-      noteId: r.item.metadata.noteId,
-      conversationId: r.item.metadata.conversationId,
-      title: r.item.metadata.title,
-      projectName: r.item.metadata.projectName,
-      score: r.score,
-      chunkText,
+    return [{
+      noteId: result.item.metadata.noteId,
+      conversationId: result.item.metadata.conversationId,
+      title: result.item.metadata.title,
+      projectName: result.item.metadata.projectName,
+      score: result.score,
+      chunkText: String(chunkResult[0].values[0][0]),
       viaRelation: undefined as string | undefined,
-    };
+    }];
   });
 
   if (!expandRelations || directResults.length === 0) {
@@ -254,7 +318,7 @@ export async function semanticSearch(
       const noteInfo = db.exec(
         `SELECT n.id, n.conversation_id, n.title, c.project_name
          FROM notes n JOIN conversations c ON c.id = n.conversation_id
-         WHERE n.id = ?`,
+         WHERE n.id = ? AND n.embedding_status = 'done'`,
         [linkedId],
       );
       if (!noteInfo.length || !noteInfo[0].values.length) continue;

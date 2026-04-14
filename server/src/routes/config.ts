@@ -2,7 +2,9 @@ import { generateText, embed } from "ai";
 import type { FastifyInstance } from "fastify";
 import { appConfig, updateConfig } from "../config.js";
 import { getDatabase, saveDatabase } from "../db/index.js";
+import { withTransaction } from "../db/transaction.js";
 import { taskTracker } from "../queue/index.js";
+import { clearEmbeddingIndex } from "../services/embedding.js";
 import { getLanguageModel } from "../services/llm.js";
 import { getProvider, listProviders } from "../services/providers.js";
 
@@ -89,15 +91,12 @@ export async function configRoutes(app: FastifyInstance) {
 
 			if (changed) {
 				const db = getDatabase();
-				db.run("DELETE FROM embeddings");
+				withTransaction(db, () => {
+					db.run("DELETE FROM embeddings");
+					db.run("UPDATE notes SET embedding_status = 'pending'");
+				});
 				saveDatabase();
-				// Clear vectra index
-				const { resolve } = await import("node:path");
-				const { rmSync, existsSync } = await import("node:fs");
-				const indexPath = resolve(appConfig.dataDir, "vectra-index");
-				if (existsSync(indexPath)) {
-					rmSync(indexPath, { recursive: true, force: true });
-				}
+				clearEmbeddingIndex();
 				console.log(
 					"[Config] Cleared embeddings and vectra index due to model change",
 				);

@@ -253,26 +253,39 @@ export async function noteRoutes(app: FastifyInstance) {
     try {
       const results = await semanticSearch(q, Math.min(Number(limit), 50), expand === 'true');
 
-      // Enrich results with tags from DB
+      // Enrich results with tags from DB (batch query)
       const db = getDatabase();
-      const enriched = results.map((r) => {
+      const noteIds = results.map((result) => result.noteId);
+      const tagMap = new Map<number, string[]>();
+
+      if (noteIds.length > 0) {
+        const placeholders = noteIds.map(() => '?').join(',');
         const tagResult = db.exec(
-          `SELECT GROUP_CONCAT(t.name) as tags_csv
+          `SELECT nt.note_id, GROUP_CONCAT(t.name) as tags_csv
            FROM note_tags nt JOIN tags t ON t.id = nt.tag_id
-           WHERE nt.note_id = ?`,
-          [r.noteId],
+           WHERE nt.note_id IN (${placeholders})
+           GROUP BY nt.note_id`,
+          noteIds,
         );
-        const tagsCsv = tagResult[0]?.values[0]?.[0] as string | null;
-        return {
-          note_id: r.noteId,
-          conversation_id: r.conversationId,
-          title: r.title,
-          project_name: r.projectName,
-          score: Math.round(r.score * 1000) / 1000,
-          tags: tagsCsv ? tagsCsv.split(',') : [],
-          via_relation: r.viaRelation || null,
-        };
-      });
+
+        if (tagResult.length > 0) {
+          for (const row of tagResult[0].values) {
+            const noteId = Number(row[0]);
+            const tagsCsv = row[1] as string | null;
+            tagMap.set(noteId, tagsCsv ? tagsCsv.split(',') : []);
+          }
+        }
+      }
+
+      const enriched = results.map((result) => ({
+        note_id: result.noteId,
+        conversation_id: result.conversationId,
+        title: result.title,
+        project_name: result.projectName,
+        score: Math.round(result.score * 1000) / 1000,
+        tags: tagMap.get(result.noteId) ?? [],
+        via_relation: result.viaRelation || null,
+      }));
 
       return { success: true, data: enriched };
     } catch (err) {
@@ -300,7 +313,7 @@ export async function noteRoutes(app: FastifyInstance) {
     const db = getDatabase();
     const result = db.exec(
       `SELECT n.id FROM notes n
-       WHERE n.embedding_status IN ('pending', 'failed')`,
+       WHERE n.embedding_status IN ('pending', 'failed', 'syncing')`,
     );
     if (!result.length || !result[0].values.length) {
       return { success: true, data: { queued: 0 } };
