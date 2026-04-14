@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { getDatabase } from '../db/index.js';
 import { resultToObjects } from '../db/utils.js';
 import { triggerSummarize, getUnsummarizedIds } from '../services/summarize.js';
-import { enqueueWithRetry, getQueueStatus, cancelQueue } from '../queue/index.js';
+import { enqueueWithRetry, getQueueStatus, cancelQueue, taskTracker } from '../queue/index.js';
 import { generateEmbeddings, semanticSearch } from '../services/embedding.js';
 
 function hydrateNote(row: Record<string, unknown>): Record<string, unknown> {
@@ -320,12 +320,15 @@ export async function noteRoutes(app: FastifyInstance) {
     }
 
     const noteIds = result[0].values.map((r) => Number(r[0]));
-    for (const noteId of noteIds) {
-      enqueueWithRetry(`embed-${noteId}`, `Embedding #${noteId}`, () => generateEmbeddings(noteId)).catch((err) => {
+    const queueableIds = noteIds.filter((noteId) => !taskTracker.isTaskActive(`embed-${noteId}`));
+
+    for (const noteId of queueableIds) {
+      const taskId = `embed-${noteId}`;
+      enqueueWithRetry(taskId, `Embedding #${noteId}`, () => generateEmbeddings(noteId)).catch((err) => {
         console.error(`[Embedding] Error for note ${noteId}:`, err instanceof Error ? err.message : err);
       });
     }
 
-    return { success: true, data: { queued: noteIds.length, queue: getQueueStatus() } };
+    return { success: true, data: { queued: queueableIds.length, queue: getQueueStatus() } };
   });
 }
