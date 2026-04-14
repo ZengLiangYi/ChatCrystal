@@ -102,6 +102,7 @@ type DirectSearchHit = {
 };
 
 type DatabaseLike = ReturnType<typeof getDatabase>;
+type DatabaseRunner = Pick<DatabaseLike, 'run'>;
 
 export async function committedVectraIdsForNote(index: LocalIndex, noteId: number): Promise<string[]> {
   const items = await index.listItemsByMetadata({ noteId });
@@ -119,6 +120,27 @@ export async function currentVectraIdsCommitted(index: LocalIndex, vectraIds: st
     }
   }
 
+  return true;
+}
+
+export async function maybeFinalizeCommittedSyncingNote(
+  db: DatabaseRunner,
+  index: LocalIndex,
+  noteId: number,
+  noteStatus: string,
+  currentDbVectraIds: string[],
+  save: () => void = saveDatabase,
+): Promise<boolean> {
+  if (noteStatus !== 'syncing') {
+    return false;
+  }
+
+  if (!(await currentVectraIdsCommitted(index, currentDbVectraIds))) {
+    return false;
+  }
+
+  db.run("UPDATE notes SET embedding_status = 'done' WHERE id = ?", [noteId]);
+  save();
   return true;
 }
 
@@ -223,17 +245,6 @@ export async function generateEmbeddings(noteId: number): Promise<number> {
     chunkText,
   }));
 
-  const model = getEmbeddingModel();
-  const vectors: { chunkIndex: number; chunkText: string; vector: number[] }[] = [];
-  for (const chunk of embeddings) {
-    const { embedding } = await embed({ model, value: chunk.chunkText });
-    vectors.push({
-      chunkIndex: chunk.chunkIndex,
-      chunkText: chunk.chunkText,
-      vector: embedding,
-    });
-  }
-
   const existingResult = db.exec(
     'SELECT vectra_id FROM embeddings WHERE note_id = ?',
     [noteId],
@@ -250,10 +261,19 @@ export async function generateEmbeddings(noteId: number): Promise<number> {
   const noteStatus = String(noteStatusResult[0]?.values[0]?.[0] ?? 'pending');
   const index = await getIndex();
 
-  if (noteStatus === 'syncing' && await currentVectraIdsCommitted(index, currentDbVectraIds)) {
-    db.run("UPDATE notes SET embedding_status = 'done' WHERE id = ?", [noteId]);
-    saveDatabase();
+  if (await maybeFinalizeCommittedSyncingNote(db, index, noteId, noteStatus, currentDbVectraIds)) {
     return chunks.length;
+  }
+
+  const model = getEmbeddingModel();
+  const vectors: { chunkIndex: number; chunkText: string; vector: number[] }[] = [];
+  for (const chunk of embeddings) {
+    const { embedding } = await embed({ model, value: chunk.chunkText });
+    vectors.push({
+      chunkIndex: chunk.chunkIndex,
+      chunkText: chunk.chunkText,
+      vector: embedding,
+    });
   }
 
   const oldVectraIds = await committedVectraIdsForNote(index, noteId);

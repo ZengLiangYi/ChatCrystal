@@ -7,6 +7,7 @@ import { LocalIndex } from 'vectra';
 import {
   committedVectraIdsForNote,
   currentVectraIdsCommitted,
+  maybeFinalizeCommittedSyncingNote,
   materializeDirectSearchHits,
 } from './embedding.js';
 
@@ -87,6 +88,51 @@ test('currentVectraIdsCommitted returns true only when every id is committed', a
 
     assert.equal(await currentVectraIdsCommitted(index, [first.id, second.id]), true);
     assert.equal(await currentVectraIdsCommitted(index, [first.id, 'missing-id']), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('syncing note with committed ids can finalize without re-embedding', async () => {
+  const dir = createTempDir();
+  const index = new LocalIndex(join(dir, 'vectra-index'));
+  let updatedNoteId: number | null = null;
+  let saveCount = 0;
+
+  try {
+    await index.createIndex();
+
+    const first = await index.insertItem({
+      vector: [1, 0, 0],
+      metadata: { noteId: 15, chunkIndex: 0, conversationId: 'conv-e', title: 'E', projectName: 'P' },
+    });
+    const second = await index.insertItem({
+      vector: [0, 1, 0],
+      metadata: { noteId: 15, chunkIndex: 1, conversationId: 'conv-e', title: 'E', projectName: 'P' },
+    });
+
+    const finalized = await maybeFinalizeCommittedSyncingNote(
+      {
+        run(sql: string, params?: unknown[]) {
+          if (sql === "UPDATE notes SET embedding_status = 'done' WHERE id = ?") {
+            updatedNoteId = Number(params?.[0]);
+            return;
+          }
+          throw new Error(`Unexpected SQL: ${sql}`);
+        },
+      } as never,
+      index,
+      15,
+      'syncing',
+      [first.id, second.id],
+      () => {
+        saveCount += 1;
+      },
+    );
+
+    assert.equal(finalized, true);
+    assert.equal(updatedNoteId, 15);
+    assert.equal(saveCount, 1);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
