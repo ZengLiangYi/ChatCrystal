@@ -6,6 +6,8 @@ import { getLanguageModel } from './llm.js';
 import { prepareTranscript } from './transcript.js';
 import { generateEmbeddings } from './embedding.js';
 import { discoverRelations } from './relations.js';
+import { mapConversationSourceToAgent } from './memory/backfill.js';
+import { deriveProjectKey, resolveProjectIdentity } from './memory/projectKey.js';
 
 // =============================================
 // Schema
@@ -92,12 +94,23 @@ async function summarizeConversation(conversationId: string): Promise<SummarizeR
 
 function saveNote(conversationId: string, result: SummarizeResult): number {
   const db = getDatabase();
+  const convMeta = db.exec(
+    'SELECT source, project_dir, project_name, cwd, git_branch FROM conversations WHERE id = ?',
+    [conversationId],
+  );
+  const [source, projectDir, _projectName, cwd, _gitBranch] = convMeta[0]
+    .values[0] as [string, string, string, string | null, string | null];
+  const projectIdentity = resolveProjectIdentity({ projectDir, cwd });
+  const projectKey = deriveProjectKey(projectIdentity);
 
   const noteId = withTransaction(db, () => {
+    // Imported summaries do not infer task_kind/outcome_type; those remain NULL until
+    // an explicit memory writeback supplies stronger semantics.
     db.run(
       `INSERT OR REPLACE INTO notes
-        (conversation_id, title, summary, key_conclusions, code_snippets, raw_llm_response, is_edited)
-       VALUES (?, ?, ?, ?, ?, ?, 0)`,
+        (conversation_id, title, summary, key_conclusions, code_snippets, raw_llm_response, is_edited,
+         project_key, scope, source_type, source_agent, task_kind, outcome_type)
+       VALUES (?, ?, ?, ?, ?, ?, 0, ?, 'project', 'imported-conversation', ?, NULL, NULL)`,
       [
         conversationId,
         result.title,
@@ -105,6 +118,8 @@ function saveNote(conversationId: string, result: SummarizeResult): number {
         JSON.stringify(result.key_conclusions),
         JSON.stringify(result.code_snippets),
         result.raw_response,
+        projectKey,
+        mapConversationSourceToAgent(source),
       ],
     );
 

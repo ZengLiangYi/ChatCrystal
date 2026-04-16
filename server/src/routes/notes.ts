@@ -10,6 +10,8 @@ function hydrateNote(row: Record<string, unknown>): Record<string, unknown> {
     ...row,
     key_conclusions: row.key_conclusions ? JSON.parse(row.key_conclusions as string) : [],
     code_snippets: row.code_snippets ? JSON.parse(row.code_snippets as string) : [],
+    error_signatures: row.error_signatures ? JSON.parse(row.error_signatures as string) : [],
+    files_touched: row.files_touched ? JSON.parse(row.files_touched as string) : [],
     tags: row.tags_csv ? (row.tags_csv as string).split(',') : [],
     is_edited: Boolean(row.is_edited),
   };

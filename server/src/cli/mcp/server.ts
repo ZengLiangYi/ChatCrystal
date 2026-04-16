@@ -2,6 +2,10 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { CrystalClient } from '../client.js';
+import {
+  RecallForTaskRequestShape,
+  WriteTaskMemoryRequestShape,
+} from '../../services/memory/schemas.js';
 
 export async function startMcpServer(baseUrl: string) {
   const client = new CrystalClient(baseUrl);
@@ -82,6 +86,36 @@ export async function startMcpServer(baseUrl: string) {
         content: [{
           type: 'text' as const,
           text: JSON.stringify(relations, null, 2),
+        }],
+      };
+    },
+  );
+
+  server.tool(
+    'recall_for_task',
+    'Recall project-first and global-supplement memories for a task.',
+    RecallForTaskRequestShape,
+    async (input) => {
+      const data = await client.recallForTask(input);
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify(data, null, 2),
+        }],
+      };
+    },
+  );
+
+  server.tool(
+    'write_task_memory',
+    'Persist a task memory with idempotent auto-writeback semantics.',
+    WriteTaskMemoryRequestShape,
+    async (input) => {
+      const data = await client.writeTaskMemory(input);
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify(data, null, 2),
         }],
       };
     },
