@@ -94,6 +94,21 @@
   padding: 4px 12px;
 }
 
+.cc-code-body {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  background: var(--code-bg);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-x: auto;
+}
+
+.cc-code-body code {
+  display: block;
+  white-space: pre;
+}
+
 .cc-code-lang {
   font-family: var(--font-mono);
   font-size: 11px;

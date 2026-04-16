@@ -1,16 +1,19 @@
+import { Suspense, lazy, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { ThemeProvider } from '@/providers/ThemeProvider.tsx';
 import '@/i18n';
 import { Layout } from '@/components/Layout.tsx';
-import { Dashboard } from '@/pages/Dashboard.tsx';
-import { Conversations } from '@/pages/Conversations.tsx';
-import { ConversationDetail } from '@/pages/ConversationDetail.tsx';
-import { Notes } from '@/pages/Notes.tsx';
-import { NoteDetail } from '@/pages/NoteDetail.tsx';
-import { SearchPage } from '@/pages/SearchPage.tsx';
-import { SettingsPage } from '@/pages/SettingsPage.tsx';
-import { RelationGraph } from '@/pages/RelationGraph.tsx';
+
+const DashboardPage = lazy(() => import('@/pages/Dashboard.tsx').then((module) => ({ default: module.Dashboard })));
+const ConversationsPage = lazy(() => import('@/pages/Conversations.tsx').then((module) => ({ default: module.Conversations })));
+const ConversationDetailPage = lazy(() => import('@/pages/ConversationDetail.tsx').then((module) => ({ default: module.ConversationDetail })));
+const NotesPage = lazy(() => import('@/pages/Notes.tsx').then((module) => ({ default: module.Notes })));
+const NoteDetailPage = lazy(() => import('@/pages/NoteDetail.tsx').then((module) => ({ default: module.NoteDetail })));
+const SearchPage = lazy(() => import('@/pages/SearchPage.tsx').then((module) => ({ default: module.SearchPage })));
+const RelationGraphPage = lazy(() => import('@/pages/RelationGraph.tsx').then((module) => ({ default: module.RelationGraph })));
+const SettingsPage = lazy(() => import('@/pages/SettingsPage.tsx').then((module) => ({ default: module.SettingsPage })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,6 +24,15 @@ const queryClient = new QueryClient({
   },
 });
 
+function RouteSuspense({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
+  return (
+    <Suspense fallback={<div className="p-6 text-muted">{t('status.loading')}</div>}>
+      {children}
+    </Suspense>
+  );
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -28,14 +40,14 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route element={<Layout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/conversations" element={<Conversations />} />
-              <Route path="/conversations/:id" element={<ConversationDetail />} />
-              <Route path="/notes" element={<Notes />} />
-              <Route path="/notes/:id" element={<NoteDetail />} />
-              <Route path="/search" element={<SearchPage />} />
-              <Route path="/graph" element={<RelationGraph />} />
-              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/" element={<RouteSuspense><DashboardPage /></RouteSuspense>} />
+              <Route path="/conversations" element={<RouteSuspense><ConversationsPage /></RouteSuspense>} />
+              <Route path="/conversations/:id" element={<RouteSuspense><ConversationDetailPage /></RouteSuspense>} />
+              <Route path="/notes" element={<RouteSuspense><NotesPage /></RouteSuspense>} />
+              <Route path="/notes/:id" element={<RouteSuspense><NoteDetailPage /></RouteSuspense>} />
+              <Route path="/search" element={<RouteSuspense><SearchPage /></RouteSuspense>} />
+              <Route path="/graph" element={<RouteSuspense><RelationGraphPage /></RouteSuspense>} />
+              <Route path="/settings" element={<RouteSuspense><SettingsPage /></RouteSuspense>} />
             </Route>
           </Routes>
         </BrowserRouter>
