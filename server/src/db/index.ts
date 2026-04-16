@@ -2,11 +2,20 @@ import initSqlJs, { type Database } from 'sql.js';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { appConfig } from '../config.js';
+import { backfillImportedNoteMetadata } from '../services/memory/backfill.js';
 import { SCHEMA_SQL } from './schema.js';
 
 let db: Database | null = null;
 
 const DB_PATH = resolve(appConfig.dataDir, 'chatcrystal.db');
+
+function ensureColumn(db: Database, table: string, column: string, sql: string) {
+  const info = db.exec(`PRAGMA table_info(${table})`);
+  const columns = info[0]?.values.map((row) => String(row[1])) ?? [];
+  if (!columns.includes(column)) {
+    db.run(sql);
+  }
+}
 
 export async function initDatabase(): Promise<Database> {
   if (db) return db;
@@ -38,16 +47,26 @@ export async function initDatabase(): Promise<Database> {
   // Run schema migration
   db.exec(SCHEMA_SQL);
 
-  // Migrate: add embedding_status column if missing (for existing DBs)
-  const colCheck = db.exec("PRAGMA table_info(notes)");
-  const columns = colCheck[0]?.values.map((row) => row[1] as string) ?? [];
-  if (!columns.includes('embedding_status')) {
-    db.run("ALTER TABLE notes ADD COLUMN embedding_status TEXT DEFAULT 'pending'");
-    // Mark notes that already have embeddings as done
-    db.run(`UPDATE notes SET embedding_status = 'done'
-            WHERE id IN (SELECT DISTINCT note_id FROM embeddings)`);
-    console.log('[DB] Migrated: added embedding_status column to notes');
-  }
+  ensureColumn(db, 'notes', 'embedding_status', "ALTER TABLE notes ADD COLUMN embedding_status TEXT DEFAULT 'pending'");
+  ensureColumn(db, 'notes', 'project_key', 'ALTER TABLE notes ADD COLUMN project_key TEXT');
+  ensureColumn(db, 'notes', 'scope', "ALTER TABLE notes ADD COLUMN scope TEXT DEFAULT 'project'");
+  ensureColumn(db, 'notes', 'source_type', "ALTER TABLE notes ADD COLUMN source_type TEXT DEFAULT 'imported-conversation'");
+  ensureColumn(db, 'notes', 'source_agent', "ALTER TABLE notes ADD COLUMN source_agent TEXT DEFAULT 'unknown'");
+  ensureColumn(db, 'notes', 'task_kind', 'ALTER TABLE notes ADD COLUMN task_kind TEXT');
+  ensureColumn(db, 'notes', 'error_signatures', 'ALTER TABLE notes ADD COLUMN error_signatures TEXT');
+  ensureColumn(db, 'notes', 'files_touched', 'ALTER TABLE notes ADD COLUMN files_touched TEXT');
+  ensureColumn(db, 'notes', 'outcome_type', 'ALTER TABLE notes ADD COLUMN outcome_type TEXT');
+  ensureColumn(
+    db,
+    'writeback_receipts',
+    'index_status',
+    "ALTER TABLE writeback_receipts ADD COLUMN index_status TEXT DEFAULT 'pending'",
+  );
+
+  // Mark notes that already have embeddings as done
+  db.run(`UPDATE notes SET embedding_status = 'done'
+          WHERE id IN (SELECT DISTINCT note_id FROM embeddings)`);
+  backfillImportedNoteMetadata(db);
 
   // Persist to disk
   saveDatabase();

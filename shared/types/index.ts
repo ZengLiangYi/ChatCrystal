@@ -54,6 +54,14 @@ export interface Note {
   code_snippets: CodeSnippet[];
   raw_llm_response: string | null;
   is_edited: boolean;
+  project_key?: string | null;
+  scope?: NoteScope | null;
+  source_type?: NoteSourceType | null;
+  source_agent?: SourceAgent | null;
+  task_kind?: TaskKind | null;
+  error_signatures?: string[];
+  files_touched?: string[];
+  outcome_type?: OutcomeType | null;
   created_at: string;
   updated_at: string;
   tags?: string[];
@@ -63,6 +71,121 @@ export interface CodeSnippet {
   language: string;
   code: string;
   description: string;
+}
+
+export type SourceAgent =
+  | 'codex'
+  | 'claude'
+  | 'copilot'
+  | 'cursor'
+  | 'trae'
+  | 'unknown';
+
+export type TaskKind =
+  | 'debug'
+  | 'implement'
+  | 'refactor'
+  | 'migration'
+  | 'config'
+  | 'investigate'
+  | 'optimization';
+
+export type OutcomeType =
+  | 'pitfall'
+  | 'fix'
+  | 'pattern'
+  | 'decision';
+
+export type NoteScope = 'project' | 'global';
+
+export type NoteSourceType =
+  | 'imported-conversation'
+  | 'agent-writeback'
+  | 'manual-note';
+
+export interface MemoryCodeSnippet {
+  language: string;
+  code: string;
+  description: string;
+}
+
+export interface MemoryTaskContext {
+  goal: string;
+  task_kind: TaskKind;
+  project_key?: string;
+  project_dir?: string;
+  cwd?: string;
+  branch?: string;
+  related_files?: string[];
+  files_touched?: string[];
+  error_signatures?: string[];
+  source_agent?: SourceAgent;
+}
+
+export interface RecallForTaskOptions {
+  project_limit?: number;
+  global_limit?: number;
+  include_relations?: boolean;
+}
+
+export interface RecallMemoryItem {
+  note_id: number;
+  title: string;
+  summary: string;
+  outcome_type?: OutcomeType;
+  pitfalls?: string[];
+  reusable_patterns?: string[];
+  related_note_ids?: number[];
+  score: number;
+  why_relevant: string;
+}
+
+export interface RecallForTaskRequest {
+  mode: 'task' | 'debug';
+  task: MemoryTaskContext;
+  options?: RecallForTaskOptions;
+}
+
+export interface RecallForTaskResponse {
+  mode: 'task' | 'debug';
+  project_key?: string;
+  reason: 'ok' | 'no-project-key' | 'no-matches';
+  warnings: string[];
+  project_memories: RecallMemoryItem[];
+  global_memories: RecallMemoryItem[];
+}
+
+export interface WriteTaskMemoryPayload {
+  title?: string;
+  summary: string;
+  outcome_type: OutcomeType;
+  pitfalls?: string[];
+  root_cause?: string;
+  resolution?: string;
+  reusable_patterns?: string[];
+  decisions?: string[];
+  key_conclusions?: string[];
+  code_snippets?: MemoryCodeSnippet[];
+  files_touched?: string[];
+  error_signatures?: string[];
+  tags?: string[];
+}
+
+export interface WriteTaskMemoryRequest {
+  mode: 'auto' | 'manual';
+  source_run_key?: string;
+  scope?: NoteScope;
+  task: MemoryTaskContext;
+  memory: WriteTaskMemoryPayload;
+}
+
+export interface WriteTaskMemoryResponse {
+  mode: 'auto' | 'manual';
+  decision: 'created' | 'merged' | 'skipped';
+  note_id: number | null;
+  merged_into_note_id: number | null;
+  reason: string;
+  warnings: string[];
 }
 
 // --- Tags ---

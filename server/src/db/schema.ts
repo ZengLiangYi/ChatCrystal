@@ -48,9 +48,38 @@ CREATE TABLE IF NOT EXISTS notes (
   raw_llm_response TEXT,
   is_edited INTEGER DEFAULT 0,
   embedding_status TEXT DEFAULT 'pending',
+  project_key TEXT,
+  scope TEXT DEFAULT 'project',
+  source_type TEXT DEFAULT 'imported-conversation',
+  source_agent TEXT DEFAULT 'unknown',
+  task_kind TEXT,
+  error_signatures TEXT,
+  files_touched TEXT,
+  outcome_type TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS writeback_receipts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_agent TEXT NOT NULL,
+  source_run_key TEXT NOT NULL,
+  decision TEXT NOT NULL,
+  note_id INTEGER,
+  merged_into_note_id INTEGER,
+  reason TEXT NOT NULL,
+  index_status TEXT NOT NULL DEFAULT 'pending',
+  created_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(source_agent, source_run_key),
+  FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE SET NULL,
+  FOREIGN KEY (merged_into_note_id) REFERENCES notes(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS project_key_aliases (
+  alias_key TEXT PRIMARY KEY,
+  canonical_key TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS tags (
@@ -90,8 +119,10 @@ CREATE INDEX IF NOT EXISTS idx_conversations_source ON conversations(source);
 CREATE INDEX IF NOT EXISTS idx_conversations_status ON conversations(status);
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_messages_type ON messages(type);
+CREATE INDEX IF NOT EXISTS idx_notes_project_key ON notes(project_key);
 CREATE INDEX IF NOT EXISTS idx_note_tags_tag ON note_tags(tag_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_note ON embeddings(note_id);
+CREATE INDEX IF NOT EXISTS idx_project_key_aliases_canonical ON project_key_aliases(canonical_key);
 
 CREATE TABLE IF NOT EXISTS note_relations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

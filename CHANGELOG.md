@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.4.6] - 2026-04-16
+
+### Memory Loop
+
+- **Task memory recall + writeback APIs** — Added `/api/memory/recall` and `/api/memory/writeback` with shared request/response contracts for project-first recall, global supplement recall, and agent/manual memory writeback.
+- **MCP memory tools** — Added `recall_for_task` and `write_task_memory` to the MCP server so external agents can retrieve and persist task memories through the same server-side contract.
+- **Conservative writeback semantics** — Automatic writeback now supports idempotent receipts, pending/completed indexing status, conservative merge decisions, and supplemental relations for strongly related memories.
+
+### Memory Metadata
+
+- **Project-scoped memory model** — Notes now store `project_key`, `scope`, `source_type`, `source_agent`, `task_kind`, `error_signatures`, `files_touched`, and `outcome_type`, with DB bootstrap/backfill for legacy imported notes.
+- **Synthetic memory origins** — Added synthetic origin conversations for writeback-created memories while hiding them from the default conversations list.
+- **Project identity stability** — Added canonical project-key derivation plus alias support so moved repos and upgraded project identifiers can still recall the same project memories.
+
+### Quality
+
+- **Coverage for memory services and routes** — Added regression tests across schemas, project-key derivation, recall, writeback, backfill, origin creation, decision logic, and HTTP route behavior.
+- **Real HTTP + MCP smoke coverage** — Verified the full writeback/recall loop through a real Fastify process and MCP stdio server with a mock embedding backend.
+
 ## [0.4.0] - 2026-04-10
 
 ### New Data Sources

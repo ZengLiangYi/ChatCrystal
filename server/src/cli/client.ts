@@ -2,6 +2,12 @@ import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { writeFileSync, readFileSync, existsSync, unlinkSync, openSync, mkdirSync } from 'node:fs';
+import type {
+  RecallForTaskRequest,
+  RecallForTaskResponse,
+  WriteTaskMemoryRequest,
+  WriteTaskMemoryResponse,
+} from '@chatcrystal/shared';
 
 function getDataDir(): string {
   if (import.meta.dirname.includes('node_modules')) {
@@ -301,6 +307,18 @@ export class CrystalClient {
       relation_type: string; confidence: number; description: string | null;
       source_title?: string; target_title?: string;
     }>>('GET', `/api/notes/${id}/relations`);
+  }
+
+  async recallForTask(body: RecallForTaskRequest) {
+    return this.request<RecallForTaskResponse>('POST', '/api/memory/recall', body);
+  }
+
+  async writeTaskMemory(body: WriteTaskMemoryRequest) {
+    return this.request<WriteTaskMemoryResponse>(
+      'POST',
+      '/api/memory/writeback',
+      body,
+    );
   }
 
   async listTags() {

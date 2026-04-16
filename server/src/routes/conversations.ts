@@ -15,7 +15,7 @@ export async function conversationRoutes(app: FastifyInstance) {
     } = req.query as Record<string, string>;
 
     const db = getDatabase();
-    const conditions: string[] = [];
+    const conditions: string[] = ["c.source != 'chatcrystal-memory'"];
     const params: (string | number)[] = [];
 
     if (source) {
@@ -109,4 +109,3 @@ export async function conversationRoutes(app: FastifyInstance) {
     return { success: true };
   });
 }
-
