@@ -19,6 +19,12 @@
 - **Coverage for memory services and routes** — Added regression tests across schemas, project-key derivation, recall, writeback, backfill, origin creation, decision logic, and HTTP route behavior.
 - **Real HTTP + MCP smoke coverage** — Verified the full writeback/recall loop through a real Fastify process and MCP stdio server with a mock embedding backend.
 
+### Client Performance
+
+- **Route-level lazy loading** — Switched the main client routes to lazy-loaded page bundles with a shared suspense fallback so the initial app payload is smaller.
+- **Relation graph canvas split** — Moved the force-graph implementation into a lazily loaded `RelationGraphCanvas` component so the graph runtime is only loaded when the graph page is opened.
+- **Lighter markdown code blocks** — Replaced `react-syntax-highlighter` with native `<pre><code>` rendering and removed the related client dependencies from the bundle.
+
 ## [0.4.0] - 2026-04-10
 
 ### New Data Sources
