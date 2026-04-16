@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import ForceGraph2D, { type ForceGraphMethods } from 'react-force-graph-2d';
 import { api } from '@/lib/api.ts';
+import type { GraphLink, GraphNode } from '@/components/RelationGraphCanvas.tsx';
+import type { ForceGraphMethods } from 'react-force-graph-2d';
 
 // =============================================
 // Constants
@@ -37,28 +38,11 @@ const PROJECT_COLORS = [
   '#06b6d4', '#eab308', '#ec4899', '#14b8a6', '#8b5cf6',
 ];
 
-// =============================================
-// Types for ForceGraph
-// =============================================
-
-interface GraphNode {
-  id: number;
-  title: string;
-  project_name: string;
-  tags: string[];
-  color: string;
-  val: number;
-  x?: number;
-  y?: number;
-}
-
-interface GraphLink {
-  source: number;
-  target: number;
-  type: string;
-  confidence: number;
-  color: string;
-}
+const RelationGraphCanvas = lazy(() =>
+  import('@/components/RelationGraphCanvas.tsx').then((module) => ({
+    default: module.RelationGraphCanvas,
+  })),
+);
 
 // =============================================
 // Component
@@ -259,27 +243,23 @@ export function RelationGraph() {
 
       {/* Graph */}
       <div className="flex-1 relative overflow-hidden">
-        <ForceGraph2D
-          ref={graphRef}
-          graphData={graphData}
-          nodeCanvasObject={paintNode}
-          linkCanvasObject={paintLink}
-          nodePointerAreaPaint={(node, color, ctx) => {
-            const radius = Math.sqrt(node.val) * 3 + 3;
-            ctx.beginPath();
-            ctx.arc(node.x!, node.y!, radius, 0, Math.PI * 2);
-            ctx.fillStyle = color;
-            ctx.fill();
-          }}
-          onNodeHover={(node) => setHoveredNode(node as GraphNode | null)}
-          onNodeClick={(node) => navigate(`/notes/${node.id}`)}
-          nodeLabel={() => ''} // We handle labels in paintNode
-          cooldownTicks={100}
-          warmupTicks={50}
-          d3AlphaDecay={0.02}
-          d3VelocityDecay={0.3}
-          backgroundColor="transparent"
-        />
+        <Suspense
+          fallback={
+            <div className="flex h-full items-center justify-center text-muted">
+              <Loader2 size={18} className="animate-spin mr-2" />
+              {isZh ? '加载图谱中...' : 'Loading graph...'}
+            </div>
+          }
+        >
+          <RelationGraphCanvas
+            graphRef={graphRef as never}
+            graphData={graphData}
+            paintNode={paintNode}
+            paintLink={paintLink}
+            onNodeHover={setHoveredNode}
+            onNodeClick={(node) => navigate(`/notes/${node.id}`)}
+          />
+        </Suspense>
 
         {/* Tooltip */}
         {hoveredNode && (
