@@ -144,6 +144,18 @@ MCP exposes 6 tools: read-only knowledge tools `search_knowledge`, `get_note`, `
 
 Formal portable ChatCrystal skills live under [`skills/`](skills/) and are documented in [`docs/agent-skills.md`](docs/agent-skills.md).
 
+### Memory Loop Architecture
+
+ChatCrystal's agent memory loop is split into three layers:
+
+- **ChatCrystal Core** — Local knowledge storage, retrieval, merge, and writeback
+- **MCP Layer** — Stable tools for knowledge lookup plus task recall and task writeback
+- **Skill Layer** — Portable skills that trigger recall before substantial work and writeback after meaningful work
+
+When Core is unavailable, the skills degrade safely: they continue helping with the task, but do not pretend memory was recalled or persisted.
+
+See [`docs/agent-skills.md`](docs/agent-skills.md) for installation, full mode, degraded mode, and publishing guidance.
+
 ## Tech Stack
 
 | Layer | Technology |

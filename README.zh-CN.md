@@ -130,6 +130,18 @@ MCP 暴露 6 个工具：只读知识工具 `search_knowledge`、`get_note`、`l
 
 正式可移植的 ChatCrystal skills 位于 [`skills/`](skills/)，安装与发布说明见 [`docs/agent-skills.md`](docs/agent-skills.md)。
 
+### Memory Loop 架构概览
+
+ChatCrystal 的 agent memory loop 分成三层：
+
+- **ChatCrystal Core** — 负责本地知识存储、检索、merge 与 writeback
+- **MCP Layer** — 暴露稳定工具接口，包括知识查询、task recall 与 task writeback
+- **Skill Layer** — 以可移植 skill 的形式，在开工前触发 recall、在任务完成后触发 writeback
+
+当 Core 不可用时，skill 会安全降级：继续帮助完成任务，但不会伪装成“已经完成记忆召回或持久化”。
+
+安装方式、full mode、degraded mode 和发布说明见 [`docs/agent-skills.md`](docs/agent-skills.md)。
+
 ## 技术栈
 
 | 层 | 技术 |
