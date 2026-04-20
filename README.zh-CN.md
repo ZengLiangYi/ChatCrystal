@@ -126,7 +126,9 @@ crystal mcp                             # 启动 MCP stdio 服务
 }
 ```
 
-MCP 暴露 4 个只读工具：`search_knowledge`、`get_note`、`list_notes`、`get_relations`。
+MCP 暴露 6 个工具：只读知识工具 `search_knowledge`、`get_note`、`list_notes`、`get_relations`，以及 memory loop 工具 `recall_for_task`、`write_task_memory`。
+
+正式可移植的 ChatCrystal skills 位于 [`skills/`](skills/)，安装与发布说明见 [`docs/agent-skills.md`](docs/agent-skills.md)。
 
 ## 技术栈
 

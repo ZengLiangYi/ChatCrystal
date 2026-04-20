@@ -66,8 +66,14 @@ CLAUDE.md
 .kiro/
 .agents/
 
-# Claude Code skills
-skills/
+# Formal published skills
+skills/*
+!skills/chatcrystal-task-recall/
+!skills/chatcrystal-task-recall/**
+!skills/chatcrystal-debug-recall/
+!skills/chatcrystal-debug-recall/**
+!skills/chatcrystal-task-writeback/
+!skills/chatcrystal-task-writeback/**
 skills-lock.json
 
 # Astro build cache

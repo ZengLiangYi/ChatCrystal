@@ -140,7 +140,9 @@ crystal mcp                             # Start MCP stdio server
 }
 ```
 
-MCP exposes 4 read-only tools: `search_knowledge`, `get_note`, `list_notes`, `get_relations`.
+MCP exposes 6 tools: read-only knowledge tools `search_knowledge`, `get_note`, `list_notes`, `get_relations`, plus memory-loop tools `recall_for_task` and `write_task_memory`.
+
+Formal portable ChatCrystal skills live under [`skills/`](skills/) and are documented in [`docs/agent-skills.md`](docs/agent-skills.md).
 
 ## Tech Stack
 
