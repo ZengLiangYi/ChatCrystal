@@ -30,6 +30,49 @@ Use this skill after meaningful work completes. Let ChatCrystal Core decide whet
    - `merged`
    - `skipped`
 
+## Example MCP Input
+
+Use this shape when calling `write_task_memory` after a completed task with a stable run key:
+
+```json
+{
+  "mode": "auto",
+  "source_run_key": "agent-session-or-run-id",
+  "scope": "project",
+  "task": {
+    "goal": "Fix MCP recall schema validation",
+    "task_kind": "debug",
+    "project_dir": "/path/to/project",
+    "cwd": "/path/to/project",
+    "branch": "fix/mcp-recall-schema",
+    "files_touched": [
+      "server/src/services/memory/schemas.ts",
+      "server/src/cli/mcp/server.ts"
+    ],
+    "error_signatures": [
+      "invalid_type",
+      "recall_for_task schema mismatch"
+    ],
+    "source_agent": "codex"
+  },
+  "memory": {
+    "summary": "MCP tool schemas must stay aligned with memory service request shapes; mismatches surface as validation failures before tool execution.",
+    "outcome_type": "fix",
+    "root_cause": "The MCP tool input shape diverged from the service schema.",
+    "resolution": "Reused the shared request shape in the MCP server registration.",
+    "files_touched": [
+      "server/src/services/memory/schemas.ts",
+      "server/src/cli/mcp/server.ts"
+    ],
+    "tags": [
+      "mcp",
+      "memory-loop",
+      "schema"
+    ]
+  }
+}
+```
+
 ## Full Mode
 
 Full mode requires ChatCrystal Core plus MCP access to `write_task_memory`.

@@ -27,6 +27,37 @@ Use this skill when the task is clearly about diagnosis or debugging. Keep the s
 4. Prioritize returned memories that explain root cause, remediation, or known pitfalls.
 5. Use recalled memories to sharpen diagnosis, not to skip verification in the current environment.
 
+## Example MCP Input
+
+Use this shape when calling `recall_for_task` for debugging:
+
+```json
+{
+  "mode": "debug",
+  "task": {
+    "goal": "Diagnose failing build after TypeScript upgrade",
+    "task_kind": "debug",
+    "project_dir": "/path/to/project",
+    "cwd": "/path/to/project",
+    "branch": "upgrade/typescript",
+    "related_files": [
+      "server/src/cli/mcp/server.ts",
+      "tsconfig.base.json"
+    ],
+    "error_signatures": [
+      "TS2322",
+      "Type is not assignable"
+    ],
+    "source_agent": "codex"
+  },
+  "options": {
+    "project_limit": 5,
+    "global_limit": 3,
+    "include_relations": true
+  }
+}
+```
+
 ## Full Mode
 
 Full mode requires ChatCrystal Core plus MCP access to `recall_for_task`.

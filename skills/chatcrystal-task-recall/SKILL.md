@@ -23,6 +23,33 @@ Use this skill as a thin workflow on top of ChatCrystal Core. Do not invent a pa
 5. Treat `project_memories` as primary context and `global_memories` as supplemental context.
 6. Apply recalled pitfalls, patterns, and prior decisions before proposing or writing code.
 
+## Example MCP Input
+
+Use this shape when calling `recall_for_task` for implementation or investigation work:
+
+```json
+{
+  "mode": "task",
+  "task": {
+    "goal": "Add a paginated notes export endpoint",
+    "task_kind": "implement",
+    "project_dir": "/path/to/project",
+    "cwd": "/path/to/project",
+    "branch": "feature/export-notes",
+    "related_files": [
+      "server/src/routes/notes.ts",
+      "shared/types/index.ts"
+    ],
+    "source_agent": "codex"
+  },
+  "options": {
+    "project_limit": 5,
+    "global_limit": 3,
+    "include_relations": true
+  }
+}
+```
+
 ## Full Mode
 
 Full mode requires ChatCrystal Core plus MCP access to `recall_for_task`.
