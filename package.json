@@ -31,7 +31,7 @@
     "dev:client": "npm run dev -w client",
     "build": "npm run build -w server && npm run build -w client",
     "start": "npm run start -w server",
-    "lint": "biome check .",
+    "lint": "biome check . --diagnostic-level=error",
     "lint:fix": "biome check --fix .",
     "dev:electron": "tsc -p electron/tsconfig.json && concurrently \"npm run dev:server\" \"npm run dev:client\" \"wait-on http://localhost:13721 && cross-env VITE_DEV_URL=http://localhost:13721 electron .\"",
     "build:electron": "npm run build && tsc -p electron/tsconfig.json && electron-builder --win",
@@ -48,6 +48,7 @@
     "node": ">=20.0.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.13",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "electron": "^41.1.0",
