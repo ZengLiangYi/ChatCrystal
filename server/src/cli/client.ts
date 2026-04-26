@@ -1,6 +1,5 @@
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
-import { homedir } from 'node:os';
 import { writeFileSync, readFileSync, existsSync, unlinkSync, openSync, mkdirSync } from 'node:fs';
 import type {
   RecallForTaskRequest,
@@ -8,13 +7,7 @@ import type {
   WriteTaskMemoryRequest,
   WriteTaskMemoryResponse,
 } from '@chatcrystal/shared';
-
-function getDataDir(): string {
-  if (import.meta.dirname.includes('node_modules')) {
-    return resolve(homedir(), '.chatcrystal', 'data');
-  }
-  return resolve(import.meta.dirname, '../../../../../data');
-}
+import { runtimePaths } from '../runtime/paths.js';
 
 export class ServerNotAvailableError extends Error {
   constructor(baseUrl: string) {
@@ -67,21 +60,19 @@ export class CrystalClient {
     // Resolve the server entry point relative to this file
     // In compiled output: dist/server/src/cli/client.js → dist/server/src/index.js
     const serverEntry = resolve(import.meta.dirname, '../index.js');
-    const pidDir = getDataDir();
+    const pidDir = runtimePaths.dataDir;
     try { mkdirSync(pidDir, { recursive: true }); } catch { /* ignore */ }
 
     // Redirect stdout/stderr to log file (Fastify's pino logger needs a writable stdout)
-    const logFile = resolve(pidDir, 'crystal-server.log');
-    const logFd = openSync(logFile, 'a');
+    const logFd = openSync(runtimePaths.logPath, 'a');
     const child = spawn(process.execPath, [serverEntry], {
       detached: true,
       stdio: ['ignore', logFd, logFd],
       env: { ...process.env },
     });
     child.unref();
-    const pidFile = resolve(pidDir, 'crystal.pid');
     try {
-      writeFileSync(pidFile, String(child.pid), 'utf-8');
+      writeFileSync(runtimePaths.pidPath, String(child.pid), 'utf-8');
     } catch {
       // data dir might not exist yet, non-fatal
     }
@@ -358,18 +349,16 @@ function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export function readPidFile(dataDir: string): number | null {
-  const pidFile = resolve(dataDir, 'crystal.pid');
-  if (!existsSync(pidFile)) return null;
+export function readPidFile(): number | null {
+  if (!existsSync(runtimePaths.pidPath)) return null;
   try {
-    const pid = Number(readFileSync(pidFile, 'utf-8').trim());
+    const pid = Number(readFileSync(runtimePaths.pidPath, 'utf-8').trim());
     return Number.isNaN(pid) ? null : pid;
   } catch {
     return null;
   }
 }
 
-export function removePidFile(dataDir: string): void {
-  const pidFile = resolve(dataDir, 'crystal.pid');
-  try { unlinkSync(pidFile); } catch { /* ignore */ }
+export function removePidFile(): void {
+  try { unlinkSync(runtimePaths.pidPath); } catch { /* ignore */ }
 }

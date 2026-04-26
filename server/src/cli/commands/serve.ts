@@ -1,17 +1,42 @@
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
-import { homedir } from 'node:os';
 import { writeFileSync, openSync, mkdirSync } from 'node:fs';
 import type { Command } from 'commander';
 import { readPidFile, removePidFile } from '../client.js';
+import {
+  findChatCrystalServerProcessByPort,
+  getProcessInfo,
+  isChatCrystalServerProcess,
+  type ProcessInfo,
+} from '../processes.js';
+import { runtimePaths } from '../../runtime/paths.js';
+import { printSuccess, printError, printKeyValue, printWarning } from '../formatter.js';
 
-function getDataDir(): string {
-  if (import.meta.dirname.includes('node_modules')) {
-    return resolve(homedir(), '.chatcrystal', 'data');
+type StopDaemonErrorResult = {
+  level: 'warning' | 'error';
+  shouldExit: boolean;
+  shouldRemovePidFile: boolean;
+  message: string;
+};
+
+export function classifyStopDaemonError(err: unknown): StopDaemonErrorResult {
+  const errno = err as NodeJS.ErrnoException;
+  if (errno.code === 'ESRCH') {
+    return {
+      level: 'warning',
+      shouldExit: false,
+      shouldRemovePidFile: true,
+      message: 'Process not found. Cleaned up stale PID file.',
+    };
   }
-  return resolve(import.meta.dirname, '../../../../../../data');
+
+  return {
+    level: 'error',
+    shouldExit: true,
+    shouldRemovePidFile: false,
+    message: `Failed to stop server: ${err instanceof Error ? err.message : err}`,
+  };
 }
-import { printSuccess, printError, printKeyValue } from '../formatter.js';
 
 export function registerServeCommand(program: Command) {
   const serve = program
@@ -29,9 +54,9 @@ export function registerServeCommand(program: Command) {
 
   serve
     .command('stop')
-    .description('Stop the background server')
+    .description('Stop the running server')
     .action(async () => {
-      await stopDaemon();
+      await stopDaemon(program.opts().baseUrl || 'http://localhost:3721');
     });
 
   serve
@@ -65,21 +90,19 @@ async function startDaemon(port: number) {
   } catch { /* not running */ }
 
   const serverEntry = resolve(import.meta.dirname, '../../index.js');
-  const dataDir = getDataDir();
+  const dataDir = runtimePaths.dataDir;
   try { mkdirSync(dataDir, { recursive: true }); } catch { /* ignore */ }
 
   // Redirect stdout/stderr to log file (Fastify's pino logger needs a writable stdout)
-  const logFile = resolve(dataDir, 'crystal-server.log');
-  const logFd = openSync(logFile, 'a');
+  const logFd = openSync(runtimePaths.logPath, 'a');
   const child = spawn(process.execPath, [serverEntry], {
     detached: true,
     stdio: ['ignore', logFd, logFd],
     env: { ...process.env, PORT: String(port) },
   });
   child.unref();
-  const pidFile = resolve(dataDir, 'crystal.pid');
   try {
-    writeFileSync(pidFile, String(child.pid), 'utf-8');
+    writeFileSync(runtimePaths.pidPath, String(child.pid), 'utf-8');
   } catch { /* non-fatal */ }
 
   for (let i = 0; i < 20; i++) {
@@ -97,28 +120,99 @@ async function startDaemon(port: number) {
   process.exit(1);
 }
 
-async function stopDaemon() {
-  const dataDir = getDataDir();
-  const pid = readPidFile(dataDir);
+export function getPortFromBaseUrl(baseUrl: string): number {
+  const url = new URL(baseUrl);
+  if (url.port) {
+    return Number(url.port);
+  }
+  return url.protocol === 'https:' ? 443 : 80;
+}
 
-  if (!pid) {
-    printError('No server PID file found. Is the server running in daemon mode?');
+async function waitForServerToStop(baseUrl: string, timeoutMs = 5000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(`${baseUrl}/api/status`, { signal: AbortSignal.timeout(500) });
+      if (!res.ok) {
+        return true;
+      }
+    } catch {
+      return true;
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 150));
+  }
+
+  return false;
+}
+
+async function stopProcess(info: ProcessInfo, baseUrl: string, label: string): Promise<'stopped' | 'not-found' | 'still-running'> {
+  try {
+    process.kill(info.pid, 'SIGTERM');
+    const stopped = await waitForServerToStop(baseUrl);
+    if (!stopped) {
+      printWarning(`Sent SIGTERM to ${label} (PID: ${info.pid}), but ${baseUrl} is still responding.`);
+      return 'still-running';
+    }
+    printSuccess(`Server stopped (${label} PID: ${info.pid})`);
+    return 'stopped';
+  } catch (err) {
+    const result = classifyStopDaemonError(err);
+    if (result.level === 'warning') {
+      printWarning(result.message);
+      return 'not-found';
+    }
+
+    printError(`Failed to stop ${label} (PID: ${info.pid}): ${err instanceof Error ? err.message : err}`);
     process.exit(1);
   }
+}
 
-  try {
-    process.kill(pid, 'SIGTERM');
-    printSuccess(`Server stopped (PID: ${pid})`);
-    removePidFile(dataDir);
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ESRCH') {
-      printError(`Process ${pid} not found. Cleaning up stale PID file.`);
-      removePidFile(dataDir);
+async function stopDaemon(baseUrl: string) {
+  const pid = readPidFile();
+  const port = getPortFromBaseUrl(baseUrl);
+
+  if (pid) {
+    const pidInfo = await getProcessInfo(pid);
+    if (!pidInfo || !isChatCrystalServerProcess(pidInfo, [
+      runtimePaths.packageRoot,
+      runtimePaths.appRoot,
+    ])) {
+      printWarning('PID file did not point to a ChatCrystal server. Cleaned up stale PID file.');
+      removePidFile();
     } else {
-      printError(`Failed to stop server: ${err instanceof Error ? err.message : err}`);
-      process.exit(1);
+      const result = await stopProcess(pidInfo, baseUrl, 'PID file');
+      removePidFile();
+      if (result === 'stopped') {
+        return;
+      }
     }
   }
+
+  if (!pid) {
+    printWarning('No server PID file found. Checking listening port fallback.');
+  }
+
+  const portOwner = await findChatCrystalServerProcessByPort(port, [
+    runtimePaths.packageRoot,
+    runtimePaths.appRoot,
+  ]);
+  if (!portOwner) {
+    if (pid) {
+      printWarning(`No ChatCrystal server was found on port ${port}. Nothing else to stop.`);
+    } else {
+      printWarning(`No ChatCrystal server found on port ${port}. Nothing to stop.`);
+    }
+    return;
+  }
+
+  const result = await stopProcess(portOwner, baseUrl, `port ${port}`);
+  if (result === 'stopped' || result === 'not-found') {
+    return;
+  }
+
+  process.exit(1);
 }
 
 async function checkStatus(baseUrl: string) {
@@ -131,9 +225,9 @@ async function checkStatus(baseUrl: string) {
       printKeyValue('Conversations', stats.totalConversations);
       printKeyValue('Notes', stats.totalNotes);
       printKeyValue('Tags', stats.totalTags);
-    } else {
-      printError(`Server responded with status ${res.status}`);
+      return;
     }
+    printError(`Server responded with status ${res.status}`);
   } catch {
     printError(`Server is not running at ${baseUrl}`);
   }

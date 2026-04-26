@@ -1,11 +1,10 @@
 import {
-	cpSync,
-	existsSync,
 	mkdirSync,
 	readFileSync,
 	writeFileSync,
 } from "node:fs";
 import net from "node:net";
+import { homedir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { app, BrowserWindow, dialog, Menu, screen, session } from "electron";
@@ -226,31 +225,16 @@ app.on("window-all-closed", () => {
 });
 
 // --------------------------------------------------
-// Data migration: copy old project data/ to userData/data on first launch
+// Data directory
 // --------------------------------------------------
-function migrateOldData(dataDir: string): void {
-	if (existsSync(dataDir)) return; // Already has data, skip
-
-	const oldDataDir = path.join(app.getAppPath(), "data");
-	// In packaged mode, check the original install location's parent
-	const candidatePaths = [
-		oldDataDir,
-		path.resolve(app.getAppPath(), "../../data"), // next to the installed app
-	];
-
-	for (const candidate of candidatePaths) {
-		const dbFile = path.join(candidate, "chatcrystal.db");
-		if (existsSync(dbFile)) {
-			console.log(`[Electron] Migrating data from ${candidate} to ${dataDir}`);
-			try {
-				cpSync(candidate, dataDir, { recursive: true });
-				console.log("[Electron] Data migration complete");
-			} catch (err) {
-				console.warn("[Electron] Data migration failed:", err);
-			}
-			return;
-		}
+function getDataDir(): string {
+	if (process.env.DATA_DIR) {
+		return path.isAbsolute(process.env.DATA_DIR)
+			? process.env.DATA_DIR
+			: path.resolve(app.getAppPath(), process.env.DATA_DIR);
 	}
+
+	return path.join(homedir(), ".chatcrystal", "data");
 }
 
 // --------------------------------------------------
@@ -285,26 +269,19 @@ async function startServer(port: number): Promise<{
 app.whenReady().then(async () => {
 	try {
 		// 1. Determine data directory
-		const dataDir = app.isPackaged
-			? path.join(app.getPath("userData"), "data")
-			: path.join(app.getAppPath(), "data");
+		const dataDir = getDataDir();
 
-		// 2. Migrate old data if this is first packaged launch
-		if (app.isPackaged) {
-			migrateOldData(dataDir);
-		}
-
-		// 3. Ensure data directory exists
+		// 2. Ensure data directory exists
 		mkdirSync(dataDir, { recursive: true });
 
-		// 4. Set environment variables for the server
+		// 3. Set environment variables for the server
 		process.env.ELECTRON = "true";
 		process.env.DATA_DIR = dataDir;
 		if (app.isPackaged) {
 			process.env.ELECTRON_PACKAGED = "true";
 		}
 
-		// 5. Set Content Security Policy (C-2)
+		// 4. Set Content Security Policy (C-2)
 		// Restricts script execution to prevent XSS from rendered AI conversation content.
 		// Skipped in dev mode — Vite's HMR injects inline scripts incompatible with strict CSP.
 		if (!process.env.VITE_DEV_URL) {
@@ -327,27 +304,27 @@ app.whenReady().then(async () => {
 			});
 		}
 
-		// 6. Find free port
+		// 5. Find free port
 		serverPort = await findFreePort(3721);
 		if (serverPort !== 3721) {
 			console.log(`[Electron] Port 3721 occupied, using port ${serverPort}`);
 		}
 
-		// 7. Start the Fastify server (skip in dev — server runs separately via tsx)
+		// 6. Start the Fastify server (skip in dev — server runs separately via tsx)
 		const devUrl = process.env.VITE_DEV_URL;
 		if (!devUrl) {
 			const server = await startServer(serverPort);
 			serverShutdown = server.shutdown;
 		}
 
-		// 8. Create window
+		// 7. Create window
 		mainWindow = createWindow();
 
-		// 9. Load the app
+		// 8. Load the app
 		const url = devUrl || `http://localhost:${serverPort}`;
 		await mainWindow.loadURL(url);
 
-		// 10. Create tray
+		// 9. Create tray
 		createTray(mainWindow, serverPort);
 
 		console.log(`[Electron] ChatCrystal ready at ${url}`);

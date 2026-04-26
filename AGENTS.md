@@ -4,7 +4,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## Project Overview
 
-ChatCrystal is an AI conversation knowledge crystallization tool. It imports conversations from AI coding tools (currently Codex), uses LLM to generate structured notes (title, summary, key conclusions, code snippets, tags), and provides semantic search via embeddings. The UI is in Simplified Chinese.
+ChatCrystal is an AI conversation knowledge crystallization tool. It imports conversations from AI coding tools (Claude Code, Cursor, Codex CLI, Trae, GitHub Copilot), uses LLM to generate structured notes (title, summary, key conclusions, code snippets, tags), and provides semantic search via embeddings. The UI is in Simplified Chinese.
 
 ## Commands
 
@@ -29,10 +29,6 @@ npm run release -- minor    # minor bump
 npm run release -- major    # major bump
 npm run release -- 1.0.0    # explicit version
 
-# System tray (legacy, replaced by Electron tray)
-npm run tray                # with console
-npm run tray:silent         # silent (VBS launcher)
-
 # Lint
 npm run lint
 npm run lint:fix
@@ -45,7 +41,7 @@ Install globally: `npm install -g chatcrystal`
 ```bash
 # Core commands
 crystal status                          # Server status and DB stats
-crystal import [--source Codex]   # Scan and import conversations
+crystal import [--source claude-code]   # Scan and import conversations
 crystal search "query" [--limit 10]     # Semantic search
 crystal notes list [--tag X]            # Browse notes
 crystal notes get <id>                  # View note detail
@@ -85,7 +81,7 @@ Codex (`settings.json`):
 }
 ```
 
-MCP exposes 4 read-only tools: `search_knowledge`, `get_note`, `list_notes`, `get_relations`.
+MCP exposes 6 tools: read-only knowledge tools `search_knowledge`, `get_note`, `list_notes`, `get_relations`, plus memory-loop tools `recall_for_task` and `write_task_memory`.
 
 ## Architecture
 
@@ -97,22 +93,22 @@ Monorepo with three npm workspaces:
 ### `server/` — Fastify Backend (`@chatcrystal/server`)
 - **Runtime:** tsx (dev + prod)
 - **Framework:** Fastify v5 with CORS and static file serving (production SPA fallback)
-- **Database:** sql.js (WASM SQLite) at `data/chatcrystal.db`, auto-saved every 30s
+- **Database:** sql.js (WASM SQLite), stored under the active runtime data directory as `chatcrystal.db`, auto-saved every 30s
 - **Key modules:**
   - `db/` — Schema (7 tables), utils (`resultToObjects`)
   - `parser/` — Plugin architecture via `SourceAdapter`. Five built-in adapters:
-    - `adapters/Codex.ts` — JSONL from `~/.Codex/projects/`. Sanitizes `<system-reminder>`, `<command-name>` tags.
+    - `adapters/claude-code.ts` — JSONL from `~/.claude/projects/`. Sanitizes `<system-reminder>`, `<command-name>` tags.
     - `adapters/codex.ts` — JSONL event stream from `~/.codex/sessions/`. Reconstructs conversation from event_msg/response_item events.
     - `adapters/cursor.ts` — SQLite `state.vscdb` from Cursor's workspaceStorage/globalStorage. Reads composer metadata + bubble data via sql.js.
     - `adapters/trae.ts` — SQLite `state.vscdb` from Trae's workspaceStorage. Reads `memento/icube-ai-agent-storage` key; extracts content from agentTaskContent for agent responses.
     - `adapters/copilot.ts` — JSONL from VS Code's workspaceStorage/chatSessions + globalStorage/emptyWindowChatSessions. Parses session snapshots (kind:0) with requests/response arrays.
-  - `services/llm.ts` — Provider factory: Ollama/OpenAI/Custom via Vercel AI SDK
+  - `services/llm.ts` — Provider factory via Vercel AI SDK (Ollama, OpenAI, Anthropic, Google, Azure, Custom)
   - `services/summarize.ts` — Conversation preprocessing (truncate ~8000 tokens) + LLM call + JSON parsing + DB persistence. Auto-generates embeddings after summarization.
   - `services/embedding.ts` — Embedding model factory + vectra LocalIndex + text chunking
   - `services/import.ts` — Scan + dedup (file size + mtime) + batch insert
   - `routes/` — REST endpoints: status, config, import, conversations CRUD, notes CRUD, tags, search, queue status, batch operations
   - `queue/` — p-queue singleton (concurrency=1, 1 req/sec, 429 retry)
-  - `watcher/` — chokidar watches all data source paths (Codex JSONL, Codex sessions JSONL, Cursor global vscdb), debounced auto-import
+  - `watcher/` — chokidar watches all configured data source paths (Claude Code, Codex CLI, Cursor, Trae, GitHub Copilot), debounced auto-import
 
 ### `client/` — React SPA
 - **Build:** Vite v8 + `@vitejs/plugin-react`
@@ -125,26 +121,24 @@ Monorepo with three npm workspaces:
 
 ### `electron/` — Electron Desktop App
 - **Not an npm workspace** — compiled separately via `tsc -p electron/tsconfig.json`
-- `main.ts` — Main process: single-instance lock, port detection, Fastify server startup (embedded), BrowserWindow creation, system tray, window state persistence, data migration
+- `main.ts` — Main process: single-instance lock, port detection, Fastify server startup (embedded), BrowserWindow creation, system tray, window state persistence
 - `preload.ts` — Minimal contextBridge exposing `electronAPI.isElectron` and version info
 - `tray.ts` — System tray icon + context menu (open window, open in browser, quit)
 - `icon.svg/png/ico` — Application icon (crystal gem + chat bubble)
 - **Lifecycle:** Window close → hide to tray; tray quit → graceful shutdown (watcher stop → DB save → Fastify close → tray destroy)
-- **Data directory:**
-  - Dev mode: `./data` (project root)
-  - Packaged: `%APPDATA%/ChatCrystal/data` (auto-migrates from old `data/` on first launch)
+- **Data directory:** `~/.chatcrystal/data` by default, shared with CLI and MCP. `DATA_DIR` can override it explicitly.
 - **Environment vars set by Electron:** `ELECTRON=true`, `DATA_DIR`, `ELECTRON_PACKAGED` (packaged only)
 - **Server import:** Production uses dynamic `import()` via `file://` URL to load compiled server ESM
 - **Packaging:** `electron-builder.yml` → NSIS installer, `sql-wasm.wasm` as extraResource, aggressive node_modules filtering
 
-### `scripts/` — Legacy System Tray & Launchers
-- `tray.ps1` — PowerShell WinForms NotifyIcon tray app (superseded by Electron tray)
-- `start-silent.vbs` — VBS wrapper for hidden launch
+### `scripts/` — Release & Utility Scripts
+- `release.mjs` — Release helper for version bump / tag / push flows
+- `seed-demo.mjs` — Demo data seeding helper
 
 ## Data Flow
 
 ```
-~/.Codex/projects/**/*.jsonl       → Codex Adapter (JSONL parse + sanitize)
+~/.claude/projects/**/*.jsonl       → Claude Code Adapter (JSONL parse + sanitize)
 ~/.codex/sessions/**/*.jsonl        → Codex Adapter (event stream → conversation)
 Cursor workspaceStorage/state.vscdb → Cursor Adapter (SQLite KV → messages)
 Trae workspaceStorage/state.vscdb   → Trae Adapter (SQLite KV → agent task content)
@@ -161,11 +155,11 @@ Search:
   Query → embed(query) → vectra.queryItems → deduplicate by noteId → enrich with tags
 ```
 
-## Environment
+## Configuration
 
-Copy `.env.example` to `.env`. Key variables:
+Runtime configuration is stored in `config.json` under the active data directory. CLI, MCP, repo/dev checkouts, npm global installs, and Electron default to `~/.chatcrystal/data`; `DATA_DIR` can override that explicitly. `.env.example` is only an optional local override template. Key override variables:
 - `PORT` (default 3721)
-- `CLAUDE_PROJECTS_DIR` — path to Codex projects
+- `CLAUDE_PROJECTS_DIR` — path to Claude Code projects
 - `CODEX_SESSIONS_DIR` — path to Codex CLI sessions
 - `CURSOR_DATA_DIR` — path to Cursor data (auto-detected per platform)
 - `TRAE_DATA_DIR` — path to Trae data (auto-detected per platform)
@@ -182,10 +176,10 @@ Copy `.env.example` to `.env`. Key variables:
 
 ## Key Patterns
 
-- **SourceAdapter plugin interface** (`parser/adapter.ts`): implement `detect()`, `scan()`, `parse()` to add new sources. Currently 5 adapters: Codex (JSONL), codex (JSONL events), cursor (SQLite vscdb), trae (SQLite vscdb), copilot (JSONL sessions)
+- **SourceAdapter plugin interface** (`parser/adapter.ts`): implement `detect()`, `scan()`, `parse()` to add new sources. Currently 5 adapters: claude-code (JSONL), codex (JSONL events), cursor (SQLite vscdb), trae (SQLite vscdb), copilot (JSONL sessions)
 - **Shared types are the contract**: both server and client import from `@chatcrystal/shared`
 - **No ORM**: raw SQL via sql.js with parameterized queries
-- **sanitizeContent()**: strips Codex system XML tags from message content
+- **sanitizeContent()**: strips Claude Code system XML tags from message content
 - **Consecutive tool-use messages**: grouped and collapsed in frontend (ToolCallGroup component)
 - **Production SPA fallback**: Fastify serves `client/dist`, non-API 404s return `index.html`
 - **Dual mode**: `npm start` runs standalone web server; Electron embeds the same server in its main process via `createServer()` export

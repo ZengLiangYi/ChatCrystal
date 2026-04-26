@@ -14,7 +14,7 @@
 
 ---
 
-ChatCrystal collects conversations from AI coding tools (Claude Code, Cursor, Codex CLI), uses LLM to distill them into searchable structured notes, and builds your personal knowledge base.
+ChatCrystal collects conversations from AI coding tools (Claude Code, Cursor, Codex CLI, Trae, GitHub Copilot), uses LLM to distill them into searchable structured notes, and builds your personal knowledge base.
 
 ## Install
 
@@ -98,10 +98,12 @@ Add to `settings.json`:
 | `get_note` | Get full note content (summary, conclusions, code snippets) |
 | `list_notes` | Browse notes by tag or keyword |
 | `get_relations` | Get related notes with relationship types |
+| `recall_for_task` | Recall project-first memories for a coding task |
+| `write_task_memory` | Persist reusable task memories after meaningful work |
 
 ## Configuration
 
-Configure via `crystal config set` or `.env` file:
+Runtime configuration is stored in `config.json` under the active data directory. CLI, MCP, repo/dev checkouts, npm global installs, and Electron default to `~/.chatcrystal/data`. Use `crystal config set` for persistent config. `.env` remains available only as an optional local override layer.
 
 ```bash
 # LLM (ollama/openai/anthropic/google/azure/custom)
@@ -123,6 +125,8 @@ Automatically detects and imports from:
 | Claude Code | `~/.claude/projects/**/*.jsonl` |
 | Codex CLI | `~/.codex/sessions/**/*.jsonl` |
 | Cursor | Platform-specific `state.vscdb` |
+| Trae | Platform-specific `state.vscdb` |
+| GitHub Copilot | VS Code `chatSessions/*.jsonl` / `*.json` |
 
 ## Web UI & Desktop App
 

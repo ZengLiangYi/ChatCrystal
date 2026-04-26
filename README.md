@@ -191,8 +191,9 @@ ollama pull nomic-embed-text     # Embedding
 git clone https://github.com/ZengLiangYi/ChatCrystal.git
 cd ChatCrystal
 npm install
-cp .env.example .env             # Edit configuration as needed
 ```
+
+Configuration is persisted in `~/.chatcrystal/data/config.json` (or an explicit `DATA_DIR`) after first launch. `.env` is optional and only needed if you want local development overrides.
 
 ### Desktop App (Recommended)
 
@@ -201,7 +202,7 @@ npm run dev:electron             # Dev mode (Electron + Vite HMR)
 npm run build:electron           # Build NSIS installer → release/
 ```
 
-The installer is in the `release/` directory. Data is stored in `%APPDATA%/chatcrystal/data/`.
+The installer is in the `release/` directory. Data is stored in `~/.chatcrystal/data/` by default, matching the CLI and MCP server.
 
 ### Web Dev Mode
 
@@ -232,27 +233,56 @@ Visit http://localhost:3721
 
 ## Configuration
 
-Configure via `.env` file or the Settings page (hot-swappable at runtime):
+ChatCrystal now treats `config.json` in the active data directory as the primary runtime config. The Settings page and `crystal config` commands update that file directly.
+
+Default locations:
+
+- CLI / MCP / npm package / repo checkout / Electron: `~/.chatcrystal/data/config.json`
+- Custom `DATA_DIR`: `<DATA_DIR>/config.json`
+
+`.env` is optional. Keep it only if you want local overrides such as a custom `PORT`, source directory overrides, or pre-seeded API keys during development.
+
+Typical keys stored in `config.json`:
+
+```json
+{
+  "llm": {
+    "provider": "ollama",
+    "baseURL": "http://localhost:11434",
+    "model": "qwen2.5:7b",
+    "apiKey": ""
+  },
+  "embedding": {
+    "provider": "ollama",
+    "baseURL": "http://localhost:11434",
+    "model": "nomic-embed-text",
+    "apiKey": ""
+  },
+  "enabledSources": ["claude-code", "codex", "cursor", "trae", "copilot"]
+}
+```
+
+Optional `.env` overrides:
 
 ```bash
 # Server port
 PORT=3721
+# Optional runtime data override
+# DATA_DIR=C:\path\to\chatcrystal-data
 
-# Data sources
-CLAUDE_PROJECTS_DIR=~/.claude/projects
-CODEX_SESSIONS_DIR=~/.codex/sessions
-# CURSOR_DATA_DIR=          # Auto-detected per platform, can override
+# Optional source overrides
+# CLAUDE_PROJECTS_DIR=~/.claude/projects
+# CODEX_SESSIONS_DIR=~/.codex/sessions
 
-# LLM summarization (ollama/openai/anthropic/google/azure/custom)
-LLM_PROVIDER=ollama
-LLM_BASE_URL=http://localhost:11434
-LLM_MODEL=qwen2.5:7b
-# LLM_MAX_INPUT_CHARS=32000   # Increase for large-context models (e.g., 80000 for 128K models)
-
-# Embedding (ollama/openai/google/azure/custom)
-EMBEDDING_PROVIDER=ollama
-EMBEDDING_BASE_URL=http://localhost:11434
-EMBEDDING_MODEL=nomic-embed-text
+# Optional provider defaults
+# LLM_PROVIDER=ollama
+# LLM_BASE_URL=http://localhost:11434
+# LLM_MODEL=qwen2.5:7b
+# EMBEDDING_PROVIDER=ollama
+# EMBEDDING_BASE_URL=http://localhost:11434
+# EMBEDDING_MODEL=nomic-embed-text
+# LLM_API_KEY=
+# EMBEDDING_API_KEY=
 ```
 
 > **Note: LLM and Embedding must be configured separately.** Semantic search requires a dedicated embedding model that supports the `/v1/embeddings` endpoint. Large language models (Claude, GPT-4, Qwen, etc.) **cannot** be used as embedding models. Common embedding models:
@@ -264,6 +294,8 @@ EMBEDDING_MODEL=nomic-embed-text
 > | Google | `text-embedding-004` |
 
 ### Provider Configuration Examples
+
+You can set these through the Settings page / `config.json`, or keep them in `.env` as local overrides.
 
 ```bash
 # OpenAI
@@ -307,9 +339,9 @@ ChatCrystal/
 │   ├── hooks/               # React Query hooks
 │   ├── themes/              # Theme definitions
 │   └── providers/           # ThemeProvider
-├── scripts/                 # Legacy tray scripts (superseded by Electron)
+├── scripts/                 # Release and utility scripts
 ├── electron-builder.yml     # Electron packaging config
-└── data/                    # Runtime data (gitignored)
+└── data/                    # Optional DATA_DIR override location (gitignored)
 ```
 
 ## Adding Data Sources
@@ -401,7 +433,7 @@ ollama pull nomic-embed-text
 
 **No conversations after import**
 
-Check that `CLAUDE_PROJECTS_DIR` in `.env` points to the correct path and contains `.jsonl` files.
+Check your configured source paths in the Settings page or `config.json`, and make sure the target directory contains `.jsonl` files. If you use `.env` overrides, verify those paths there instead.
 
 **Knowledge graph is empty**
 

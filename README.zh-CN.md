@@ -177,8 +177,9 @@ ollama pull nomic-embed-text     # Embedding
 git clone https://github.com/ZengLiangYi/ChatCrystal.git
 cd ChatCrystal
 npm install
-cp .env.example .env             # 按需修改配置
 ```
+
+首次启动后，配置会持久化到 `~/.chatcrystal/data/config.json`（或显式 `DATA_DIR`）。`.env` 现在只是可选的本地覆盖方式，不再是主配置入口。
 
 ### 桌面应用（推荐）
 
@@ -187,7 +188,7 @@ npm run dev:electron             # 开发模式（Electron + Vite HMR）
 npm run build:electron           # 构建 NSIS 安装包 → release/
 ```
 
-构建后的安装包在 `release/` 目录。安装后数据存储在 `%APPDATA%/chatcrystal/data/`。
+构建后的安装包在 `release/` 目录。安装后默认数据目录是 `~/.chatcrystal/data/`，与 CLI 和 MCP server 保持一致。
 
 ### Web 开发模式
 
@@ -218,27 +219,57 @@ npm start                        # 启动服务（前端由后端静态托管）
 
 ## 配置
 
-可通过 `.env` 文件或设置页面（运行时热切换）配置：
+ChatCrystal 现在以当前数据目录中的 `config.json` 作为主配置源。设置页面和 `crystal config` 命令都会直接更新这个文件。
+
+默认位置：
+
+- CLI / MCP / npm 包 / 仓库 checkout / Electron：`~/.chatcrystal/data/config.json`
+- 自定义 `DATA_DIR`：`<DATA_DIR>/config.json`
+
+`.env` 现在是可选覆盖层，只在你需要本地开发覆盖时保留，例如自定义 `PORT`、手动覆盖数据源路径、或预置 API key。
+
+典型的 `config.json` 结构：
+
+```json
+{
+  "llm": {
+    "provider": "ollama",
+    "baseURL": "http://localhost:11434",
+    "model": "qwen2.5:7b",
+    "apiKey": ""
+  },
+  "embedding": {
+    "provider": "ollama",
+    "baseURL": "http://localhost:11434",
+    "model": "nomic-embed-text",
+    "apiKey": ""
+  },
+  "enabledSources": ["claude-code", "codex", "cursor", "trae", "copilot"]
+}
+```
+
+可选的 `.env` 覆盖示例：
 
 ```bash
 # 服务端口
 PORT=3721
 
-# 数据源
-CLAUDE_PROJECTS_DIR=~/.claude/projects
-CODEX_SESSIONS_DIR=~/.codex/sessions
-# CURSOR_DATA_DIR=          # 按平台自动检测，可手动覆盖
+# 可选的数据目录覆盖
+# DATA_DIR=C:\path\to\chatcrystal-data
 
-# LLM 摘要（支持 ollama/openai/anthropic/google/azure/custom）
-LLM_PROVIDER=ollama
-LLM_BASE_URL=http://localhost:11434
-LLM_MODEL=qwen2.5:7b
-# LLM_MAX_INPUT_CHARS=32000   # 大上下文模型可调大（如 128K 模型设为 80000）
+# 可选的数据源覆盖
+# CLAUDE_PROJECTS_DIR=~/.claude/projects
+# CODEX_SESSIONS_DIR=~/.codex/sessions
 
-# Embedding（支持 ollama/openai/google/azure/custom）
-EMBEDDING_PROVIDER=ollama
-EMBEDDING_BASE_URL=http://localhost:11434
-EMBEDDING_MODEL=nomic-embed-text
+# 可选的 provider 默认值
+# LLM_PROVIDER=ollama
+# LLM_BASE_URL=http://localhost:11434
+# LLM_MODEL=qwen2.5:7b
+# EMBEDDING_PROVIDER=ollama
+# EMBEDDING_BASE_URL=http://localhost:11434
+# EMBEDDING_MODEL=nomic-embed-text
+# LLM_API_KEY=
+# EMBEDDING_API_KEY=
 ```
 
 > **注意：LLM 与 Embedding 需要分别配置。** 语义搜索要求 Embedding 模型支持 `/v1/embeddings` 端点。大语言模型（如 Claude、GPT-4、Qwen）**不能**用作 Embedding 模型。常见可用的 Embedding 模型：
@@ -250,6 +281,8 @@ EMBEDDING_MODEL=nomic-embed-text
 > | Google | `text-embedding-004` |
 
 ### Provider 配置示例
+
+这些配置可以通过设置页面 / `config.json` 写入，也可以保留在 `.env` 中作为本地覆盖。
 
 ```bash
 # OpenAI
@@ -293,9 +326,9 @@ ChatCrystal/
 │   ├── hooks/               # React Query hooks
 │   ├── themes/              # 主题定义
 │   └── providers/           # ThemeProvider
-├── scripts/                 # 旧版托盘脚本（已被 Electron 替代）
+├── scripts/                 # 发布与辅助脚本
 ├── electron-builder.yml     # Electron 打包配置
-└── data/                    # 运行时数据（gitignored）
+└── data/                    # 可选 DATA_DIR 覆盖位置（gitignored）
 ```
 
 ## 扩展数据源
@@ -387,7 +420,7 @@ ollama pull nomic-embed-text
 
 **对话导入为空**
 
-检查 `.env` 中 `CLAUDE_PROJECTS_DIR` 路径是否正确，确保对应目录下有 `.jsonl` 文件。
+检查设置页面或 `config.json` 中的数据源路径是否正确，并确认目标目录下存在 `.jsonl` 文件。如果你仍在使用 `.env` 覆盖，也要一并检查。
 
 **知识图谱为空**
 

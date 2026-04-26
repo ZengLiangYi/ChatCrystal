@@ -119,7 +119,6 @@ CREATE INDEX IF NOT EXISTS idx_conversations_source ON conversations(source);
 CREATE INDEX IF NOT EXISTS idx_conversations_status ON conversations(status);
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_messages_type ON messages(type);
-CREATE INDEX IF NOT EXISTS idx_notes_project_key ON notes(project_key);
 CREATE INDEX IF NOT EXISTS idx_note_tags_tag ON note_tags(tag_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_note ON embeddings(note_id);
 CREATE INDEX IF NOT EXISTS idx_project_key_aliases_canonical ON project_key_aliases(canonical_key);

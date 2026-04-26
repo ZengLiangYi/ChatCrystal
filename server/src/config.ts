@@ -1,19 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { isAbsolute, resolve } from "node:path";
-import { config } from "dotenv";
-
-// Conditionally load .env (not available inside packaged Electron ASAR)
-const envCandidates = [
-	resolve(import.meta.dirname, "../../.env"),
-	resolve(import.meta.dirname, "../../../../.env"),
-];
-for (const envPath of envCandidates) {
-	if (existsSync(envPath)) {
-		config({ path: envPath });
-		break;
-	}
-}
+import { resolve } from "node:path";
+import { runtimePaths } from "./runtime/paths.js";
 
 function resolveHome(p: string): string {
 	if (p.startsWith("~")) {
@@ -25,21 +13,7 @@ function resolveHome(p: string): string {
 // Defaults from .env
 const envDefaults = {
 	port: Number(process.env.PORT) || 3721,
-	dataDir: isAbsolute(process.env.DATA_DIR || "")
-		? process.env.DATA_DIR!
-		: (() => {
-				const rel = process.env.DATA_DIR || "./data";
-				// Global npm install: use ~/.chatcrystal/data
-				if (import.meta.dirname.includes("node_modules")) {
-					const globalDir = resolve(homedir(), ".chatcrystal", "data");
-					return globalDir;
-				}
-				// Try source layout first, then compiled layout
-				const candidate = resolve(import.meta.dirname, "../../", rel);
-				const candidate2 = resolve(import.meta.dirname, "../../../../", rel);
-				// Pick the one where the parent directory exists
-				return existsSync(resolve(candidate, "..")) ? candidate : candidate2;
-			})(),
+	dataDir: runtimePaths.dataDir,
 	claudeProjectsDir: resolveHome(
 		process.env.CLAUDE_PROJECTS_DIR || "~/.claude/projects",
 	),
@@ -66,7 +40,7 @@ const envDefaults = {
 
 // Load persisted config.json if exists, overlay on env defaults
 function loadPersistedConfig() {
-	const configPath = resolve(envDefaults.dataDir, "config.json");
+	const configPath = runtimePaths.configPath;
 	if (!existsSync(configPath))
 		return {
 			...envDefaults,
@@ -126,7 +100,7 @@ export function updateConfig(partial: {
 }
 
 function persistConfig() {
-	const configPath = resolve(appConfig.dataDir, "config.json");
+	const configPath = runtimePaths.configPath;
 	const toSave = {
 		llm: { ...appConfig.llm },
 		embedding: { ...appConfig.embedding },
