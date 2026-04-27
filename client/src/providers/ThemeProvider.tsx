@@ -1,9 +1,10 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { ThemeDefinition } from '@/themes/theme.types.ts';
 import { themeToCSSVars } from '@/themes/theme.types.ts';
 import { darkWorkshop } from '@/themes/dark-workshop.ts';
 import { dawnHaze } from '@/themes/dawn-haze.ts';
 import { jadeAbyss } from '@/themes/jade-abyss.ts';
+import { ThemeContext } from './theme-context.ts';
 
 // Registry of available themes
 const themes: Record<string, ThemeDefinition> = {
@@ -11,15 +12,6 @@ const themes: Record<string, ThemeDefinition> = {
   'dawn-haze': dawnHaze,
   'jade-abyss': jadeAbyss,
 };
-
-interface ThemeContextValue {
-  theme: ThemeDefinition;
-  themeName: string;
-  setTheme: (name: string) => void;
-  availableThemes: ThemeDefinition[];
-}
-
-const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const STORAGE_KEY = 'chatcrystal-theme';
 const STORAGE_VERSION = 1;
@@ -87,10 +79,4 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       {children}
     </ThemeContext.Provider>
   );
-}
-
-export function useTheme() {
-  const ctx = useContext(ThemeContext);
-  if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
-  return ctx;
 }

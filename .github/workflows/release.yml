@@ -95,6 +95,12 @@ jobs:
 
       - run: npm ci
 
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
       - name: Build server
         run: npm run build -w server
 
@@ -143,6 +149,12 @@ jobs:
             electron-builder-${{ runner.os }}-
 
       - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
 
       - name: Build application
         run: |

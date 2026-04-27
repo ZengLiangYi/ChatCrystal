@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/ConfirmDialog.tsx";
 import { api } from "@/lib/api.ts";
-import { useTheme } from "@/providers/ThemeProvider.tsx";
+import { useTheme } from "@/providers/useTheme.ts";
 
 const SOURCE_COLORS: Record<string, string> = {
 	"claude-code": "#e8784a",

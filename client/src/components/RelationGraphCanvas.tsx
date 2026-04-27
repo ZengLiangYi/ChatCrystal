@@ -21,7 +21,7 @@ export interface GraphLink {
 }
 
 interface RelationGraphCanvasProps {
-  graphRef: MutableRefObject<ForceGraphMethods<any, any> | undefined>;
+  graphRef: MutableRefObject<ForceGraphMethods<GraphNode, GraphLink> | undefined>;
   graphData: {
     nodes: GraphNode[];
     links: GraphLink[];

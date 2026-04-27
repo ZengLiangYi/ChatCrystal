@@ -15,7 +15,7 @@ export function ConversationDetail() {
   const summarize = useSummarize();
   const { data: queueData } = useQueueTasks();
 
-  const messages = ((data?.messages ?? []) as MessageData[]);
+  const messages = useMemo(() => (data?.messages ?? []) as MessageData[], [data?.messages]);
 
   // Group consecutive tool-use-only messages (must be before early returns)
   const groupedMessages = useMemo(() => {
