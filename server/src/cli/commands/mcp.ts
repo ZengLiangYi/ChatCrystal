@@ -5,8 +5,9 @@ export function registerMcpCommand(program: Command) {
   program
     .command('mcp')
     .description('Start MCP stdio server for AI tool integration')
-    .action(async () => {
-      const opts = program.opts();
-      await startMcpServer(opts.baseUrl);
+    .option('-b, --base-url <url>', 'Server base URL')
+    .action(async (opts) => {
+      const globalOpts = program.opts();
+      await startMcpServer(opts.baseUrl ?? globalOpts.baseUrl);
     });
 }

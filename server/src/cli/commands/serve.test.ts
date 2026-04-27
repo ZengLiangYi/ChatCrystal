@@ -28,6 +28,9 @@ test('classifyStopDaemonError keeps unexpected kill failures fatal', () => {
 
 test('getPortFromBaseUrl supports explicit and default ports', () => {
   assert.equal(getPortFromBaseUrl('http://localhost:3721'), 3721);
-  assert.equal(getPortFromBaseUrl('http://localhost'), 80);
+  assert.equal(getPortFromBaseUrl('http://localhost'), 3721);
+  assert.equal(getPortFromBaseUrl('http://127.0.0.1'), 3721);
+  assert.equal(getPortFromBaseUrl('http://0.0.0.0'), 3721);
+  assert.equal(getPortFromBaseUrl('http://localhost:80'), 80);
   assert.equal(getPortFromBaseUrl('https://chatcrystal.local'), 443);
 });

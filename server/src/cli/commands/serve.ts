@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { writeFileSync, openSync, mkdirSync } from 'node:fs';
 import type { Command } from 'commander';
-import { readPidFile, removePidFile } from '../client.js';
+import { DEFAULT_SERVER_BASE_URL, normalizeBaseUrl, readPidFile, removePidFile } from '../client.js';
 import {
   findChatCrystalServerProcessByPort,
   getProcessInfo,
@@ -56,14 +56,14 @@ export function registerServeCommand(program: Command) {
     .command('stop')
     .description('Stop the running server')
     .action(async () => {
-      await stopDaemon(program.opts().baseUrl || 'http://localhost:3721');
+      await stopDaemon(program.opts().baseUrl || DEFAULT_SERVER_BASE_URL);
     });
 
   serve
     .command('status')
     .description('Check if the server is running')
     .action(async () => {
-      await checkStatus(program.opts().baseUrl || 'http://localhost:3721');
+      await checkStatus(program.opts().baseUrl || DEFAULT_SERVER_BASE_URL);
     });
 }
 
@@ -121,7 +121,7 @@ async function startDaemon(port: number) {
 }
 
 export function getPortFromBaseUrl(baseUrl: string): number {
-  const url = new URL(baseUrl);
+  const url = new URL(normalizeBaseUrl(baseUrl));
   if (url.port) {
     return Number(url.port);
   }

@@ -23,10 +23,48 @@ export class ApiError extends Error {
   }
 }
 
+export const DEFAULT_SERVER_BASE_URL = 'http://localhost:3721';
+
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', '[::1]']);
+
+function hasExplicitPort(rawUrl: string): boolean {
+  const withProtocol = /^[a-z][a-z\d+\-.]*:\/\//i.test(rawUrl) ? rawUrl : `http://${rawUrl}`;
+  const authority = withProtocol.replace(/^[a-z][a-z\d+\-.]*:\/\//i, '').split(/[/?#]/, 1)[0] ?? '';
+  return authority.startsWith('[') ? /\]:\d+$/.test(authority) : /:\d+$/.test(authority);
+}
+
+export function normalizeBaseUrl(baseUrl?: string): string {
+  const raw = baseUrl?.trim();
+  if (!raw) return DEFAULT_SERVER_BASE_URL;
+
+  const input = /^[a-z][a-z\d+\-.]*:\/\//i.test(raw) ? raw : `http://${raw}`;
+  const explicitPort = hasExplicitPort(input);
+
+  let url: URL;
+  try {
+    url = new URL(input);
+  } catch {
+    throw new Error(`Invalid server base URL "${baseUrl}". Expected a URL like ${DEFAULT_SERVER_BASE_URL}.`);
+  }
+
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error(`Invalid server base URL "${baseUrl}". Only http and https URLs are supported.`);
+  }
+
+  if (url.protocol === 'http:' && LOCAL_HOSTS.has(url.hostname) && !explicitPort) {
+    url.port = '3721';
+  }
+
+  return url.toString().replace(/\/+$/, '');
+}
+
 export class CrystalClient {
   private serverChecked = false;
+  private baseUrl: string;
 
-  constructor(private baseUrl: string = 'http://localhost:3721') {}
+  constructor(baseUrl?: string) {
+    this.baseUrl = normalizeBaseUrl(baseUrl);
+  }
 
   async ensureServer(): Promise<void> {
     if (this.serverChecked) return;

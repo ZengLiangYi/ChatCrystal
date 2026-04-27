@@ -140,6 +140,8 @@ crystal mcp                             # Start MCP stdio server
 }
 ```
 
+ChatCrystal MCP uses stdio transport. Configure it with `command` and `args`, not as an HTTP/SSE MCP URL. The local web/API server runs on `http://localhost:3721`; do not use a bare `http://127.0.0.1` URL in tools that require an HTTP endpoint, because HTTP defaults to port 80.
+
 MCP exposes 6 tools: read-only knowledge tools `search_knowledge`, `get_note`, `list_notes`, `get_relations`, plus memory-loop tools `recall_for_task` and `write_task_memory`.
 
 Formal portable ChatCrystal skills live under [`skills/`](skills/) and are documented in [`docs/agent-skills.md`](docs/agent-skills.md).

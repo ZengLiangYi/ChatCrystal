@@ -126,6 +126,8 @@ crystal mcp                             # 启动 MCP stdio 服务
 }
 ```
 
+ChatCrystal MCP 使用 stdio transport。请用 `command` 和 `args` 配置，不要把它配置成 HTTP/SSE MCP URL。本地 Web/API 服务地址是 `http://localhost:3721`；如果某个工具要求填写 HTTP endpoint，不要只填裸的 `http://127.0.0.1`，因为 HTTP 会默认落到 80 端口。
+
 MCP 暴露 6 个工具：只读知识工具 `search_knowledge`、`get_note`、`list_notes`、`get_relations`，以及 memory loop 工具 `recall_for_task`、`write_task_memory`。
 
 正式可移植的 ChatCrystal skills 位于 [`skills/`](skills/)，安装与发布说明见 [`docs/agent-skills.md`](docs/agent-skills.md)。

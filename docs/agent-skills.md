@@ -69,6 +69,8 @@ crystal serve -d
 }
 ```
 
+ChatCrystal MCP uses stdio transport. Agent clients should launch it with `command` and `args`, not register it as an HTTP/SSE MCP URL. If a tool separately asks for the ChatCrystal HTTP API endpoint, use `http://localhost:3721` rather than bare `http://127.0.0.1`.
+
 With full mode enabled, ChatCrystal MCP exposes:
 
 - `search_knowledge`

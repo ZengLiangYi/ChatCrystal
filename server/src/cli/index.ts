@@ -3,6 +3,7 @@
 import { Command } from 'commander';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { DEFAULT_SERVER_BASE_URL } from './client.js';
 
 // Read version from package.json
 const pkgPath = resolve(import.meta.dirname, '../../../../package.json');
@@ -14,7 +15,7 @@ program
   .name('crystal')
   .description('ChatCrystal — AI conversation knowledge crystallization tool')
   .version(pkg.version)
-  .option('-b, --base-url <url>', 'Server base URL', 'http://localhost:3721')
+  .option('-b, --base-url <url>', 'Server base URL', DEFAULT_SERVER_BASE_URL)
   .option('--json', 'Force JSON output (override TTY detection)')
   .option('--no-interactive', 'Disable interactive mode (always use plain output)');
 
