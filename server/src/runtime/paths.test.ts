@@ -1,56 +1,85 @@
 import assert from 'node:assert/strict';
+import { posix, win32 } from 'node:path';
 import test from 'node:test';
 import { resolveDataDirForTest } from './paths.js';
 
-test('resolveDataDirForTest uses absolute DATA_DIR verbatim', () => {
-  const dataDir = resolveDataDirForTest({
-    envDataDir: 'C:/data/chatcrystal',
-    packageRoot: 'C:/pkg/server',
-    workspaceRoot: 'C:/pkg',
-    homeDir: 'C:/Users/Rayner',
-  });
-
-  assert.equal(dataDir, 'C:/data/chatcrystal');
-});
-
-test('resolveDataDirForTest resolves relative DATA_DIR against workspace root', () => {
-  const dataDir = resolveDataDirForTest({
-    envDataDir: './data',
+const pathCases = [
+  {
+    name: 'Windows',
+    pathResolver: win32,
+    absoluteDataDir: 'C:/data/chatcrystal',
     packageRoot: 'C:/repo/server',
     workspaceRoot: 'C:/repo',
+    globalPackageRoot: 'C:/global/node_modules/chatcrystal',
     homeDir: 'C:/Users/Rayner',
+  },
+  {
+    name: 'POSIX',
+    pathResolver: posix,
+    absoluteDataDir: '/data/chatcrystal',
+    packageRoot: '/repo/server',
+    workspaceRoot: '/repo',
+    globalPackageRoot: '/global/node_modules/chatcrystal',
+    homeDir: '/home/rayner',
+  },
+];
+
+for (const pathCase of pathCases) {
+  test(`resolveDataDirForTest uses absolute DATA_DIR verbatim on ${pathCase.name}`, () => {
+    const dataDir = resolveDataDirForTest({
+      envDataDir: pathCase.absoluteDataDir,
+      packageRoot: pathCase.packageRoot,
+      workspaceRoot: pathCase.workspaceRoot,
+      homeDir: pathCase.homeDir,
+      pathResolver: pathCase.pathResolver,
+    });
+
+    assert.equal(dataDir, pathCase.absoluteDataDir);
   });
 
-  assert.equal(dataDir, 'C:\\repo\\data');
-});
+  test(`resolveDataDirForTest resolves relative DATA_DIR against workspace root on ${pathCase.name}`, () => {
+    const dataDir = resolveDataDirForTest({
+      envDataDir: './data',
+      packageRoot: pathCase.packageRoot,
+      workspaceRoot: pathCase.workspaceRoot,
+      homeDir: pathCase.homeDir,
+      pathResolver: pathCase.pathResolver,
+    });
 
-test('resolveDataDirForTest falls back to package root when no workspace root exists', () => {
-  const dataDir = resolveDataDirForTest({
-    envDataDir: './data',
-    packageRoot: 'C:/global/node_modules/chatcrystal',
-    workspaceRoot: null,
-    homeDir: 'C:/Users/Rayner',
+    assert.equal(dataDir, pathCase.pathResolver.resolve(pathCase.workspaceRoot, 'data'));
   });
 
-  assert.equal(dataDir, 'C:\\global\\node_modules\\chatcrystal\\data');
-});
+  test(`resolveDataDirForTest falls back to package root when no workspace root exists on ${pathCase.name}`, () => {
+    const dataDir = resolveDataDirForTest({
+      envDataDir: './data',
+      packageRoot: pathCase.globalPackageRoot,
+      workspaceRoot: null,
+      homeDir: pathCase.homeDir,
+      pathResolver: pathCase.pathResolver,
+    });
 
-test('resolveDataDirForTest defaults to ~/.chatcrystal/data when DATA_DIR is unset in a repo checkout', () => {
-  const dataDir = resolveDataDirForTest({
-    packageRoot: 'C:/repo/server',
-    workspaceRoot: 'C:/repo',
-    homeDir: 'C:/Users/Rayner',
+    assert.equal(dataDir, pathCase.pathResolver.resolve(pathCase.globalPackageRoot, 'data'));
   });
 
-  assert.equal(dataDir, 'C:\\Users\\Rayner\\.chatcrystal\\data');
-});
+  test(`resolveDataDirForTest defaults to ~/.chatcrystal/data when DATA_DIR is unset in a repo checkout on ${pathCase.name}`, () => {
+    const dataDir = resolveDataDirForTest({
+      packageRoot: pathCase.packageRoot,
+      workspaceRoot: pathCase.workspaceRoot,
+      homeDir: pathCase.homeDir,
+      pathResolver: pathCase.pathResolver,
+    });
 
-test('resolveDataDirForTest defaults to ~/.chatcrystal/data when installed outside a workspace', () => {
-  const dataDir = resolveDataDirForTest({
-    packageRoot: 'C:/Users/Rayner/AppData/Roaming/npm/node_modules/chatcrystal',
-    workspaceRoot: null,
-    homeDir: 'C:/Users/Rayner',
+    assert.equal(dataDir, pathCase.pathResolver.resolve(pathCase.homeDir, '.chatcrystal', 'data'));
   });
 
-  assert.equal(dataDir, 'C:\\Users\\Rayner\\.chatcrystal\\data');
-});
+  test(`resolveDataDirForTest defaults to ~/.chatcrystal/data when installed outside a workspace on ${pathCase.name}`, () => {
+    const dataDir = resolveDataDirForTest({
+      packageRoot: pathCase.globalPackageRoot,
+      workspaceRoot: null,
+      homeDir: pathCase.homeDir,
+      pathResolver: pathCase.pathResolver,
+    });
+
+    assert.equal(dataDir, pathCase.pathResolver.resolve(pathCase.homeDir, '.chatcrystal', 'data'));
+  });
+}

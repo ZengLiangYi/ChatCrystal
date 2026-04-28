@@ -1,21 +1,24 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, isAbsolute, resolve } from 'node:path';
+import path from 'node:path';
 import { config } from 'dotenv';
 
 type PackageJson = {
   workspaces?: unknown;
 };
 
+type PathResolver = Pick<typeof path, 'isAbsolute' | 'resolve'>;
+
 type RuntimePathOptions = {
   envDataDir?: string;
   packageRoot: string;
   workspaceRoot?: string | null;
   homeDir?: string;
+  pathResolver?: PathResolver;
 };
 
 function readPackageJson(dir: string): PackageJson | null {
-  const manifestPath = resolve(dir, 'package.json');
+  const manifestPath = path.resolve(dir, 'package.json');
   if (!existsSync(manifestPath)) {
     return null;
   }
@@ -28,23 +31,23 @@ function readPackageJson(dir: string): PackageJson | null {
 }
 
 function findNearestPackageRoot(startDir: string): string {
-  let current = resolve(startDir);
+  let current = path.resolve(startDir);
 
   while (true) {
     if (readPackageJson(current)) {
       return current;
     }
 
-    const parent = dirname(current);
+    const parent = path.dirname(current);
     if (parent === current) {
-      return resolve(startDir, '../../..');
+      return path.resolve(startDir, '../../..');
     }
     current = parent;
   }
 }
 
 function findWorkspaceRoot(packageRoot: string): string | null {
-  let current = dirname(packageRoot);
+  let current = path.dirname(packageRoot);
 
   while (true) {
     const manifest = readPackageJson(current);
@@ -52,7 +55,7 @@ function findWorkspaceRoot(packageRoot: string): string | null {
       return current;
     }
 
-    const parent = dirname(current);
+    const parent = path.dirname(current);
     if (parent === current) {
       return null;
     }
@@ -67,23 +70,24 @@ function unique<T>(items: T[]): T[] {
 export function resolveDataDirForTest(options: RuntimePathOptions): string {
   const appRoot = options.workspaceRoot ?? options.packageRoot;
   const homeDir = options.homeDir ?? homedir();
+  const pathResolver = options.pathResolver ?? path;
 
-  if (options.envDataDir && isAbsolute(options.envDataDir)) {
+  if (options.envDataDir && pathResolver.isAbsolute(options.envDataDir)) {
     return options.envDataDir;
   }
 
   if (options.envDataDir) {
-    return resolve(appRoot, options.envDataDir);
+    return pathResolver.resolve(appRoot, options.envDataDir);
   }
 
-  return resolve(homeDir, '.chatcrystal', 'data');
+  return pathResolver.resolve(homeDir, '.chatcrystal', 'data');
 }
 
 const packageRoot = findNearestPackageRoot(import.meta.dirname);
 const workspaceRoot = findWorkspaceRoot(packageRoot);
 const appRoot = workspaceRoot ?? packageRoot;
 
-for (const envPath of unique([resolve(appRoot, '.env'), resolve(packageRoot, '.env')])) {
+for (const envPath of unique([path.resolve(appRoot, '.env'), path.resolve(packageRoot, '.env')])) {
   if (existsSync(envPath)) {
     config({ path: envPath });
     break;
@@ -101,8 +105,8 @@ export const runtimePaths = {
   packageRoot,
   workspaceRoot,
   dataDir,
-  dbPath: resolve(dataDir, 'chatcrystal.db'),
-  configPath: resolve(dataDir, 'config.json'),
-  pidPath: resolve(dataDir, 'crystal.pid'),
-  logPath: resolve(dataDir, 'crystal-server.log'),
+  dbPath: path.resolve(dataDir, 'chatcrystal.db'),
+  configPath: path.resolve(dataDir, 'config.json'),
+  pidPath: path.resolve(dataDir, 'crystal.pid'),
+  logPath: path.resolve(dataDir, 'crystal-server.log'),
 };
