@@ -1,5 +1,7 @@
 # ChatCrystal Agent Skills
 
+English | [简体中文](agent-skills.zh-CN.md)
+
 ChatCrystal now ships three tracked, publishable agent skills under [`skills/`](../skills):
 
 - `chatcrystal-task-recall`

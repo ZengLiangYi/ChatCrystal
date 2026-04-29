@@ -25,7 +25,36 @@ English | [简体中文](README.zh-CN.md)
 
 <br>
 
-ChatCrystal collects conversations from AI coding tools (Claude Code, Cursor, Codex CLI, Trae, GitHub Copilot), uses LLM to distill them into searchable structured notes, and builds your personal knowledge base — all running locally.
+ChatCrystal collects conversations from AI coding tools, distills them into structured notes with LLMs, and builds a local searchable knowledge base from your real problem-solving history.
+
+Supported sources: Claude Code, Cursor, Codex CLI, Trae, and GitHub Copilot.
+
+## Quick Start
+
+### Desktop App (Recommended)
+
+Download the latest Windows installer from [GitHub Releases](https://github.com/ZengLiangYi/ChatCrystal/releases). After installing, launch ChatCrystal, configure your LLM and embedding providers in Settings, then click **Import**.
+
+### CLI / Web
+
+```bash
+npm install -g chatcrystal
+crystal serve -d
+crystal import
+```
+
+Then open http://localhost:3721 in your browser.
+
+## What It Does
+
+- **Imports AI coding conversations** from local tool data directories.
+- **Distills conversations into structured notes** with titles, summaries, conclusions, snippets, and tags.
+- **Searches knowledge semantically** with embeddings and relation-aware result expansion.
+- **Builds a knowledge graph** across related notes and decisions.
+- **Exposes CLI and MCP tools** so agents can recall and write back reusable experience.
+- **Runs locally** with configurable LLM and embedding providers.
+
+## Screenshots
 
 <div align="center">
 <table>
@@ -48,62 +77,7 @@ ChatCrystal collects conversations from AI coding tools (Claude Code, Cursor, Co
 </table>
 </div>
 
-## Why?
-
-After 200+ AI conversations, finding that one solution you discussed last week becomes impossible. ChatCrystal watches your conversation files, auto-generates structured notes, and lets you search across everything with natural language — no cloud, no subscription, runs entirely on your machine.
-
-### Quick Start
-
-```bash
-npm install -g chatcrystal
-crystal serve -d
-crystal import
-```
-
-Then open http://localhost:3721 in your browser.
-
-## Features
-
-- **Multi-source ingestion** — Auto-imports conversations from Claude Code, Codex CLI, Cursor, Trae, and GitHub Copilot with real-time file watching
-- **Structured LLM summarization** — Generates notes via `generateObject` + Zod schema (guaranteed valid output, auto-retry on schema violation). Turn-based transcript preprocessing selects the most valuable conversation segments within a configurable token budget.
-- **Semantic search** — Embedding-powered vector search (vectra) with text preview snippets and relation-aware result expansion. Embedding content includes title, summary, conclusions, tags, and code snippet descriptions.
-- **Knowledge graph** — Structured relation discovery via `generateObject` with typed schemas. 8 relation types with confidence scoring and force-directed visualization.
-- **Conversation viewer** — Markdown rendering, code highlighting, collapsible tool calls, noise filtering
-- **Multi-provider support** — Ollama, OpenAI, Anthropic, Google AI, Azure OpenAI, or any OpenAI-compatible API, switchable at runtime
-- **Task queue** — Batch summarization/embedding via p-queue with real-time progress tracking and cancellation
-- **Desktop app** — Electron with system tray, minimize-to-tray on close
-
-## How Summarization Works
-
-ChatCrystal uses a multi-stage pipeline to turn raw conversations into searchable knowledge:
-
-### Turn-Based Transcript Preparation
-
-AI coding conversations have a natural **turn** structure — a user gives an instruction, the assistant responds (potentially with many tool calls), and the cycle repeats. Long conversations (100+ messages with heavy MCP tool usage) can't fit in a single LLM context window.
-
-Instead of naive head+tail truncation, ChatCrystal uses a **turn-based selection algorithm**:
-
-1. **Split** — Messages are grouped into turns at user→assistant boundaries. Consecutive user messages (e.g., pasting logs + follow-up) stay in the same turn.
-2. **Filter** — Within each turn, only the user instruction and the first/last substantial assistant reply are kept. Tool call chains in between are discarded.
-3. **Score** — Each turn is scored: `user_text_length × (1 + assistant_reply_count)`. Longer instructions with more assistant engagement = higher importance.
-4. **Select** — The first turn (requirements) and last two turns (conclusions) are always included. Remaining budget goes to the highest-scored middle turns.
-5. **Summarize skipped turns** — Skipped turns are compressed into one-line previews (`[skipped] User: fix the CSS issue with login page...`) so the LLM still sees the conversation's causal chain.
-
-The character budget defaults to 32,000 (~8K tokens) and is configurable via `LLM_MAX_INPUT_CHARS` for users with larger-context models.
-
-### Structured Output
-
-Summarization uses Vercel AI SDK's `generateObject()` with a Zod schema instead of prompt-engineered JSON. This guarantees valid output structure with automatic retry (up to 3 attempts) when schema validation fails — eliminating the truncation and parse failures common with `generateText()` + manual JSON extraction.
-
-## CLI & MCP Server
-
-ChatCrystal also provides a CLI tool and MCP Server, published as an npm package.
-
-```bash
-npm install -g chatcrystal
-```
-
-### CLI Commands
+## Common Commands
 
 ```bash
 crystal status                          # Server status and DB stats
@@ -111,335 +85,46 @@ crystal import [--source claude-code]   # Scan and import conversations
 crystal search "query" [--limit 10]     # Semantic search
 crystal notes list [--tag X]            # Browse notes
 crystal notes get <id>                  # View note detail
-crystal tags                            # List tags with counts
 crystal summarize --all                 # Batch summarize
 crystal config get                      # View config
 crystal serve -d                        # Start server in background
 crystal serve stop                      # Stop background server
-```
-
-Auto-start: commands that need the server will auto-launch it in background if not running. Output is TTY-aware — colored tables in terminal, JSON when piped.
-
-### MCP Server
-
-Integrate with AI coding tools (Claude Code, Cursor, etc.) so they can retrieve knowledge from your conversation history during coding.
-
-```bash
 crystal mcp                             # Start MCP stdio server
 ```
 
-**Claude Code configuration** (`settings.json`):
-```json
-{
-  "mcpServers": {
-    "chatcrystal": {
-      "command": "crystal",
-      "args": ["mcp"]
-    }
-  }
-}
-```
+## Documentation
 
-ChatCrystal MCP uses stdio transport. Configure it with `command` and `args`, not as an HTTP/SSE MCP URL. The local web/API server runs on `http://localhost:3721`; do not use a bare `http://127.0.0.1` URL in tools that require an HTTP endpoint, because HTTP defaults to port 80.
+| Topic | English | 简体中文 |
+|---|---|---|
+| User guide | [docs/USER_GUIDE.md](docs/USER_GUIDE.md) | [docs/USER_GUIDE.zh-CN.md](docs/USER_GUIDE.zh-CN.md) |
+| Development | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | [docs/DEVELOPMENT.zh-CN.md](docs/DEVELOPMENT.zh-CN.md) |
+| MCP and agents | [docs/MCP.md](docs/MCP.md) | [docs/MCP.zh-CN.md](docs/MCP.zh-CN.md) |
+| Experience quality gate | [docs/EXPERIENCE_GATE.md](docs/EXPERIENCE_GATE.md) | [docs/EXPERIENCE_GATE.zh-CN.md](docs/EXPERIENCE_GATE.zh-CN.md) |
+| Agent skills | [docs/agent-skills.md](docs/agent-skills.md) | [docs/agent-skills.zh-CN.md](docs/agent-skills.zh-CN.md) |
 
-MCP exposes 6 tools: read-only knowledge tools `search_knowledge`, `get_note`, `list_notes`, `get_relations`, plus memory-loop tools `recall_for_task` and `write_task_memory`.
-
-Formal portable ChatCrystal skills live under [`skills/`](skills/) and are documented in [`docs/agent-skills.md`](docs/agent-skills.md).
-
-### Memory Loop Architecture
-
-ChatCrystal's agent memory loop is split into three layers:
-
-- **ChatCrystal Core** — Local knowledge storage, retrieval, merge, and writeback
-- **MCP Layer** — Stable tools for knowledge lookup plus task recall and task writeback
-- **Skill Layer** — Portable skills that trigger recall before substantial work and writeback after meaningful work
-
-When Core is unavailable, the skills degrade safely: they continue helping with the task, but do not pretend memory was recalled or persisted.
-
-See [`docs/agent-skills.md`](docs/agent-skills.md) for installation, full mode, degraded mode, and publishing guidance.
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Backend | Node.js + Fastify v5 + TypeScript |
-| Frontend | Vite v8 + React 19 + Tailwind CSS v4 + TanStack React Query v5 |
-| Desktop | Electron + electron-builder (NSIS installer) |
-| Database | sql.js (WASM SQLite) |
-| LLM | Vercel AI SDK v6 — Ollama / OpenAI / Anthropic / Google / Azure / Custom |
-| Embedding | vectra vector index, multi-provider |
-| File watching | chokidar |
-
-## Getting Started
-
-### Prerequisites
+## Requirements
 
 - Node.js >= 20
-- An LLM service (pick one):
-  - [Ollama](https://ollama.ai/) (local inference, free)
-  - OpenAI / Anthropic / Google AI API key
-  - Any OpenAI-compatible service (OpenRouter, Poe, etc.)
+- An LLM provider for summarization
+- An embedding provider for semantic search
 
-If using Ollama, pull the required models:
+LLM and embedding providers are configured separately. Large language models such as Claude, GPT, and Qwen are not embedding models. See the [user guide](docs/USER_GUIDE.md#configuration) for provider examples.
 
-```bash
-ollama pull qwen2.5:7b          # LLM summarization
-ollama pull nomic-embed-text     # Embedding
-```
-
-### Installation
+## Local Development
 
 ```bash
 git clone https://github.com/ZengLiangYi/ChatCrystal.git
 cd ChatCrystal
 npm install
+npm run dev
 ```
 
-Configuration is persisted in `~/.chatcrystal/data/config.json` (or an explicit `DATA_DIR`) after first launch. `.env` is optional and only needed if you want local development overrides.
+Development server ports:
 
-### Desktop App (Recommended)
+- API/server: http://localhost:3721
+- Vite client: http://localhost:13721
 
-```bash
-npm run dev:electron             # Dev mode (Electron + Vite HMR)
-npm run build:electron           # Build NSIS installer → release/
-```
-
-The installer is in the `release/` directory. Data is stored in `~/.chatcrystal/data/` by default, matching the CLI and MCP server.
-
-### Web Dev Mode
-
-```bash
-npm run dev                      # Starts backend (3721) + frontend (13721)
-```
-
-Visit http://localhost:13721
-
-### Web Production Mode
-
-```bash
-npm run build                    # Build backend + frontend
-npm start                        # Start server (frontend served statically)
-```
-
-Visit http://localhost:3721
-
-## Workflow
-
-1. Click "Import" in the sidebar to scan Claude Code / Codex CLI / Cursor / Trae / GitHub Copilot conversations
-2. Browse imported conversations on the Conversations page
-3. Click "Summarize" or use "Batch Summarize" to distill conversations into notes
-4. Search your knowledge on the Search page; enable "Expand related notes" to follow relation edges
-5. Explore note relationships on the Graph page (force-directed, draggable, zoomable)
-6. Filter and browse all notes by tag on the Notes page
-7. Switch LLM/Embedding providers and models on the Settings page
-
-## Configuration
-
-ChatCrystal now treats `config.json` in the active data directory as the primary runtime config. The Settings page and `crystal config` commands update that file directly.
-
-Default locations:
-
-- CLI / MCP / npm package / repo checkout / Electron: `~/.chatcrystal/data/config.json`
-- Custom `DATA_DIR`: `<DATA_DIR>/config.json`
-
-`.env` is optional. Keep it only if you want local overrides such as a custom `PORT`, source directory overrides, or pre-seeded API keys during development.
-
-Typical keys stored in `config.json`:
-
-```json
-{
-  "llm": {
-    "provider": "ollama",
-    "baseURL": "http://localhost:11434",
-    "model": "qwen2.5:7b",
-    "apiKey": ""
-  },
-  "embedding": {
-    "provider": "ollama",
-    "baseURL": "http://localhost:11434",
-    "model": "nomic-embed-text",
-    "apiKey": ""
-  },
-  "enabledSources": ["claude-code", "codex", "cursor", "trae", "copilot"]
-}
-```
-
-Optional `.env` overrides:
-
-```bash
-# Server port
-PORT=3721
-# Optional runtime data override
-# DATA_DIR=C:\path\to\chatcrystal-data
-
-# Optional source overrides
-# CLAUDE_PROJECTS_DIR=~/.claude/projects
-# CODEX_SESSIONS_DIR=~/.codex/sessions
-
-# Optional provider defaults
-# LLM_PROVIDER=ollama
-# LLM_BASE_URL=http://localhost:11434
-# LLM_MODEL=qwen2.5:7b
-# EMBEDDING_PROVIDER=ollama
-# EMBEDDING_BASE_URL=http://localhost:11434
-# EMBEDDING_MODEL=nomic-embed-text
-# LLM_API_KEY=
-# EMBEDDING_API_KEY=
-```
-
-> **Note: LLM and Embedding must be configured separately.** Semantic search requires a dedicated embedding model that supports the `/v1/embeddings` endpoint. Large language models (Claude, GPT-4, Qwen, etc.) **cannot** be used as embedding models. Common embedding models:
->
-> | Provider | Models |
-> |----------|--------|
-> | Ollama (local) | `nomic-embed-text`, `mxbai-embed-large` |
-> | OpenAI | `text-embedding-3-small`, `text-embedding-3-large` |
-> | Google | `text-embedding-004` |
-
-### Provider Configuration Examples
-
-You can set these through the Settings page / `config.json`, or keep them in `.env` as local overrides.
-
-```bash
-# OpenAI
-LLM_PROVIDER=openai
-LLM_API_KEY=sk-...
-LLM_MODEL=gpt-4o
-
-# Anthropic
-LLM_PROVIDER=anthropic
-LLM_API_KEY=sk-ant-...
-LLM_MODEL=claude-sonnet-4-20250514
-
-# Google AI
-LLM_PROVIDER=google
-LLM_API_KEY=AIza...
-LLM_MODEL=gemini-2.0-flash
-
-# OpenAI-compatible service (Poe / OpenRouter / etc.)
-LLM_PROVIDER=custom
-LLM_BASE_URL=https://openrouter.ai/api/v1
-LLM_API_KEY=your-key
-LLM_MODEL=anthropic/claude-sonnet-4
-```
-
-## Project Structure
-
-```
-ChatCrystal/
-├── electron/                # Electron main process (window, tray, lifecycle)
-├── shared/types/            # Shared TypeScript types
-├── server/src/
-│   ├── db/                  # SQLite schema + utilities
-│   ├── parser/              # Plugin-based conversation parsers (Claude Code / Codex / Cursor / Trae / Copilot)
-│   ├── services/            # Import, summarization, LLM, embedding, relations, providers
-│   ├── routes/              # Fastify API routes
-│   ├── watcher/             # chokidar file watching
-│   └── queue/               # p-queue task queue + TaskTracker
-├── client/src/
-│   ├── pages/               # Page components (Dashboard, Conversations, Notes, Search, Graph, Settings)
-│   ├── components/          # Shared components (StatusBar, ActivityPanel, etc.)
-│   ├── hooks/               # React Query hooks
-│   ├── themes/              # Theme definitions
-│   └── providers/           # ThemeProvider
-├── scripts/                 # Release and utility scripts
-├── electron-builder.yml     # Electron packaging config
-└── data/                    # Optional DATA_DIR override location (gitignored)
-```
-
-## Adding Data Sources
-
-Implement the `SourceAdapter` interface to add a new AI tool:
-
-```typescript
-interface SourceAdapter {
-  name: string;
-  displayName: string;
-  detect(): Promise<SourceInfo | null>;
-  scan(): Promise<ConversationMeta[]>;
-  parse(meta: ConversationMeta): Promise<ParsedConversation>;
-}
-```
-
-Built-in adapters:
-
-| Adapter | Data Source | Format |
-|---|---|---|
-| `claude-code` | `~/.claude/projects/**/*.jsonl` | JSONL conversation log |
-| `codex` | `~/.codex/sessions/**/rollout-*.jsonl` | JSONL event stream |
-| `cursor` | Cursor `workspaceStorage/state.vscdb` | SQLite KV store |
-| `trae` | Trae `workspaceStorage/state.vscdb` | SQLite KV store |
-| `copilot` | VS Code `workspaceStorage/chatSessions/*.jsonl` | JSONL session snapshots |
-
-Create a new adapter file in `server/src/parser/adapters/` and register it in `parser/index.ts`.
-
-## API
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/api/status` | Server status + statistics |
-| GET | `/api/config` | Current configuration (secrets redacted) |
-| POST | `/api/config` | Update provider configuration |
-| POST | `/api/config/test` | Test LLM connection |
-| GET | `/api/providers` | Available provider list |
-| POST | `/api/import/scan` | Trigger full scan import |
-| GET | `/api/conversations` | Conversation list (filterable, paginated) |
-| GET | `/api/conversations/:id` | Conversation detail + messages |
-| POST | `/api/conversations/:id/summarize` | Generate summary for one conversation |
-| POST | `/api/summarize/batch` | Batch summarization |
-| POST | `/api/summarize/reset-errors` | Reset error status |
-| GET | `/api/notes` | Note list |
-| GET | `/api/notes/:id` | Note detail |
-| POST | `/api/notes/:id/embed` | Generate embedding |
-| POST | `/api/embeddings/batch` | Batch embedding generation |
-| GET | `/api/search?q=...&expand=true` | Semantic search (expand follows relation edges) |
-| GET | `/api/notes/:id/relations` | Note relations list |
-| POST | `/api/notes/:id/relations` | Create relation manually |
-| DELETE | `/api/relations/:id` | Delete relation |
-| POST | `/api/notes/:id/discover-relations` | LLM auto-discover relations |
-| POST | `/api/relations/batch-discover` | Batch relation discovery |
-| GET | `/api/relations/graph` | Knowledge graph data (nodes + edges) |
-| GET | `/api/tags` | Tag list |
-| GET | `/api/queue/status` | Queue status |
-| POST | `/api/queue/cancel` | Cancel queued tasks |
-
-## Knowledge Graph
-
-After generating note summaries, the LLM automatically analyzes relationships between notes. Supported relation types:
-
-| Relation | Meaning | Example |
-|----------|---------|---------|
-| `CAUSED_BY` | Causation | Login failure ← Token expiration logic bug |
-| `LEADS_TO` | Leads to | Route refactor → page flicker bug |
-| `RESOLVED_BY` | Resolved by | Memory leak → added cleanup function |
-| `SIMILAR_TO` | Similar topic | Two conversations both discussing deployment |
-| `CONTRADICTS` | Contradiction | Use Redux vs Context is enough |
-| `DEPENDS_ON` | Dependency | New feature depends on auth middleware refactor |
-| `EXTENDS` | Extension | Added eviction policy on top of caching solution |
-| `REFERENCES` | Reference | Conversation mentions a previous architecture decision |
-
-View related notes at the bottom of the note detail page. Supports AI discovery, manual addition, and search-to-link. Browse the entire knowledge network via the force-directed graph on the Graph page.
-
-## FAQ
-
-**Semantic search returns 500 "Not Found"**
-
-Embedding model misconfigured. Make sure `EMBEDDING_MODEL` is a dedicated embedding model (e.g., `nomic-embed-text`), not a large language model (e.g., `claude-haiku`, `qwen2.5`). LLMs do not support the `/v1/embeddings` endpoint.
-
-**Can't connect to Ollama on startup**
-
-Make sure Ollama is running and the models are pulled:
-```bash
-ollama pull qwen2.5:7b
-ollama pull nomic-embed-text
-```
-
-**No conversations after import**
-
-Check your configured source paths in the Settings page or `config.json`, and make sure the target directory contains `.jsonl` files. If you use `.env` overrides, verify those paths there instead.
-
-**Knowledge graph is empty**
-
-You need to generate notes first, then click "Discover" on a note detail page, or use `POST /api/relations/batch-discover` for batch discovery.
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for architecture, testing, build, and release details.
 
 ## License
 
