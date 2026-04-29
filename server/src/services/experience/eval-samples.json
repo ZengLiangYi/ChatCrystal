@@ -1,0 +1,913 @@
+{
+  "schema_version": 1,
+  "provenance": {
+    "origin": "synthetic_calibration_cases",
+    "contains_real_user_data": false,
+    "sanitization": [
+      "Samples are hand-authored calibration cases, not copied from imported conversations or a local ChatCrystal database.",
+      "Personal names, absolute user paths, account identifiers, secrets, and raw private logs are excluded.",
+      "Project-specific terms are kept only when they are needed to exercise reusable product behavior."
+    ]
+  },
+  "samples": [
+  {
+    "id": "short-info-typescript-interface",
+    "label": "Short informational TypeScript Q&A",
+    "expected_decision": "reject",
+    "messages": [
+      {
+        "type": "user",
+        "content": "TypeScript interface 是什么？"
+      },
+      {
+        "type": "assistant",
+        "content": "interface 用来描述对象形状。"
+      }
+    ],
+    "notes": "Low-density informational exchange without problem solving, decision, or outcome closure."
+  },
+  {
+    "id": "debug-server-readiness-race",
+    "label": "Debug loop with root cause and verified fix",
+    "expected_decision": "accept",
+    "messages": [
+      {
+        "type": "user",
+        "content": "npm test fails with ECONNREFUSED in server/src/routes/memory.test.ts. Need root cause and fix.",
+        "has_code": true
+      },
+      {
+        "type": "assistant",
+        "content": "I inspected startup timing, compared request flow, found requests raced server readiness, and verified the fix with npm run test.",
+        "has_tool_use": true,
+        "has_code": true
+      },
+      {
+        "type": "user",
+        "content": "继续，把 readiness helper 的可复用经验沉淀下来。"
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 18,
+      "process_depth": 17,
+      "decision_value": 15,
+      "outcome_closure": 18,
+      "reuse_potential": 16
+    },
+    "notes": "Complete debugging experience with problem, process, root cause, verification, and reuse signal."
+  },
+  {
+    "id": "concise-architecture-decision",
+    "label": "Concise high-density architecture decision",
+    "expected_decision": "accept",
+    "messages": [
+      {
+        "type": "user",
+        "content": "We need to choose where to store filtered gate audit details. Because rejected conversations do not create notes, decide to store score, reason, and JSON details on conversations. This makes future retries clear and becomes a reusable pattern for future filtering workflows."
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 17,
+      "process_depth": 14,
+      "decision_value": 19,
+      "outcome_closure": 16,
+      "reuse_potential": 18
+    },
+    "notes": "Single-turn but dense decision with rationale, outcome, and transfer pattern."
+  },
+  {
+    "id": "abandoned-brainstorm-no-outcome",
+    "label": "Brainstorm without outcome closure",
+    "expected_decision": "reject",
+    "messages": [
+      {
+        "type": "user",
+        "content": "我们可以考虑做一个更复杂的机器学习模型，也可能用规则，先讨论一下。"
+      },
+      {
+        "type": "assistant",
+        "content": "可以比较监督学习、规则打分和混合方案，各有成本和准确率差异。"
+      }
+    ],
+    "notes": "Discussion has options but no conclusion, implementation, or reusable outcome."
+  },
+  {
+    "id": "implemented-but-no-verification",
+    "label": "Implementation notes without result closure",
+    "expected_decision": "reject",
+    "messages": [
+      {
+        "type": "user",
+        "content": "Implement a parser in server/src/parser/foo.ts and update the route.",
+        "has_code": true
+      },
+      {
+        "type": "assistant",
+        "content": "I changed server/src/parser/foo.ts and server/src/routes/foo.ts, but tests were not run and the result is unknown.",
+        "has_code": true,
+        "has_tool_use": true
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 13,
+      "process_depth": 7,
+      "decision_value": 5,
+      "outcome_closure": 3,
+      "reuse_potential": 6
+    },
+    "notes": "Has code changes but lacks verified outcome or durable lesson."
+  },
+  {
+    "id": "fix-windows-path-ci",
+    "label": "CI path semantics fix",
+    "expected_decision": "accept",
+    "messages": [
+      {
+        "type": "user",
+        "content": "publish-npm CI fails on Ubuntu because tests expect Windows C:/ paths. Need root cause and a portable fix.",
+        "has_code": true
+      },
+      {
+        "type": "assistant",
+        "content": "I compared node:path behavior on POSIX and Windows, found C:/ is treated as relative on Ubuntu, changed the tests to use platform-aware path helpers, and verified npm run test -w server passed.",
+        "has_tool_use": true,
+        "has_code": true
+      },
+      {
+        "type": "user",
+        "content": "记录这个跨平台测试的 reusable pattern。"
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 18,
+      "process_depth": 17,
+      "decision_value": 16,
+      "outcome_closure": 18,
+      "reuse_potential": 18
+    },
+    "notes": "Realistic CI debugging loop with platform root cause and portable pattern."
+  },
+  {
+    "id": "fix-embedding-config",
+    "label": "Embedding provider misconfiguration fix",
+    "expected_decision": "accept",
+    "messages": [
+      {
+        "type": "user",
+        "content": "Semantic search returns 500 Not Found after configuring Qwen as the embedding model. Need diagnose and fix.",
+        "has_code": false
+      },
+      {
+        "type": "assistant",
+        "content": "I inspected config, found the LLM model was reused for embeddings even though it lacks /v1/embeddings, changed embedding.model to text-embedding-3-small, and verified search passed.",
+        "has_tool_use": true
+      },
+      {
+        "type": "user",
+        "content": "沉淀为以后排查 embedding 配置错误的经验。"
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 17,
+      "process_depth": 16,
+      "decision_value": 14,
+      "outcome_closure": 18,
+      "reuse_potential": 19
+    },
+    "notes": "Operational fix with root cause and reusable diagnostic."
+  },
+  {
+    "id": "decision-mcp-core-boundary",
+    "label": "Core boundary decision for MCP writeback",
+    "expected_decision": "accept",
+    "messages": [
+      {
+        "type": "user",
+        "content": "Should quality filtering live only in the agent skill or also in MCP Core? We need decide the architecture."
+      },
+      {
+        "type": "assistant",
+        "content": "Because MCP can be called by many agents and clients, I chose server/src/services/memory/writeback.ts as the trusted Core boundary and kept the skill as preflight guidance. This decision makes bypasses clear and forms a reusable pattern for memory safety.",
+        "has_code": true
+      },
+      {
+        "type": "user",
+        "content": "同意，验证这个架构并作为经验沉淀。"
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 18,
+      "process_depth": 15,
+      "decision_value": 20,
+      "outcome_closure": 17,
+      "reuse_potential": 19
+    },
+    "notes": "Architecture decision with tradeoff and transferable security boundary pattern."
+  },
+  {
+    "id": "migration-filtered-status",
+    "label": "Schema migration decision for filtered status",
+    "expected_decision": "accept",
+    "messages": [
+      {
+        "type": "user",
+        "content": "本次实现允许 schema 迁移，但要避免把真实 error 都清掉。"
+      },
+      {
+        "type": "assistant",
+        "content": "I added filtered status plus experience_score, reason, and details columns. Migration only converts errors with explicit low-signal gate reasons, leaving provider and database errors untouched. Tests verified the migration behavior.",
+        "has_code": true,
+        "has_tool_use": true
+      },
+      {
+        "type": "user",
+        "content": "这个迁移取舍可以复用到其他状态清理场景。"
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 18,
+      "process_depth": 16,
+      "decision_value": 17,
+      "outcome_closure": 18,
+      "reuse_potential": 18
+    },
+    "notes": "Migration with bounded cleanup rule and tests."
+  },
+  {
+    "id": "fix-auto-receipt-replay-save",
+    "label": "MCP receipt replay persistence fix",
+    "expected_decision": "accept",
+    "messages": [
+      {
+        "type": "user",
+        "content": "Auto writeback receipt replay leaves index_status pending after embedding if the process crashes before autosave. Need fix.",
+        "has_code": true
+      },
+      {
+        "type": "assistant",
+        "content": "I reproduced the pending replay path, added save() after marking the receipt completed, and verified the regression test passes. Pattern: persist idempotency receipts immediately after state transitions.",
+        "has_code": true,
+        "has_tool_use": true
+      },
+      {
+        "type": "user",
+        "content": "很好，这是可复用的幂等写回经验。"
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 18,
+      "process_depth": 16,
+      "decision_value": 15,
+      "outcome_closure": 18,
+      "reuse_potential": 19
+    },
+    "notes": "Durable idempotency receipt lesson."
+  },
+  {
+    "id": "pattern-offline-gate-eval",
+    "label": "Offline gate evaluation pattern",
+    "expected_decision": "accept",
+    "messages": [
+      {
+        "type": "user",
+        "content": "Next step is quality gate calibration. We need avoid changing thresholds by intuition."
+      },
+      {
+        "type": "assistant",
+        "content": "I implemented a labeled JSON sample set plus pure evaluation functions and a CLI report. This makes false accepts and false rejects visible, and npm run eval:experience verified 5/5 samples passed.",
+        "has_code": true,
+        "has_tool_use": true
+      },
+      {
+        "type": "user",
+        "content": "把这个 evaluation pattern 作为后续质量门槛调参流程。"
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 17,
+      "process_depth": 15,
+      "decision_value": 16,
+      "outcome_closure": 18,
+      "reuse_potential": 20
+    },
+    "notes": "Meta pattern for calibrating quality gates."
+  },
+  {
+    "id": "fix-root-cause-only-merge",
+    "label": "Root-cause-only writeback merge regression",
+    "expected_decision": "accept",
+    "messages": [
+      {
+        "type": "user",
+        "content": "Root-cause-only fixes stopped merging after structuredKnowledgeDelta was passed as resolution. Need identify and fix regression.",
+        "has_code": true
+      },
+      {
+        "type": "assistant",
+        "content": "I found root_cause was copied into the resolution slot, so same-root-cause notes with no resolution failed equality. I kept resolution separate, added knowledge_delta, and verified root-cause-only merge tests passed.",
+        "has_code": true,
+        "has_tool_use": true
+      },
+      {
+        "type": "user",
+        "content": "记录：不要把检索增量字段混入语义相等字段。"
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 19,
+      "process_depth": 17,
+      "decision_value": 17,
+      "outcome_closure": 18,
+      "reuse_potential": 19
+    },
+    "notes": "Regression fix with clear reusable data modeling principle."
+  },
+  {
+    "id": "fix-concise-chinese-writeback",
+    "label": "Concise Chinese writeback false reject",
+    "expected_decision": "accept",
+    "messages": [
+      {
+        "type": "user",
+        "content": "中文 summary 很短但有 root_cause 和 resolution，被质量门槛误拒。Need fix false reject."
+      },
+      {
+        "type": "assistant",
+        "content": "I adjusted meaningful summary length for CJK text, added concise Chinese and English structured writeback tests, and verified the gate accepts durable structured fields. This makes future multilingual writebacks safer.",
+        "has_code": true,
+        "has_tool_use": true
+      },
+      {
+        "type": "user",
+        "content": "这是多语言经验库质量门槛的 reusable pitfall。"
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 17,
+      "process_depth": 15,
+      "decision_value": 15,
+      "outcome_closure": 18,
+      "reuse_potential": 19
+    },
+    "notes": "Multilingual false reject fix."
+  },
+  {
+    "id": "decision-cli-tool-catalog",
+    "label": "Catalog classification decision",
+    "expected_decision": "accept",
+    "messages": [
+      {
+        "type": "user",
+        "content": "Should ChatCrystal be submitted as standalone skills or as a Tools/MCP Server entry? Need decide."
+      },
+      {
+        "type": "assistant",
+        "content": "Because full functionality depends on the external CLI/Core and MCP stdio server, I chose a Tools/MCP Server catalog entry in website/data/tools.yml. This decision makes installation requirements clear and forms a reusable submission pattern.",
+        "has_code": true
+      },
+      {
+        "type": "user",
+        "content": "结论明确，可以复用到其他集成目录提交。"
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 18,
+      "process_depth": 14,
+      "decision_value": 19,
+      "outcome_closure": 17,
+      "reuse_potential": 18
+    },
+    "notes": "Decision asset without code changes but clear tradeoff and reusable outcome."
+  },
+  {
+    "id": "optimize-semantic-search-direct-hit",
+    "label": "Semantic search direct-hit materialization fix",
+    "expected_decision": "accept",
+    "messages": [
+      {
+        "type": "user",
+        "content": "Semantic search sometimes returns stale vectra ids after DB rows changed. Need root cause and reliable fix.",
+        "has_code": true
+      },
+      {
+        "type": "assistant",
+        "content": "I compared vectra metadata with SQLite embeddings, found staged-only ids could leak into results, and changed direct-hit materialization to validate SQLite-backed chunks before deduping. Tests passed.",
+        "has_code": true,
+        "has_tool_use": true
+      },
+      {
+        "type": "user",
+        "content": "沉淀为向量索引和数据库双写一致性的经验。"
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 18,
+      "process_depth": 18,
+      "decision_value": 16,
+      "outcome_closure": 18,
+      "reuse_potential": 18
+    },
+    "notes": "Consistency fix for vector index plus DB."
+  },
+  {
+    "id": "config-base-url-normalization",
+    "label": "Local base URL normalization fix",
+    "expected_decision": "accept",
+    "messages": [
+      {
+        "type": "user",
+        "content": "MCP/API calls fail with ECONNREFUSED on a loopback service when agents pass a local base URL without a port. Need fix.",
+        "has_code": true
+      },
+      {
+        "type": "assistant",
+        "content": "I found bare local URLs defaulted to HTTP port 80 instead of the product API port, normalized loopback hosts, and verified URL tests passed.",
+        "has_code": true,
+        "has_tool_use": true
+      },
+      {
+        "type": "user",
+        "content": "这是本地服务默认端口配置的 reusable pattern。"
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 18,
+      "process_depth": 16,
+      "decision_value": 15,
+      "outcome_closure": 18,
+      "reuse_potential": 18
+    },
+    "notes": "Configuration normalization fix."
+  },
+  {
+    "id": "manual-smoke-only-no-root-cause",
+    "label": "Manual smoke result without diagnosis",
+    "expected_decision": "reject",
+    "messages": [
+      {
+        "type": "user",
+        "content": "我打开页面看了一下，好像可以。"
+      },
+      {
+        "type": "assistant",
+        "content": "记录：页面能打开，但没有说明问题、原因、方案或可复用模式。"
+      }
+    ],
+    "notes": "A smoke result alone is not an experience asset."
+  },
+  {
+    "id": "single-command-output",
+    "label": "Single command output relay",
+    "expected_decision": "reject",
+    "messages": [
+      {
+        "type": "user",
+        "content": "date"
+      },
+      {
+        "type": "assistant",
+        "content": "2026-04-29 13:20:00"
+      }
+    ],
+    "notes": "Utility command output with no durable decision."
+  },
+  {
+    "id": "generic-doc-summary",
+    "label": "Generic documentation summary",
+    "expected_decision": "reject",
+    "messages": [
+      {
+        "type": "user",
+        "content": "总结一下 React Query 是什么。"
+      },
+      {
+        "type": "assistant",
+        "content": "React Query 用于服务端状态管理，提供缓存、重试、刷新等能力。"
+      }
+    ],
+    "notes": "Information retrieval summary without task outcome."
+  },
+  {
+    "id": "uncertain-plan-no-decision",
+    "label": "Plan discussion without decision",
+    "expected_decision": "reject",
+    "messages": [
+      {
+        "type": "user",
+        "content": "我们可能先做 UI，也可能先做后端，你觉得呢？"
+      },
+      {
+        "type": "assistant",
+        "content": "可以分别列出两种路线的优缺点，但目前没有最终选择或验证结果。"
+      }
+    ],
+    "notes": "Options only, no decision closure."
+  },
+  {
+    "id": "failed-implementation-no-resolution",
+    "label": "Failed implementation without resolution",
+    "expected_decision": "reject",
+    "messages": [
+      {
+        "type": "user",
+        "content": "Refactor server/src/services/import.ts to improve performance.",
+        "has_code": true
+      },
+      {
+        "type": "assistant",
+        "content": "I tried changing batching but tests failed and I reverted the change. No resolution or reusable lesson was confirmed.",
+        "has_code": true,
+        "has_tool_use": true
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 12,
+      "process_depth": 8,
+      "decision_value": 4,
+      "outcome_closure": 2,
+      "reuse_potential": 5
+    },
+    "notes": "Attempt without confirmed outcome."
+  },
+  {
+    "id": "low-density-approval",
+    "label": "Low-density approval exchange",
+    "expected_decision": "reject",
+    "messages": [
+      {
+        "type": "user",
+        "content": "很好"
+      },
+      {
+        "type": "assistant",
+        "content": "好的，继续。"
+      }
+    ],
+    "notes": "Acknowledgement only."
+  },
+  {
+    "id": "tool-log-only",
+    "label": "Tool log without reasoning",
+    "expected_decision": "reject",
+    "messages": [
+      {
+        "type": "assistant",
+        "content": "Ran npm test. Ran npm build. Ran npm lint.",
+        "has_tool_use": true
+      },
+      {
+        "type": "user",
+        "content": "好的"
+      }
+    ],
+    "notes": "Work log lacks problem and conclusion."
+  },
+  {
+    "id": "unverified-ui-change",
+    "label": "UI change without verification",
+    "expected_decision": "reject",
+    "messages": [
+      {
+        "type": "user",
+        "content": "Change the button color in client/src/pages/SettingsPage.tsx.",
+        "has_code": true
+      },
+      {
+        "type": "assistant",
+        "content": "I updated the color, but did not run browser verification and did not identify any reusable design decision.",
+        "has_code": true
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 8,
+      "process_depth": 3,
+      "decision_value": 2,
+      "outcome_closure": 2,
+      "reuse_potential": 2
+    },
+    "notes": "Small unverified UI change."
+  },
+  {
+    "id": "dependency-update-no-issue",
+    "label": "Dependency version note without issue",
+    "expected_decision": "reject",
+    "messages": [
+      {
+        "type": "user",
+        "content": "把 package 版本从 1.0.0 改成 1.0.1。"
+      },
+      {
+        "type": "assistant",
+        "content": "已更新版本号。"
+      }
+    ],
+    "notes": "Mechanical change without problem-solving experience."
+  },
+  {
+    "id": "half-debug-no-root-cause",
+    "label": "Half debug with no root cause",
+    "expected_decision": "reject",
+    "messages": [
+      {
+        "type": "user",
+        "content": "Tests fail with timeout in server/src/routes/notes.test.ts. Need investigate.",
+        "has_code": true
+      },
+      {
+        "type": "assistant",
+        "content": "I inspected logs but could not identify the root cause. No fix was implemented and verification did not pass.",
+        "has_tool_use": true,
+        "has_code": true
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 15,
+      "process_depth": 8,
+      "decision_value": 3,
+      "outcome_closure": 2,
+      "reuse_potential": 4
+    },
+    "notes": "Problem exists but no solved experience."
+  },
+  {
+    "id": "security-config-decision",
+    "label": "Security configuration decision",
+    "expected_decision": "accept",
+    "messages": [
+      {
+        "type": "user",
+        "content": "Should Electron expose full Node APIs in preload or a minimal contextBridge? Need decide for security.",
+        "has_code": true
+      },
+      {
+        "type": "assistant",
+        "content": "I chose a minimal contextBridge that only exposes isElectron and version info because renderer code should not get broad Node access. The result is verified by build and becomes a reusable Electron security pattern.",
+        "has_code": true,
+        "has_tool_use": true
+      },
+      {
+        "type": "user",
+        "content": "记录这个安全边界原则。"
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 18,
+      "process_depth": 14,
+      "decision_value": 20,
+      "outcome_closure": 16,
+      "reuse_potential": 19
+    },
+    "notes": "Security decision with reusable architecture principle."
+  },
+  {
+    "id": "parser-adapter-pattern",
+    "label": "SourceAdapter implementation pattern",
+    "expected_decision": "accept",
+    "messages": [
+      {
+        "type": "user",
+        "content": "Add support for a new AI conversation source. Need decide how to integrate it without touching import flow everywhere.",
+        "has_code": true
+      },
+      {
+        "type": "assistant",
+        "content": "I implemented a SourceAdapter with detect, scan, and parse methods, reused the existing import service, and verified dedup plus parsing tests. Pattern: add new sources behind the adapter boundary.",
+        "has_code": true,
+        "has_tool_use": true
+      },
+      {
+        "type": "user",
+        "content": "这是 parser plugin 的可复用实现模式。"
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 17,
+      "process_depth": 16,
+      "decision_value": 17,
+      "outcome_closure": 18,
+      "reuse_potential": 19
+    },
+    "notes": "Adapter pattern experience."
+  },
+  {
+    "id": "relation-discovery-threshold",
+    "label": "Relation confidence threshold decision",
+    "expected_decision": "accept",
+    "messages": [
+      {
+        "type": "user",
+        "content": "Relation discovery creates noisy links. Need choose a threshold and limit.",
+        "has_code": true
+      },
+      {
+        "type": "assistant",
+        "content": "I chose confidence >= 0.5 and max 5 relations because it balances recall with graph noise. The result was implemented in relations.ts and verified by relation filtering tests, forming a reusable graph hygiene rule.",
+        "has_code": true,
+        "has_tool_use": true
+      },
+      {
+        "type": "user",
+        "content": "把这个图谱降噪经验保留下来。"
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 16,
+      "process_depth": 14,
+      "decision_value": 18,
+      "outcome_closure": 16,
+      "reuse_potential": 18
+    },
+    "notes": "Threshold decision with reusable graph quality tradeoff."
+  },
+  {
+    "id": "queue-rate-limit-fix",
+    "label": "Queue rate limit handling fix",
+    "expected_decision": "accept",
+    "messages": [
+      {
+        "type": "user",
+        "content": "Batch summarization hits 429 errors. Need fix rate limiting without losing jobs."
+      },
+      {
+        "type": "assistant",
+        "content": "I used a p-queue singleton with concurrency 1, intervalCap 1, and exponential retry for 429. Verification passed with queue status tests. Reusable pattern: centralize LLM calls through a rate-limited queue.",
+        "has_code": true,
+        "has_tool_use": true
+      },
+      {
+        "type": "user",
+        "content": "这个 LLM 队列限流模式可以复用。"
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 17,
+      "process_depth": 15,
+      "decision_value": 16,
+      "outcome_closure": 17,
+      "reuse_potential": 19
+    },
+    "notes": "Operational queue fix."
+  },
+  {
+    "id": "synthetic-origin-conversation",
+    "label": "Synthetic origin conversation decision",
+    "expected_decision": "accept",
+    "messages": [
+      {
+        "type": "user",
+        "content": "Agent writeback notes need a conversation_id, but they are not imported conversations. Need decide storage model."
+      },
+      {
+        "type": "assistant",
+        "content": "I created a synthetic origin conversation source for agent-writeback notes so notes keep the existing schema contract. Tests verified reusing the same synthetic origin row. This makes future non-conversation memories clear.",
+        "has_code": true,
+        "has_tool_use": true
+      },
+      {
+        "type": "user",
+        "content": "这是兼容旧 schema 的 reusable pattern。"
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 18,
+      "process_depth": 15,
+      "decision_value": 18,
+      "outcome_closure": 18,
+      "reuse_potential": 19
+    },
+    "notes": "Schema compatibility decision."
+  },
+  {
+    "id": "manual-global-memory-scope",
+    "label": "Manual global memory scope decision",
+    "expected_decision": "accept",
+    "messages": [
+      {
+        "type": "user",
+        "content": "Should auto agent writeback be allowed to create global memories? Need decide scope policy."
+      },
+      {
+        "type": "assistant",
+        "content": "I decided auto mode must stay project scoped while manual writes may explicitly choose global scope. server/src/services/memory/schemas.ts validation enforces this and tests passed. This reduces accidental global pollution and becomes a reusable memory governance rule.",
+        "has_code": true
+      },
+      {
+        "type": "user",
+        "content": "同意，记录这个 scope 治理经验。"
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 17,
+      "process_depth": 13,
+      "decision_value": 19,
+      "outcome_closure": 17,
+      "reuse_potential": 19
+    },
+    "notes": "Memory governance policy."
+  },
+  {
+    "id": "stale-pid-cleanup",
+    "label": "Daemon stale PID cleanup fix",
+    "expected_decision": "accept",
+    "messages": [
+      {
+        "type": "user",
+        "content": "crystal serve stop fails when the daemon PID file exists but the process is gone. Need root cause and fix.",
+        "has_code": true
+      },
+      {
+        "type": "assistant",
+        "content": "I classified missing process errors as stale PID cleanup instead of fatal kill failures, removed the stale file, and verified daemon tests passed. Pattern: distinguish stale state cleanup from unexpected process errors.",
+        "has_code": true,
+        "has_tool_use": true
+      },
+      {
+        "type": "user",
+        "content": "这是 daemon 管理的可复用经验。"
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 18,
+      "process_depth": 16,
+      "decision_value": 16,
+      "outcome_closure": 18,
+      "reuse_potential": 18
+    },
+    "notes": "Daemon lifecycle fix."
+  },
+  {
+    "id": "status-filter-help-only",
+    "label": "CLI help text update only",
+    "expected_decision": "reject",
+    "messages": [
+      {
+        "type": "user",
+        "content": "Update CLI help text to mention filtered status."
+      },
+      {
+        "type": "assistant",
+        "content": "Changed the help string from imported/summarized/error to imported/summarizing/summarized/filtered/error."
+      }
+    ],
+    "notes": "Small mechanical text update without independent experience value."
+  },
+  {
+    "id": "unanswered-product-question",
+    "label": "Open product question without conclusion",
+    "expected_decision": "reject",
+    "messages": [
+      {
+        "type": "user",
+        "content": "filtered 状态要不要在首页展示？"
+      },
+      {
+        "type": "assistant",
+        "content": "可以展示，也可以先只在 CLI 中展示。需要看用户是否经常检查过滤样本。"
+      }
+    ],
+    "notes": "No decision yet."
+  },
+  {
+    "id": "raw-copy-of-error-log",
+    "label": "Raw error log without analysis",
+    "expected_decision": "reject",
+    "messages": [
+      {
+        "type": "user",
+        "content": "Error: ECONNREFUSED <loopback-host>:<port>\n    at TCPConnectWrap.afterConnect"
+      },
+      {
+        "type": "assistant",
+        "content": "这是连接被拒绝，可能服务没启动。"
+      }
+    ],
+    "notes": "Error signal alone is insufficient without root cause or verified resolution."
+  },
+  {
+    "id": "formatting-only-change",
+    "label": "Formatting-only code change",
+    "expected_decision": "reject",
+    "messages": [
+      {
+        "type": "user",
+        "content": "Run formatter on server/src/services/import.ts.",
+        "has_code": true
+      },
+      {
+        "type": "assistant",
+        "content": "Formatting completed and lint passed.",
+        "has_tool_use": true,
+        "has_code": true
+      }
+    ],
+    "judge_dimensions": {
+      "problem_clarity": 4,
+      "process_depth": 2,
+      "decision_value": 1,
+      "outcome_closure": 10,
+      "reuse_potential": 1
+    },
+    "notes": "Mechanical formatting has little reusable experience."
+  }
+  ]
+}

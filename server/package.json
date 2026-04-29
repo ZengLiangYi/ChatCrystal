@@ -36,7 +36,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc && node scripts/copy-seed-data.mjs",
     "start": "node dist/server/src/index.js",
-    "test": "tsx --test src/**/*.test.ts"
+    "test": "tsx --test src/**/*.test.ts",
+    "eval:experience": "tsx scripts/evaluate-experience-gate.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.71",
