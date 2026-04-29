@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.4.9] - 2026-04-29
+
+### Experience Quality Gate
+
+- **Hybrid experience filtering** — Added lexical signal extraction, deterministic prefilters, and an LLM-scored rubric to keep reusable problem-solving experience while rejecting low-signal transcripts before note creation.
+- **Reviewable filter metadata** — Conversations can now persist `experience_score`, `experience_gate_reason`, and `experience_gate_details`; rejected summaries are marked `filtered` instead of creating notes.
+- **Writeback quality validation** — `write_task_memory` now rejects sparse structured memories in automatic mode and records idempotent receipts with low-signal reasons.
+
+### Calibration
+
+- **Offline gate evaluation** — Added `npm run eval:experience -w server` with 37 synthetic calibration samples, false accept/reject reporting, and sample provenance/privacy checks.
+
+### Documentation
+
+- **Bilingual docs split** — Slimmed the root READMEs and moved user guide, MCP, development, experience gate, and agent skills content into paired English and Simplified Chinese docs.
+
+## [0.4.8] - 2026-04-28
+
+### npm Package
+
+- **npm-only patch release** — Bumped the published `chatcrystal` server/CLI package to `0.4.8` without changing the Electron/root package version.
+- **Cross-platform runtime path tests** — Reworked runtime path tests to run against Windows and POSIX path resolvers so CI does not depend on the runner OS.
+
+## [0.4.7] - 2026-04-28
+
+### Runtime & CLI
+
+- **Unified data directory** — CLI, MCP, development checkouts, global npm installs, and Electron now share `~/.chatcrystal/data` by default, with `DATA_DIR` as the explicit override.
+- **More reliable `crystal serve stop`** — Daemon shutdown now validates PID ownership, cleans stale PID files, and falls back to the listening port when needed.
+- **Local base URL normalization** — CLI and MCP clients normalize local URLs, add the default `3721` port for localhost HTTP URLs, and reject unsupported protocols with clearer errors.
+
+### Skills & MCP
+
+- **Publishable ChatCrystal skills** — Added packaged task recall, task writeback, and debug recall skills with OpenAI agent manifests and install/use documentation.
+- **Memory-loop docs** — Expanded README and skill docs with MCP configuration, recall/writeback examples, and architecture notes for the task memory loop.
+
+### Quality & Tooling
+
+- **Biome linting** — Added a repository Biome config and wired root `npm run lint` / `lint:fix` through Biome plus the client ESLint pass.
+- **Release quality gates** — Release workflows now run lint and server tests before building npm and Electron artifacts.
+- **Dependency refresh** — Updated core client, server, site, promo, Electron, and build tooling dependencies; split theme context/hooks to satisfy React refresh linting.
+
 ## [0.4.6] - 2026-04-16
 
 ### Memory Loop
