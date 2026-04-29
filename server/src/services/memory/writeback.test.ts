@@ -42,6 +42,47 @@ function insertImportedConversation(db: Pick<Database, 'run'>, id: string) {
   );
 }
 
+function seedExistingNote(
+  db: Database,
+  {
+    noteId,
+    projectKey,
+    outcomeType,
+    raw,
+    errorSignatures,
+  }: {
+    noteId: number;
+    projectKey: string;
+    outcomeType: string;
+    raw: Record<string, unknown>;
+    errorSignatures: string[];
+  },
+) {
+  const conversationId = `conv-existing-${noteId}`;
+  insertImportedConversation(db, conversationId);
+  db.run(
+    `INSERT INTO notes (
+      id, conversation_id, title, summary, raw_llm_response, project_key, scope,
+      source_type, source_agent, task_kind, error_signatures, files_touched, outcome_type
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      noteId,
+      conversationId,
+      'Existing memory',
+      'Existing memory summary.',
+      JSON.stringify(raw),
+      projectKey,
+      'project',
+      'agent-writeback',
+      'codex',
+      'debug',
+      JSON.stringify(errorSignatures),
+      JSON.stringify([]),
+      outcomeType,
+    ],
+  );
+}
+
 test('writeTaskMemory replays the same persisted decision for the same auto receipt key', async () => {
   const db = await createSqlDatabase();
   insertImportedConversation(db, 'conv-seed');
@@ -59,7 +100,8 @@ test('writeTaskMemory replays the same persisted decision for the same auto rece
       branch: 'main',
     },
     memory: {
-      summary: 'Await server readiness before requests.',
+      summary:
+        'Await server readiness before requests so client calls do not race startup and fail with connection errors.',
       outcome_type: 'fix',
       root_cause: 'Requests raced the server startup',
       resolution: 'Await readiness in the helper',
@@ -101,6 +143,9 @@ test('writeTaskMemory stores manual writes as manual-note and respects explicit 
         summary:
           'Reusable helper waits for server readiness before issuing requests.',
         outcome_type: 'pattern',
+        reusable_patterns: [
+          'Wrap client creation in a readiness helper before issuing requests.',
+        ],
         resolution: 'Wrap client creation in a readiness helper.',
       },
     },
@@ -141,6 +186,9 @@ test('writeTaskMemory persists tags for created memories', async () => {
         summary:
           'Reusable helper waits for server readiness before issuing requests.',
         outcome_type: 'pattern',
+        reusable_patterns: [
+          'Wrap client creation in a readiness helper before issuing requests.',
+        ],
         resolution: 'Wrap client creation in a readiness helper.',
         tags: ['testing', 'readiness'],
       },
@@ -197,6 +245,7 @@ test('writeTaskMemory re-embeds the merge target after appending evidence', asyn
       .values[0][0],
   );
   const embedded: number[] = [];
+  let saveCalls = 0;
 
   const result = await writeTaskMemory(
     {
@@ -212,7 +261,8 @@ test('writeTaskMemory re-embeds the merge target after appending evidence', asyn
         branch: 'main',
       },
       memory: {
-        summary: 'Await server readiness before requests.',
+        summary:
+          'Await server readiness before requests so client calls do not race startup and fail with connection errors.',
         outcome_type: 'fix',
         root_cause: 'Requests raced the server startup',
         resolution: 'Await readiness in the helper',
@@ -221,6 +271,9 @@ test('writeTaskMemory re-embeds the merge target after appending evidence', asyn
     },
     {
       db: db as never,
+      save: () => {
+        saveCalls++;
+      },
       generateEmbeddings: async (noteId: number) => {
         embedded.push(noteId);
         return 1;
@@ -296,7 +349,8 @@ test('writeTaskMemory merge preserves existing structured payload fields while a
         cwd: 'C:/repo',
       },
       memory: {
-        summary: 'Await server readiness before requests.',
+        summary:
+          'Await server readiness before requests so client calls do not race startup and fail with connection errors.',
         outcome_type: 'fix',
         root_cause: 'Requests raced the server startup',
         resolution: 'Await readiness in the helper',
@@ -386,6 +440,7 @@ test('writeTaskMemory replay completes pending indexing before returning the sto
     ],
   );
   const embedded: number[] = [];
+  let saveCalls = 0;
 
   const result = await writeTaskMemory(
     {
@@ -403,6 +458,9 @@ test('writeTaskMemory replay completes pending indexing before returning the sto
     },
     {
       db: db as never,
+      save: () => {
+        saveCalls++;
+      },
       generateEmbeddings: async (noteId: number) => {
         embedded.push(noteId);
         return 1;
@@ -419,4 +477,173 @@ test('writeTaskMemory replay completes pending indexing before returning the sto
   assert.equal(result.decision, 'created');
   assert.deepEqual(embedded, [42]);
   assert.equal(receipt[0].values[0][0], 'completed');
+  assert.equal(saveCalls, 1);
+});
+
+test('writeTaskMemory merges root-cause-only fixes with matching existing memories', async () => {
+  const db = await createSqlDatabase();
+  seedExistingNote(db, {
+    noteId: 77,
+    projectKey: 'git:repo',
+    outcomeType: 'fix',
+    raw: {
+      root_cause: 'Requests raced server startup',
+      error_signatures: ['ECONNREFUSED'],
+    },
+    errorSignatures: ['ECONNREFUSED'],
+  });
+
+  const result = await writeTaskMemory(
+    {
+      mode: 'auto',
+      source_run_key: 'run-root-cause-only',
+      task: {
+        goal: 'Fix ECONNREFUSED',
+        task_kind: 'debug',
+        source_agent: 'codex',
+        project_key: 'git:repo',
+      },
+      memory: {
+        summary:
+          'Requests can race server startup and cause ECONNREFUSED during tests.',
+        outcome_type: 'fix',
+        root_cause: 'Requests raced server startup',
+        error_signatures: ['ECONNREFUSED'],
+      },
+    },
+    {
+      db: db as never,
+      generateEmbeddings: async () => 1,
+      semanticSearch: async () => [
+        {
+          noteId: 77,
+          conversationId: 'existing',
+          title: 'Existing',
+          projectName: 'repo',
+          score: 0.92,
+          chunkText: 'Existing',
+        },
+      ],
+    },
+  );
+
+  assert.equal(result.decision, 'merged');
+  assert.equal(result.merged_into_note_id, 77);
+});
+
+test('writeTaskMemory skips auto fix memories that lack root cause and resolution before semantic search', async () => {
+  const db = await createSqlDatabase();
+  let searchCalls = 0;
+  let saveCalls = 0;
+
+  const result = await writeTaskMemory(
+    {
+      mode: 'auto',
+      source_run_key: 'run-low-fix',
+      task: {
+        goal: 'Fix flaky test',
+        task_kind: 'debug',
+        source_agent: 'codex',
+        project_key: 'git:repo',
+      },
+      memory: {
+        summary: 'Fixed a flaky test.',
+        outcome_type: 'fix',
+      },
+    },
+    {
+      db: db as never,
+      save: () => {
+        saveCalls++;
+      },
+      generateEmbeddings: async () => 1,
+      semanticSearch: async () => {
+        searchCalls++;
+        return [];
+      },
+    },
+  );
+
+  const receiptRows = db.exec(
+    'SELECT decision, reason, index_status FROM writeback_receipts WHERE source_run_key = ?',
+    ['run-low-fix'],
+  );
+
+  assert.equal(result.decision, 'skipped');
+  assert.equal(result.reason, 'low-signal');
+  assert.equal(searchCalls, 0);
+  assert.equal(saveCalls, 1);
+  assert.deepEqual(receiptRows[0].values[0], [
+    'skipped',
+    'low-signal',
+    'completed',
+  ]);
+});
+
+test('writeTaskMemory accepts concise fixes when structured fields carry the experience', async () => {
+  const db = await createSqlDatabase();
+
+  const result = await writeTaskMemory(
+    {
+      mode: 'auto',
+      source_run_key: 'run-concise-fix',
+      task: {
+        goal: 'Fix ECONNREFUSED',
+        task_kind: 'debug',
+        source_agent: 'codex',
+        project_key: 'git:repo',
+        project_dir: 'C:/repo',
+        cwd: 'C:/repo',
+      },
+      memory: {
+        summary: 'Await readiness before requests.',
+        outcome_type: 'fix',
+        root_cause: 'Requests raced server startup.',
+        resolution: 'Wait for server readiness before issuing requests.',
+      },
+    },
+    {
+      db: db as never,
+      generateEmbeddings: async () => 1,
+      semanticSearch: async () => [],
+    },
+  );
+
+  assert.equal(result.decision, 'created');
+  assert.equal(typeof result.note_id, 'number');
+});
+
+test('writeTaskMemory accepts valid pattern candidates and creates notes', async () => {
+  const db = await createSqlDatabase();
+
+  const result = await writeTaskMemory(
+    {
+      mode: 'auto',
+      source_run_key: 'run-pattern',
+      task: {
+        goal: 'Add experience quality gate',
+        task_kind: 'implement',
+        source_agent: 'codex',
+        project_key: 'git:repo',
+        project_dir: 'C:/repo',
+        cwd: 'C:/repo',
+      },
+      memory: {
+        summary:
+          'Core quality gates should validate agent writeback payloads before semantic merge so weak candidates cannot enter the experience library.',
+        outcome_type: 'pattern',
+        reusable_patterns: [
+          'Put quality gates at trusted persistence boundaries before duplicate detection.',
+        ],
+      },
+    },
+    {
+      db: db as never,
+      generateEmbeddings: async () => 1,
+      semanticSearch: async () => [],
+    },
+  );
+
+  assert.equal(result.decision, 'created');
+  assert.equal(typeof result.note_id, 'number');
 });

@@ -70,3 +70,18 @@ test('decideWritebackAction does not merge when the remediation differs material
   assert.equal(result.decision, 'created');
   assert.equal(result.target_note_id, null);
 });
+
+test('decideWritebackAction treats structured knowledge delta as useful signal without changing resolution matching', () => {
+  const result = decideWritebackAction(
+    {
+      project_key: 'git:repo',
+      outcome_type: 'pattern',
+      summary: 'Use a persistence-boundary gate before semantic duplicate search.',
+      knowledge_delta: 'Put quality gates at trusted persistence boundaries.',
+      error_signatures: [],
+    },
+    [],
+  );
+
+  assert.equal(result.decision, 'created');
+});

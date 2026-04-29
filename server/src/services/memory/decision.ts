@@ -6,6 +6,7 @@ type Candidate = {
   summary: string;
   root_cause?: string;
   resolution?: string;
+  knowledge_delta?: string;
   error_signatures?: string[];
 };
 
@@ -33,6 +34,7 @@ export function decideWritebackAction(
   const noKnowledgeDelta =
     !candidate.root_cause?.trim() &&
     !candidate.resolution?.trim() &&
+    !candidate.knowledge_delta?.trim() &&
     !(candidate.error_signatures?.length);
 
   if (lowSignal || noKnowledgeDelta) {

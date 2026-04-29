@@ -15,6 +15,27 @@ Use this skill after meaningful work completes. Let ChatCrystal Core decide whet
    - a meaningful pitfall
    - a reusable pattern
    - an explicit engineering decision
+
+## Quality Gate Preflight
+
+Before calling `write_task_memory`, verify the candidate is an experience asset, not a work log.
+
+Do not call `write_task_memory` when:
+
+- The summary only says what changed, without why it mattered.
+- There is no clear problem, decision, pitfall, resolution, or reusable pattern.
+- The task produced no durable lesson for future work.
+
+Required field shape by `memory.outcome_type`:
+
+- `fix`: include `root_cause` or `resolution`.
+- `pitfall`: include `pitfalls` plus `resolution` or `reusable_patterns`.
+- `decision`: include `decisions`.
+- `pattern`: include `reusable_patterns`.
+
+Write `memory.summary` as a durable experience conclusion, not as "I did X".
+Automatic writeback must include `source_run_key`; without it, emit a structured candidate for later save instead of silently writing manual memory.
+
 3. If `write_task_memory` is available and the runtime has a stable run or session key, call it with:
    - `mode: "auto"`
    - `source_run_key`: the stable run or session key

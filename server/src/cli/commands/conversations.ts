@@ -12,7 +12,7 @@ export function registerConversationsCommand(program: Command) {
     .command('conversations')
     .description('List conversations')
     .option('-s, --source <source>', 'Filter by source (claude-code, codex, cursor)')
-    .option('--status <status>', 'Filter by status (imported, summarized, error)')
+    .option('--status <status>', 'Filter by status (imported, summarizing, summarized, filtered, error)')
     .option('-q, --search <query>', 'Search by project name or slug')
     .option('-n, --limit <n>', 'Number of results', '20')
     .option('--offset <n>', 'Offset for pagination', '0')

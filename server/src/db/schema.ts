@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS conversations (
   file_size INTEGER,
   file_mtime TEXT,
   status TEXT DEFAULT 'imported',
+  experience_score REAL,
+  experience_gate_reason TEXT,
+  experience_gate_details TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );

@@ -19,6 +19,9 @@ export interface Conversation {
   file_size: number;
   file_mtime: string;
   status: ConversationStatus;
+  experience_score: number | null;
+  experience_gate_reason: string | null;
+  experience_gate_details: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -27,6 +30,7 @@ export type ConversationStatus =
   | 'imported'
   | 'summarizing'
   | 'summarized'
+  | 'filtered'
   | 'error';
 
 export interface Message {

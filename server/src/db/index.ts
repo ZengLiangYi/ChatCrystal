@@ -23,6 +23,9 @@ function ensureColumn(db: Database, table: string, column: string, sql: string) 
 export function applySchemaMigrations(db: Database): void {
   db.exec(SCHEMA_SQL);
 
+  ensureColumn(db, 'conversations', 'experience_score', 'ALTER TABLE conversations ADD COLUMN experience_score REAL');
+  ensureColumn(db, 'conversations', 'experience_gate_reason', 'ALTER TABLE conversations ADD COLUMN experience_gate_reason TEXT');
+  ensureColumn(db, 'conversations', 'experience_gate_details', 'ALTER TABLE conversations ADD COLUMN experience_gate_details TEXT');
   ensureColumn(db, 'notes', 'embedding_status', "ALTER TABLE notes ADD COLUMN embedding_status TEXT DEFAULT 'pending'");
   ensureColumn(db, 'notes', 'project_key', 'ALTER TABLE notes ADD COLUMN project_key TEXT');
   ensureColumn(db, 'notes', 'scope', "ALTER TABLE notes ADD COLUMN scope TEXT DEFAULT 'project'");
@@ -37,6 +40,19 @@ export function applySchemaMigrations(db: Database): void {
     'writeback_receipts',
     'index_status',
     "ALTER TABLE writeback_receipts ADD COLUMN index_status TEXT DEFAULT 'pending'",
+  );
+
+  db.run(
+    `UPDATE conversations
+        SET status = 'filtered',
+            updated_at = datetime('now')
+      WHERE status = 'error'
+        AND lower(coalesce(experience_gate_reason, '')) IN (
+          'low-signal',
+          'filtered',
+          'no reusable experience',
+          'no-reusable-experience'
+        )`,
   );
 
   db.exec(POST_MIGRATION_SQL);

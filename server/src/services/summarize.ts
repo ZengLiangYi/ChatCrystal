@@ -1,4 +1,5 @@
 import { generateObject } from 'ai';
+import type { Database } from 'sql.js';
 import { z } from 'zod';
 import { getDatabase, saveDatabase } from '../db/index.js';
 import { withTransaction } from '../db/transaction.js';
@@ -8,6 +9,11 @@ import { generateEmbeddings } from './embedding.js';
 import { discoverRelations } from './relations.js';
 import { mapConversationSourceToAgent } from './memory/backfill.js';
 import { deriveProjectKey, resolveProjectIdentity } from './memory/projectKey.js';
+import {
+  evaluateConversationExperience,
+  markConversationFiltered,
+} from './experience/gate.js';
+import type { ExperienceGateDecision } from './experience/schemas.js';
 
 // =============================================
 // Schema
@@ -30,6 +36,22 @@ const SummarizeSchema = z.object({
 });
 
 type SummarizeResult = z.infer<typeof SummarizeSchema> & { raw_response: string };
+
+type TriggerSummarizeDeps = {
+  db?: Database;
+  save?: () => void;
+  prepareTranscript?: (conversationId: string) => string;
+  evaluateExperience?: (
+    conversationId: string,
+    transcript: string,
+  ) => Promise<ExperienceGateDecision>;
+  summarizeConversation?: (
+    conversationId: string,
+    transcript: string,
+  ) => Promise<SummarizeResult>;
+  generateEmbeddings?: (noteId: number) => Promise<unknown>;
+  discoverRelations?: (noteId: number) => Promise<unknown>;
+};
 
 // =============================================
 // System Prompt
@@ -66,9 +88,10 @@ const SYSTEM_PROMPT = `你是一个技术对话分析专家，擅长从 AI 编�
 // LLM Call
 // =============================================
 
-async function summarizeConversation(conversationId: string): Promise<SummarizeResult> {
-  const transcript = prepareTranscript(conversationId);
-
+async function summarizeConversation(
+  conversationId: string,
+  transcript = prepareTranscript(conversationId),
+): Promise<SummarizeResult> {
   const { object } = await generateObject({
     model: getLanguageModel(),
     schema: SummarizeSchema,
@@ -92,8 +115,12 @@ async function summarizeConversation(conversationId: string): Promise<SummarizeR
 // DB Persistence
 // =============================================
 
-function saveNote(conversationId: string, result: SummarizeResult): number {
-  const db = getDatabase();
+function saveNote(
+  conversationId: string,
+  result: SummarizeResult,
+  deps: { db?: Database; save?: () => void } = {},
+): number {
+  const db = deps.db ?? getDatabase();
   const convMeta = db.exec(
     'SELECT source, project_dir, project_name, cwd, git_branch FROM conversations WHERE id = ?',
     [conversationId],
@@ -144,7 +171,7 @@ function saveNote(conversationId: string, result: SummarizeResult): number {
     return nextNoteId;
   });
 
-  saveDatabase();
+  (deps.save ?? saveDatabase)();
   return noteId;
 }
 
@@ -155,8 +182,18 @@ function saveNote(conversationId: string, result: SummarizeResult): number {
 /**
  * Summarize a single conversation. Idempotent — returns existing note ID if already summarized.
  */
-export async function triggerSummarize(conversationId: string): Promise<number> {
-  const db = getDatabase();
+export async function triggerSummarize(
+  conversationId: string,
+  deps: TriggerSummarizeDeps = {},
+): Promise<number | null> {
+  const db = deps.db ?? getDatabase();
+  const save = deps.save ?? saveDatabase;
+  const buildTranscript = deps.prepareTranscript ?? prepareTranscript;
+  const evaluateExperience =
+    deps.evaluateExperience ?? evaluateConversationExperience;
+  const runSummarize = deps.summarizeConversation ?? summarizeConversation;
+  const embedNote = deps.generateEmbeddings ?? generateEmbeddings;
+  const relateNote = deps.discoverRelations ?? discoverRelations;
 
   // Verify conversation exists
   const convResult = db.exec('SELECT status FROM conversations WHERE id = ?', [conversationId]);
@@ -177,12 +214,19 @@ export async function triggerSummarize(conversationId: string): Promise<number> 
       [conversationId],
     );
 
-    const result = await summarizeConversation(conversationId);
-    const noteId = saveNote(conversationId, result);
+    const transcript = buildTranscript(conversationId);
+    const gateDecision = await evaluateExperience(conversationId, transcript);
+    if (gateDecision.decision !== 'accept') {
+      markConversationFiltered(conversationId, gateDecision, { db, save });
+      return null;
+    }
+
+    const result = await runSummarize(conversationId, transcript);
+    const noteId = saveNote(conversationId, result, { db, save });
 
     // Auto-generate embeddings after summarization
     try {
-      await generateEmbeddings(noteId);
+      await embedNote(noteId);
     } catch (err) {
       console.error(`[Embedding] Failed for note ${noteId}:`, err instanceof Error ? err.message : err);
       // Mark as failed so batch rebuild can pick it up
@@ -190,13 +234,13 @@ export async function triggerSummarize(conversationId: string): Promise<number> 
         "UPDATE notes SET embedding_status = 'failed' WHERE id = ?",
         [noteId],
       );
-      saveDatabase();
+      save();
       // Don't fail the summarization if embedding fails
     }
 
     // Auto-discover relations after embedding
     try {
-      await discoverRelations(noteId);
+      await relateNote(noteId);
     } catch (err) {
       console.error(`[Relations] Failed for note ${noteId}:`, err instanceof Error ? err.message : err);
       // Don't fail the summarization if relation discovery fails
@@ -209,7 +253,7 @@ export async function triggerSummarize(conversationId: string): Promise<number> 
       `UPDATE conversations SET status = 'error', updated_at = datetime('now') WHERE id = ?`,
       [conversationId],
     );
-    saveDatabase();
+    save();
     throw err;
   }
 }

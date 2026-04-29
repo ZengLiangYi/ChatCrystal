@@ -1,11 +1,20 @@
 import type { WriteTaskMemoryResponse } from '@chatcrystal/shared';
-import { getDatabase } from '../../db/index.js';
+import { getDatabase, saveDatabase } from '../../db/index.js';
 import { withTransaction } from '../../db/transaction.js';
 import { generateEmbeddings, semanticSearch } from '../embedding.js';
 import { decideWritebackAction } from './decision.js';
 import { ensureSyntheticOriginConversation } from './origin.js';
 import { deriveProjectKey, resolveCanonicalProjectKey, resolveProjectIdentity } from './projectKey.js';
 import { parseWriteTaskMemoryRequest } from './schemas.js';
+import { validateStructuredMemoryCandidate } from '../experience/gate.js';
+import type { ExperienceGateDecision } from '../experience/schemas.js';
+
+type StructuredMemoryCandidate = ReturnType<typeof parseWriteTaskMemoryRequest>['memory'];
+type StructuredMemoryGateDecision =
+  Pick<ExperienceGateDecision, 'reasons' | 'missing_signals'> | null;
+type StructuredMemoryValidator = (
+  memory: StructuredMemoryCandidate,
+) => StructuredMemoryGateDecision;
 
 function safeParseObject(input: unknown): Record<string, unknown> {
   if (typeof input !== 'string' || !input.trim()) return {};
@@ -113,6 +122,24 @@ function mergeMemoryPayload(
   };
 }
 
+function firstString(items: Array<string | undefined>) {
+  return items.find((item) => item?.trim());
+}
+
+function structuredKnowledgeDelta(memory: StructuredMemoryCandidate) {
+  return (
+    firstString([
+      memory.resolution,
+      memory.root_cause,
+      ...(memory.reusable_patterns ?? []),
+      ...(memory.decisions ?? []),
+      ...(memory.pitfalls ?? []),
+      ...(memory.key_conclusions ?? []),
+      ...(memory.error_signatures ?? []),
+    ]) ?? undefined
+  );
+}
+
 function upsertNoteTags(
   db: ReturnType<typeof getDatabase>,
   noteId: number,
@@ -150,12 +177,15 @@ export async function writeTaskMemory(
     db?: ReturnType<typeof getDatabase>;
     semanticSearch?: typeof semanticSearch;
     generateEmbeddings?: typeof generateEmbeddings;
+    save?: () => void;
+    validateStructuredMemoryCandidate?: StructuredMemoryValidator;
   } = {},
 ): Promise<WriteTaskMemoryResponse> {
   const request = parseWriteTaskMemoryRequest(input);
   const db = deps.db ?? getDatabase();
   const search = deps.semanticSearch ?? semanticSearch;
   const embedNote = deps.generateEmbeddings ?? generateEmbeddings;
+  const save = deps.save ?? saveDatabase;
   const normalizedAgent = request.task.source_agent;
   const normalizedScope =
     request.mode === 'manual' ? request.scope ?? 'project' : 'project';
@@ -200,6 +230,7 @@ export async function writeTaskMemory(
             WHERE source_agent = ? AND source_run_key = ?`,
           [normalizedAgent, sourceRunKey],
         );
+        save();
       }
 
       return {
@@ -213,12 +244,43 @@ export async function writeTaskMemory(
     }
   }
 
+  const validateMemory =
+    deps.validateStructuredMemoryCandidate ??
+    validateStructuredMemoryCandidate;
+  const qualityDecision = validateMemory(request.memory);
+  if (qualityDecision) {
+    const reason = qualityDecision.reasons[0] ?? 'low-signal';
+    if (request.mode === 'auto') {
+      withTransaction(db, () => {
+        db.run(
+          `INSERT INTO writeback_receipts (
+             source_agent, source_run_key, decision, note_id, merged_into_note_id, reason, index_status
+           ) VALUES (?, ?, 'skipped', NULL, NULL, ?, 'completed')`,
+          [normalizedAgent, request.source_run_key ?? null, reason],
+        );
+      });
+      save();
+    }
+
+    return {
+      mode: request.mode,
+      decision: 'skipped',
+      note_id: null,
+      merged_into_note_id: null,
+      reason,
+      warnings: qualityDecision.missing_signals,
+    };
+  }
+
   const candidates = await search(
     [
       request.task.goal,
       request.memory.summary,
       request.memory.root_cause,
       request.memory.resolution,
+      ...(request.memory.reusable_patterns ?? []),
+      ...(request.memory.decisions ?? []),
+      ...(request.memory.pitfalls ?? []),
       ...(request.memory.error_signatures ?? []),
     ]
       .filter(Boolean)
@@ -263,6 +325,7 @@ export async function writeTaskMemory(
       summary: request.memory.summary,
       root_cause: request.memory.root_cause,
       resolution: request.memory.resolution,
+      knowledge_delta: structuredKnowledgeDelta(request.memory),
       error_signatures: request.memory.error_signatures,
     },
     candidates
@@ -450,6 +513,7 @@ export async function writeTaskMemory(
       persisted.tags,
     );
   }
+  save();
 
   const embeddingTargetId = persisted.note_id ?? persisted.merged_into_note_id;
   if (embeddingTargetId) {
@@ -461,6 +525,7 @@ export async function writeTaskMemory(
           WHERE source_agent = ? AND source_run_key = ?`,
         [normalizedAgent, request.source_run_key ?? null],
       );
+      save();
     }
   }
 
