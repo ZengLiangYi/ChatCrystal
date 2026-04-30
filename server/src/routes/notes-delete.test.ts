@@ -37,6 +37,23 @@ test('DELETE /api/notes/:id returns 400 when note id is invalid', async () => {
   await app.close();
 });
 
+test('DELETE /api/notes/:id rejects non-decimal positive integer ids', async () => {
+  const app = await createApp();
+
+  for (const id of ['1e2', '0x10', '10.0']) {
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `/api/notes/${id}`,
+      payload: { reason: 'other', source: 'cli' },
+    });
+
+    assert.equal(response.statusCode, 400, `${id} should be rejected`);
+    assert.match(response.json().error, /note id/i);
+  }
+
+  await app.close();
+});
+
 test('DELETE /api/notes/:id maps invalid review input to 400', async () => {
   const app = await createApp();
 

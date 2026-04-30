@@ -177,12 +177,11 @@ export async function noteRoutes(app: FastifyInstance) {
 
   app.delete('/api/notes/:id', async (req, reply) => {
     const { id } = req.params as { id: string };
-    const noteId = Number(id);
-
-    if (!Number.isInteger(noteId) || noteId <= 0) {
+    if (!/^[1-9]\d*$/.test(id)) {
       reply.status(400);
       return { success: false, error: `Invalid note id: ${id}` };
     }
+    const noteId = Number(id);
 
     const body = req.body as Partial<DeleteNoteReviewRequest> | undefined;
     if (
