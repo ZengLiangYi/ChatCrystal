@@ -109,6 +109,42 @@ export async function committedVectraIdsForNote(index: LocalIndex, noteId: numbe
   return items.map((item) => item.id);
 }
 
+export async function deleteVectraItemsForNote(index: LocalIndex, noteId: number): Promise<number> {
+  const vectraIds = await committedVectraIdsForNote(index, noteId);
+  if (vectraIds.length === 0) {
+    return 0;
+  }
+
+  let updateOpen = false;
+  try {
+    await index.beginUpdate();
+    updateOpen = true;
+
+    for (const vectraId of vectraIds) {
+      await index.deleteItem(vectraId);
+    }
+
+    await index.endUpdate();
+    updateOpen = false;
+    return vectraIds.length;
+  } catch (error) {
+    if (updateOpen) {
+      try {
+        index.cancelUpdate();
+      } catch {
+        // Ignore cancel failures and prefer surfacing the original error.
+      }
+    }
+
+    throw error;
+  }
+}
+
+export async function deleteNoteVectraItems(noteId: number): Promise<number> {
+  const index = await getIndex();
+  return deleteVectraItemsForNote(index, noteId);
+}
+
 export async function currentVectraIdsCommitted(index: LocalIndex, vectraIds: string[]): Promise<boolean> {
   if (vectraIds.length === 0) {
     return false;

@@ -113,6 +113,7 @@ test('deleteNoteWithReview deletes a note and records false_accept feedback with
     [11, 10],
   );
   let saves = 0;
+  const vectorCleanupCalls: number[] = [];
 
   const result = await deleteNoteWithReview(
     10,
@@ -126,6 +127,9 @@ test('deleteNoteWithReview deletes a note and records false_accept feedback with
       save: () => {
         saves++;
       },
+      deleteNoteVectors: async (deletedNoteId) => {
+        vectorCleanupCalls.push(deletedNoteId);
+      },
     },
   );
 
@@ -134,6 +138,7 @@ test('deleteNoteWithReview deletes a note and records false_accept feedback with
   assert.equal(result.conversationStatus, 'filtered');
   assert.equal(typeof result.reviewId, 'number');
   assert.equal(saves, 1);
+  assert.deepEqual(vectorCleanupCalls, [10]);
   assert.equal(scalar(db, 'SELECT COUNT(*) FROM notes WHERE id = ?', [10]), 0);
   assert.equal(
     scalar(db, 'SELECT COUNT(*) FROM note_tags WHERE note_id = ?', [10]),
@@ -214,7 +219,7 @@ test('deleteNoteWithReview preserves invalid previous gate details as raw text',
   const result = await deleteNoteWithReview(
     12,
     { reason: 'other', source: 'cli' },
-    { db: db as never, save: () => undefined },
+    { db: db as never, save: () => undefined, deleteNoteVectors: async () => undefined },
   );
 
   const details = JSON.parse(
@@ -236,6 +241,7 @@ test('deleteNoteWithReview validates reason before deleting', async () => {
   insertConversation(db, 'conv-invalid-reason');
   insertNote(db, 'conv-invalid-reason', 13);
   let saves = 0;
+  const vectorCleanupCalls: number[] = [];
 
   await assert.rejects(
     deleteNoteWithReview(
@@ -249,12 +255,16 @@ test('deleteNoteWithReview validates reason before deleting', async () => {
         save: () => {
           saves++;
         },
+        deleteNoteVectors: async (deletedNoteId) => {
+          vectorCleanupCalls.push(deletedNoteId);
+        },
       },
     ),
     DeleteNoteReviewValidationError,
   );
 
   assert.equal(saves, 0);
+  assert.deepEqual(vectorCleanupCalls, []);
   assert.equal(scalar(db, 'SELECT COUNT(*) FROM notes WHERE id = ?', [13]), 1);
   assert.equal(scalar(db, 'SELECT COUNT(*) FROM experience_reviews'), 0);
 });
@@ -355,9 +365,42 @@ test('deleteNoteWithReview validates comment type before deleting', async () => 
   assert.equal(scalar(db, 'SELECT COUNT(*) FROM experience_reviews'), 0);
 });
 
+test('deleteNoteWithReview rolls back SQL changes when vector cleanup fails', async () => {
+  const db = await createSqlDatabase();
+  insertConversation(db, 'conv-cleanup-fails');
+  insertNote(db, 'conv-cleanup-fails', 15);
+  let saves = 0;
+
+  await assert.rejects(
+    deleteNoteWithReview(
+      15,
+      { reason: 'duplicate', source: 'web' },
+      {
+        db: db as never,
+        save: () => {
+          saves++;
+        },
+        deleteNoteVectors: async () => {
+          throw new Error('vectra cleanup failed');
+        },
+      },
+    ),
+    /vectra cleanup failed/,
+  );
+
+  assert.equal(saves, 0);
+  assert.equal(scalar(db, 'SELECT COUNT(*) FROM notes WHERE id = ?', [15]), 1);
+  assert.equal(scalar(db, 'SELECT COUNT(*) FROM experience_reviews'), 0);
+  assert.equal(
+    scalar(db, 'SELECT status FROM conversations WHERE id = ?', ['conv-cleanup-fails']),
+    'summarized',
+  );
+});
+
 test('deleteNoteWithReview throws for missing notes', async () => {
   const db = await createSqlDatabase();
   let saves = 0;
+  const vectorCleanupCalls: number[] = [];
 
   await assert.rejects(
     deleteNoteWithReview(
@@ -368,11 +411,15 @@ test('deleteNoteWithReview throws for missing notes', async () => {
         save: () => {
           saves++;
         },
+        deleteNoteVectors: async (deletedNoteId) => {
+          vectorCleanupCalls.push(deletedNoteId);
+        },
       },
     ),
     NoteNotFoundForReviewError,
   );
 
   assert.equal(saves, 0);
+  assert.deepEqual(vectorCleanupCalls, []);
   assert.equal(scalar(db, 'SELECT COUNT(*) FROM experience_reviews'), 0);
 });

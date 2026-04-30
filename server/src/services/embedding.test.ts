@@ -7,6 +7,7 @@ import { LocalIndex } from 'vectra';
 import {
   committedVectraIdsForNote,
   currentVectraIdsCommitted,
+  deleteVectraItemsForNote,
   maybeFinalizeCommittedSyncingNote,
   materializeDirectSearchHits,
 } from './embedding.js';
@@ -88,6 +89,36 @@ test('currentVectraIdsCommitted returns true only when every id is committed', a
 
     assert.equal(await currentVectraIdsCommitted(index, [first.id, second.id]), true);
     assert.equal(await currentVectraIdsCommitted(index, [first.id, 'missing-id']), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('deleteVectraItemsForNote removes only items for the requested note id', async () => {
+  const dir = createTempDir();
+  const index = new LocalIndex(join(dir, 'vectra-index'));
+
+  try {
+    await index.createIndex();
+
+    await index.insertItem({
+      vector: [1, 0, 0],
+      metadata: { noteId: 13, chunkIndex: 0, conversationId: 'conv-c', title: 'C', projectName: 'P' },
+    });
+    await index.insertItem({
+      vector: [0.9, 0.1, 0],
+      metadata: { noteId: 13, chunkIndex: 1, conversationId: 'conv-c', title: 'C', projectName: 'P' },
+    });
+    const otherNote = await index.insertItem({
+      vector: [0, 1, 0],
+      metadata: { noteId: 14, chunkIndex: 0, conversationId: 'conv-d', title: 'D', projectName: 'P' },
+    });
+
+    const deleted = await deleteVectraItemsForNote(index, 13);
+
+    assert.equal(deleted, 2);
+    assert.deepEqual(await committedVectraIdsForNote(index, 13), []);
+    assert.deepEqual(await committedVectraIdsForNote(index, 14), [otherNote.id]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

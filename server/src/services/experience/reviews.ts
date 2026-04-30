@@ -6,7 +6,8 @@ import type {
 } from '@chatcrystal/shared';
 import type { Database } from 'sql.js';
 import { getDatabase, saveDatabase } from '../../db/index.js';
-import { withTransaction } from '../../db/transaction.js';
+import { withAsyncTransaction } from '../../db/transaction.js';
+import { deleteNoteVectraItems } from '../embedding.js';
 
 const VALID_REASONS = new Set<ExperienceReviewReason>([
   'low-value',
@@ -41,6 +42,7 @@ export class NoteNotFoundForReviewError extends Error {
 type DeleteNoteWithReviewDeps = {
   db?: Database;
   save?: () => void;
+  deleteNoteVectors?: (noteId: number) => Promise<unknown>;
 };
 
 type NoteGateSnapshot = {
@@ -154,9 +156,10 @@ export async function deleteNoteWithReview(
 
   const db = deps.db ?? getDatabase();
   const save = deps.save ?? saveDatabase;
+  const deleteNoteVectors = deps.deleteNoteVectors ?? deleteNoteVectraItems;
   const comment = normalizeComment(request.comment);
 
-  const persisted = withTransaction(db, () => {
+  const persisted = await withAsyncTransaction(db, async () => {
     const snapshot = loadNoteGateSnapshot(db, noteId);
     if (!snapshot) {
       throw new NoteNotFoundForReviewError(noteId);
@@ -214,6 +217,7 @@ export async function deleteNoteWithReview(
     );
 
     db.run('DELETE FROM notes WHERE id = ?', [noteId]);
+    await deleteNoteVectors(noteId);
 
     return {
       reviewId,
