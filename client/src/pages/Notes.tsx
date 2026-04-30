@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Tag, FolderGit2, Sparkles, ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { FileText, Tag, FolderGit2, Sparkles, ChevronDown, ChevronUp, Search, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useNotes, useTags, useSummarizeBatch } from '@/hooks/use-notes.ts';
+import { DeleteNoteDialog } from '@/components/DeleteNoteDialog.tsx';
+import { useDeleteNote, useNotes, useTags, useSummarizeBatch } from '@/hooks/use-notes.ts';
 
 export function Notes() {
   const { t } = useTranslation();
@@ -11,6 +12,7 @@ export function Notes() {
   const [page, setPage] = useState(0);
   const [tagSearch, setTagSearch] = useState('');
   const [tagsExpanded, setTagsExpanded] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string } | null>(null);
   const limit = 20;
   const navigate = useNavigate();
   const tagsContainerRef = useRef<HTMLDivElement>(null);
@@ -25,6 +27,7 @@ export function Notes() {
 
   const { data: tags } = useTags();
   const summarizeBatch = useSummarizeBatch();
+  const deleteNote = useDeleteNote();
 
   const filteredTags = useMemo(() => {
     if (!tags) return [];
@@ -147,7 +150,22 @@ export function Notes() {
               className="bg-secondary border border-theme p-4 hover:border-[var(--accent)] cursor-pointer transition-colors"
               style={{ borderRadius: 'var(--radius)' }}
             >
-              <h3 className="text-sm font-bold mb-1.5 truncate">{note.title as string}</h3>
+              <div className="flex items-start gap-2 mb-1.5">
+                <h3 className="text-sm font-bold truncate flex-1">{note.title as string}</h3>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setDeleteTarget({ id: note.id as number, title: note.title as string });
+                  }}
+                  className="shrink-0 inline-flex items-center justify-center w-7 h-7 text-muted border border-transparent hover:text-[var(--warning)] hover:border-[var(--warning)] transition-colors"
+                  style={{ borderRadius: 'var(--radius)' }}
+                  title="删除笔记"
+                  aria-label="删除笔记"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
               <div className="flex items-center gap-1.5 text-xs text-muted mb-2">
                 <FolderGit2 size={11} />
                 <span>{note.project_name as string}</span>
@@ -180,6 +198,21 @@ export function Notes() {
             </div>
           ))}
         </div>
+      )}
+
+      {deleteTarget && (
+        <DeleteNoteDialog
+          noteTitle={deleteTarget.title}
+          isPending={deleteNote.isPending}
+          errorMessage={deleteNote.error instanceof Error ? deleteNote.error.message : undefined}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={(input) => {
+            deleteNote.mutate(
+              { id: deleteTarget.id, ...input },
+              { onSuccess: () => setDeleteTarget(null) },
+            );
+          }}
+        />
       )}
 
       {/* Pagination */}

@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { ExperienceReviewReason } from '@chatcrystal/shared';
 import { api } from '@/lib/api.ts';
 
 export function useNotes(params?: {
@@ -18,6 +19,29 @@ export function useNote(id: number) {
     queryKey: ['note', id],
     queryFn: () => api.getNote(id),
     enabled: id > 0,
+  });
+}
+
+export function useDeleteNote() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      reason,
+      comment,
+    }: {
+      id: number;
+      reason: ExperienceReviewReason;
+      comment?: string;
+    }) => api.deleteNote(id, { reason, comment, source: 'web' }),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      queryClient.invalidateQueries({ queryKey: ['note', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['conversation', data.conversationId] });
+      queryClient.invalidateQueries({ queryKey: ['status'] });
+    },
   });
 }
 
