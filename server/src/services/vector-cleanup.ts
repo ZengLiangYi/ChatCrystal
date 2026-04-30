@@ -131,10 +131,10 @@ export async function processPendingVectorCleanupTasks(
 
   const rows = db.exec(
     `SELECT target_id
-       FROM vector_cleanup_tasks
+      FROM vector_cleanup_tasks
       WHERE target_type = 'note'
         AND status = 'pending'
-      ORDER BY created_at ASC, id ASC
+      ORDER BY updated_at ASC, id ASC
       LIMIT ?`,
     [limit],
   )[0]?.values ?? [];

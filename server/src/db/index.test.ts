@@ -208,6 +208,10 @@ test('applySchemaMigrations creates vector cleanup task table and indexes', asyn
   const indexNames = indexes.map((row) => String(row[1]));
   assert.ok(indexNames.includes('idx_vector_cleanup_tasks_pending'));
   assert.ok(indexes.some((row) => Number(row[2]) === 1));
+  const pendingIndexColumns = db.exec(
+    "PRAGMA index_info('idx_vector_cleanup_tasks_pending')",
+  )[0].values.map((row) => String(row[2]));
+  assert.deepEqual(pendingIndexColumns, ['status', 'updated_at', 'id']);
 
   db.run(
     "INSERT INTO vector_cleanup_tasks (target_type, target_id) VALUES ('note', '42')",

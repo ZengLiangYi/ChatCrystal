@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS vector_cleanup_tasks (
 );
 
 CREATE INDEX IF NOT EXISTS idx_vector_cleanup_tasks_pending
-  ON vector_cleanup_tasks(status, updated_at);
+  ON vector_cleanup_tasks(status, updated_at, id);
 
 CREATE TABLE IF NOT EXISTS note_relations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
