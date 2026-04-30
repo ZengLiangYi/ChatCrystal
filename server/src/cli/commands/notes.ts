@@ -173,14 +173,20 @@ export function registerNotesCommand(program: Command) {
           );
         }
 
+        if (!opts.yes) {
+          if (shouldOutputJson(globalOpts.json) || !process.stdout.isTTY) {
+            throw new Error('Use --yes when deleting with --json or redirected output');
+          }
+
+          if (!process.stdin.isTTY) {
+            throw new Error('Use --yes when deleting from a non-interactive shell');
+          }
+        }
+
         const noteId = Number(rawId);
         const note = await client.getNote(noteId);
 
         if (!opts.yes) {
-          if (!process.stdin.isTTY) {
-            throw new Error('Use --yes when deleting from a non-interactive shell');
-          }
-
           printHeader(`Delete note #${noteId}`);
           printKeyValue('Title', note.title);
           printKeyValue('Project', note.project_name);
