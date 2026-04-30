@@ -86,9 +86,10 @@ export function InteractiveList<T>({
 
   // I5 fix: clamp cursor via functional setState
   useEffect(() => {
-    if (items.length > 0) {
-      setCursor(prev => (prev >= items.length ? items.length - 1 : prev));
-    }
+    setCursor(prev => {
+      if (items.length === 0) return 0;
+      return Math.min(Math.max(0, prev), items.length - 1);
+    });
   }, [items.length]);
 
   // C3 fix: auto-load-more with onLoadMore in deps
@@ -102,6 +103,7 @@ export function InteractiveList<T>({
     const currentItems = itemsRef.current;
     switch (action) {
       case 'up':
+        if (currentItems.length === 0) return;
         setCursor(prev => {
           const next = Math.max(0, prev - 1);
           if (next < scrollOffsetRef.current) setScrollOffset(next);
@@ -109,6 +111,7 @@ export function InteractiveList<T>({
         });
         break;
       case 'down':
+        if (currentItems.length === 0) return;
         setCursor(prev => {
           const next = Math.min(currentItems.length - 1, prev + 1);
           if (next >= scrollOffsetRef.current + viewportHeight) {
@@ -118,8 +121,9 @@ export function InteractiveList<T>({
         });
         break;
       case 'enter':
-        if (currentItems.length > 0) {
-          onSelect(currentItems[cursorRef.current], cursorRef.current);
+        {
+          const selected = currentItems[cursorRef.current];
+          if (selected !== undefined) onSelect(selected, cursorRef.current);
         }
         break;
       case 'search':
@@ -133,10 +137,16 @@ export function InteractiveList<T>({
         onRetry?.();
         break;
       case 'summarize':
-        onSummarize?.(currentItems.length > 0 ? currentItems[cursorRef.current] : null);
+        {
+          const selected = currentItems[cursorRef.current];
+          if (selected !== undefined) onSummarize?.(selected);
+        }
         break;
       case 'delete':
-        onDelete?.(currentItems.length > 0 ? currentItems[cursorRef.current] : null);
+        {
+          const selected = currentItems[cursorRef.current];
+          if (selected !== undefined) onDelete?.(selected);
+        }
         break;
     }
   }, [viewportHeight, onSelect, onSearch, onQuit, onRetry, onSummarize, onDelete]);
