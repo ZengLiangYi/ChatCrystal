@@ -43,7 +43,9 @@ export function DeleteNoteDialog({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center px-4"
       style={{ background: 'rgba(0,0,0,0.6)' }}
-      onClick={onCancel}
+      onClick={() => {
+        if (!isPending) onCancel();
+      }}
     >
       <form
         className="bg-secondary border border-theme w-full max-w-lg p-5"

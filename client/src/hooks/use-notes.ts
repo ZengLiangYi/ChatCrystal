@@ -38,6 +38,9 @@ export function useDeleteNote() {
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
       queryClient.invalidateQueries({ queryKey: ['note', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
+      queryClient.invalidateQueries({ queryKey: ['note-relations'] });
+      queryClient.invalidateQueries({ queryKey: ['relation-graph'] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
       queryClient.invalidateQueries({ queryKey: ['conversation', data.conversationId] });
       queryClient.invalidateQueries({ queryKey: ['status'] });
