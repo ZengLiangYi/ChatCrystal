@@ -36,6 +36,8 @@ interface InteractiveListProps<T> {
   onRetry?: () => void;
   /** Called when user presses s to summarize the current item */
   onSummarize?: (item: T | null) => void;
+  /** Called when user presses d/D to delete the current item */
+  onDelete?: (item: T | null) => void;
   /** Render inline preview for selected item (narrow mode) */
   renderPreview?: (item: T) => string | null;
   /** Render side panel preview (wide mode). Receives available width for truncation. */
@@ -59,7 +61,7 @@ const PREVIEW_LINES = 3;
  */
 export function InteractiveList<T>({
   items, columns, total, loading, error, hasMore,
-  onLoadMore, onSelect, onSearch, onQuit, onRetry, onSummarize,
+  onLoadMore, onSelect, onSearch, onQuit, onRetry, onSummarize, onDelete,
   renderPreview, renderSidePreview,
   extraHints, title, keyboardActive = true,
 }: InteractiveListProps<T>) {
@@ -133,8 +135,11 @@ export function InteractiveList<T>({
       case 'summarize':
         onSummarize?.(currentItems.length > 0 ? currentItems[cursorRef.current] : null);
         break;
+      case 'delete':
+        onDelete?.(currentItems.length > 0 ? currentItems[cursorRef.current] : null);
+        break;
     }
-  }, [viewportHeight, onSelect, onSearch, onQuit, onRetry, onSummarize]);
+  }, [viewportHeight, onSelect, onSearch, onQuit, onRetry, onSummarize, onDelete]);
 
   useKeyboard({ active: keyboardActive, onAction: handleAction });
 
@@ -144,6 +149,7 @@ export function InteractiveList<T>({
     { key: 'Enter', label: t.hints.open.split(':')[1] },
   ];
   if (onSearch) hints.push({ key: '/', label: t.hints.search.split(':')[1] });
+  if (onDelete) hints.push({ key: 'D', label: t.hints.delete.split(':')[1] });
   hints.push({ key: 'q', label: t.hints.quit.split(':')[1] });
   if (extraHints) hints.push(...extraHints);
 

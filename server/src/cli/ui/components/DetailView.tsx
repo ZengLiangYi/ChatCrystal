@@ -24,6 +24,8 @@ interface DetailViewProps {
   onPrev?: () => void;
   /** Called when → pressed */
   onNext?: () => void;
+  /** Called when d/D pressed */
+  onDelete?: () => void;
   /** Position string like "2/243" */
   position?: string;
   /** Related notes to show at bottom */
@@ -34,7 +36,7 @@ interface DetailViewProps {
  * Full-screen note detail view with scrolling.
  * Shows title, metadata, summary, conclusions, code snippets, relations.
  */
-export function DetailView({ note, onBack, onPrev, onNext, position, relations }: DetailViewProps) {
+export function DetailView({ note, onBack, onPrev, onNext, onDelete, position, relations }: DetailViewProps) {
   const [scrollY, setScrollY] = useState(0);
   const { rows: termRows, columns: termCols } = useTerminalSize();
   const t = getLocale();
@@ -117,12 +119,15 @@ export function DetailView({ note, onBack, onPrev, onNext, position, relations }
       case 'right':
         onNext?.();
         break;
+      case 'delete':
+        onDelete?.();
+        break;
       case 'escape':
       case 'quit':
         onBack();
         break;
     }
-  }, [onBack, onPrev, onNext]);
+  }, [onBack, onPrev, onNext, onDelete]);
 
   useKeyboard({ onAction: handleAction });
 
@@ -132,6 +137,9 @@ export function DetailView({ note, onBack, onPrev, onNext, position, relations }
   ];
   if (onPrev || onNext) {
     hints.push({ key: '←/→', label: t.hints.prevNext.split(':')[1] });
+  }
+  if (onDelete) {
+    hints.push({ key: 'D', label: t.hints.delete.split(':')[1] });
   }
   hints.push({ key: '↑↓', label: t.hints.scroll.split(':')[1] });
 

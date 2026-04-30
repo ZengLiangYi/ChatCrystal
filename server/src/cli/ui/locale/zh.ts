@@ -22,7 +22,20 @@ export interface Locale {
     fullscreen: string;
     retry: string;
     summarize: string;
+    delete: string;
   };
+
+  deleteReviewTitle: string;
+  deleteReviewReasonPrompt: string;
+  deleteReviewConfirmPrompt: string;
+  deleteReviewDeleting: string;
+  deleteReviewError: string;
+  deleteReviewHintsReason: string;
+  deleteReviewHintsConfirm: string;
+  deleteReviewReasonLabels: Record<
+    'not-experience' | 'low-value' | 'inaccurate' | 'duplicate' | 'other',
+    string
+  >;
 
   pageInfo: (cur: number, total: number) => string;
 
@@ -85,6 +98,22 @@ export const zh: Locale = {
     fullscreen: 'Enter:全屏',
     retry: 'r:重试',
     summarize: 's:总结',
+    delete: 'D:删除',
+  },
+
+  deleteReviewTitle: '删除笔记',
+  deleteReviewReasonPrompt: '请选择删除原因',
+  deleteReviewConfirmPrompt: '确认删除这条笔记并记录反馈？',
+  deleteReviewDeleting: '删除中...',
+  deleteReviewError: '删除失败',
+  deleteReviewHintsReason: '↑↓ 移动  Enter 选择  Esc/q 取消',
+  deleteReviewHintsConfirm: 'Enter 确认删除  Esc/q 取消',
+  deleteReviewReasonLabels: {
+    'not-experience': '不是经验',
+    'low-value': '价值较低',
+    inaccurate: '内容不准确',
+    duplicate: '重复笔记',
+    other: '其他',
   },
 
   pageInfo: (cur: number, total: number) => `${cur}/${total}`,
