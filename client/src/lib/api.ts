@@ -1,5 +1,18 @@
 const BASE = "/api";
 
+type DeleteNoteWebRequest = {
+	reason: "low-value" | "inaccurate" | "not-experience" | "duplicate" | "other";
+	comment?: string;
+	source: "web";
+};
+
+type DeleteNoteWebResponse = {
+	noteId: number;
+	conversationId: string;
+	reviewId: number;
+	conversationStatus: "filtered";
+};
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
 	const headers: Record<string, string> = {};
 	// Only set Content-Type for requests with body
@@ -86,6 +99,12 @@ export const api = {
 	},
 
 	getNote: (id: number) => request<Record<string, unknown>>(`/notes/${id}`),
+
+	deleteNote: (id: number, body: DeleteNoteWebRequest) =>
+		request<DeleteNoteWebResponse>(`/notes/${id}`, {
+			method: "DELETE",
+			body: JSON.stringify(body),
+		}),
 
 	summarize: (conversationId: string) =>
 		request<{ noteId: number }>(`/conversations/${conversationId}/summarize`, {

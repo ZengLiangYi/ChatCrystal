@@ -2,6 +2,8 @@ import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { writeFileSync, readFileSync, existsSync, unlinkSync, openSync, mkdirSync } from 'node:fs';
 import type {
+  DeleteNoteReviewRequest,
+  DeleteNoteReviewResponse,
   RecallForTaskRequest,
   RecallForTaskResponse,
   WriteTaskMemoryRequest,
@@ -328,6 +330,14 @@ export class CrystalClient {
       key_conclusions: string[]; code_snippets: Array<{ language: string; code: string; description: string }>;
       tags: string[]; project_name: string; created_at: string;
     }>('GET', `/api/notes/${id}`);
+  }
+
+  async deleteNote(id: number, body: DeleteNoteReviewRequest) {
+    return this.request<DeleteNoteReviewResponse>(
+      'DELETE',
+      `/api/notes/${id}`,
+      body,
+    );
   }
 
   async getNoteRelations(id: number) {
