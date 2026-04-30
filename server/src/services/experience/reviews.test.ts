@@ -365,7 +365,7 @@ test('deleteNoteWithReview validates comment type before deleting', async () => 
   assert.equal(scalar(db, 'SELECT COUNT(*) FROM experience_reviews'), 0);
 });
 
-test('deleteNoteWithReview rolls back SQL changes when vector cleanup fails', async () => {
+test('deleteNoteWithReview keeps saved SQL deletion when vector cleanup fails', async () => {
   const db = await createSqlDatabase();
   insertConversation(db, 'conv-cleanup-fails');
   insertNote(db, 'conv-cleanup-fails', 15);
@@ -388,12 +388,12 @@ test('deleteNoteWithReview rolls back SQL changes when vector cleanup fails', as
     /vectra cleanup failed/,
   );
 
-  assert.equal(saves, 0);
-  assert.equal(scalar(db, 'SELECT COUNT(*) FROM notes WHERE id = ?', [15]), 1);
-  assert.equal(scalar(db, 'SELECT COUNT(*) FROM experience_reviews'), 0);
+  assert.equal(saves, 1);
+  assert.equal(scalar(db, 'SELECT COUNT(*) FROM notes WHERE id = ?', [15]), 0);
+  assert.equal(scalar(db, 'SELECT COUNT(*) FROM experience_reviews'), 1);
   assert.equal(
     scalar(db, 'SELECT status FROM conversations WHERE id = ?', ['conv-cleanup-fails']),
-    'summarized',
+    'filtered',
   );
 });
 
