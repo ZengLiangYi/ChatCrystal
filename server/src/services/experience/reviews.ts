@@ -8,6 +8,10 @@ import type { Database } from 'sql.js';
 import { getDatabase, saveDatabase } from '../../db/index.js';
 import { withTransaction } from '../../db/transaction.js';
 import { deleteNoteVectraItems } from '../embedding.js';
+import {
+  enqueueNoteVectorCleanupTask,
+  processNoteVectorCleanupTask,
+} from '../vector-cleanup.js';
 
 const VALID_REASONS = new Set<ExperienceReviewReason>([
   'low-value',
@@ -159,73 +163,95 @@ export async function deleteNoteWithReview(
   const deleteNoteVectors = deps.deleteNoteVectors ?? deleteNoteVectraItems;
   const comment = normalizeComment(request.comment);
 
-  const persisted = withTransaction(db, () => {
-    const snapshot = loadNoteGateSnapshot(db, noteId);
-    if (!snapshot) {
-      throw new NoteNotFoundForReviewError(noteId);
+  let persisted: {
+    reviewId: number;
+    conversationId: string;
+  };
+
+  try {
+    persisted = withTransaction(db, () => {
+      const snapshot = loadNoteGateSnapshot(db, noteId);
+      if (!snapshot) {
+        throw new NoteNotFoundForReviewError(noteId);
+      }
+
+      db.run(
+        `INSERT INTO experience_reviews (
+          target_type, target_id, conversation_id, note_id, verdict, reason,
+          comment, source, gate_score, gate_reason, gate_details
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          'note',
+          String(noteId),
+          snapshot.conversationId,
+          noteId,
+          'false_accept',
+          request.reason,
+          comment,
+          request.source,
+          snapshot.gateScore,
+          snapshot.gateReason,
+          snapshot.gateDetails,
+        ],
+      );
+
+      const reviewId = lastInsertId(db);
+      const auditDetails = {
+        feedback: {
+          verdict: 'false_accept',
+          reason: request.reason,
+          comment,
+          source: request.source,
+          note_id: noteId,
+          review_id: reviewId,
+        },
+        previous_gate: {
+          score: snapshot.gateScore,
+          reason: snapshot.gateReason,
+          details: parseGateDetails(snapshot.gateDetails),
+        },
+      };
+
+      db.run(
+        `UPDATE conversations
+            SET status = 'filtered',
+                experience_gate_reason = ?,
+                experience_gate_details = ?,
+                updated_at = datetime('now')
+          WHERE id = ?`,
+        [
+          'user-rejected-note',
+          JSON.stringify(auditDetails),
+          snapshot.conversationId,
+        ],
+      );
+
+      enqueueNoteVectorCleanupTask(noteId, { db });
+      db.run('DELETE FROM notes WHERE id = ?', [noteId]);
+
+      return {
+        reviewId,
+        conversationId: snapshot.conversationId,
+      };
+    });
+  } catch (error) {
+    if (error instanceof NoteNotFoundForReviewError) {
+      try {
+        await processNoteVectorCleanupTask(noteId, { db, save, deleteNoteVectors });
+      } catch {
+        // The cleanup task keeps attempts/last_error for the next retry.
+      }
     }
 
-    db.run(
-      `INSERT INTO experience_reviews (
-        target_type, target_id, conversation_id, note_id, verdict, reason,
-        comment, source, gate_score, gate_reason, gate_details
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        'note',
-        String(noteId),
-        snapshot.conversationId,
-        noteId,
-        'false_accept',
-        request.reason,
-        comment,
-        request.source,
-        snapshot.gateScore,
-        snapshot.gateReason,
-        snapshot.gateDetails,
-      ],
-    );
-
-    const reviewId = lastInsertId(db);
-    const auditDetails = {
-      feedback: {
-        verdict: 'false_accept',
-        reason: request.reason,
-        comment,
-        source: request.source,
-        note_id: noteId,
-        review_id: reviewId,
-      },
-      previous_gate: {
-        score: snapshot.gateScore,
-        reason: snapshot.gateReason,
-        details: parseGateDetails(snapshot.gateDetails),
-      },
-    };
-
-    db.run(
-      `UPDATE conversations
-          SET status = 'filtered',
-              experience_gate_reason = ?,
-              experience_gate_details = ?,
-              updated_at = datetime('now')
-        WHERE id = ?`,
-      [
-        'user-rejected-note',
-        JSON.stringify(auditDetails),
-        snapshot.conversationId,
-      ],
-    );
-
-    db.run('DELETE FROM notes WHERE id = ?', [noteId]);
-
-    return {
-      reviewId,
-      conversationId: snapshot.conversationId,
-    };
-  });
+    throw error;
+  }
 
   save();
-  await deleteNoteVectors(noteId);
+  try {
+    await processNoteVectorCleanupTask(noteId, { db, save, deleteNoteVectors });
+  } catch {
+    // The cleanup task keeps attempts/last_error for the next retry.
+  }
 
   return {
     noteId,

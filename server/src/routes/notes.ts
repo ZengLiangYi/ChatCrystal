@@ -10,6 +10,7 @@ import {
   NoteNotFoundForReviewError,
   deleteNoteWithReview,
 } from '../services/experience/reviews.js';
+import { processPendingVectorCleanupTasks } from '../services/vector-cleanup.js';
 
 function hydrateNote(row: Record<string, unknown>): Record<string, unknown> {
   return {
@@ -299,6 +300,14 @@ export async function noteRoutes(app: FastifyInstance) {
     }
 
     try {
+      try {
+        await processPendingVectorCleanupTasks({ limit: 25 });
+      } catch (err) {
+        console.warn(
+          '[Search] Failed to process pending vector cleanup tasks:',
+          err instanceof Error ? err.message : err,
+        );
+      }
       const results = await semanticSearch(q, Math.min(Number(limit), 50), expand === 'true');
 
       // Enrich results with tags from DB (batch query)

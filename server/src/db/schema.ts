@@ -126,6 +126,21 @@ CREATE INDEX IF NOT EXISTS idx_note_tags_tag ON note_tags(tag_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_note ON embeddings(note_id);
 CREATE INDEX IF NOT EXISTS idx_project_key_aliases_canonical ON project_key_aliases(canonical_key);
 
+CREATE TABLE IF NOT EXISTS vector_cleanup_tasks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  target_type TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  attempts INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(target_type, target_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_vector_cleanup_tasks_pending
+  ON vector_cleanup_tasks(status, updated_at);
+
 CREATE TABLE IF NOT EXISTS note_relations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   source_note_id INTEGER NOT NULL,

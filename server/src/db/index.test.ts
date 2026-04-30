@@ -186,6 +186,39 @@ test('applySchemaMigrations creates experience review table and indexes', async 
   assert.ok(indexNames.includes('idx_experience_reviews_verdict'));
 });
 
+test('applySchemaMigrations creates vector cleanup task table and indexes', async () => {
+  const db = await createDatabase();
+
+  applySchemaMigrations(db);
+
+  const columns = getColumnNames(db, 'vector_cleanup_tasks');
+  assert.deepEqual(columns, [
+    'id',
+    'target_type',
+    'target_id',
+    'status',
+    'attempts',
+    'last_error',
+    'created_at',
+    'updated_at',
+  ]);
+
+  const indexRows = db.exec("PRAGMA index_list('vector_cleanup_tasks')");
+  const indexes = indexRows[0]?.values ?? [];
+  const indexNames = indexes.map((row) => String(row[1]));
+  assert.ok(indexNames.includes('idx_vector_cleanup_tasks_pending'));
+  assert.ok(indexes.some((row) => Number(row[2]) === 1));
+
+  db.run(
+    "INSERT INTO vector_cleanup_tasks (target_type, target_id) VALUES ('note', '42')",
+  );
+  assert.throws(() => {
+    db.run(
+      "INSERT INTO vector_cleanup_tasks (target_type, target_id) VALUES ('note', '42')",
+    );
+  }, /UNIQUE/);
+});
+
 test('experience review rows remain after deleting reviewed note', async () => {
   const db = await createDatabase();
 
