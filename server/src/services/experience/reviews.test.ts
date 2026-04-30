@@ -259,6 +259,102 @@ test('deleteNoteWithReview validates reason before deleting', async () => {
   assert.equal(scalar(db, 'SELECT COUNT(*) FROM experience_reviews'), 0);
 });
 
+test('deleteNoteWithReview validates noteId before deleting when it is zero', async () => {
+  const db = await createSqlDatabase();
+  insertConversation(db, 'conv-zero-note-id');
+  insertNote(db, 'conv-zero-note-id', 10);
+  let saves = 0;
+
+  await assert.rejects(
+    deleteNoteWithReview(
+      0,
+      { reason: 'duplicate', source: 'web' },
+      {
+        db: db as never,
+        save: () => {
+          saves++;
+        },
+      },
+    ),
+    DeleteNoteReviewValidationError,
+  );
+
+  assert.equal(saves, 0);
+  assert.equal(scalar(db, 'SELECT COUNT(*) FROM notes WHERE id = ?', [10]), 1);
+  assert.equal(scalar(db, 'SELECT COUNT(*) FROM experience_reviews'), 0);
+});
+
+test('deleteNoteWithReview validates noteId before deleting when it is NaN', async () => {
+  const db = await createSqlDatabase();
+  insertConversation(db, 'conv-nan-note-id');
+  insertNote(db, 'conv-nan-note-id', 10);
+  let saves = 0;
+
+  await assert.rejects(
+    deleteNoteWithReview(
+      Number.NaN,
+      { reason: 'duplicate', source: 'web' },
+      {
+        db: db as never,
+        save: () => {
+          saves++;
+        },
+      },
+    ),
+    DeleteNoteReviewValidationError,
+  );
+
+  assert.equal(saves, 0);
+  assert.equal(scalar(db, 'SELECT COUNT(*) FROM notes WHERE id = ?', [10]), 1);
+  assert.equal(scalar(db, 'SELECT COUNT(*) FROM experience_reviews'), 0);
+});
+
+test('deleteNoteWithReview validates input shape before deleting when input is null', async () => {
+  const db = await createSqlDatabase();
+  insertConversation(db, 'conv-null-input');
+  insertNote(db, 'conv-null-input', 10);
+  let saves = 0;
+
+  await assert.rejects(
+    deleteNoteWithReview(10, null as never, {
+      db: db as never,
+      save: () => {
+        saves++;
+      },
+    }),
+    DeleteNoteReviewValidationError,
+  );
+
+  assert.equal(saves, 0);
+  assert.equal(scalar(db, 'SELECT COUNT(*) FROM notes WHERE id = ?', [10]), 1);
+  assert.equal(scalar(db, 'SELECT COUNT(*) FROM experience_reviews'), 0);
+});
+
+test('deleteNoteWithReview validates comment type before deleting', async () => {
+  const db = await createSqlDatabase();
+  insertConversation(db, 'conv-invalid-comment');
+  insertNote(db, 'conv-invalid-comment', 10);
+  let saves = 0;
+
+  await assert.rejects(
+    deleteNoteWithReview(
+      10,
+      { reason: 'other', source: 'web', comment: 123 } as never,
+      {
+        db: db as never,
+        save: () => {
+          saves++;
+        },
+      },
+    ),
+    DeleteNoteReviewValidationError,
+  );
+
+  assert.equal(saves, 0);
+  assert.equal(scalar(db, 'SELECT COUNT(*) FROM notes WHERE id = ?', [10]), 1);
+  assert.equal(scalar(db, 'SELECT COUNT(*) FROM experience_reviews'), 0);
+});
+
 test('deleteNoteWithReview throws for missing notes', async () => {
   const db = await createSqlDatabase();
   let saves = 0;

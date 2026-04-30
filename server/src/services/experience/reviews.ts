@@ -50,18 +50,54 @@ type NoteGateSnapshot = {
   gateDetails: string | null;
 };
 
-function validateRequest(input: DeleteNoteReviewRequest): void {
-  if (!VALID_REASONS.has(input.reason)) {
+function validateRequest(
+  noteId: number,
+  input: unknown,
+): DeleteNoteReviewRequest {
+  if (!Number.isInteger(noteId) || noteId <= 0) {
     throw new DeleteNoteReviewValidationError(
-      `Invalid review reason: ${String(input.reason)}`,
+      `Invalid note id: ${String(noteId)}`,
     );
   }
 
-  if (!VALID_SOURCES.has(input.source)) {
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+    throw new DeleteNoteReviewValidationError('Review request must be an object');
+  }
+
+  const request = input as Partial<DeleteNoteReviewRequest>;
+
+  if (
+    typeof request.reason !== 'string' ||
+    !VALID_REASONS.has(request.reason as ExperienceReviewReason)
+  ) {
     throw new DeleteNoteReviewValidationError(
-      `Invalid review source: ${String(input.source)}`,
+      `Invalid review reason: ${String(request.reason)}`,
     );
   }
+
+  if (
+    typeof request.source !== 'string' ||
+    !VALID_SOURCES.has(request.source as ExperienceReviewSource)
+  ) {
+    throw new DeleteNoteReviewValidationError(
+      `Invalid review source: ${String(request.source)}`,
+    );
+  }
+
+  if (
+    request.comment !== undefined &&
+    typeof request.comment !== 'string'
+  ) {
+    throw new DeleteNoteReviewValidationError(
+      `Invalid review comment: ${String(request.comment)}`,
+    );
+  }
+
+  return {
+    reason: request.reason as ExperienceReviewReason,
+    source: request.source as ExperienceReviewSource,
+    comment: request.comment,
+  };
 }
 
 function normalizeComment(comment: string | undefined): string | null {
@@ -114,11 +150,11 @@ export async function deleteNoteWithReview(
   input: DeleteNoteReviewRequest,
   deps: DeleteNoteWithReviewDeps = {},
 ): Promise<DeleteNoteReviewResponse> {
-  validateRequest(input);
+  const request = validateRequest(noteId, input);
 
   const db = deps.db ?? getDatabase();
   const save = deps.save ?? saveDatabase;
-  const comment = normalizeComment(input.comment);
+  const comment = normalizeComment(request.comment);
 
   const persisted = withTransaction(db, () => {
     const snapshot = loadNoteGateSnapshot(db, noteId);
@@ -137,9 +173,9 @@ export async function deleteNoteWithReview(
         snapshot.conversationId,
         noteId,
         'false_accept',
-        input.reason,
+        request.reason,
         comment,
-        input.source,
+        request.source,
         snapshot.gateScore,
         snapshot.gateReason,
         snapshot.gateDetails,
@@ -150,9 +186,9 @@ export async function deleteNoteWithReview(
     const auditDetails = {
       feedback: {
         verdict: 'false_accept',
-        reason: input.reason,
+        reason: request.reason,
         comment,
-        source: input.source,
+        source: request.source,
         note_id: noteId,
         review_id: reviewId,
       },
