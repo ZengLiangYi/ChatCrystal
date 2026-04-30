@@ -156,3 +156,32 @@ test('applySchemaMigrations converts confirmed low-signal errors to filtered', a
     ['provider-error', 'error'],
   ]);
 });
+
+test('applySchemaMigrations creates experience review table and indexes', async () => {
+  const db = await createDatabase();
+
+  applySchemaMigrations(db);
+
+  const columns = getColumnNames(db, 'experience_reviews');
+  assert.deepEqual(columns, [
+    'id',
+    'target_type',
+    'target_id',
+    'conversation_id',
+    'note_id',
+    'verdict',
+    'reason',
+    'comment',
+    'source',
+    'gate_score',
+    'gate_reason',
+    'gate_details',
+    'created_at',
+  ]);
+
+  const indexRows = db.exec("PRAGMA index_list('experience_reviews')");
+  const indexNames = indexRows[0]?.values.map((row) => String(row[1])) ?? [];
+  assert.ok(indexNames.includes('idx_experience_reviews_target'));
+  assert.ok(indexNames.includes('idx_experience_reviews_conversation'));
+  assert.ok(indexNames.includes('idx_experience_reviews_verdict'));
+});

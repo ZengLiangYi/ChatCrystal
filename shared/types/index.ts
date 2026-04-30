@@ -107,6 +107,39 @@ export type NoteSourceType =
   | 'agent-writeback'
   | 'manual-note';
 
+export type ExperienceReviewReason =
+  | 'low-value'
+  | 'inaccurate'
+  | 'not-experience'
+  | 'duplicate'
+  | 'other';
+
+export type ExperienceReviewSource =
+  | 'web'
+  | 'cli'
+  | 'tui'
+  | 'mcp'
+  | 'system';
+
+export type ExperienceReviewVerdict =
+  | 'false_accept'
+  | 'confirmed_reject'
+  | 'false_reject'
+  | 'skipped';
+
+export interface DeleteNoteReviewRequest {
+  reason: ExperienceReviewReason;
+  comment?: string;
+  source: ExperienceReviewSource;
+}
+
+export interface DeleteNoteReviewResponse {
+  noteId: number;
+  conversationId: string;
+  reviewId: number;
+  conversationStatus: 'filtered';
+}
+
 export interface MemoryCodeSnippet {
   language: string;
   code: string;
