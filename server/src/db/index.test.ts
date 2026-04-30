@@ -185,3 +185,42 @@ test('applySchemaMigrations creates experience review table and indexes', async 
   assert.ok(indexNames.includes('idx_experience_reviews_conversation'));
   assert.ok(indexNames.includes('idx_experience_reviews_verdict'));
 });
+
+test('experience review rows remain after deleting reviewed note', async () => {
+  const db = await createDatabase();
+
+  db.exec('PRAGMA foreign_keys = ON');
+  applySchemaMigrations(db);
+
+  db.exec(`
+    INSERT INTO conversations (
+      id, source, project_dir, project_name, first_message_at, last_message_at,
+      file_path
+    ) VALUES (
+      'conversation-1', 'codex', 'C:/repo', 'repo', '2026-04-29',
+      '2026-04-29', 'a.jsonl'
+    );
+
+    INSERT INTO notes (
+      id, conversation_id, title, summary
+    ) VALUES (
+      1, 'conversation-1', 'Low value note', 'This note should be deleted.'
+    );
+
+    INSERT INTO experience_reviews (
+      target_type, target_id, conversation_id, note_id, verdict, reason, source
+    ) VALUES (
+      'note', '1', 'conversation-1', 1, 'false_accept', 'not-experience', 'cli'
+    );
+
+    DELETE FROM notes WHERE id = 1;
+  `);
+
+  const rows = db.exec(
+    'SELECT note_id, target_id FROM experience_reviews ORDER BY id ASC',
+  )[0]?.values ?? [];
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0][0], null);
+  assert.equal(rows[0][1], '1');
+});
