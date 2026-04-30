@@ -1,12 +1,23 @@
 import { embed } from 'ai';
-import { LocalIndex } from 'vectra';
-import { existsSync, rmSync } from 'node:fs';
-import { resolve } from 'node:path';
+import type { LocalIndex } from 'vectra';
 import { getDatabase, saveDatabase } from '../db/index.js';
 import { withTransaction } from '../db/transaction.js';
 import { resultToObjects } from '../db/utils.js';
 import { appConfig } from '../config.js';
 import { getProvider } from './providers.js';
+import { processPendingVectorCleanupTasks } from './vector-cleanup.js';
+import {
+  committedVectraIdsForNote,
+  currentVectraIdsCommitted,
+  getIndex,
+} from './vector-index.js';
+export {
+  clearEmbeddingIndex,
+  committedVectraIdsForNote,
+  currentVectraIdsCommitted,
+  deleteNoteVectraItems,
+  deleteVectraItemsForNote,
+} from './vector-index.js';
 
 // =============================================
 // Embedding Model Factory
@@ -19,30 +30,6 @@ function getEmbeddingModel() {
     throw new Error(`Provider "${provider}" does not support embeddings. Use ollama, openai, google, azure, or custom.`);
   }
   return entry.createEmbeddingModel(config);
-}
-
-// =============================================
-// Vectra Index
-// =============================================
-
-const INDEX_PATH = resolve(appConfig.dataDir, 'vectra-index');
-
-let _index: LocalIndex | null = null;
-
-async function getIndex(): Promise<LocalIndex> {
-  if (_index) return _index;
-  _index = new LocalIndex(INDEX_PATH);
-  if (!(await _index.isIndexCreated())) {
-    await _index.createIndex();
-  }
-  return _index;
-}
-
-export function clearEmbeddingIndex(): void {
-  _index = null;
-  if (existsSync(INDEX_PATH)) {
-    rmSync(INDEX_PATH, { recursive: true, force: true });
-  }
 }
 
 // =============================================
@@ -103,60 +90,28 @@ type DirectSearchHit = {
 
 type DatabaseLike = ReturnType<typeof getDatabase>;
 type DatabaseRunner = Pick<DatabaseLike, 'run'>;
+type SemanticSearchIndex = Pick<LocalIndex, 'isIndexCreated' | 'queryItems'>;
+type SemanticSearchDeps = {
+  getIndex?: () => Promise<SemanticSearchIndex>;
+  embedQuery?: (query: string) => Promise<number[]>;
+  cleanupPreflight?: () => Promise<void>;
+  getDb?: () => Pick<DatabaseLike, 'exec'>;
+};
 
-export async function committedVectraIdsForNote(index: LocalIndex, noteId: number): Promise<string[]> {
-  const items = await index.listItemsByMetadata({ noteId });
-  return items.map((item) => item.id);
+async function embedSearchQuery(query: string): Promise<number[]> {
+  const model = getEmbeddingModel();
+  const { embedding } = await embed({ model, value: query });
+  return embedding;
 }
 
-export async function deleteVectraItemsForNote(index: LocalIndex, noteId: number): Promise<number> {
-  const vectraIds = await committedVectraIdsForNote(index, noteId);
-  if (vectraIds.length === 0) {
-    return 0;
-  }
-
-  let updateOpen = false;
+export async function preflightSemanticSearchVectorCleanup(
+  processPending: typeof processPendingVectorCleanupTasks = processPendingVectorCleanupTasks,
+): Promise<void> {
   try {
-    await index.beginUpdate();
-    updateOpen = true;
-
-    for (const vectraId of vectraIds) {
-      await index.deleteItem(vectraId);
-    }
-
-    await index.endUpdate();
-    updateOpen = false;
-    return vectraIds.length;
-  } catch (error) {
-    if (updateOpen) {
-      try {
-        index.cancelUpdate();
-      } catch {
-        // Ignore cancel failures and prefer surfacing the original error.
-      }
-    }
-
-    throw error;
+    await processPending({ limit: 25 });
+  } catch {
+    // Search should stay available; the pending task remains durable for retry.
   }
-}
-
-export async function deleteNoteVectraItems(noteId: number): Promise<number> {
-  const index = await getIndex();
-  return deleteVectraItemsForNote(index, noteId);
-}
-
-export async function currentVectraIdsCommitted(index: LocalIndex, vectraIds: string[]): Promise<boolean> {
-  if (vectraIds.length === 0) {
-    return false;
-  }
-
-  for (const vectraId of vectraIds) {
-    if (!(await index.getItem(vectraId))) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 export async function maybeFinalizeCommittedSyncingNote(
@@ -392,21 +347,27 @@ export async function semanticSearch(
   query: string,
   topK = 10,
   expandRelations = false,
+  deps: SemanticSearchDeps = {},
 ): Promise<{ noteId: number; conversationId: string; title: string; projectName: string; score: number; chunkText: string; viaRelation?: string }[]> {
-  const index = await getIndex();
+  const loadIndex = deps.getIndex ?? getIndex;
+  const index = await loadIndex();
 
   // Check if index has any items
   if (!(await index.isIndexCreated())) {
     return [];
   }
 
-  const model = getEmbeddingModel();
-  const { embedding } = await embed({ model, value: query });
+  try {
+    await (deps.cleanupPreflight ?? preflightSemanticSearchVectorCleanup)();
+  } catch {
+    // Search should stay available; the pending task remains durable for retry.
+  }
 
+  const embedding = await (deps.embedQuery ?? embedSearchQuery)(query);
   const results = await index.queryItems<NoteChunkMeta>(embedding, query, topK);
 
   // Deduplicate by noteId, keeping highest score
-  const db = getDatabase();
+  const db = (deps.getDb ?? getDatabase)();
   const directResults = await materializeDirectSearchHits(db, results);
 
   if (!expandRelations || directResults.length === 0) {

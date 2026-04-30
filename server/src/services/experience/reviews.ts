@@ -7,7 +7,7 @@ import type {
 import type { Database } from 'sql.js';
 import { getDatabase, saveDatabase } from '../../db/index.js';
 import { withTransaction } from '../../db/transaction.js';
-import { deleteNoteVectraItems } from '../embedding.js';
+import { deleteNoteVectraItems } from '../vector-index.js';
 import {
   enqueueNoteVectorCleanupTask,
   processNoteVectorCleanupTask,

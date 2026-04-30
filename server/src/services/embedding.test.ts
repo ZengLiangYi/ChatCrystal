@@ -10,6 +10,7 @@ import {
   deleteVectraItemsForNote,
   maybeFinalizeCommittedSyncingNote,
   materializeDirectSearchHits,
+  semanticSearch,
 } from './embedding.js';
 
 function createTempDir() {
@@ -222,4 +223,92 @@ test('semantic-search direct-hit materialization validates SQLite-backed chunks 
       viaRelation: undefined,
     },
   ]);
+});
+
+test('semanticSearch runs vector cleanup preflight before querying vectra', async () => {
+  const calls: string[] = [];
+  const index = {
+    async isIndexCreated() {
+      calls.push('isIndexCreated');
+      return true;
+    },
+    async queryItems(_embedding: number[], _query: string, topK: number) {
+      calls.push(`queryItems:${topK}`);
+      return [
+        {
+          item: {
+            metadata: {
+              noteId: 31,
+              chunkIndex: 0,
+              conversationId: 'conv-preflight',
+              title: 'Preflight',
+              projectName: 'Project',
+            },
+          },
+          score: 0.9,
+        },
+      ];
+    },
+  };
+  const db = {
+    exec(sql: string, params: unknown[]) {
+      if (sql.includes('FROM embeddings e')) {
+        assert.deepEqual(params, [31, 0]);
+        return [{ values: [['kept chunk']] }];
+      }
+      throw new Error(`Unexpected query: ${sql}`);
+    },
+  };
+
+  const results = await semanticSearch('query', 7, false, {
+    getIndex: async () => index as never,
+    embedQuery: async () => {
+      calls.push('embed');
+      return [1, 0, 0];
+    },
+    cleanupPreflight: async () => {
+      calls.push('cleanup');
+    },
+    getDb: () => db as never,
+  });
+
+  assert.deepEqual(results, [
+    {
+      noteId: 31,
+      conversationId: 'conv-preflight',
+      title: 'Preflight',
+      projectName: 'Project',
+      score: 0.9,
+      chunkText: 'kept chunk',
+      viaRelation: undefined,
+    },
+  ]);
+  assert.ok(calls.indexOf('cleanup') > -1);
+  assert.ok(calls.indexOf('cleanup') < calls.indexOf('queryItems:7'));
+});
+
+test('semanticSearch keeps searching when vector cleanup preflight fails', async () => {
+  const calls: string[] = [];
+  const index = {
+    async isIndexCreated() {
+      return true;
+    },
+    async queryItems() {
+      calls.push('queryItems');
+      return [];
+    },
+  };
+
+  const results = await semanticSearch('query', 3, false, {
+    getIndex: async () => index as never,
+    embedQuery: async () => [1, 0, 0],
+    cleanupPreflight: async () => {
+      calls.push('cleanup');
+      throw new Error('cleanup failed');
+    },
+    getDb: () => ({ exec: () => [] }) as never,
+  });
+
+  assert.deepEqual(results, []);
+  assert.deepEqual(calls, ['cleanup', 'queryItems']);
 });

@@ -1,6 +1,6 @@
 import type { Database } from 'sql.js';
 import { getDatabase, saveDatabase } from '../db/index.js';
-import { deleteNoteVectraItems } from './embedding.js';
+import { deleteNoteVectraItems } from './vector-index.js';
 
 type DeleteNoteVectors = (noteId: number) => Promise<unknown>;
 
