@@ -216,6 +216,14 @@ function insertExistingNote(db: Database, noteId: number, conversationId: string
 	);
 }
 
+function vectorCleanupRows(db: Database) {
+	return db.exec(
+		`SELECT target_type, target_id, status, attempts, last_error
+		   FROM vector_cleanup_tasks
+		  ORDER BY id ASC`,
+	)[0]?.values ?? [];
+}
+
 test('importAll preserves user-rejected review links and gate state when reimporting changed conversations', async () => {
 	const { db, importAll, registerAdapter, appConfig, getUnsummarizedIds } =
 		await loadRuntime();
@@ -283,6 +291,7 @@ test('importAll preserves user-rejected review links and gate state when reimpor
 		'SELECT COUNT(*) FROM notes WHERE conversation_id = ?',
 		[conversationId],
 	);
+	const cleanupTasks = vectorCleanupRows(db);
 
 	assert.equal(progress.imported, 1);
 	assert.deepEqual(conversation, [
@@ -297,6 +306,7 @@ test('importAll preserves user-rejected review links and gate state when reimpor
 	]);
 	assert.deepEqual(reviews, [[conversationId, null]]);
 	assert.equal(Number(notes[0].values[0][0]), 0);
+	assert.deepEqual(cleanupTasks, [['note', '1', 'pending', 0, null]]);
 	assert.equal(getUnsummarizedIds().includes(conversationId), false);
 });
 
@@ -350,6 +360,7 @@ test('importAll resets ordinary changed conversations to imported and clears sta
 		'SELECT COUNT(*) FROM notes WHERE conversation_id = ?',
 		[conversationId],
 	);
+	const cleanupTasks = vectorCleanupRows(db);
 
 	assert.equal(progress.imported, 1);
 	assert.deepEqual(conversation, ['imported', null, null, null]);
@@ -358,4 +369,5 @@ test('importAll resets ordinary changed conversations to imported and clears sta
 		'new ordinary assistant message',
 	]);
 	assert.equal(Number(notes[0].values[0][0]), 0);
+	assert.deepEqual(cleanupTasks, [['note', '2', 'pending', 0, null]]);
 });

@@ -3,6 +3,7 @@ import { appConfig } from "../config.js";
 import { getDatabase, saveDatabase } from "../db/index.js";
 import { withTransaction } from "../db/transaction.js";
 import { getAdapter, getAllAdapters } from "../parser/index.js";
+import { enqueueNoteVectorCleanupTask } from "./vector-cleanup.js";
 
 export interface ImportProgress {
 	total: number;
@@ -142,7 +143,14 @@ function replaceImportedConversation(
 		row?.[3] === null || row?.[3] === undefined ? null : String(row[3]);
 	const keepUserRejectedGate =
 		status === "filtered" && experienceGateReason === "user-rejected-note";
+	const oldNoteIds =
+		db
+			.exec("SELECT id FROM notes WHERE conversation_id = ?", [parsed.id])[0]
+			?.values.map((note) => Number(note[0])) ?? [];
 
+	for (const noteId of oldNoteIds) {
+		enqueueNoteVectorCleanupTask(noteId, { db });
+	}
 	db.run("DELETE FROM notes WHERE conversation_id = ?", [parsed.id]);
 	db.run("DELETE FROM messages WHERE conversation_id = ?", [parsed.id]);
 	db.run(
