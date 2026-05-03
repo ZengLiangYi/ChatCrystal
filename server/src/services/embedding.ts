@@ -90,7 +90,7 @@ type DirectSearchHit = {
 
 type DatabaseLike = ReturnType<typeof getDatabase>;
 type DatabaseRunner = Pick<DatabaseLike, 'run'>;
-type SemanticSearchIndex = Pick<LocalIndex, 'isIndexCreated' | 'queryItems'>;
+type SemanticSearchIndex = Pick<LocalIndex, 'isIndexCreated' | 'queryItems'> & Partial<Pick<LocalIndex, 'getIndexStats'>>;
 type SemanticSearchDeps = {
   getIndex?: () => Promise<SemanticSearchIndex>;
   embedQuery?: (query: string) => Promise<number[]>;
@@ -102,6 +102,18 @@ async function embedSearchQuery(query: string): Promise<number[]> {
   const model = getEmbeddingModel();
   const { embedding } = await embed({ model, value: query });
   return embedding;
+}
+
+async function getSemanticSearchCandidateLimit(index: SemanticSearchIndex): Promise<number | undefined> {
+  if (!index.getIndexStats) {
+    return undefined;
+  }
+
+  try {
+    return (await index.getIndexStats()).items;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function preflightSemanticSearchVectorCleanup(
@@ -364,11 +376,38 @@ export async function semanticSearch(
   }
 
   const embedding = await (deps.embedQuery ?? embedSearchQuery)(query);
-  const results = await index.queryItems<NoteChunkMeta>(embedding, query, topK);
+  const requestedTopK = Math.max(0, Math.floor(topK));
+  if (requestedTopK === 0) {
+    return [];
+  }
 
-  // Deduplicate by noteId, keeping highest score
   const db = (deps.getDb ?? getDatabase)();
-  const directResults = await materializeDirectSearchHits(db, results);
+  const candidateLimit = await getSemanticSearchCandidateLimit(index);
+  let candidateK = candidateLimit === undefined
+    ? requestedTopK
+    : Math.min(requestedTopK, candidateLimit);
+  let directResults: DirectSearchHit[] = [];
+
+  while (candidateK > 0) {
+    const results = await index.queryItems<NoteChunkMeta>(embedding, query, candidateK);
+    directResults = await materializeDirectSearchHits(db, results);
+
+    if (directResults.length >= requestedTopK || results.length < candidateK) {
+      break;
+    }
+
+    const nextCandidateK = candidateLimit === undefined
+      ? candidateK * 2
+      : Math.min(candidateK * 2, candidateLimit);
+    if (nextCandidateK <= candidateK) {
+      break;
+    }
+
+    candidateK = nextCandidateK;
+  }
+
+  // Deduplicate by noteId, keeping highest score, then cap direct hits before relation expansion.
+  directResults = directResults.slice(0, requestedTopK);
 
   if (!expandRelations || directResults.length === 0) {
     return directResults;
