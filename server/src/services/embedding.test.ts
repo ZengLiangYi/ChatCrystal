@@ -297,6 +297,32 @@ test('semanticSearch overfetches when stale vectra hits fill the requested topK'
   assert.deepEqual(queryTopKs, [1, 2]);
 });
 
+test('semanticSearch returns early for non-positive topK without cleanup or embedding', async () => {
+  const calls: string[] = [];
+
+  const results = await semanticSearch('q', 0, false, {
+    getIndex: async () => {
+      calls.push('getIndex');
+      throw new Error('getIndex should not run');
+    },
+    embedQuery: async () => {
+      calls.push('embed');
+      throw new Error('embed should not run');
+    },
+    cleanupPreflight: async () => {
+      calls.push('cleanup');
+      throw new Error('cleanup should not run');
+    },
+    getDb: () => {
+      calls.push('getDb');
+      throw new Error('getDb should not run');
+    },
+  });
+
+  assert.deepEqual(results, []);
+  assert.deepEqual(calls, []);
+});
+
 test('semanticSearch runs vector cleanup preflight before querying vectra', async () => {
   const calls: string[] = [];
   const index = {

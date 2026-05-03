@@ -361,6 +361,11 @@ export async function semanticSearch(
   expandRelations = false,
   deps: SemanticSearchDeps = {},
 ): Promise<{ noteId: number; conversationId: string; title: string; projectName: string; score: number; chunkText: string; viaRelation?: string }[]> {
+  const requestedTopK = Math.max(0, Math.floor(topK));
+  if (requestedTopK === 0) {
+    return [];
+  }
+
   const loadIndex = deps.getIndex ?? getIndex;
   const index = await loadIndex();
 
@@ -376,10 +381,6 @@ export async function semanticSearch(
   }
 
   const embedding = await (deps.embedQuery ?? embedSearchQuery)(query);
-  const requestedTopK = Math.max(0, Math.floor(topK));
-  if (requestedTopK === 0) {
-    return [];
-  }
 
   const db = (deps.getDb ?? getDatabase)();
   const candidateLimit = await getSemanticSearchCandidateLimit(index);
