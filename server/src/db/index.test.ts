@@ -20,6 +20,11 @@ function getColumnNames(db: Database, table: string): string[] {
   return result[0]?.values.map((row) => String(row[1])) ?? [];
 }
 
+function getIndexColumnNames(db: Database, indexName: string): string[] {
+  const result = db.exec(`PRAGMA index_info('${indexName}')`);
+  return result[0]?.values.map((row) => String(row[2])) ?? [];
+}
+
 test('applySchemaMigrations upgrades legacy notes table before creating project_key index', async () => {
   const db = await createDatabase();
 
@@ -221,6 +226,40 @@ test('applySchemaMigrations creates vector cleanup task table and indexes', asyn
       "INSERT INTO vector_cleanup_tasks (target_type, target_id) VALUES ('note', '42')",
     );
   }, /UNIQUE/);
+});
+
+test('applySchemaMigrations repairs legacy vector cleanup pending index shape', async () => {
+  const db = await createDatabase();
+
+  db.exec(`
+    CREATE TABLE vector_cleanup_tasks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      target_type TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      attempts INTEGER NOT NULL DEFAULT 0,
+      last_error TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(target_type, target_id)
+    );
+
+    CREATE INDEX idx_vector_cleanup_tasks_pending
+      ON vector_cleanup_tasks(status, updated_at);
+  `);
+
+  assert.deepEqual(getIndexColumnNames(db, 'idx_vector_cleanup_tasks_pending'), [
+    'status',
+    'updated_at',
+  ]);
+
+  applySchemaMigrations(db);
+
+  assert.deepEqual(getIndexColumnNames(db, 'idx_vector_cleanup_tasks_pending'), [
+    'status',
+    'updated_at',
+    'id',
+  ]);
 });
 
 test('experience review rows remain after deleting reviewed note', async () => {

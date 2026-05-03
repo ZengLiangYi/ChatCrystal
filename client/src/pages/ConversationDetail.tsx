@@ -214,7 +214,12 @@ function SummarizeButton({
   const isQueued = queueStatus === 'queued';
   const isProcessing = queueStatus === 'processing' || isPending;
   const isDone = status === 'summarized';
+  const isFiltered = status === 'filtered';
   const isError = status === 'error';
+
+  if (isFiltered) {
+    return null;
+  }
 
   if (isQueued) {
     return (

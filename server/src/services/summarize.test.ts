@@ -110,6 +110,121 @@ test('triggerSummarize marks rejected conversations as filtered without creating
   assert.equal(Number(notes[0].values[0][0]), 0);
 });
 
+test('triggerSummarize no-ops for conversations rejected by note deletion review', async () => {
+  const db = await createSqlDatabase();
+  const gateDetails = JSON.stringify({
+    feedback: {
+      verdict: 'false_accept',
+      reason: 'low-value',
+      source: 'web',
+    },
+  });
+  const calls = {
+    prepare: 0,
+    evaluate: 0,
+    summarize: 0,
+    embed: 0,
+    relations: 0,
+  };
+
+  insertConversation(db, 'conv-user-rejected');
+  insertMessage(
+    db,
+    'conv-user-rejected',
+    'm1',
+    'user',
+    'Please summarize this deleted note again.',
+    1,
+  );
+  insertMessage(
+    db,
+    'conv-user-rejected',
+    'm2',
+    'assistant',
+    'This should stay filtered because the user rejected the note.',
+    2,
+  );
+  db.run(
+    `UPDATE conversations
+        SET status = 'filtered',
+            experience_score = 82,
+            experience_gate_reason = 'user-rejected-note',
+            experience_gate_details = ?
+      WHERE id = ?`,
+    [gateDetails, 'conv-user-rejected'],
+  );
+
+  const result = await triggerSummarize('conv-user-rejected', {
+    db: db as never,
+    save: () => undefined,
+    prepareTranscript: () => {
+      calls.prepare++;
+      return 'should not be prepared';
+    },
+    evaluateExperience: async () => {
+      calls.evaluate++;
+      return {
+        decision: 'accept',
+        score: 99,
+        confidence: 0.9,
+        reasons: ['experience-threshold-met'],
+        missing_signals: [],
+        dimensions: {
+          problem_clarity: 20,
+          process_depth: 20,
+          decision_value: 20,
+          outcome_closure: 20,
+          reuse_potential: 19,
+        },
+      };
+    },
+    summarizeConversation: async () => {
+      calls.summarize++;
+      return {
+        title: 'Should not exist',
+        summary: 'This note must not be recreated.',
+        key_conclusions: [],
+        code_snippets: [],
+        tags: ['review'],
+        raw_response: '{}',
+      };
+    },
+    generateEmbeddings: async () => {
+      calls.embed++;
+      return 1;
+    },
+    discoverRelations: async () => {
+      calls.relations++;
+    },
+  });
+
+  const conv = db.exec(
+    `SELECT status, experience_score, experience_gate_reason, experience_gate_details
+       FROM conversations WHERE id = ?`,
+    ['conv-user-rejected'],
+  )[0].values[0];
+  const noteCount = db.exec(
+    'SELECT COUNT(*) FROM notes WHERE conversation_id = ?',
+    ['conv-user-rejected'],
+  );
+
+  assert.equal(result, null);
+  assert.deepEqual(conv, [
+    'filtered',
+    82,
+    'user-rejected-note',
+    gateDetails,
+  ]);
+  assert.deepEqual(calls, {
+    prepare: 0,
+    evaluate: 0,
+    summarize: 0,
+    embed: 0,
+    relations: 0,
+  });
+  assert.equal(Number(noteCount[0].values[0][0]), 0);
+});
+
 test('triggerSummarize creates notes for accepted conversations', async () => {
   const db = await createSqlDatabase();
   insertConversation(db, 'conv-good');

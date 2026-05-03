@@ -11,12 +11,34 @@ const DB_PATH = runtimePaths.dbPath;
 const POST_MIGRATION_SQL = `
 CREATE INDEX IF NOT EXISTS idx_notes_project_key ON notes(project_key);
 `;
+const VECTOR_CLEANUP_PENDING_INDEX_SQL = `
+CREATE INDEX idx_vector_cleanup_tasks_pending
+  ON vector_cleanup_tasks(status, updated_at, id);
+`;
 
 function ensureColumn(db: Database, table: string, column: string, sql: string) {
   const info = db.exec(`PRAGMA table_info(${table})`);
   const columns = info[0]?.values.map((row) => String(row[1])) ?? [];
   if (!columns.includes(column)) {
     db.run(sql);
+  }
+}
+
+function ensureIndexColumns(
+  db: Database,
+  indexName: string,
+  expectedColumns: string[],
+  createSql: string,
+) {
+  const info = db.exec(`PRAGMA index_info('${indexName}')`);
+  const columns = info[0]?.values.map((row) => String(row[2])) ?? [];
+  const isCurrent =
+    columns.length === expectedColumns.length &&
+    columns.every((column, index) => column === expectedColumns[index]);
+
+  if (!isCurrent) {
+    db.run(`DROP INDEX IF EXISTS ${indexName}`);
+    db.run(createSql);
   }
 }
 
@@ -56,6 +78,12 @@ export function applySchemaMigrations(db: Database): void {
   );
 
   db.exec(POST_MIGRATION_SQL);
+  ensureIndexColumns(
+    db,
+    'idx_vector_cleanup_tasks_pending',
+    ['status', 'updated_at', 'id'],
+    VECTOR_CLEANUP_PENDING_INDEX_SQL,
+  );
 }
 
 export async function initDatabase(): Promise<Database> {
