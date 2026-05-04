@@ -358,6 +358,16 @@ test('validateMaterializedNoteQuality rejects concrete identifiers with vague wo
       decisions: ['Set API config to DATA_DIR so API config should work.'],
     },
   }), { mode: 'auto' });
+  const reliabilityResult = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR reliability decision',
+    summary: 'Set DATA_DIR to the right value for reliability.',
+    key_conclusions: ['Decision: Set DATA_DIR to the right value for reliability.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR to the right value for reliability.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR to the right value for reliability.'],
+    },
+  }), { mode: 'auto' });
   const portResult = validateMaterializedNoteQuality(note({
     title: 'PORT config correctness decision',
     summary: 'Set server config to PORT because it should work correctly.',
@@ -368,13 +378,29 @@ test('validateMaterializedNoteQuality rejects concrete identifiers with vague wo
       decisions: ['Set server config to PORT because it should work correctly.'],
     },
   }), { mode: 'auto' });
+  const apiResult = validateMaterializedNoteQuality(note({
+    title: 'API route reliability pattern',
+    summary: 'Add /api/notes config for reliability and correctness.',
+    key_conclusions: ['Pattern: Add /api/notes config for reliability and correctness.'],
+    raw_payload: {
+      summary: 'Add /api/notes config for reliability and correctness.',
+      outcome_type: 'pattern',
+      reusable_patterns: ['Add /api/notes config for reliability and correctness.'],
+    },
+  }), { mode: 'auto' });
 
   assert.equal(dataDirResult.accepted, false);
   assert.equal(dataDirResult.reason, 'low-note-quality');
   assert.ok(dataDirResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(reliabilityResult.accepted, false);
+  assert.equal(reliabilityResult.reason, 'low-note-quality');
+  assert.ok(reliabilityResult.warnings.includes('durable_reusable_lesson'));
   assert.equal(portResult.accepted, false);
   assert.equal(portResult.reason, 'low-note-quality');
   assert.ok(portResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(apiResult.accepted, false);
+  assert.equal(apiResult.reason, 'low-note-quality');
+  assert.ok(apiResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects generic readiness root cause and resolution', () => {

@@ -126,21 +126,30 @@ function isGenericStatusAction(value: string) {
 }
 
 function hasSpecificObject(value: string) {
+  return hasSpecificEvidence(value) || hasConcreteMechanism(value);
+}
+
+function hasSpecificEvidence(value: string) {
   const text = value.toLowerCase();
-  const hasSpecificIdentifier =
+  return (
     /\b(data_dir|node_env|econrefused|note_tags|chatcrystal\.db|port|source_run_key|foreign_keys)\b|\/api\/[\w/-]+|\b[a-z0-9]+_[a-z0-9_]+\b|[a-z]:\\|\/[\w.-]+|[\u3400-\u9fff]/i
-      .test(text);
-  const hasConcreteMechanism =
-    /\b(before importing|raced server startup|raced startup|resets foreign_keys|orphan rows|commits can diverge|used the default data directory|stale dist|dedupe by source_run_key|client calls raced|request setup|package version parsing|dist comparisons?|generated dist output|release checks?|startup used the default data directory|imported the server before)\b/i
-      .test(text);
-  return hasSpecificIdentifier || hasConcreteMechanism;
+      .test(text) ||
+    /\b(request setup|package version|dist output|generated dist output|data directory|electron server|server entrypoint|client calls?)\b/i
+      .test(text)
+  );
+}
+
+function hasConcreteMechanism(value: string) {
+  return /\b(before importing|raced server startup|raced startup|resets foreign_keys|orphan rows|commits can diverge|used the default data directory|stale dist|dedupe by source_run_key|client calls raced|request setup timing|package version parsing|dist comparisons?|release checks?|startup used the default data directory|imported the server before|until readiness resolves|default data directory)\b/i
+    .test(value.toLowerCase());
 }
 
 function hasConcreteTransferableText(value: string) {
   return (
     hasNonPlaceholderMeaningfulText(value) &&
     hasConcreteTransferableAction(value) &&
-    hasSpecificObject(value) &&
+    hasSpecificEvidence(value) &&
+    hasConcreteMechanism(value) &&
     !isGenericStatusAction(value) &&
     !isVagueGenericLesson(value)
   );
