@@ -19,6 +19,15 @@ function hasMeaningfulText(value: string, minLatin = 24, minCjk = 18) {
   return compactLength(text) >= (hasCjk ? minCjk : minLatin);
 }
 
+function isPlaceholderText(value: string) {
+  return /\b(unknown|n\/a|not sure|todo|tbd|appropriate change|fix the issue|task needed investigation)\b/i
+    .test(value);
+}
+
+function hasNonPlaceholderMeaningfulText(value: string, minLatin = 24, minCjk = 18) {
+  return hasMeaningfulText(value, minLatin, minCjk) && !isPlaceholderText(value);
+}
+
 function isGenericTitle(title: string) {
   return /^(task|memory|note|update|summary|investigate|check|fix)$/i.test(title.trim());
 }
@@ -31,48 +40,14 @@ function joined(note: MaterializedTaskMemoryNote) {
   ].join('\n').toLowerCase();
 }
 
-function hasDurableReusableSignal(note: MaterializedTaskMemoryNote) {
-  if (isMostlyOneOffStatus(note)) return false;
-  const payload = note.raw_payload;
-  const conclusions = note.key_conclusions.join('\n').toLowerCase();
-  const hasMeaningfulRootCause = Boolean(
-    payload.root_cause && hasMeaningfulText(payload.root_cause),
-  );
-  const hasMeaningfulResolution = Boolean(
-    payload.resolution && hasMeaningfulText(payload.resolution),
-  );
-  const hasStructuredSignal =
-    (hasMeaningfulRootCause && hasMeaningfulResolution) ||
-    Boolean(payload.reusable_patterns?.some((item) => hasMeaningfulText(item))) ||
-    Boolean(payload.pitfalls?.some((item) => hasMeaningfulText(item))) ||
-    Boolean(payload.decisions?.some((item) => hasMeaningfulText(item))) ||
-    Boolean(payload.error_signatures?.length && (hasMeaningfulRootCause || hasMeaningfulResolution));
-  const hasVisibleSignal =
-    /root cause:|resolution:|pitfall:|pattern:|decision:|error signature:/i.test(conclusions);
-  return hasStructuredSignal && hasVisibleSignal;
-}
-
-function isMostlyOneOffStatus(note: MaterializedTaskMemoryNote) {
-  const text = joined(note);
-  const statusWords = [
-    'version',
-    'status',
-    'checked',
-    'current',
-    'package',
-    'npm link',
-    'dist',
-    'local',
-    'environment',
-    '配置',
-    '版本',
-    '检查',
-    '状态',
-  ];
+function hasConcreteTransferableAction(value: string) {
+  const text = value.toLowerCase();
   const concreteActionWords = [
     'block',
     'cache',
     'collapse',
+    'compare',
+    'comparing',
     'debounce',
     'deduplicate',
     'defer',
@@ -92,18 +67,63 @@ function isMostlyOneOffStatus(note: MaterializedTaskMemoryNote) {
     'sanitize',
     'truncate',
     'validate',
-    'compare',
-    'comparing',
     'wait',
     'wait for',
     '避免',
     '防止',
     '复用',
   ];
+  return concreteActionWords.some((word) => text.includes(word));
+}
+
+function hasConcreteTransferableText(value: string) {
+  return hasNonPlaceholderMeaningfulText(value) && hasConcreteTransferableAction(value);
+}
+
+function hasDurableReusableSignal(note: MaterializedTaskMemoryNote) {
+  if (isMostlyOneOffStatus(note)) return false;
+  const payload = note.raw_payload;
+  const conclusions = note.key_conclusions.join('\n').toLowerCase();
+  const hasMeaningfulRootCause = Boolean(
+    payload.root_cause && hasNonPlaceholderMeaningfulText(payload.root_cause),
+  );
+  const hasMeaningfulResolution = Boolean(
+    payload.resolution && hasNonPlaceholderMeaningfulText(payload.resolution),
+  );
+  const hasStructuredSignal =
+    (hasMeaningfulRootCause && hasMeaningfulResolution) ||
+    Boolean(payload.reusable_patterns?.some((item) => hasConcreteTransferableText(item))) ||
+    Boolean(payload.pitfalls?.some((item) => hasConcreteTransferableText(item))) ||
+    Boolean(payload.decisions?.some((item) => hasConcreteTransferableText(item))) ||
+    Boolean(payload.error_signatures?.length && (hasMeaningfulRootCause || hasMeaningfulResolution));
+  const hasVisibleSignal =
+    /root cause:|resolution:|pitfall:|pattern:|decision:|error signature:/i.test(conclusions);
+  return hasStructuredSignal && hasVisibleSignal;
+}
+
+function isMostlyOneOffStatus(note: MaterializedTaskMemoryNote) {
+  const text = joined(note);
+  const statusWords = [
+    'version',
+    'status',
+    'checked',
+    'current',
+    'package',
+    'npm link',
+    'dist',
+    'local',
+    'environment',
+    'env',
+    'node_env',
+    'deployment',
+    'production',
+    '配置',
+    '版本',
+    '检查',
+    '状态',
+  ];
   const statusHits = statusWords.filter((word) => text.includes(word)).length;
-  const hasConcreteTransferableAction = concreteActionWords
-    .some((word) => text.includes(word));
-  return statusHits >= 3 && !hasConcreteTransferableAction;
+  return statusHits >= 3 && !hasConcreteTransferableAction(text);
 }
 
 export function validateMaterializedNoteQuality(

@@ -85,6 +85,24 @@ test('validateMaterializedNoteQuality accepts reusable package version fixes', (
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality rejects generic environment decisions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Checked NODE_ENV value because deployment should use production',
+    summary: 'Checked NODE_ENV value because deployment should use production.',
+    key_conclusions: ['Decision: NODE_ENV should use production pattern.'],
+    raw_payload: {
+      summary: 'Checked NODE_ENV value because deployment should use production.',
+      outcome_type: 'decision',
+      decisions: ['NODE_ENV should use production pattern.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+  assert.ok(result.warnings.includes('one_off_status'));
+});
+
 test('validateMaterializedNoteQuality rejects placeholder root cause and resolution fields', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Server readiness note with placeholder diagnosis',
@@ -98,6 +116,27 @@ test('validateMaterializedNoteQuality rejects placeholder root cause and resolut
       outcome_type: 'fix',
       root_cause: 'n/a',
       resolution: 'ok',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects long placeholder root cause and resolution fields', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Generic fix note with vague diagnosis',
+    summary: 'The task needed investigation and an appropriate change was applied.',
+    key_conclusions: [
+      'Root cause: The root cause was unknown because the task needed investigation.',
+      'Resolution: The resolution was to fix the issue with the appropriate change.',
+    ],
+    raw_payload: {
+      summary: 'The task needed investigation and an appropriate change was applied.',
+      outcome_type: 'fix',
+      root_cause: 'The root cause was unknown because the task needed investigation',
+      resolution: 'The resolution was to fix the issue with the appropriate change',
     },
   }), { mode: 'auto' });
 
