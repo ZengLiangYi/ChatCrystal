@@ -196,9 +196,16 @@ export async function triggerSummarize(
   const relateNote = deps.discoverRelations ?? discoverRelations;
 
   // Verify conversation exists
-  const convResult = db.exec('SELECT status FROM conversations WHERE id = ?', [conversationId]);
+  const convResult = db.exec(
+    'SELECT status, experience_gate_reason FROM conversations WHERE id = ?',
+    [conversationId],
+  );
   if (!convResult.length || !convResult[0].values.length) {
     throw new Error('Conversation not found');
+  }
+  const [status, gateReason] = convResult[0].values[0];
+  if (status === 'filtered' && gateReason === 'user-rejected-note') {
+    return null;
   }
 
   // Check if already summarized

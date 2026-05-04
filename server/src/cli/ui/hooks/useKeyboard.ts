@@ -5,7 +5,8 @@ export type KeyAction =
   | 'enter' | 'escape' | 'quit'
   | 'search' | 'home' | 'end'
   | 'retry'
-  | 'summarize';
+  | 'summarize'
+  | 'delete';
 
 interface UseKeyboardOptions {
   /** Set false to disable key handling (e.g., when SearchBar has focus) */
@@ -38,6 +39,7 @@ export function useKeyboard({ active = true, onAction }: UseKeyboardOptions): vo
     if (input === '/') return onAction('search');
     if (input === 'r') return onAction('retry');
     if (input === 's') return onAction('summarize');
+    if (input === 'd' || input === 'D') return onAction('delete');
 
     // Vim aliases
     if (input === 'j') return onAction('down');

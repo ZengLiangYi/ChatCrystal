@@ -126,6 +126,21 @@ CREATE INDEX IF NOT EXISTS idx_note_tags_tag ON note_tags(tag_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_note ON embeddings(note_id);
 CREATE INDEX IF NOT EXISTS idx_project_key_aliases_canonical ON project_key_aliases(canonical_key);
 
+CREATE TABLE IF NOT EXISTS vector_cleanup_tasks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  target_type TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  attempts INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(target_type, target_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_vector_cleanup_tasks_pending
+  ON vector_cleanup_tasks(status, updated_at, id);
+
 CREATE TABLE IF NOT EXISTS note_relations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   source_note_id INTEGER NOT NULL,
@@ -142,4 +157,29 @@ CREATE TABLE IF NOT EXISTS note_relations (
 
 CREATE INDEX IF NOT EXISTS idx_note_relations_source ON note_relations(source_note_id);
 CREATE INDEX IF NOT EXISTS idx_note_relations_target ON note_relations(target_note_id);
+
+CREATE TABLE IF NOT EXISTS experience_reviews (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  target_type TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  conversation_id TEXT,
+  note_id INTEGER,
+  verdict TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  comment TEXT,
+  source TEXT NOT NULL,
+  gate_score REAL,
+  gate_reason TEXT,
+  gate_details TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE SET NULL,
+  FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_experience_reviews_target
+  ON experience_reviews(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_experience_reviews_conversation
+  ON experience_reviews(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_experience_reviews_verdict
+  ON experience_reviews(verdict);
 `;

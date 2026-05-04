@@ -1,9 +1,15 @@
 import type { FastifyInstance } from 'fastify';
+import type { DeleteNoteReviewRequest } from '@chatcrystal/shared';
 import { getDatabase } from '../db/index.js';
 import { resultToObjects } from '../db/utils.js';
 import { triggerSummarize, getUnsummarizedIds } from '../services/summarize.js';
 import { enqueueWithRetry, getQueueStatus, cancelQueue, taskTracker } from '../queue/index.js';
 import { generateEmbeddings, semanticSearch } from '../services/embedding.js';
+import {
+  DeleteNoteReviewValidationError,
+  NoteNotFoundForReviewError,
+  deleteNoteWithReview,
+} from '../services/experience/reviews.js';
 
 function hydrateNote(row: Record<string, unknown>): Record<string, unknown> {
   return {
@@ -169,15 +175,56 @@ export async function noteRoutes(app: FastifyInstance) {
     return { success: true, data: note };
   });
 
+  app.delete('/api/notes/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!/^[1-9]\d*$/.test(id)) {
+      reply.status(400);
+      return { success: false, error: `Invalid note id: ${id}` };
+    }
+    const noteId = Number(id);
+
+    const body = req.body as Partial<DeleteNoteReviewRequest> | undefined;
+    if (
+      typeof body !== 'object' ||
+      body === null ||
+      Array.isArray(body) ||
+      body.reason === undefined ||
+      body.source === undefined
+    ) {
+      reply.status(400);
+      return { success: false, error: 'Review reason and source are required' };
+    }
+
+    try {
+      const result = await deleteNoteWithReview(noteId, {
+        reason: body.reason,
+        comment: body.comment,
+        source: body.source,
+      } as DeleteNoteReviewRequest);
+      return { success: true, data: result };
+    } catch (err) {
+      if (err instanceof DeleteNoteReviewValidationError) {
+        reply.status(400);
+        return { success: false, error: err.message };
+      }
+      if (err instanceof NoteNotFoundForReviewError) {
+        reply.status(404);
+        return { success: false, error: err.message };
+      }
+      throw err;
+    }
+  });
+
   // List tags with counts
   app.get('/api/tags', async () => {
     const db = getDatabase();
     const result = db.exec(
       `SELECT t.id, t.name, COUNT(nt.note_id) as count
        FROM tags t
-       LEFT JOIN note_tags nt ON nt.tag_id = t.id
-       GROUP BY t.id
-       ORDER BY count DESC`,
+       JOIN note_tags nt ON nt.tag_id = t.id
+       JOIN notes n ON n.id = nt.note_id
+       GROUP BY t.id, t.name
+       ORDER BY count DESC, t.name ASC`,
     );
 
     return { success: true, data: resultToObjects(result) };

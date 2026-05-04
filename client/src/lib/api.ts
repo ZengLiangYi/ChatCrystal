@@ -1,4 +1,8 @@
+import type { DeleteNoteReviewRequest, DeleteNoteReviewResponse } from "@chatcrystal/shared";
+
 const BASE = "/api";
+
+type DeleteNoteWebRequest = Omit<DeleteNoteReviewRequest, "source"> & { source: "web" };
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
 	const headers: Record<string, string> = {};
@@ -86,6 +90,12 @@ export const api = {
 	},
 
 	getNote: (id: number) => request<Record<string, unknown>>(`/notes/${id}`),
+
+	deleteNote: (id: number, body: DeleteNoteWebRequest) =>
+		request<DeleteNoteReviewResponse>(`/notes/${id}`, {
+			method: "DELETE",
+			body: JSON.stringify(body),
+		}),
 
 	summarize: (conversationId: string) =>
 		request<{ noteId: number }>(`/conversations/${conversationId}/summarize`, {

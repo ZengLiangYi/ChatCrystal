@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FolderGit2, Tag, Lightbulb } from 'lucide-react';
+import { ArrowLeft, FolderGit2, Tag, Lightbulb, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useNote } from '@/hooks/use-notes.ts';
+import { useDeleteNote, useNote } from '@/hooks/use-notes.ts';
+import { DeleteNoteDialog } from '@/components/DeleteNoteDialog.tsx';
 import { MarkdownRenderer } from '@/components/MarkdownRenderer.tsx';
 import { RelatedNotes } from '@/components/RelatedNotes.tsx';
 
@@ -9,7 +11,9 @@ export function NoteDetail() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { data: note, isLoading } = useNote(Number(id) || 0);
+  const deleteNote = useDeleteNote();
 
   if (isLoading) {
     return <div className="p-6 text-muted">{t('status.loading')}</div>;
@@ -49,6 +53,15 @@ export function NoteDetail() {
             </button>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={() => setIsDeleteDialogOpen(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-theme text-muted hover:text-[var(--warning)] hover:border-[var(--warning)] transition-colors"
+          style={{ borderRadius: 'var(--radius)' }}
+        >
+          <Trash2 size={13} />
+          删除
+        </button>
       </div>
 
       {/* Content */}
@@ -113,6 +126,21 @@ export function NoteDetail() {
         {/* Related notes */}
         <RelatedNotes noteId={note.id as number} />
       </div>
+
+      {isDeleteDialogOpen && (
+        <DeleteNoteDialog
+          noteTitle={note.title as string}
+          isPending={deleteNote.isPending}
+          errorMessage={deleteNote.error instanceof Error ? deleteNote.error.message : undefined}
+          onCancel={() => setIsDeleteDialogOpen(false)}
+          onConfirm={(input) => {
+            deleteNote.mutate(
+              { id: note.id as number, ...input },
+              { onSuccess: () => navigate('/notes') },
+            );
+          }}
+        />
+      )}
     </div>
   );
 }

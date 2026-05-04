@@ -3,6 +3,7 @@ import { appConfig } from "../config.js";
 import { getDatabase, saveDatabase } from "../db/index.js";
 import { withTransaction } from "../db/transaction.js";
 import { getAdapter, getAllAdapters } from "../parser/index.js";
+import { enqueueNoteVectorCleanupTask } from "./vector-cleanup.js";
 
 export interface ImportProgress {
 	total: number;
@@ -88,11 +89,11 @@ export async function importAll(
 
 			withTransaction(db, () => {
 				if (existing.length > 0 && existing[0].values.length > 0) {
-					db.run(`DELETE FROM conversations WHERE id = ?`, [meta.id]);
+					replaceImportedConversation(db, parsed, meta);
+				} else {
+					insertConversation(db, parsed, meta);
+					insertMessages(db, parsed);
 				}
-
-				insertConversation(db, parsed, meta);
-				insertMessages(db, parsed);
 
 				db.run(
 					`INSERT INTO import_log (file_path, status, message) VALUES (?, 'success', ?)`,
@@ -119,6 +120,80 @@ export async function importAll(
 		`[Import] Done: ${progress.imported} imported, ${progress.skipped} skipped, ${progress.errors} errors`,
 	);
 	return progress;
+}
+
+function replaceImportedConversation(
+	db: ReturnType<typeof getDatabase>,
+	parsed: ParsedConversation,
+	meta: ConversationMeta,
+) {
+	const current = db.exec(
+		`SELECT status, experience_score, experience_gate_reason, experience_gate_details
+		   FROM conversations
+		  WHERE id = ?`,
+		[parsed.id],
+	);
+	const row = current[0]?.values[0];
+	const status = row?.[0] === null || row?.[0] === undefined ? null : String(row[0]);
+	const experienceScore =
+		row?.[1] === null || row?.[1] === undefined ? null : Number(row[1]);
+	const experienceGateReason =
+		row?.[2] === null || row?.[2] === undefined ? null : String(row[2]);
+	const experienceGateDetails =
+		row?.[3] === null || row?.[3] === undefined ? null : String(row[3]);
+	const keepUserRejectedGate =
+		status === "filtered" && experienceGateReason === "user-rejected-note";
+	const oldNoteIds =
+		db
+			.exec("SELECT id FROM notes WHERE conversation_id = ?", [parsed.id])[0]
+			?.values.map((note) => Number(note[0])) ?? [];
+
+	for (const noteId of oldNoteIds) {
+		enqueueNoteVectorCleanupTask(noteId, { db });
+	}
+	db.run("DELETE FROM notes WHERE conversation_id = ?", [parsed.id]);
+	db.run("DELETE FROM messages WHERE conversation_id = ?", [parsed.id]);
+	db.run(
+		`UPDATE conversations
+		    SET slug = ?,
+		        source = ?,
+		        project_dir = ?,
+		        project_name = ?,
+		        cwd = ?,
+		        git_branch = ?,
+		        message_count = ?,
+		        first_message_at = ?,
+		        last_message_at = ?,
+		        file_path = ?,
+		        file_size = ?,
+		        file_mtime = ?,
+		        status = ?,
+		        experience_score = ?,
+		        experience_gate_reason = ?,
+		        experience_gate_details = ?,
+		        updated_at = datetime('now')
+		  WHERE id = ?`,
+		[
+			parsed.slug,
+			parsed.source,
+			parsed.projectDir,
+			parsed.projectName,
+			parsed.cwd,
+			parsed.gitBranch,
+			parsed.messages.length,
+			parsed.firstMessageAt,
+			parsed.lastMessageAt,
+			meta.filePath,
+			meta.fileSize,
+			meta.fileMtime,
+			keepUserRejectedGate ? "filtered" : "imported",
+			keepUserRejectedGate ? experienceScore : null,
+			keepUserRejectedGate ? experienceGateReason : null,
+			keepUserRejectedGate ? experienceGateDetails : null,
+			parsed.id,
+		],
+	);
+	insertMessages(db, parsed);
 }
 
 function insertConversation(

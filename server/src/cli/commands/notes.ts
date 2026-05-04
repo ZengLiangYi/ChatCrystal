@@ -1,4 +1,5 @@
 import type { Command } from 'commander';
+import type { ExperienceReviewReason } from '@chatcrystal/shared';
 import { CrystalClient } from '../client.js';
 import {
   shouldOutputJson, outputJson,
@@ -6,6 +7,18 @@ import {
 } from '../formatter.js';
 import { isInteractive } from '../interactive.js';
 import { renderApp } from '../ui/renderApp.js';
+
+const EXPERIENCE_REVIEW_REASONS = new Set<ExperienceReviewReason>([
+  'low-value',
+  'inaccurate',
+  'not-experience',
+  'duplicate',
+  'other',
+]);
+
+function isExperienceReviewReason(reason: string): reason is ExperienceReviewReason {
+  return EXPERIENCE_REVIEW_REASONS.has(reason as ExperienceReviewReason);
+}
 
 export function registerNotesCommand(program: Command) {
   const notes = program
@@ -130,6 +143,88 @@ export function registerNotesCommand(program: Command) {
         console.log();
       } catch (err) {
         printError(err instanceof Error ? err.message : 'Failed to get note');
+        process.exit(1);
+      }
+    });
+
+  notes
+    .command('delete <id>')
+    .description('Delete a note and record quality feedback')
+    .requiredOption(
+      '--reason <reason>',
+      'Feedback reason: low-value, inaccurate, not-experience, duplicate, other',
+    )
+    .option('--comment <text>', 'Optional short feedback comment')
+    .option('-y, --yes', 'Skip confirmation prompt')
+    .action(async (id, opts) => {
+      const globalOpts = program.opts();
+      const client = new CrystalClient(globalOpts.baseUrl);
+      const rawId = String(id);
+      const reason = String(opts.reason);
+
+      try {
+        if (!/^[1-9]\d*$/.test(rawId)) {
+          throw new Error('Invalid note id');
+        }
+
+        if (!isExperienceReviewReason(reason)) {
+          throw new Error(
+            'Invalid reason. Use one of: low-value, inaccurate, not-experience, duplicate, other',
+          );
+        }
+
+        if (!opts.yes) {
+          if (shouldOutputJson(globalOpts.json) || !process.stdout.isTTY) {
+            throw new Error('Use --yes when deleting with --json or redirected output');
+          }
+
+          if (!process.stdin.isTTY) {
+            throw new Error('Use --yes when deleting from a non-interactive shell');
+          }
+        }
+
+        const noteId = Number(rawId);
+        const note = await client.getNote(noteId);
+
+        if (!opts.yes) {
+          printHeader(`Delete note #${noteId}`);
+          printKeyValue('Title', note.title);
+          printKeyValue('Project', note.project_name);
+          printKeyValue('Reason', reason);
+          process.stdout.write('\nType "delete" to confirm: ');
+
+          const answer = await new Promise<string>((resolve) => {
+            process.stdin.resume();
+            process.stdin.once('data', (data) => {
+              process.stdin.pause();
+              resolve(String(data).trim());
+            });
+          });
+
+          if (answer !== 'delete') {
+            console.log('\n  Cancelled.\n');
+            return;
+          }
+        }
+
+        const result = await client.deleteNote(noteId, {
+          reason,
+          comment: opts.comment,
+          source: 'cli',
+        });
+
+        if (shouldOutputJson(globalOpts.json)) {
+          outputJson(result);
+          return;
+        }
+
+        printHeader('Deleted note');
+        printKeyValue('Note', `#${result.noteId}`);
+        printKeyValue('Conversation', result.conversationId);
+        printKeyValue('Review', `#${result.reviewId}`);
+        printKeyValue('Status', result.conversationStatus);
+      } catch (err) {
+        printError(err instanceof Error ? err.message : 'Failed to delete note');
         process.exit(1);
       }
     });

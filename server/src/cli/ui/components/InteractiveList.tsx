@@ -36,6 +36,8 @@ interface InteractiveListProps<T> {
   onRetry?: () => void;
   /** Called when user presses s to summarize the current item */
   onSummarize?: (item: T | null) => void;
+  /** Called when user presses d/D to delete the current item */
+  onDelete?: (item: T | null) => void;
   /** Render inline preview for selected item (narrow mode) */
   renderPreview?: (item: T) => string | null;
   /** Render side panel preview (wide mode). Receives available width for truncation. */
@@ -59,7 +61,7 @@ const PREVIEW_LINES = 3;
  */
 export function InteractiveList<T>({
   items, columns, total, loading, error, hasMore,
-  onLoadMore, onSelect, onSearch, onQuit, onRetry, onSummarize,
+  onLoadMore, onSelect, onSearch, onQuit, onRetry, onSummarize, onDelete,
   renderPreview, renderSidePreview,
   extraHints, title, keyboardActive = true,
 }: InteractiveListProps<T>) {
@@ -84,9 +86,10 @@ export function InteractiveList<T>({
 
   // I5 fix: clamp cursor via functional setState
   useEffect(() => {
-    if (items.length > 0) {
-      setCursor(prev => (prev >= items.length ? items.length - 1 : prev));
-    }
+    setCursor(prev => {
+      if (items.length === 0) return 0;
+      return Math.min(Math.max(0, prev), items.length - 1);
+    });
   }, [items.length]);
 
   // C3 fix: auto-load-more with onLoadMore in deps
@@ -100,6 +103,7 @@ export function InteractiveList<T>({
     const currentItems = itemsRef.current;
     switch (action) {
       case 'up':
+        if (currentItems.length === 0) return;
         setCursor(prev => {
           const next = Math.max(0, prev - 1);
           if (next < scrollOffsetRef.current) setScrollOffset(next);
@@ -107,6 +111,7 @@ export function InteractiveList<T>({
         });
         break;
       case 'down':
+        if (currentItems.length === 0) return;
         setCursor(prev => {
           const next = Math.min(currentItems.length - 1, prev + 1);
           if (next >= scrollOffsetRef.current + viewportHeight) {
@@ -116,8 +121,9 @@ export function InteractiveList<T>({
         });
         break;
       case 'enter':
-        if (currentItems.length > 0) {
-          onSelect(currentItems[cursorRef.current], cursorRef.current);
+        {
+          const selected = currentItems[cursorRef.current];
+          if (selected !== undefined) onSelect(selected, cursorRef.current);
         }
         break;
       case 'search':
@@ -131,10 +137,19 @@ export function InteractiveList<T>({
         onRetry?.();
         break;
       case 'summarize':
-        onSummarize?.(currentItems.length > 0 ? currentItems[cursorRef.current] : null);
+        {
+          const selected = currentItems[cursorRef.current];
+          if (selected !== undefined) onSummarize?.(selected);
+        }
+        break;
+      case 'delete':
+        {
+          const selected = currentItems[cursorRef.current];
+          if (selected !== undefined) onDelete?.(selected);
+        }
         break;
     }
-  }, [viewportHeight, onSelect, onSearch, onQuit, onRetry, onSummarize]);
+  }, [viewportHeight, onSelect, onSearch, onQuit, onRetry, onSummarize, onDelete]);
 
   useKeyboard({ active: keyboardActive, onAction: handleAction });
 
@@ -144,6 +159,7 @@ export function InteractiveList<T>({
     { key: 'Enter', label: t.hints.open.split(':')[1] },
   ];
   if (onSearch) hints.push({ key: '/', label: t.hints.search.split(':')[1] });
+  if (onDelete) hints.push({ key: 'D', label: t.hints.delete.split(':')[1] });
   hints.push({ key: 'q', label: t.hints.quit.split(':')[1] });
   if (extraHints) hints.push(...extraHints);
 

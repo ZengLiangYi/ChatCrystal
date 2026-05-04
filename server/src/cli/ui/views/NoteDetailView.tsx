@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
+import type { ExperienceReviewReason } from '@chatcrystal/shared';
 import { DetailView, type NoteDetail } from '../components/DetailView.js';
+import { DeleteNoteReviewPanel } from '../components/DeleteNoteReviewPanel.js';
 import { Spinner } from '../components/Spinner.js';
 import { getLocale } from '../locale/index.js';
 import type { CrystalClient } from '../../client.js';
@@ -23,6 +25,9 @@ export function NoteDetailView({
   const [note, setNote] = useState<NoteDetail | null>(null);
   const [relations, setRelations] = useState<Array<{ id: number; title: string; relation_type: string }>>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showDeletePanel, setShowDeletePanel] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const t = getLocale();
 
   // I2 fix: abort flag prevents stale responses on rapid prev/next navigation
@@ -30,6 +35,9 @@ export function NoteDetailView({
     let cancelled = false;
     setNote(null);
     setError(null);
+    setShowDeletePanel(false);
+    setDeleteError(null);
+    setDeleting(false);
 
     Promise.all([
       client.getNote(noteId),
@@ -85,12 +93,50 @@ export function NoteDetailView({
     ? () => onNavigate?.(noteIds[currentIndex + 1], currentIndex + 1)
     : undefined;
 
+  const handleConfirmDelete = (reason: ExperienceReviewReason) => {
+    if (!note || deleting) return;
+
+    setDeleting(true);
+    setDeleteError(null);
+    client.deleteNote(note.id, { reason, source: 'tui' })
+      .then(() => {
+        setShowDeletePanel(false);
+        onBack();
+      })
+      .catch(err => {
+        setDeleteError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        setDeleting(false);
+      });
+  };
+
+  if (showDeletePanel) {
+    return (
+      <DeleteNoteReviewPanel
+        noteTitle={note.title}
+        error={deleteError}
+        submitting={deleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          if (deleting) return;
+          setShowDeletePanel(false);
+          setDeleteError(null);
+        }}
+      />
+    );
+  }
+
   return (
     <DetailView
       note={note}
       onBack={onBack}
       onPrev={handlePrev}
       onNext={handleNext}
+      onDelete={() => {
+        setDeleteError(null);
+        setShowDeletePanel(true);
+      }}
       position={position}
       relations={relations}
     />

@@ -1,6 +1,8 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Text } from 'ink';
+import type { ExperienceReviewReason } from '@chatcrystal/shared';
 import { InteractiveList, type ColumnDef } from '../components/InteractiveList.js';
+import { DeleteNoteReviewPanel } from '../components/DeleteNoteReviewPanel.js';
 import { usePagination } from '../hooks/usePagination.js';
 import { getLocale } from '../locale/index.js';
 import { truncate } from '../../formatter.js';
@@ -29,13 +31,16 @@ interface NotesListViewProps {
 
 export function NotesListView({ client, tagFilter, onSelectNote, onSearch, onQuit }: NotesListViewProps) {
   const t = getLocale();
+  const [deleteTarget, setDeleteTarget] = useState<NoteItem | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchPage = useCallback(async (offset: number, limit: number) => {
     const data = await client.listNotes({ tag: tagFilter, offset, limit });
     return { items: data.items as NoteItem[], total: data.total };
   }, [client, tagFilter]);
 
-  const { items, total, loading, error, hasMore, loadMore, retry } = usePagination<NoteItem>({ fetchPage });
+  const { items, total, loading, error, hasMore, loadMore, reload, retry } = usePagination<NoteItem>({ fetchPage });
 
   const columns: ColumnDef[] = useMemo(() => [
     { header: 'ID', accessor: (n: NoteItem) => n.id, width: 5, align: 'right' as const },
@@ -45,6 +50,46 @@ export function NotesListView({ client, tagFilter, onSelectNote, onSearch, onQui
   ], [t]);
 
   const title = tagFilter ? `${t.notesTitle} [#${tagFilter}]` : t.notesTitle;
+
+  const handleDelete = useCallback((item: NoteItem | null) => {
+    if (!item) return;
+    setDeleteTarget(item);
+    setDeleteError(null);
+  }, []);
+
+  const handleConfirmDelete = useCallback((reason: ExperienceReviewReason) => {
+    if (!deleteTarget || deleting) return;
+
+    setDeleting(true);
+    setDeleteError(null);
+    client.deleteNote(deleteTarget.id, { reason, source: 'tui' })
+      .then(() => {
+        setDeleteTarget(null);
+        reload();
+      })
+      .catch(err => {
+        setDeleteError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        setDeleting(false);
+      });
+  }, [client, deleteTarget, deleting, reload]);
+
+  if (deleteTarget) {
+    return (
+      <DeleteNoteReviewPanel
+        noteTitle={deleteTarget.title}
+        error={deleteError}
+        submitting={deleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          if (deleting) return;
+          setDeleteTarget(null);
+          setDeleteError(null);
+        }}
+      />
+    );
+  }
 
   return (
     <InteractiveList<NoteItem>
@@ -59,6 +104,7 @@ export function NotesListView({ client, tagFilter, onSelectNote, onSearch, onQui
       onSearch={onSearch}
       onQuit={onQuit}
       onRetry={retry}
+      onDelete={handleDelete}
       title={title}
       renderPreview={(item) => item.summary}
       renderSidePreview={(item, width) => {

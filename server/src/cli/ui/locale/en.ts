@@ -24,6 +24,22 @@ export const en: Locale = {
     fullscreen: 'Enter:Fullscreen',
     retry: 'r:Retry',
     summarize: 's:Summarize',
+    delete: 'D:Delete',
+  },
+
+  deleteReviewTitle: 'Delete note',
+  deleteReviewReasonPrompt: 'Choose a deletion reason',
+  deleteReviewConfirmPrompt: 'Delete this note and record feedback?',
+  deleteReviewDeleting: 'Deleting...',
+  deleteReviewError: 'Delete failed',
+  deleteReviewHintsReason: '↑↓ Move  Enter Select  Esc/q Cancel',
+  deleteReviewHintsConfirm: 'Enter Confirm delete  Esc/q Cancel',
+  deleteReviewReasonLabels: {
+    'not-experience': 'Not an experience',
+    'low-value': 'Low value',
+    inaccurate: 'Inaccurate',
+    duplicate: 'Duplicate',
+    other: 'Other',
   },
 
   pageInfo: (cur: number, total: number) => `${cur}/${total}`,
