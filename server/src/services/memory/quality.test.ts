@@ -266,6 +266,49 @@ test('validateMaterializedNoteQuality rejects generic readiness root cause and r
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects error signatures with weak resolutions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Server readiness weak ECONNREFUSED fix',
+    summary: 'Use a better approach to handle server readiness properly.',
+    key_conclusions: [
+      'Root cause: Client calls raced server startup and produced ECONNREFUSED.',
+      'Resolution: Use a better approach to handle server readiness properly.',
+      'Error signature: ECONNREFUSED.',
+    ],
+    raw_payload: {
+      summary: 'Use a better approach to handle server readiness properly.',
+      outcome_type: 'fix',
+      root_cause: 'Client calls raced server startup and produced ECONNREFUSED.',
+      resolution: 'Use a better approach to handle server readiness properly.',
+      error_signatures: ['ECONNREFUSED'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects persisted status/version decisions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Persist local package version status',
+    summary: 'Persist checked current local package version status and generated dist output.',
+    key_conclusions: ['Decision: Persist checked current local package version status and generated dist output.'],
+    raw_payload: {
+      summary: 'Persist checked current local package version status and generated dist output.',
+      outcome_type: 'decision',
+      decisions: ['Persist checked current local package version status and generated dist output.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(
+    result.warnings.includes('one_off_status') ||
+    result.warnings.includes('durable_reusable_lesson'),
+  );
+});
+
 test('validateMaterializedNoteQuality requires visible key conclusions', () => {
   const result = validateMaterializedNoteQuality(note({
     key_conclusions: [],

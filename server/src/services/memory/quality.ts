@@ -67,7 +67,6 @@ function hasConcreteTransferableAction(value: string) {
     'migrate',
     'normalize',
     'parse',
-    'persist',
     'prune',
     'rebuild',
     'retry',
@@ -98,7 +97,7 @@ function isVagueGenericLesson(value: string) {
 
 function isGenericStatusAction(value: string) {
   const text = value.toLowerCase();
-  const hasGenericAction = ['validate', 'investigate', 'check', 'checked']
+  const hasGenericAction = ['validate', 'investigate', 'check', 'checked', 'persist', 'record', 'recorded']
     .some((word) => hasWord(text, word));
   const hasStatusSubject =
     /\b(node_env|env|environment|deployment|production|status|local|package version|version)\b/i
@@ -141,8 +140,7 @@ function hasDurableReusableSignal(note: MaterializedTaskMemoryNote) {
     (hasMeaningfulRootCause && hasMeaningfulResolution) ||
     Boolean(payload.reusable_patterns?.some((item) => hasConcreteTransferableText(item))) ||
     Boolean(payload.pitfalls?.some((item) => hasConcreteTransferableText(item))) ||
-    Boolean(payload.decisions?.some((item) => hasConcreteTransferableText(item))) ||
-    Boolean(payload.error_signatures?.length && (hasMeaningfulRootCause || hasMeaningfulResolution));
+    Boolean(payload.decisions?.some((item) => hasConcreteTransferableText(item)));
   const hasVisibleSignal =
     /root cause:|resolution:|pitfall:|pattern:|decision:|error signature:/i.test(conclusions);
   return hasStructuredSignal && hasVisibleSignal;
