@@ -145,6 +145,57 @@ test('validateMaterializedNoteQuality rejects long placeholder root cause and re
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects vague behavior root cause and resolution claims', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Generic implementation behavior fix',
+    summary: 'Fix implementation behavior so the task works correctly going forward.',
+    key_conclusions: [
+      'Root cause: The implementation did not handle the expected behavior correctly in this task.',
+      'Resolution: Fix implementation behavior so the task works correctly going forward.',
+    ],
+    raw_payload: {
+      summary: 'Fix implementation behavior so the task works correctly going forward.',
+      outcome_type: 'fix',
+      root_cause: 'The implementation did not handle the expected behavior correctly in this task.',
+      resolution: 'Fix implementation behavior so the task works correctly going forward.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic compare and validate lessons', () => {
+  const compareResult = validateMaterializedNoteQuality(note({
+    title: 'Generic comparison decision',
+    summary: 'The task should compare values because that is the expected pattern.',
+    key_conclusions: ['Decision: The task should compare values because that is the expected pattern.'],
+    raw_payload: {
+      summary: 'The task should compare values because that is the expected pattern.',
+      outcome_type: 'decision',
+      decisions: ['The task should compare values because that is the expected pattern.'],
+    },
+  }), { mode: 'auto' });
+  const validateResult = validateMaterializedNoteQuality(note({
+    title: 'Generic validation pattern',
+    summary: 'The pattern should validate input because validation is important for correctness.',
+    key_conclusions: ['Pattern: The pattern should validate input because validation is important for correctness.'],
+    raw_payload: {
+      summary: 'The pattern should validate input because validation is important for correctness.',
+      outcome_type: 'pattern',
+      reusable_patterns: ['The pattern should validate input because validation is important for correctness.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(compareResult.accepted, false);
+  assert.equal(compareResult.reason, 'low-note-quality');
+  assert.ok(compareResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(validateResult.accepted, false);
+  assert.equal(validateResult.reason, 'low-note-quality');
+  assert.ok(validateResult.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality requires visible key conclusions', () => {
   const result = validateMaterializedNoteQuality(note({
     key_conclusions: [],

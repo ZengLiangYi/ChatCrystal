@@ -20,7 +20,7 @@ function hasMeaningfulText(value: string, minLatin = 24, minCjk = 18) {
 }
 
 function isPlaceholderText(value: string) {
-  return /\b(unknown|n\/a|not sure|todo|tbd|appropriate change|fix the issue|task needed investigation)\b/i
+  return /\b(unknown|n\/a|not sure|todo|tbd|appropriate change|fix the issue|task needed investigation|expected behavior|task works correctly|expected pattern)\b/i
     .test(value);
 }
 
@@ -76,8 +76,26 @@ function hasConcreteTransferableAction(value: string) {
   return concreteActionWords.some((word) => text.includes(word));
 }
 
+function isVagueGenericLesson(value: string) {
+  const text = value.toLowerCase();
+  return (
+    /\b(the task|this task|the pattern|the implementation|implementation behavior|expected behavior|expected pattern|values?|input|correctness|going forward)\b/.test(text) &&
+    !hasSpecificObject(text)
+  );
+}
+
+function hasSpecificObject(value: string) {
+  return /\b(server|readiness|client calls?|request setup|package version|dist output|release checks?|node_env|npm link|sqlite|database|tags?|note_tags|embedding|jsonl|cursor|codex|claude|mcp|api|url|port|path|config|environment|schema|queue|watcher|electron|window state)\b|\b[a-z0-9]+_[a-z0-9_]+\b|[a-z]:\\|\/[\w.-]+|[\u3400-\u9fff]/i
+    .test(value.toLowerCase());
+}
+
 function hasConcreteTransferableText(value: string) {
-  return hasNonPlaceholderMeaningfulText(value) && hasConcreteTransferableAction(value);
+  return (
+    hasNonPlaceholderMeaningfulText(value) &&
+    hasConcreteTransferableAction(value) &&
+    hasSpecificObject(value) &&
+    !isVagueGenericLesson(value)
+  );
 }
 
 function hasDurableReusableSignal(note: MaterializedTaskMemoryNote) {
@@ -85,10 +103,14 @@ function hasDurableReusableSignal(note: MaterializedTaskMemoryNote) {
   const payload = note.raw_payload;
   const conclusions = note.key_conclusions.join('\n').toLowerCase();
   const hasMeaningfulRootCause = Boolean(
-    payload.root_cause && hasNonPlaceholderMeaningfulText(payload.root_cause),
+    payload.root_cause &&
+    hasNonPlaceholderMeaningfulText(payload.root_cause) &&
+    !isVagueGenericLesson(payload.root_cause),
   );
   const hasMeaningfulResolution = Boolean(
-    payload.resolution && hasNonPlaceholderMeaningfulText(payload.resolution),
+    payload.resolution &&
+    hasNonPlaceholderMeaningfulText(payload.resolution) &&
+    !isVagueGenericLesson(payload.resolution),
   );
   const hasStructuredSignal =
     (hasMeaningfulRootCause && hasMeaningfulResolution) ||
