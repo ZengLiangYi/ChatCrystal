@@ -189,6 +189,27 @@ test('validateMaterializedNoteQuality rejects package and dist co-occurrence wit
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects package and dist existence under because clauses', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Package version release checks',
+    summary: 'Normalize package version parsing before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Package version existed because generated dist output was present during release checks.',
+      'Resolution: Normalize package version parsing before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package version parsing before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Package version existed because generated dist output was present during release checks.',
+      resolution: 'Normalize package version parsing before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality accepts API registration ordering HTTP failures', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'API registration ordering caused HTTP 404',
@@ -202,6 +223,27 @@ test('validateMaterializedNoteQuality accepts API registration ordering HTTP fai
       outcome_type: 'fix',
       root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
       resolution: 'Add /api/notes before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts register-based HTTP failure fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before issuing API requests.',
     },
   }), { mode: 'auto' });
 

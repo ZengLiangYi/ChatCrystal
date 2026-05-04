@@ -72,6 +72,7 @@ function hasConcreteTransferableAction(value: string) {
     'pin',
     'prune',
     'rebuild',
+    'register',
     'remove',
     'replace',
     'retry',
@@ -237,9 +238,9 @@ function hasStrongRootCauseSignal(value: string) {
       .test(value) ||
     /\b(dist comparison|dist comparisons|generated dist output|dist output)\b.+\b(inconsistent|mismatch|wrong comparison|stale|diverged|diverge)\b.+\b(version parsing|package metadata|package version)\b/i
       .test(value) ||
-    /\b(because|so)\b.+\b(ran before|ran after|returned http [45]\d\d|returned [45]\d\d|http [45]\d\d|imported.+before|used the default data directory|version parsing|generated dist output|default data directory|fell back|fallback|diverged|raced|race|econrefused)\b/i
+    /\b(because|so)\b.+\b(ran before|ran after|returned http [45]\d\d|returned [45]\d\d|http [45]\d\d|imported.+before|used the default data directory|version parsing.+(inconsistent|mismatch|wrong|stale|diverged|diverge)|default data directory|fell back|fallback|diverged|raced|race|econrefused)\b/i
       .test(value) ||
-    /\b(ran before|ran after|returned http [45]\d\d|returned [45]\d\d|http [45]\d\d|imported.+before|used the default data directory|version parsing|generated dist output|default data directory|fell back|fallback|diverged|raced|race|econrefused)\b.+\b(because|so)\b/i
+    /\b(ran before|ran after|returned http [45]\d\d|returned [45]\d\d|http [45]\d\d|imported.+before|used the default data directory|version parsing.+(inconsistent|mismatch|wrong|stale|diverged|diverge)|default data directory|fell back|fallback|diverged|raced|race|econrefused)\b.+\b(because|so)\b/i
       .test(value)
   );
 }
