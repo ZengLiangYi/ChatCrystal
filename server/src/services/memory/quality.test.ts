@@ -252,6 +252,44 @@ test('validateMaterializedNoteQuality rejects package metadata was-there existen
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects package metadata found or included existence claims', () => {
+  const foundResult = validateMaterializedNoteQuality(note({
+    title: 'Package metadata release checks',
+    summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Package metadata was found because generated dist output diverged during release checks.',
+      'Resolution: Normalize package metadata before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Package metadata was found because generated dist output diverged during release checks.',
+      resolution: 'Normalize package metadata before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+  const includedResult = validateMaterializedNoteQuality(note({
+    title: 'Package metadata release checks',
+    summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Package metadata was included because generated dist output diverged during release checks.',
+      'Resolution: Normalize package metadata before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Package metadata was included because generated dist output diverged during release checks.',
+      resolution: 'Normalize package metadata before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(foundResult.accepted, false);
+  assert.equal(foundResult.reason, 'low-note-quality');
+  assert.ok(foundResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(includedResult.accepted, false);
+  assert.equal(includedResult.reason, 'low-note-quality');
+  assert.ok(includedResult.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality accepts API registration ordering HTTP failures', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'API registration ordering caused HTTP 404',
@@ -313,6 +351,27 @@ test('validateMaterializedNoteQuality accepts concrete NODE_ENV HTTP failure fix
   assert.equal(result.accepted, true);
   assert.equal(result.reason, 'note-quality-ok');
   assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects weak not-correct HTTP root causes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API route weak HTTP fix',
+    summary: 'Register /api/notes before issuing API requests.',
+    key_conclusions: [
+      'Root cause: API route was not correct before request setup, so API requests returned HTTP 404.',
+      'Resolution: Register /api/notes before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before issuing API requests.',
+      outcome_type: 'fix',
+      root_cause: 'API route was not correct before request setup, so API requests returned HTTP 404.',
+      resolution: 'Register /api/notes before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects generic environment decisions', () => {
@@ -641,6 +700,23 @@ test('validateMaterializedNoteQuality rejects default data directory on-disk dec
       summary: 'Set DATA_DIR before importing the Electron server entrypoint because the default data directory is on disk.',
       outcome_type: 'decision',
       decisions: ['Set DATA_DIR before importing the Electron server entrypoint because the default data directory is on disk.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects default data directory fallback existence decisions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR fallback existence decision',
+    summary: 'Set DATA_DIR before importing the Electron server entrypoint because default data directory fallback existed.',
+    key_conclusions: ['Decision: Set DATA_DIR before importing the Electron server entrypoint because default data directory fallback existed.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server entrypoint because default data directory fallback existed.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before importing the Electron server entrypoint because default data directory fallback existed.'],
     },
   }), { mode: 'auto' });
 

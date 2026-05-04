@@ -233,6 +233,7 @@ function hasFailureOrConsequenceSignal(value: string) {
 
 function hasStrongRootCauseSignal(value: string) {
   if (isExistenceOnlyClaim(value)) return false;
+  if (isWeakRootCauseClaim(value)) return false;
   return (
     hasFailureOrConsequenceSignal(value) ||
     /\b(version parsing|package metadata|package version)\b.+\b(inconsistent|mismatch|wrong comparison|stale|diverged|diverge)\b.+\b(dist comparison|dist comparisons|generated dist output|dist output)\b/i
@@ -251,7 +252,7 @@ function hasStrongRootCauseSignal(value: string) {
 function isExistenceOnlyClaim(value: string) {
   const text = value.toLowerCase();
   const hasExistencePhrase =
-    /\b(existed|exists|was present|were present|present during|is available|was available|on disk|is on disk|was on disk|was there|were there|there was|there were)\b/
+    /\b(existed|exists|was present|were present|present during|is available|was available|on disk|is on disk|was on disk|was there|were there|there was|there were|was found|were found|was included|were included|was located|were located|was listed)\b/
       .test(text);
   return hasExistencePhrase && !hasDefaultDataDirectoryConsequence(text);
 }
@@ -260,8 +261,20 @@ function hasDefaultDataDirectoryConsequence(value: string) {
   return /\b(prevents?|preventing|avoid|avoids|avoiding)\b.+\b(fallback\b.+\bdefault data directory|default data directory fallback)\b/i
     .test(value) ||
     /\b(fallback|fell back)\b.+\bdefault data directory\b/i.test(value) ||
-    /\bdefault data directory fallback\b/i.test(value) ||
     /\bused the default data directory\b/i.test(value);
+}
+
+function isWeakRootCauseClaim(value: string) {
+  const text = value.toLowerCase();
+  const hasWeakPhrase =
+    /\b(not correct before|was not correct|not configured correctly|was wrong|incomplete|not proper|not properly|properly)\b/
+      .test(text);
+  return hasWeakPhrase && !hasConcreteRootCauseMechanism(text);
+}
+
+function hasConcreteRootCauseMechanism(value: string) {
+  return /\b(registration ran after request setup|missing route|route was unregistered|unregistered route|imported .+ after request setup|ran after request setup)\b/i
+    .test(value);
 }
 
 function hasHttpFailureSignal(value: string) {
