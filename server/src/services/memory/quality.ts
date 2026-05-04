@@ -87,24 +87,22 @@ function isMostlyOneOffStatus(note: MaterializedTaskMemoryNote) {
     'parse',
     'persist',
     'prune',
+    'rebuild',
     'retry',
     'sanitize',
     'truncate',
     'validate',
+    'compare',
+    'comparing',
+    'wait',
     'wait for',
     '避免',
     '防止',
     '复用',
   ];
   const statusHits = statusWords.filter((word) => text.includes(word)).length;
-  const hasConcreteTransferableAction = text
-    .split(/[.!?。！？\n]+/)
-    .some((sentence) => {
-      const sentenceStatusHits = statusWords.filter((word) => sentence.includes(word)).length;
-      const sentenceActionHits = concreteActionWords
-        .filter((word) => sentence.includes(word)).length;
-      return sentenceStatusHits === 0 && sentenceActionHits > 0;
-    });
+  const hasConcreteTransferableAction = concreteActionWords
+    .some((word) => text.includes(word));
   return statusHits >= 3 && !hasConcreteTransferableAction;
 }
 

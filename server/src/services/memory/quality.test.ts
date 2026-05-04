@@ -64,6 +64,27 @@ test('validateMaterializedNoteQuality rejects one-off status records disguised a
   assert.ok(result.warnings.includes('one_off_status'));
 });
 
+test('validateMaterializedNoteQuality accepts reusable package version fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Normalize package version parsing before dist comparison',
+    summary: 'Normalize package version parsing before comparing generated dist output during local release checks.',
+    key_conclusions: [
+      'Root cause: Inconsistent package version parsing made local release dist comparisons unreliable.',
+      'Resolution: Normalize package version parsing before comparing generated dist output during local release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package version parsing before comparing generated dist output during local release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Inconsistent package version parsing made local release dist comparisons unreliable.',
+      resolution: 'Normalize package version parsing before comparing generated dist output during local release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality rejects placeholder root cause and resolution fields', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Server readiness note with placeholder diagnosis',
