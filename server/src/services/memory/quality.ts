@@ -40,6 +40,13 @@ function joined(note: MaterializedTaskMemoryNote) {
   ].join('\n').toLowerCase();
 }
 
+function hasWord(text: string, word: string) {
+  if (/[\u3400-\u9fff]/.test(word)) {
+    return text.includes(word);
+  }
+  return new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text);
+}
+
 function hasConcreteTransferableAction(value: string) {
   const text = value.toLowerCase();
   const concreteActionWords = [
@@ -73,7 +80,7 @@ function hasConcreteTransferableAction(value: string) {
     '防止',
     '复用',
   ];
-  return concreteActionWords.some((word) => text.includes(word));
+  return concreteActionWords.some((word) => hasWord(text, word));
 }
 
 function isVagueGenericLesson(value: string) {
@@ -82,6 +89,17 @@ function isVagueGenericLesson(value: string) {
     /\b(the task|this task|the pattern|the implementation|implementation behavior|expected behavior|expected pattern|values?|input|correctness|going forward)\b/.test(text) &&
     !hasSpecificObject(text)
   );
+}
+
+function isGenericStatusAction(value: string) {
+  const text = value.toLowerCase();
+  const hasGenericAction = ['validate', 'investigate', 'check', 'checked']
+    .some((word) => hasWord(text, word));
+  const hasStatusSubject =
+    /\b(node_env|env|environment|deployment|production|status|local|package version|version)\b/i
+      .test(text);
+  const hasGenericRationale = /\b(expected|should|because|pattern)\b/i.test(text);
+  return hasGenericAction && hasStatusSubject && hasGenericRationale;
 }
 
 function hasSpecificObject(value: string) {
@@ -94,6 +112,7 @@ function hasConcreteTransferableText(value: string) {
     hasNonPlaceholderMeaningfulText(value) &&
     hasConcreteTransferableAction(value) &&
     hasSpecificObject(value) &&
+    !isGenericStatusAction(value) &&
     !isVagueGenericLesson(value)
   );
 }
@@ -105,11 +124,13 @@ function hasDurableReusableSignal(note: MaterializedTaskMemoryNote) {
   const hasMeaningfulRootCause = Boolean(
     payload.root_cause &&
     hasNonPlaceholderMeaningfulText(payload.root_cause) &&
+    !isGenericStatusAction(payload.root_cause) &&
     !isVagueGenericLesson(payload.root_cause),
   );
   const hasMeaningfulResolution = Boolean(
     payload.resolution &&
     hasNonPlaceholderMeaningfulText(payload.resolution) &&
+    !isGenericStatusAction(payload.resolution) &&
     !isVagueGenericLesson(payload.resolution),
   );
   const hasStructuredSignal =
@@ -145,7 +166,7 @@ function isMostlyOneOffStatus(note: MaterializedTaskMemoryNote) {
     '状态',
   ];
   const statusHits = statusWords.filter((word) => text.includes(word)).length;
-  return statusHits >= 3 && !hasConcreteTransferableAction(text);
+  return statusHits >= 3 && (!hasConcreteTransferableAction(text) || isGenericStatusAction(text));
 }
 
 export function validateMaterializedNoteQuality(

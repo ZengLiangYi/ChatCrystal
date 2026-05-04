@@ -103,6 +103,38 @@ test('validateMaterializedNoteQuality rejects generic environment decisions', ()
   assert.ok(result.warnings.includes('one_off_status'));
 });
 
+test('validateMaterializedNoteQuality rejects generic environment status decisions with action words', () => {
+  const validateResult = validateMaterializedNoteQuality(note({
+    title: 'Validate NODE_ENV deployment status',
+    summary: 'Validate NODE_ENV deployment status because production environment is expected.',
+    key_conclusions: ['Decision: Validate NODE_ENV deployment status because production environment is expected.'],
+    raw_payload: {
+      summary: 'Validate NODE_ENV deployment status because production environment is expected.',
+      outcome_type: 'decision',
+      decisions: ['Validate NODE_ENV deployment status because production environment is expected.'],
+    },
+  }), { mode: 'auto' });
+  const investigateResult = validateMaterializedNoteQuality(note({
+    title: 'Investigate local package version status',
+    summary: 'Investigate local package version status because deployment should use production.',
+    key_conclusions: ['Decision: Investigate local package version status because deployment should use production.'],
+    raw_payload: {
+      summary: 'Investigate local package version status because deployment should use production.',
+      outcome_type: 'decision',
+      decisions: ['Investigate local package version status because deployment should use production.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(validateResult.accepted, false);
+  assert.equal(validateResult.reason, 'low-note-quality');
+  assert.ok(validateResult.warnings.includes('durable_reusable_lesson'));
+  assert.ok(validateResult.warnings.includes('one_off_status'));
+  assert.equal(investigateResult.accepted, false);
+  assert.equal(investigateResult.reason, 'low-note-quality');
+  assert.ok(investigateResult.warnings.includes('durable_reusable_lesson'));
+  assert.ok(investigateResult.warnings.includes('one_off_status'));
+});
+
 test('validateMaterializedNoteQuality rejects placeholder root cause and resolution fields', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Server readiness note with placeholder diagnosis',
