@@ -251,15 +251,16 @@ function hasStrongRootCauseSignal(value: string) {
 function isExistenceOnlyClaim(value: string) {
   const text = value.toLowerCase();
   const hasExistencePhrase =
-    /\b(existed|exists|was present|were present|present during|is available|was available|on disk|is on disk|was on disk)\b/
+    /\b(existed|exists|was present|were present|present during|is available|was available|on disk|is on disk|was on disk|was there|were there|there was|there were)\b/
       .test(text);
   return hasExistencePhrase && !hasDefaultDataDirectoryConsequence(text);
 }
 
 function hasDefaultDataDirectoryConsequence(value: string) {
-  return /\b(prevents?|preventing|avoid|avoids|avoiding)\b.+\bfallback\b.+\bdefault data directory\b/i
+  return /\b(prevents?|preventing|avoid|avoids|avoiding)\b.+\b(fallback\b.+\bdefault data directory|default data directory fallback)\b/i
     .test(value) ||
     /\b(fallback|fell back)\b.+\bdefault data directory\b/i.test(value) ||
+    /\bdefault data directory fallback\b/i.test(value) ||
     /\bused the default data directory\b/i.test(value);
 }
 
@@ -297,17 +298,22 @@ function hasDurableFixSignal(note: MaterializedTaskMemoryNote) {
 }
 
 function hasDurableReusableSignal(note: MaterializedTaskMemoryNote) {
-  if (isMostlyOneOffStatus(note)) return false;
   const payload = note.raw_payload;
-  const conclusions = note.key_conclusions.join('\n').toLowerCase();
+  const hasVisibleSignal = hasVisibleQualitySignal(note);
+  const hasFixSignal = hasDurableFixSignal(note);
+  if (hasFixSignal) return hasVisibleSignal;
+  if (isMostlyOneOffStatus(note)) return false;
+
   const hasStructuredSignal =
-    hasDurableFixSignal(note) ||
     Boolean(payload.reusable_patterns?.some((item) => hasConcreteTransferableText(item))) ||
     Boolean(payload.pitfalls?.some((item) => hasConcreteTransferableText(item))) ||
     Boolean(payload.decisions?.some((item) => hasConcreteTransferableText(item)));
-  const hasVisibleSignal =
-    /root cause:|resolution:|pitfall:|pattern:|decision:|error signature:/i.test(conclusions);
   return hasStructuredSignal && hasVisibleSignal;
+}
+
+function hasVisibleQualitySignal(note: MaterializedTaskMemoryNote) {
+  const conclusions = note.key_conclusions.join('\n').toLowerCase();
+  return /root cause:|resolution:|pitfall:|pattern:|decision:|error signature:/i.test(conclusions);
 }
 
 function isMostlyOneOffStatus(note: MaterializedTaskMemoryNote) {
@@ -362,6 +368,7 @@ export function validateMaterializedNoteQuality(
   options: { mode: ValidationMode },
 ): NoteQualityDecision {
   const warnings: string[] = [];
+  const acceptedDurableFix = hasDurableFixSignal(note) && hasVisibleQualitySignal(note);
 
   if (!hasMeaningfulText(note.title, 10, 6) || isGenericTitle(note.title)) {
     warnings.push('title');
@@ -375,7 +382,7 @@ export function validateMaterializedNoteQuality(
   if (!hasDurableReusableSignal(note)) {
     warnings.push('durable_reusable_lesson');
   }
-  if (isMostlyOneOffStatus(note)) {
+  if (!acceptedDurableFix && isMostlyOneOffStatus(note)) {
     warnings.push('one_off_status');
   }
 

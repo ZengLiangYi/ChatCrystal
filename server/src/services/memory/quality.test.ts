@@ -231,6 +231,27 @@ test('validateMaterializedNoteQuality rejects package metadata existence even wi
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects package metadata was-there existence claims', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Package metadata release checks',
+    summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Package metadata was there because generated dist output diverged during release checks.',
+      'Resolution: Normalize package metadata before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Package metadata was there because generated dist output diverged during release checks.',
+      resolution: 'Normalize package metadata before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality accepts API registration ordering HTTP failures', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'API registration ordering caused HTTP 404',
@@ -265,6 +286,27 @@ test('validateMaterializedNoteQuality accepts register-based HTTP failure fixes'
       outcome_type: 'fix',
       root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
       resolution: 'Register /api/notes before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts concrete NODE_ENV HTTP failure fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Production API config import ordering caused HTTP 500',
+    summary: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    key_conclusions: [
+      'Root cause: Production API requests returned HTTP 500 because config imported NODE_ENV after request setup.',
+      'Resolution: Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    ],
+    raw_payload: {
+      summary: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+      outcome_type: 'fix',
+      root_cause: 'Production API requests returned HTTP 500 because config imported NODE_ENV after request setup.',
+      resolution: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
     },
   }), { mode: 'auto' });
 
@@ -531,6 +573,23 @@ test('validateMaterializedNoteQuality accepts fallback decisions with existence 
       summary: 'Set DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory when it exists.',
       outcome_type: 'decision',
       decisions: ['Set DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory when it exists.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts default data directory fallback wording', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR prevents default fallback',
+    summary: 'Set DATA_DIR before importing the Electron server entrypoint to prevent default data directory fallback when it exists.',
+    key_conclusions: ['Decision: Set DATA_DIR before importing the Electron server entrypoint to prevent default data directory fallback when it exists.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server entrypoint to prevent default data directory fallback when it exists.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before importing the Electron server entrypoint to prevent default data directory fallback when it exists.'],
     },
   }), { mode: 'auto' });
 
