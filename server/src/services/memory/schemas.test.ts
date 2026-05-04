@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   parseRecallForTaskRequest,
+  parseValidateTaskMemoryRequest,
   parseWriteTaskMemoryRequest,
 } from './schemas.js';
 
@@ -94,4 +95,25 @@ test('schemas accept trae as a valid source_agent', () => {
   });
 
   assert.equal(parsed.task.source_agent, 'trae');
+});
+
+test('parseValidateTaskMemoryRequest uses the writeback contract', () => {
+  const parsed = parseValidateTaskMemoryRequest({
+    mode: 'auto',
+    source_run_key: 'run-validate',
+    task: {
+      goal: 'Capture readiness fix',
+      task_kind: 'debug',
+      source_agent: 'codex',
+    },
+    memory: {
+      summary: 'Await readiness before issuing requests.',
+      outcome_type: 'fix',
+      root_cause: 'Requests raced server startup.',
+      resolution: 'Wait for readiness before requests.',
+    },
+  });
+
+  assert.equal(parsed.mode, 'auto');
+  assert.equal(parsed.task.source_agent, 'codex');
 });
