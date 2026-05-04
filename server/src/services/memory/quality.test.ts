@@ -168,6 +168,27 @@ test('validateMaterializedNoteQuality accepts natural package metadata and dist 
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts causal package metadata inclusion fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Normalize package metadata before dist generation',
+    summary: 'Normalize package metadata before generating dist output so release checks compare the same version format.',
+    key_conclusions: [
+      'Root cause: Generated dist output included stale package metadata and diverged from package version because version normalization used different formats.',
+      'Resolution: Normalize package metadata before generating dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before generating dist output so release checks compare the same version format.',
+      outcome_type: 'fix',
+      root_cause: 'Generated dist output included stale package metadata and diverged from package version because version normalization used different formats.',
+      resolution: 'Normalize package metadata before generating dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality rejects package and dist co-occurrence without causal signal', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Package version release checks',

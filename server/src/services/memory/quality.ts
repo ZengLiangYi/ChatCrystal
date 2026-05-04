@@ -231,10 +231,10 @@ function hasFailureOrConsequenceSignal(value: string) {
 }
 
 function hasStrongRootCauseSignal(value: string) {
+  if (hasPackageDistRootCauseShape(value)) return hasPackageDistRootCauseSignal(value);
   if (isExistenceOnlyClaim(value)) return false;
   if (isPackageArtifactObservationClaim(value)) return false;
   if (isWeakRootCauseClaim(value)) return false;
-  if (hasPackageDistRootCauseShape(value)) return hasPackageDistRootCauseSignal(value);
   return (
     hasFailureOrConsequenceSignal(value) ||
     /\b(because|so)\b.+\b(ran before|ran after|returned http [45]\d\d|returned [45]\d\d|http [45]\d\d|imported.+before|used the default data directory|version parsing.+(inconsistent|mismatch|wrong|stale|diverged|diverge)|raced|race|econrefused)\b/i
@@ -253,15 +253,16 @@ function hasPackageDistRootCauseShape(value: string) {
 
 function hasPackageDistRootCauseSignal(value: string) {
   const text = value.toLowerCase();
-  if (isPackageArtifactObservationClaim(text) || isExistenceOnlyClaim(text)) return false;
-  return (
+  const hasPositiveSignal =
     /\b(package metadata|package version|generated dist output|dist output)\b.+\b(diverged|diverge|mismatch|stale|wrong)\b.+\bbecause\b.+\b(version parsing|parsing|normalization|normalize|normalized)\b.+\b(inconsistent|different formats|mismatch|wrong|stale)\b/i
       .test(text) ||
     /\b(generated dist output|dist output)\b.+\b(diverged|diverge|mismatch|stale|wrong)\b.+\b(package metadata|package version)\b.+\bbecause\b.+\b(version parsing|parsing|normalization|normalize|normalized)\b.+\b(inconsistent|different formats|mismatch|wrong|stale)\b/i
       .test(text) ||
     /\b(inconsistent|mismatch|wrong comparison|wrong|stale|different formats)\b.+\b(version parsing|package version parsing|package metadata|package version|version normalization|package normalization)\b.+\b(generated dist output|dist output|dist comparisons?|dist)\b/i
-      .test(text)
-  );
+      .test(text);
+  if (hasPositiveSignal) return true;
+  if (isPackageArtifactObservationClaim(text) || isExistenceOnlyClaim(text)) return false;
+  return false;
 }
 
 function isExistenceOnlyClaim(value: string) {
