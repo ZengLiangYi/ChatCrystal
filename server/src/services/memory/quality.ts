@@ -75,6 +75,7 @@ function hasConcreteTransferableAction(value: string) {
     'pin',
     'prune',
     'rebuild',
+    'regenerate',
     'register',
     'remove',
     'replace',
@@ -265,7 +266,7 @@ function hasPackageDistRootCauseShape(value: string) {
 
 function hasPackageDistRootCauseSignal(value: string) {
   const text = value.toLowerCase();
-  const packageMechanism = '(?:version parsing|parsing|version normalization|normalization|normalize|normalized|different formats|inconsistent normalization|comparison|comparing)';
+  const packageMechanism = '(?:version parsing|parsing|version normalization|normalization|normalize|normalized|different formats|inconsistent normalization|comparison|comparing|version bump|bumping package metadata|dist generation|generated dist output)';
   const packageOutcome = '(?:diverged|divergence|mismatch|stale(?: package metadata| output| dist)?|wrong comparison|comparison failure|dist comparisons? unreliable|differed from package metadata|differed from package version)';
   const hasPositiveSignal =
     new RegExp(`\\b(package metadata|package version|generated dist output|dist output)\\b.+\\b${packageOutcome}\\b.+\\bbecause\\b.+\\b${packageMechanism}\\b.+\\b(inconsistent|different formats|mismatch|wrong|stale)\\b`, 'i')
@@ -275,6 +276,8 @@ function hasPackageDistRootCauseSignal(value: string) {
     new RegExp(`\\b(inconsistent|different formats)\\b.+\\b(version parsing|package version parsing|version normalization|package normalization)\\b.+\\b(generated dist output|dist output|dist comparisons?|dist)\\b.+\\b${packageOutcome}\\b`, 'i')
       .test(text) ||
     /\b(inconsistent|different formats)\b.+\b(version parsing|package version parsing|version normalization|package normalization)\b.+\bdist comparisons?\b.+\bunreliable\b/i
+      .test(text) ||
+    /\b(generated dist output|dist output)\b.+\bstale package metadata\b.+\bbecause\b.+\bversion bump\b.+\bran after\b.+\bdist generation\b/i
       .test(text);
   if ((isPackageArtifactObservationClaim(text) || isExistenceOnlyClaim(text)) && !hasExplicitPackageCausality(text)) {
     return false;
