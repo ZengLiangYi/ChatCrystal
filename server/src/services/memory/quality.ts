@@ -265,12 +265,14 @@ function hasPackageDistRootCauseShape(value: string) {
 
 function hasPackageDistRootCauseSignal(value: string) {
   const text = value.toLowerCase();
+  const packageMechanism = '(?:version parsing|parsing|version normalization|normalization|normalize|normalized|different formats|inconsistent normalization|comparison|comparing)';
+  const packageOutcome = '(?:diverged|divergence|mismatch|stale(?: package metadata| output| dist)?|wrong comparison|comparison failure|differed from package metadata|differed from package version)';
   const hasPositiveSignal =
-    /\b(package metadata|package version|generated dist output|dist output)\b.+\b(diverged|diverge|mismatch|stale|wrong)\b.+\bbecause\b.+\b(version parsing|parsing|normalization|normalize|normalized)\b.+\b(inconsistent|different formats|mismatch|wrong|stale)\b/i
+    new RegExp(`\\b(package metadata|package version|generated dist output|dist output)\\b.+\\b${packageOutcome}\\b.+\\bbecause\\b.+\\b${packageMechanism}\\b.+\\b(inconsistent|different formats|mismatch|wrong|stale)\\b`, 'i')
       .test(text) ||
-    /\b(generated dist output|dist output)\b.+\b(diverged|diverge|mismatch|stale|wrong)\b.+\b(package metadata|package version)\b.+\bbecause\b.+\b(version parsing|parsing|normalization|normalize|normalized)\b.+\b(inconsistent|different formats|mismatch|wrong|stale)\b/i
+    new RegExp(`\\b(generated dist output|dist output)\\b.+\\b${packageOutcome}\\b.+\\b(package metadata|package version)\\b.+\\bbecause\\b.+\\b${packageMechanism}\\b.+\\b(inconsistent|different formats|mismatch|wrong|stale)\\b`, 'i')
       .test(text) ||
-    /\b(inconsistent|mismatch|wrong comparison|wrong|stale|different formats)\b.+\b(version parsing|package version parsing|package metadata|package version|version normalization|package normalization)\b.+\b(generated dist output|dist output|dist comparisons?|dist)\b/i
+    new RegExp(`\\b(inconsistent|mismatch|wrong comparison|comparison failure|stale|different formats)\\b.+\\b(version parsing|package version parsing|package metadata|package version|version normalization|package normalization)\\b.+\\b(generated dist output|dist output|dist comparisons?|dist)\\b`, 'i')
       .test(text);
   if (hasPositiveSignal) return true;
   if (isPackageArtifactObservationClaim(text) || isExistenceOnlyClaim(text)) return false;
