@@ -266,13 +266,15 @@ function hasPackageDistRootCauseShape(value: string) {
 function hasPackageDistRootCauseSignal(value: string) {
   const text = value.toLowerCase();
   const packageMechanism = '(?:version parsing|parsing|version normalization|normalization|normalize|normalized|different formats|inconsistent normalization|comparison|comparing)';
-  const packageOutcome = '(?:diverged|divergence|mismatch|stale(?: package metadata| output| dist)?|wrong comparison|comparison failure|differed from package metadata|differed from package version)';
+  const packageOutcome = '(?:diverged|divergence|mismatch|stale(?: package metadata| output| dist)?|wrong comparison|comparison failure|dist comparisons? unreliable|differed from package metadata|differed from package version)';
   const hasPositiveSignal =
     new RegExp(`\\b(package metadata|package version|generated dist output|dist output)\\b.+\\b${packageOutcome}\\b.+\\bbecause\\b.+\\b${packageMechanism}\\b.+\\b(inconsistent|different formats|mismatch|wrong|stale)\\b`, 'i')
       .test(text) ||
     new RegExp(`\\b(generated dist output|dist output)\\b.+\\b${packageOutcome}\\b.+\\b(package metadata|package version)\\b.+\\bbecause\\b.+\\b${packageMechanism}\\b.+\\b(inconsistent|different formats|mismatch|wrong|stale)\\b`, 'i')
       .test(text) ||
-    new RegExp(`\\b(inconsistent|mismatch|wrong comparison|comparison failure|stale|different formats)\\b.+\\b(version parsing|package version parsing|package metadata|package version|version normalization|package normalization)\\b.+\\b(generated dist output|dist output|dist comparisons?|dist)\\b`, 'i')
+    new RegExp(`\\b(inconsistent|different formats)\\b.+\\b(version parsing|package version parsing|version normalization|package normalization)\\b.+\\b(generated dist output|dist output|dist comparisons?|dist)\\b.+\\b${packageOutcome}\\b`, 'i')
+      .test(text) ||
+    /\b(inconsistent|different formats)\b.+\b(version parsing|package version parsing|version normalization|package normalization)\b.+\bdist comparisons?\b.+\bunreliable\b/i
       .test(text);
   if (hasPositiveSignal) return true;
   if (isPackageArtifactObservationClaim(text) || isExistenceOnlyClaim(text)) return false;

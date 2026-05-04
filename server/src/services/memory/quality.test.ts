@@ -210,7 +210,7 @@ test('validateMaterializedNoteQuality accepts causal package metadata inclusion 
 });
 
 test('validateMaterializedNoteQuality rejects package parsing causes without dist consequence', () => {
-  const result = validateMaterializedNoteQuality(note({
+  const wrongResult = validateMaterializedNoteQuality(note({
     title: 'Normalize package version parsing before dist output',
     summary: 'Normalize package version parsing before comparing generated dist output during release checks.',
     key_conclusions: [
@@ -224,10 +224,27 @@ test('validateMaterializedNoteQuality rejects package parsing causes without dis
       resolution: 'Normalize package version parsing before comparing generated dist output during release checks.',
     },
   }), { mode: 'auto' });
+  const inconsistentResult = validateMaterializedNoteQuality(note({
+    title: 'Normalize package version parsing before dist output',
+    summary: 'Normalize package version parsing before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Inconsistent package version parsing was used during generated dist output checks.',
+      'Resolution: Normalize package version parsing before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package version parsing before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Inconsistent package version parsing was used during generated dist output checks.',
+      resolution: 'Normalize package version parsing before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
 
-  assert.equal(result.accepted, false);
-  assert.equal(result.reason, 'low-note-quality');
-  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+  assert.equal(wrongResult.accepted, false);
+  assert.equal(wrongResult.reason, 'low-note-quality');
+  assert.ok(wrongResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(inconsistentResult.accepted, false);
+  assert.equal(inconsistentResult.reason, 'low-note-quality');
+  assert.ok(inconsistentResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects package and dist co-occurrence without causal signal', () => {
