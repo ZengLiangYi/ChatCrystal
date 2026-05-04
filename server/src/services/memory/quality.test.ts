@@ -47,6 +47,26 @@ test('validateMaterializedNoteQuality rejects #87-like one-off status records in
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects one-off status records disguised as decisions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Local package version matched dist output',
+    summary: 'Current local package version matched the generated dist output.',
+    key_conclusions: ['Decision: Current local package version matched dist output.'],
+    raw_payload: {
+      summary: 'Current local package version matched the generated dist output.',
+      outcome_type: 'decision',
+      decisions: ['Current local package version matched the generated dist output.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(
+    result.warnings.includes('one_off_status') ||
+    result.warnings.includes('durable_reusable_lesson'),
+  );
+});
+
 test('validateMaterializedNoteQuality requires visible key conclusions', () => {
   const result = validateMaterializedNoteQuality(note({
     key_conclusions: [],

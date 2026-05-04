@@ -63,24 +63,29 @@ function isMostlyOneOffStatus(note: MaterializedTaskMemoryNote) {
     '检查',
     '状态',
   ];
-  const durableWords = [
-    'root cause',
-    'resolution',
-    'pitfall',
+  const reusableLessonWords = [
     'avoid',
-    'decision',
+    'because',
+    'cause',
+    'causes',
+    'must',
+    'should',
+    'pattern',
+    'prevent',
+    'prevents',
     'rationale',
     'reuse',
     'transferable',
-    '原因',
-    '解决',
     '避免',
     '模式',
-    '决策',
+    '必须',
+    '应该',
+    '防止',
+    '复用',
   ];
   const statusHits = statusWords.filter((word) => text.includes(word)).length;
-  const durableHits = durableWords.filter((word) => text.includes(word)).length;
-  return statusHits >= 3 && durableHits === 0;
+  const reusableLessonHits = reusableLessonWords.filter((word) => text.includes(word)).length;
+  return statusHits >= 3 && reusableLessonHits === 0;
 }
 
 export function validateMaterializedNoteQuality(
