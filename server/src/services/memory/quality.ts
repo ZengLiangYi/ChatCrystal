@@ -235,6 +235,7 @@ function hasStrongRootCauseSignal(value: string) {
   if (isExistenceOnlyClaim(value)) return false;
   if (isPackageArtifactObservationClaim(value)) return false;
   if (isWeakRootCauseClaim(value)) return false;
+  if (hasHttpFailureSignal(value)) return hasConcreteHttpRootCauseSignal(value);
   return (
     hasFailureOrConsequenceSignal(value) ||
     /\b(because|so)\b.+\b(ran before|ran after|returned http [45]\d\d|returned [45]\d\d|http [45]\d\d|imported.+before|used the default data directory|version parsing.+(inconsistent|mismatch|wrong|stale|diverged|diverge)|raced|race|econrefused)\b/i
@@ -300,6 +301,10 @@ function isWeakRootCauseClaim(value: string) {
 function hasConcreteRootCauseMechanism(value: string) {
   return /\b(registration ran after request setup|missing route|route was unregistered|unregistered route|imported .+ after request setup|ran after request setup)\b/i
     .test(value);
+}
+
+function hasConcreteHttpRootCauseSignal(value: string) {
+  return hasConcreteRootCauseMechanism(value);
 }
 
 function hasHttpFailureSignal(value: string) {

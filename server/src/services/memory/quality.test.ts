@@ -471,6 +471,44 @@ test('validateMaterializedNoteQuality accepts concrete NODE_ENV HTTP failure fix
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality rejects generic HTTP root cause rationales', () => {
+  const correctnessResult = validateMaterializedNoteQuality(note({
+    title: 'NODE_ENV HTTP 500 fix',
+    summary: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    key_conclusions: [
+      'Root cause: API returned HTTP 500 because correctness mattered.',
+      'Resolution: Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    ],
+    raw_payload: {
+      summary: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+      outcome_type: 'fix',
+      root_cause: 'API returned HTTP 500 because correctness mattered.',
+      resolution: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    },
+  }), { mode: 'auto' });
+  const reliabilityResult = validateMaterializedNoteQuality(note({
+    title: 'NODE_ENV HTTP 500 fix',
+    summary: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    key_conclusions: [
+      'Root cause: API returned HTTP 500 because reliability mattered.',
+      'Resolution: Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    ],
+    raw_payload: {
+      summary: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+      outcome_type: 'fix',
+      root_cause: 'API returned HTTP 500 because reliability mattered.',
+      resolution: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(correctnessResult.accepted, false);
+  assert.equal(correctnessResult.reason, 'low-note-quality');
+  assert.ok(correctnessResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(reliabilityResult.accepted, false);
+  assert.equal(reliabilityResult.reason, 'low-note-quality');
+  assert.ok(reliabilityResult.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality rejects weak not-correct HTTP root causes', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'API route weak HTTP fix',
