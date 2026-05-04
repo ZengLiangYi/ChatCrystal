@@ -6,6 +6,8 @@ import type { parseWriteTaskMemoryRequest } from './schemas.js';
 
 type ParsedWriteTaskMemoryRequest = ReturnType<typeof parseWriteTaskMemoryRequest>;
 
+const MAX_EMBEDDED_CODE_SNIPPET_CHARS = 1000;
+
 function cleanText(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.replace(/\s+/g, ' ').trim();
@@ -41,11 +43,20 @@ function appendLabeled(target: string[], label: string, values: unknown) {
   }
 }
 
+function materializeCodeSnippetEvidence(
+  snippet: NonNullable<WriteTaskMemoryPayload['code_snippets']>[number],
+): string | undefined {
+  const code = cleanText(snippet.code);
+  if (!code) return undefined;
+  const language = cleanText(snippet.language) ?? 'text';
+  return `Code snippet (${language}): ${code.slice(0, MAX_EMBEDDED_CODE_SNIPPET_CHARS)}`;
+}
+
 export function materializeTaskMemory(
   request: ParsedWriteTaskMemoryRequest,
   payload: WriteTaskMemoryPayload = request.memory,
 ): MaterializedTaskMemoryNote {
-  const title = cleanText(payload.title) ?? request.task.goal.trim();
+  const title = cleanText(payload.title) ?? cleanText(request.task.goal) ?? request.task.goal.trim();
   const summary = cleanText(payload.summary) ?? '';
   const keyConclusions: string[] = [
     ...cleanStringArray(payload.key_conclusions),
@@ -63,6 +74,9 @@ export function materializeTaskMemory(
   const codeDescriptions = (payload.code_snippets ?? [])
     .map((snippet) => cleanText(snippet.description))
     .filter((value): value is string => Boolean(value));
+  const codeEvidence = (payload.code_snippets ?? [])
+    .map(materializeCodeSnippetEvidence)
+    .filter((value): value is string => Boolean(value));
   const filesTouched = cleanStringArray(payload.files_touched);
   const tags = normalizeTags(payload.tags);
 
@@ -71,6 +85,7 @@ export function materializeTaskMemory(
     summary,
     ...dedupe(keyConclusions),
     ...codeDescriptions.map((description) => `Code: ${description}`),
+    ...codeEvidence,
     ...filesTouched.map((file) => `File: ${file}`),
     ...tags.map((tag) => `Tag: ${tag}`),
   ]

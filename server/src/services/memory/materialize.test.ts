@@ -83,3 +83,33 @@ test('materializeTaskMemory does not invent missing claims', () => {
   assert.equal(note.embedding_text.includes('Root cause:'), false);
   assert.equal(note.embedding_text.includes('Resolution:'), false);
 });
+
+test('materializeTaskMemory includes bounded code snippet evidence in embeddings', () => {
+  const request = parsed({
+    mode: 'auto',
+    source_run_key: 'run-code-evidence',
+    task: { goal: 'Document retry config', task_kind: 'implement', source_agent: 'codex' },
+    memory: {
+      summary: 'Retry configuration should be searchable by API name and env key.',
+      outcome_type: 'pattern',
+      code_snippets: [
+        {
+          language: 'ts',
+          description: 'Retry policy uses CRYSTAL_MAX_RETRIES.',
+          code: `const retries = Number(process.env.CRYSTAL_MAX_RETRIES);
+export function configureRetry() {
+  return { retries };
+}
+${'x'.repeat(1200)}TRUNCATED_SENTINEL`,
+        },
+      ],
+    },
+  });
+
+  const note = materializeTaskMemory(request);
+
+  assert.match(note.embedding_text, /Code: Retry policy uses CRYSTAL_MAX_RETRIES\./);
+  assert.match(note.embedding_text, /Code snippet \(ts\): const retries = Number\(process\.env\.CRYSTAL_MAX_RETRIES\);/);
+  assert.match(note.embedding_text, /configureRetry/);
+  assert.equal(note.embedding_text.includes('TRUNCATED_SENTINEL'), false);
+});
