@@ -238,6 +238,41 @@ test('deleteNoteWithReview preserves invalid previous gate details as raw text',
   assert.equal(details.previous_gate.details, '{invalid');
 });
 
+test('deleteNoteWithReview removes orphan tags but keeps tags still used by other notes', async () => {
+  const db = await createSqlDatabase();
+  insertConversation(db, 'conv-tag-delete');
+  insertNote(db, 'conv-tag-delete', 20);
+  insertConversation(db, 'conv-tag-keep');
+  insertNote(db, 'conv-tag-keep', 21);
+
+  db.run('INSERT INTO tags (id, name) VALUES (1, ?), (2, ?)', [
+    'delete-only',
+    'shared',
+  ]);
+  db.run('INSERT INTO note_tags (note_id, tag_id) VALUES (?, ?), (?, ?), (?, ?)', [
+    20,
+    1,
+    20,
+    2,
+    21,
+    2,
+  ]);
+
+  await deleteNoteWithReview(
+    20,
+    { reason: 'low-value', source: 'web' },
+    {
+      db: db as never,
+      save: () => undefined,
+      deleteNoteVectors: async () => undefined,
+    },
+  );
+
+  const tags = db.exec('SELECT name FROM tags ORDER BY name ASC')[0]?.values ?? [];
+  assert.deepEqual(tags, [['shared']]);
+  assert.equal(scalar(db, 'SELECT COUNT(*) FROM note_tags WHERE tag_id = 2'), 1);
+});
+
 test('deleteNoteWithReview validates reason before deleting', async () => {
   const db = await createSqlDatabase();
   insertConversation(db, 'conv-invalid-reason');

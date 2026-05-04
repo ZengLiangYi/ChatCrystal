@@ -221,9 +221,10 @@ export async function noteRoutes(app: FastifyInstance) {
     const result = db.exec(
       `SELECT t.id, t.name, COUNT(nt.note_id) as count
        FROM tags t
-       LEFT JOIN note_tags nt ON nt.tag_id = t.id
-       GROUP BY t.id
-       ORDER BY count DESC`,
+       JOIN note_tags nt ON nt.tag_id = t.id
+       JOIN notes n ON n.id = nt.note_id
+       GROUP BY t.id, t.name
+       ORDER BY count DESC, t.name ASC`,
     );
 
     return { success: true, data: resultToObjects(result) };

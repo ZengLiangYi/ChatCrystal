@@ -270,6 +270,50 @@ test('applySchemaMigrations repairs legacy vector cleanup pending index shape', 
   ]);
 });
 
+test('applySchemaMigrations removes orphan tags and orphan note tag links', async () => {
+  const db = await createDatabase();
+
+  db.exec('PRAGMA foreign_keys = ON');
+  applySchemaMigrations(db);
+
+  db.exec(`
+    INSERT INTO conversations (
+      id, source, project_dir, project_name, first_message_at, last_message_at,
+      file_path
+    ) VALUES (
+      'conversation-1', 'codex', 'C:/repo', 'repo', '2026-04-29',
+      '2026-04-29', 'a.jsonl'
+    );
+
+    INSERT INTO notes (
+      id, conversation_id, title, summary
+    ) VALUES (
+      1, 'conversation-1', 'Useful note', 'This note should keep its tag.'
+    );
+
+    INSERT INTO tags (id, name) VALUES
+      (1, 'used'),
+      (2, 'unused'),
+      (3, 'orphan-link');
+
+    INSERT INTO note_tags (note_id, tag_id) VALUES (1, 1);
+  `);
+
+  db.exec('PRAGMA foreign_keys = OFF');
+  db.run('INSERT INTO note_tags (note_id, tag_id) VALUES (?, ?)', [999, 3]);
+  db.exec('PRAGMA foreign_keys = ON');
+
+  applySchemaMigrations(db);
+
+  assert.deepEqual(db.exec('SELECT id, name FROM tags ORDER BY id ASC')[0].values, [
+    [1, 'used'],
+  ]);
+  assert.deepEqual(db.exec('SELECT note_id, tag_id FROM note_tags')[0].values, [
+    [1, 1],
+  ]);
+  assert.deepEqual(db.exec('PRAGMA foreign_key_check')[0]?.values ?? [], []);
+});
+
 test('experience review rows remain after deleting reviewed note', async () => {
   const db = await createDatabase();
 

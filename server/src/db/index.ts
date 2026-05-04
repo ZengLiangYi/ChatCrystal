@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { backfillImportedNoteMetadata } from '../services/memory/backfill.js';
 import { runtimePaths } from '../runtime/paths.js';
+import { cleanupOrphanTags } from './cleanup.js';
 import { SCHEMA_SQL } from './schema.js';
 
 let db: Database | null = null;
@@ -84,6 +85,7 @@ export function applySchemaMigrations(db: Database): void {
     ['status', 'updated_at', 'id'],
     VECTOR_CLEANUP_PENDING_INDEX_SQL,
   );
+  cleanupOrphanTags(db);
 }
 
 export async function initDatabase(): Promise<Database> {

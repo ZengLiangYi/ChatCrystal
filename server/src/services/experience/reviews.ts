@@ -5,6 +5,7 @@ import type {
   ExperienceReviewSource,
 } from '@chatcrystal/shared';
 import type { Database } from 'sql.js';
+import { cleanupOrphanTags } from '../../db/cleanup.js';
 import { getDatabase, saveDatabase } from '../../db/index.js';
 import { withTransaction } from '../../db/transaction.js';
 import { deleteNoteVectraItems } from '../vector-index.js';
@@ -228,6 +229,7 @@ export async function deleteNoteWithReview(
 
       enqueueNoteVectorCleanupTask(noteId, { db });
       db.run('DELETE FROM notes WHERE id = ?', [noteId]);
+      cleanupOrphanTags(db);
 
       return {
         reviewId,
