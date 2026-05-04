@@ -221,9 +221,15 @@ function hasConcreteTransferableText(value: string) {
     hasConcreteMechanism(value) &&
     hasFailureOrConsequenceSignal(value) &&
     !isExistenceOnlyClaim(value) &&
+    !isFirstPersonDiaryClaim(value) &&
     !isGenericStatusAction(value) &&
     !isVagueGenericLesson(value)
   );
+}
+
+function isFirstPersonDiaryClaim(value: string) {
+  return /\b(i|we)\s+(added|checked|verified|fixed|implemented|updated|changed|then)\b/i
+    .test(value);
 }
 
 function hasPackageItemSignal(value: string) {
@@ -431,6 +437,8 @@ function isMostlyOneOffStatus(note: MaterializedTaskMemoryNote) {
     'version',
     'status',
     'checked',
+    'verified',
+    'verification',
     'current',
     'package',
     'npm link',
@@ -462,7 +470,7 @@ function isStatusShapedSelfContainedItem(note: MaterializedTaskMemoryNote) {
 
   const text = joined(note);
   const hasStatusShape =
-    /\b(current|checked|checks?|status|local|package version|version|dist output|generated dist output)\b/i
+    /\b(current|checked|verified|verification|checks?|status|local|node_env|env|environment|production|package version|version|dist output|generated dist output)\b/i
       .test(text);
   return hasStatusShape && !hasStrongReusableMechanism(text);
 }

@@ -129,6 +129,23 @@ test('validateMaterializedNoteQuality rejects #87-like one-off status records in
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects first-person implementation diary patterns', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Readiness implementation diary',
+    summary: 'I added the readiness wait and then the API request passed after ECONNREFUSED.',
+    key_conclusions: ['Pattern: I added Fastify readiness wait before issuing API requests because ECONNREFUSED happens when requests race startup.'],
+    raw_payload: {
+      summary: 'I added the readiness wait and then the API request passed after ECONNREFUSED.',
+      outcome_type: 'pattern',
+      reusable_patterns: ['I added Fastify readiness wait before issuing API requests because ECONNREFUSED happens when requests race startup.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality rejects one-off status records disguised as decisions', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Local package version matched dist output',
@@ -831,6 +848,23 @@ test('validateMaterializedNoteQuality rejects generic environment decisions', ()
   assert.equal(result.reason, 'low-note-quality');
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
   assert.ok(result.warnings.includes('one_off_status'));
+});
+
+test('validateMaterializedNoteQuality rejects environment verification snapshots', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'NODE_ENV production verification',
+    summary: 'Verified NODE_ENV production before request setup.',
+    key_conclusions: ['Decision: Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.'],
+    raw_payload: {
+      summary: 'Verified NODE_ENV production before request setup.',
+      outcome_type: 'decision',
+      decisions: ['Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects generic environment status decisions with action words', () => {
