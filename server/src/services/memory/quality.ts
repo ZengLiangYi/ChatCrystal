@@ -267,7 +267,8 @@ function hasPackageDistRootCauseShape(value: string) {
 function hasPackageDistRootCauseSignal(value: string) {
   const text = value.toLowerCase();
   const packageMechanism = '(?:version parsing|parsing|version normalization|normalization|normalize|normalized|different formats|inconsistent normalization|comparison|comparing|version bump|bumping package metadata|dist generation|generated dist output)';
-  const packageOutcome = '(?:diverged|divergence|mismatch|stale(?: package metadata| output| dist)?|wrong comparison|comparison failure|dist comparisons? unreliable|differed from package metadata|differed from package version)';
+  const packageOutcome = '(?:diverged|divergence|mismatch|stale(?: package metadata| output| dist)?|wrong comparison|comparison failure|dist comparisons? unreliable|differ(?:ed|s)? from package metadata|differ(?:ed|s)? from package version)';
+  const hasExplicitCausality = hasExplicitPackageCausality(text);
   const hasPositiveSignal =
     new RegExp(`\\b(package metadata|package version|generated dist output|dist output)\\b.+\\b${packageOutcome}\\b.+\\bbecause\\b.+\\b${packageMechanism}\\b.+\\b(inconsistent|different formats|mismatch|wrong|stale)\\b`, 'i')
       .test(text) ||
@@ -281,10 +282,10 @@ function hasPackageDistRootCauseSignal(value: string) {
       .test(text) ||
     /\b(generated dist output|dist output)\b.+\bstale\b.+\bbecause\b.+\bdist generation\b.+\bran before\b.+\b(package metadata )?version bump\b/i
       .test(text);
-  if ((isPackageArtifactObservationClaim(text) || isExistenceOnlyClaim(text)) && !hasExplicitPackageCausality(text)) {
+  if ((isPackageArtifactObservationClaim(text) || isExistenceOnlyClaim(text)) && !hasExplicitCausality) {
     return false;
   }
-  if (hasPositiveSignal) return true;
+  if (hasPositiveSignal || hasExplicitCausality) return true;
   if (isPackageArtifactObservationClaim(text) || isExistenceOnlyClaim(text)) return false;
   return false;
 }
@@ -292,9 +293,9 @@ function hasPackageDistRootCauseSignal(value: string) {
 function hasExplicitPackageCausality(value: string) {
   const text = value.toLowerCase();
   return (
-    /\b(diverged|divergence|mismatch|stale(?: package metadata| output| dist)?|wrong comparison|comparison failure|dist comparisons? unreliable|differed from package metadata|differed from package version)\b.+\bbecause\b.+\b(version parsing|parsing|version normalization|normalization|normalize|normalized|different formats|inconsistent normalization|comparison|comparing)\b/i
+    /\b(diverged|divergence|mismatch|stale(?: package metadata| output| dist)?|wrong comparison|comparison failure|dist comparisons? unreliable|differ(?:ed|s)? from package metadata|differ(?:ed|s)? from package version)\b.+\bbecause\b.+\b(version parsing|parsing|version normalization|normalization|normalize|normalized|different formats|inconsistent normalization|comparison|comparing)\b/i
       .test(text) ||
-    /\b(version parsing|parsing|version normalization|normalization|normalize|normalized|different formats|inconsistent normalization|comparison|comparing)\b.+\b(caused|produced|led to|made)\b.+\b(diverged|divergence|mismatch|stale(?: package metadata| output| dist)?|wrong comparison|comparison failure|dist comparisons? unreliable|differed from package metadata|differed from package version)\b/i
+    /\b(version parsing|parsing|version normalization|normalization|normalize|normalized|different formats|inconsistent normalization|comparison|comparing)\b.+\b(caused|produced|led to|made)\b.+\b(diverged|divergence|mismatch|stale(?: package metadata| output| dist)?|wrong comparison|comparison failure|dist comparisons? unreliable|differ(?:ed|s)? from package metadata|differ(?:ed|s)? from package version)\b/i
       .test(text)
   );
 }
@@ -345,6 +346,8 @@ function hasConcreteRootCauseMechanism(value: string) {
       .test(text);
   const hasMissingRouteMechanism =
     /\b(route|\/api\/[\w/-]+)\b.+\b(missing|unregistered|was missing|was unregistered)\b.+\b(before request setup|before api requests?|api requests?|request setup)\b/i
+      .test(text) ||
+    /\b(route|\/api\/[\w/-]+)\b.+\b(was not registered|not registered)\b.+\b(before request setup|before api requests?|api requests?|request setup)\b/i
       .test(text) ||
     /\b(missing|unregistered)\b.+\b(route|\/api\/[\w/-]+)\b.+\b(before request setup|before api requests?|api requests?|request setup)\b/i
       .test(text);

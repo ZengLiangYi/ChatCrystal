@@ -209,6 +209,27 @@ test('validateMaterializedNoteQuality accepts natural package metadata and dist 
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts caused package dist differences', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Normalize prerelease metadata before dist output',
+    summary: 'Normalize package version metadata before generating dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Version normalization stripped prerelease tags and caused generated dist output to differ from package metadata.',
+      'Resolution: Normalize package version metadata before generating dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package version metadata before generating dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Version normalization stripped prerelease tags and caused generated dist output to differ from package metadata.',
+      resolution: 'Normalize package version metadata before generating dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality accepts causal package metadata inclusion fixes', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Normalize package metadata before dist generation',
@@ -602,6 +623,27 @@ test('validateMaterializedNoteQuality accepts natural HTTP registration ordering
       summary: 'Register /api/notes before issuing API requests to prevent HTTP 404.',
       outcome_type: 'fix',
       root_cause: 'API requests returned HTTP 404 because /api/notes was registered after request setup.',
+      resolution: 'Register /api/notes before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts not-registered HTTP route fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before issuing API requests.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes route was not registered before request setup.',
+      'Resolution: Register /api/notes before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before issuing API requests.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes route was not registered before request setup.',
       resolution: 'Register /api/notes before issuing API requests.',
     },
   }), { mode: 'auto' });
