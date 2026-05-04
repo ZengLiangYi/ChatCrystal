@@ -186,8 +186,7 @@ function hasConcreteMechanism(value: string) {
       .test(text) ||
     /\b(package metadata|package version|generated dist|dist output)\b.+\b(diverged|diverge|parse|parsing|normalize|normalizing|compare|comparing)\b/i
       .test(text);
-  const hasDataDirFallback =
-    /\b(default data directory|data directory fallback|fell back|fallback)\b/i.test(text);
+  const hasDataDirFallback = hasDefaultDataDirectoryConsequence(text);
   const hasRelationalCleanup =
     /\b(foreign_keys|orphan rows|cascade|nulling|resets foreign_keys)\b/i.test(text);
   const hasDedupeKey =
@@ -224,7 +223,7 @@ function hasConcreteTransferableText(value: string) {
 
 function hasFailureOrConsequenceSignal(value: string) {
   return (
-    /\b(race|raced|orphan|dedupe|deduplicate|stale dist|dist diverge|dist diverged|diverge|diverged|fallback|fell back|econrefused|readiness issue|startup race|invalid note_tags|foreign_keys|cascade|nulling|source_run_key collision)\b/i
+    /\b(race|raced|orphan|dedupe|deduplicate|stale dist|dist diverge|dist diverged|diverge|diverged|econrefused|readiness issue|startup race|invalid note_tags|foreign_keys|cascade|nulling|source_run_key collision)\b/i
       .test(value) ||
     hasDefaultDataDirectoryConsequence(value) ||
     hasHttpFailureSignal(value)
@@ -235,18 +234,33 @@ function hasStrongRootCauseSignal(value: string) {
   if (isExistenceOnlyClaim(value)) return false;
   if (isPackageArtifactObservationClaim(value)) return false;
   if (isWeakRootCauseClaim(value)) return false;
+  if (hasPackageDistRootCauseShape(value)) return hasPackageDistRootCauseSignal(value);
   return (
     hasFailureOrConsequenceSignal(value) ||
-    /\b(version parsing|package metadata|package version)\b.+\b(inconsistent|mismatch|wrong comparison|stale|diverged|diverge)\b.+\b(dist comparison|dist comparisons|generated dist output|dist output)\b/i
+    /\b(because|so)\b.+\b(ran before|ran after|returned http [45]\d\d|returned [45]\d\d|http [45]\d\d|imported.+before|used the default data directory|version parsing.+(inconsistent|mismatch|wrong|stale|diverged|diverge)|raced|race|econrefused)\b/i
       .test(value) ||
-    /\b(inconsistent|mismatch|wrong comparison|stale|diverged|diverge)\b.+\b(version parsing|package metadata|package version)\b.+\b(dist comparison|dist comparisons|generated dist output|dist output)\b/i
-      .test(value) ||
-    /\b(dist comparison|dist comparisons|generated dist output|dist output)\b.+\b(inconsistent|mismatch|wrong comparison|stale|diverged|diverge)\b.+\b(version parsing|package metadata|package version)\b/i
-      .test(value) ||
-    /\b(because|so)\b.+\b(ran before|ran after|returned http [45]\d\d|returned [45]\d\d|http [45]\d\d|imported.+before|used the default data directory|version parsing.+(inconsistent|mismatch|wrong|stale|diverged|diverge)|fell back|fallback|diverged|raced|race|econrefused)\b/i
-      .test(value) ||
-    /\b(ran before|ran after|returned http [45]\d\d|returned [45]\d\d|http [45]\d\d|imported.+before|used the default data directory|version parsing.+(inconsistent|mismatch|wrong|stale|diverged|diverge)|fell back|fallback|diverged|raced|race|econrefused)\b.+\b(because|so)\b/i
+    /\b(ran before|ran after|returned http [45]\d\d|returned [45]\d\d|http [45]\d\d|imported.+before|used the default data directory|version parsing.+(inconsistent|mismatch|wrong|stale|diverged|diverge)|raced|race|econrefused)\b.+\b(because|so)\b/i
       .test(value)
+  );
+}
+
+function hasPackageDistRootCauseShape(value: string) {
+  return /\b(package metadata|package version|version parsing|package version parsing|package normalization|version normalization)\b/i
+    .test(value) &&
+    /\b(generated dist output|dist output|dist comparison|dist comparisons|dist)\b/i
+      .test(value);
+}
+
+function hasPackageDistRootCauseSignal(value: string) {
+  const text = value.toLowerCase();
+  if (isPackageArtifactObservationClaim(text) || isExistenceOnlyClaim(text)) return false;
+  return (
+    /\b(package metadata|package version|generated dist output|dist output)\b.+\b(diverged|diverge|mismatch|stale|wrong)\b.+\bbecause\b.+\b(version parsing|parsing|normalization|normalize|normalized)\b.+\b(inconsistent|different formats|mismatch|wrong|stale)\b/i
+      .test(text) ||
+    /\b(generated dist output|dist output)\b.+\b(diverged|diverge|mismatch|stale|wrong)\b.+\b(package metadata|package version)\b.+\bbecause\b.+\b(version parsing|parsing|normalization|normalize|normalized)\b.+\b(inconsistent|different formats|mismatch|wrong|stale)\b/i
+      .test(text) ||
+    /\b(inconsistent|mismatch|wrong comparison|wrong|stale|different formats)\b.+\b(version parsing|package version parsing|package metadata|package version|version normalization|package normalization)\b.+\b(generated dist output|dist output|dist comparisons?|dist)\b/i
+      .test(text)
   );
 }
 
@@ -382,7 +396,7 @@ function isStatusShapedSelfContainedItem(note: MaterializedTaskMemoryNote) {
 }
 
 function hasStrongReusableMechanism(value: string) {
-  return /\b(normalize|normalizing|parse|parsing|diverge|diverged|default data directory|fallback|fell back|race|raced|orphan|dedupe|deduplicate|foreign_keys|cascade|nulling|source_run_key)\b/i
+  return /\b(normalize|normalizing|parse|parsing|diverge|diverged|default data directory|race|raced|orphan|dedupe|deduplicate|foreign_keys|cascade|nulling|source_run_key)\b/i
     .test(value);
 }
 

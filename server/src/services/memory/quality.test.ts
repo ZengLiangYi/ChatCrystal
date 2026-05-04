@@ -366,6 +366,27 @@ test('validateMaterializedNoteQuality rejects active package artifact observatio
   assert.ok(foundResult.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects package metadata visible existence causes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Package metadata release checks',
+    summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Package metadata was visible because generated dist output diverged during release checks.',
+      'Resolution: Normalize package metadata before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Package metadata was visible because generated dist output diverged during release checks.',
+      resolution: 'Normalize package metadata before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality accepts API registration ordering HTTP failures', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'API registration ordering caused HTTP 404',
@@ -742,6 +763,23 @@ test('validateMaterializedNoteQuality rejects generic unreliable behavior conseq
       summary: 'Set DATA_DIR before importing the Electron server entrypoint to prevent unreliable behavior.',
       outcome_type: 'decision',
       decisions: ['Set DATA_DIR before importing the Electron server entrypoint to prevent unreliable behavior.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects bare fallback consequences', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API fallback decision',
+    summary: 'Index /api/notes before request setup to prevent fallback.',
+    key_conclusions: ['Decision: Index /api/notes before request setup to prevent fallback.'],
+    raw_payload: {
+      summary: 'Index /api/notes before request setup to prevent fallback.',
+      outcome_type: 'decision',
+      decisions: ['Index /api/notes before request setup to prevent fallback.'],
     },
   }), { mode: 'auto' });
 
