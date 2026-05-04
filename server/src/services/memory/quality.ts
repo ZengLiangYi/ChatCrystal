@@ -50,9 +50,11 @@ function hasWord(text: string, word: string) {
 function hasConcreteTransferableAction(value: string) {
   const text = value.toLowerCase();
   const concreteActionWords = [
+    'add',
     'block',
     'cache',
     'collapse',
+    'configure',
     'compare',
     'comparing',
     'debounce',
@@ -67,14 +69,19 @@ function hasConcreteTransferableAction(value: string) {
     'migrate',
     'normalize',
     'parse',
+    'pin',
     'prune',
     'rebuild',
+    'remove',
+    'replace',
     'retry',
     'sanitize',
+    'set',
     'truncate',
     'validate',
     'wait',
     'wait for',
+    'wrap',
     '避免',
     '防止',
     '复用',
@@ -86,7 +93,11 @@ function isVagueGenericLesson(value: string) {
   const text = value.toLowerCase();
   const hasBoilerplateClaim =
     /\bvalidation is important for correctness\b/.test(text) ||
+    /\bcorrectness matters\b/.test(text) ||
+    /\bcorrect pattern\b/.test(text) ||
     /\bbecause\b.+\bis important for correctness\b/.test(text) ||
+    /\bshould\b.+\bbecause correctness\b/.test(text) ||
+    /\bshould\b.+\bcorrect pattern\b/.test(text) ||
     /\bthe (pattern|task) should\b/.test(text) ||
     /\bshould validate\b.+\bbecause\b/.test(text) ||
     /\bexpected pattern\b/.test(text);
@@ -107,7 +118,7 @@ function isGenericStatusAction(value: string) {
 }
 
 function hasSpecificObject(value: string) {
-  return /\b(server|readiness|client calls?|request setup|package version|dist output|release checks?|node_env|npm link|sqlite|database|tags?|note_tags|embedding|jsonl|cursor|codex|claude|mcp|api|url|port|path|config|environment|schema|queue|watcher|electron|window state)\b|\b[a-z0-9]+_[a-z0-9_]+\b|[a-z]:\\|\/[\w.-]+|[\u3400-\u9fff]/i
+  return /\b(server|readiness|client calls?|request setup|package version|dist output|release checks?|node_env|data_dir|data directory|entrypoint|startup|npm link|sqlite|database|tags?|note_tags|embedding|jsonl|cursor|codex|claude|mcp|api|url|port|path|config|environment|schema|queue|watcher|electron|window state)\b|\b[a-z0-9]+_[a-z0-9_]+\b|[a-z]:\\|\/[\w.-]+|[\u3400-\u9fff]/i
     .test(value.toLowerCase());
 }
 

@@ -245,6 +245,57 @@ test('validateMaterializedNoteQuality rejects boilerplate API validation pattern
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects boilerplate config pattern claims', () => {
+  const apiResult = validateMaterializedNoteQuality(note({
+    title: 'Generic API config indexing decision',
+    summary: 'API config should index the correct pattern because correctness matters.',
+    key_conclusions: ['Decision: API config should index the correct pattern because correctness matters.'],
+    raw_payload: {
+      summary: 'API config should index the correct pattern because correctness matters.',
+      outcome_type: 'decision',
+      decisions: ['API config should index the correct pattern because correctness matters.'],
+    },
+  }), { mode: 'auto' });
+  const serverResult = validateMaterializedNoteQuality(note({
+    title: 'Generic server config cache pattern',
+    summary: 'Server config should cache the correct pattern because correctness matters.',
+    key_conclusions: ['Pattern: Server config should cache the correct pattern because correctness matters.'],
+    raw_payload: {
+      summary: 'Server config should cache the correct pattern because correctness matters.',
+      outcome_type: 'pattern',
+      reusable_patterns: ['Server config should cache the correct pattern because correctness matters.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(apiResult.accepted, false);
+  assert.equal(apiResult.reason, 'low-note-quality');
+  assert.ok(apiResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(serverResult.accepted, false);
+  assert.equal(serverResult.reason, 'low-note-quality');
+  assert.ok(serverResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts concrete DATA_DIR Electron config fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Set DATA_DIR before importing Electron server',
+    summary: 'Set DATA_DIR before importing the Electron server so embedded startup uses the intended ChatCrystal data directory.',
+    key_conclusions: [
+      'Root cause: The Electron main process imported the server before DATA_DIR was configured, so startup used the default data directory.',
+      'Resolution: Set DATA_DIR before importing the Electron server entrypoint.',
+    ],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server so embedded startup uses the intended ChatCrystal data directory.',
+      outcome_type: 'fix',
+      root_cause: 'The Electron main process imported the server before DATA_DIR was configured, so startup used the default data directory.',
+      resolution: 'Set DATA_DIR before importing the Electron server entrypoint.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality rejects generic readiness root cause and resolution', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Server readiness generic fix',
