@@ -224,8 +224,9 @@ function hasConcreteTransferableText(value: string) {
 
 function hasFailureOrConsequenceSignal(value: string) {
   return (
-    /\b(race|raced|orphan|dedupe|deduplicate|stale dist|dist diverge|dist diverged|diverge|diverged|fallback|fell back|default data directory|econrefused|readiness issue|startup race|invalid note_tags|foreign_keys|cascade|nulling|source_run_key collision)\b/i
+    /\b(race|raced|orphan|dedupe|deduplicate|stale dist|dist diverge|dist diverged|diverge|diverged|fallback|fell back|econrefused|readiness issue|startup race|invalid note_tags|foreign_keys|cascade|nulling|source_run_key collision)\b/i
       .test(value) ||
+    hasDefaultDataDirectoryConsequence(value) ||
     hasHttpFailureSignal(value)
   );
 }
@@ -240,16 +241,26 @@ function hasStrongRootCauseSignal(value: string) {
       .test(value) ||
     /\b(dist comparison|dist comparisons|generated dist output|dist output)\b.+\b(inconsistent|mismatch|wrong comparison|stale|diverged|diverge)\b.+\b(version parsing|package metadata|package version)\b/i
       .test(value) ||
-    /\b(because|so)\b.+\b(ran before|ran after|returned http [45]\d\d|returned [45]\d\d|http [45]\d\d|imported.+before|used the default data directory|version parsing.+(inconsistent|mismatch|wrong|stale|diverged|diverge)|default data directory|fell back|fallback|diverged|raced|race|econrefused)\b/i
+    /\b(because|so)\b.+\b(ran before|ran after|returned http [45]\d\d|returned [45]\d\d|http [45]\d\d|imported.+before|used the default data directory|version parsing.+(inconsistent|mismatch|wrong|stale|diverged|diverge)|fell back|fallback|diverged|raced|race|econrefused)\b/i
       .test(value) ||
-    /\b(ran before|ran after|returned http [45]\d\d|returned [45]\d\d|http [45]\d\d|imported.+before|used the default data directory|version parsing.+(inconsistent|mismatch|wrong|stale|diverged|diverge)|default data directory|fell back|fallback|diverged|raced|race|econrefused)\b.+\b(because|so)\b/i
+    /\b(ran before|ran after|returned http [45]\d\d|returned [45]\d\d|http [45]\d\d|imported.+before|used the default data directory|version parsing.+(inconsistent|mismatch|wrong|stale|diverged|diverge)|fell back|fallback|diverged|raced|race|econrefused)\b.+\b(because|so)\b/i
       .test(value)
   );
 }
 
 function isExistenceOnlyClaim(value: string) {
   const text = value.toLowerCase();
-  return /\b(existed|exists|was present|were present|available|present during)\b/.test(text);
+  const hasExistencePhrase =
+    /\b(existed|exists|was present|were present|present during|is available|was available|on disk|is on disk|was on disk)\b/
+      .test(text);
+  return hasExistencePhrase && !hasDefaultDataDirectoryConsequence(text);
+}
+
+function hasDefaultDataDirectoryConsequence(value: string) {
+  return /\b(prevents?|preventing|avoid|avoids|avoiding)\b.+\bfallback\b.+\bdefault data directory\b/i
+    .test(value) ||
+    /\b(fallback|fell back)\b.+\bdefault data directory\b/i.test(value) ||
+    /\bused the default data directory\b/i.test(value);
 }
 
 function hasHttpFailureSignal(value: string) {

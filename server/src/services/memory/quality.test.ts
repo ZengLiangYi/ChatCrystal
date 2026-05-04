@@ -522,6 +522,23 @@ test('validateMaterializedNoteQuality accepts causal self-contained DATA_DIR dec
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts fallback decisions with existence context', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR prevents default fallback',
+    summary: 'Set DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory when it exists.',
+    key_conclusions: ['Decision: Set DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory when it exists.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory when it exists.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory when it exists.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality rejects generic unreliable behavior consequences', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'DATA_DIR import ordering prevents unreliable behavior',
@@ -548,6 +565,23 @@ test('validateMaterializedNoteQuality rejects default data directory existence d
       summary: 'Set DATA_DIR before importing the Electron server entrypoint because the default data directory exists.',
       outcome_type: 'decision',
       decisions: ['Set DATA_DIR before importing the Electron server entrypoint because the default data directory exists.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects default data directory on-disk decisions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR default directory ordering decision',
+    summary: 'Set DATA_DIR before importing the Electron server entrypoint because the default data directory is on disk.',
+    key_conclusions: ['Decision: Set DATA_DIR before importing the Electron server entrypoint because the default data directory is on disk.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server entrypoint because the default data directory is on disk.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before importing the Electron server entrypoint because the default data directory is on disk.'],
     },
   }), { mode: 'auto' });
 
