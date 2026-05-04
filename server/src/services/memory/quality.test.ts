@@ -839,6 +839,36 @@ test('validateMaterializedNoteQuality rejects default data directory fallback ex
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects fallback-to-default-directory existence decisions', () => {
+  const existedResult = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR fallback existence decision',
+    summary: 'Set DATA_DIR before importing the Electron server entrypoint because fallback to the default data directory existed.',
+    key_conclusions: ['Decision: Set DATA_DIR before importing the Electron server entrypoint because fallback to the default data directory existed.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server entrypoint because fallback to the default data directory existed.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before importing the Electron server entrypoint because fallback to the default data directory existed.'],
+    },
+  }), { mode: 'auto' });
+  const onDiskResult = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR fallback existence decision',
+    summary: 'Set DATA_DIR before importing the Electron server entrypoint because fallback to the default data directory was on disk.',
+    key_conclusions: ['Decision: Set DATA_DIR before importing the Electron server entrypoint because fallback to the default data directory was on disk.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server entrypoint because fallback to the default data directory was on disk.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before importing the Electron server entrypoint because fallback to the default data directory was on disk.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(existedResult.accepted, false);
+  assert.equal(existedResult.reason, 'low-note-quality');
+  assert.ok(existedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(onDiskResult.accepted, false);
+  assert.equal(onDiskResult.reason, 'low-note-quality');
+  assert.ok(onDiskResult.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality rejects generic object-only mechanisms', () => {
   const addResult = validateMaterializedNoteQuality(note({
     title: 'Generic API config addition',

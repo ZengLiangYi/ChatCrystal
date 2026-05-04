@@ -284,7 +284,7 @@ function isPackageArtifactObservationClaim(value: string) {
 function hasDefaultDataDirectoryConsequence(value: string) {
   return /\b(prevents?|preventing|avoid|avoids|avoiding)\b.+\b(fallback\b.+\bdefault data directory|default data directory fallback)\b/i
     .test(value) ||
-    /\b(fallback|fell back)\b.+\bdefault data directory\b/i.test(value) ||
+    /\bfell back\b.+\bdefault data directory\b/i.test(value) ||
     /\bused the default data directory\b/i.test(value);
 }
 
