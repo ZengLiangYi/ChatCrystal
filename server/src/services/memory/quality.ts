@@ -233,6 +233,7 @@ function hasFailureOrConsequenceSignal(value: string) {
 
 function hasStrongRootCauseSignal(value: string) {
   if (isExistenceOnlyClaim(value)) return false;
+  if (isPackageArtifactObservationClaim(value)) return false;
   if (isWeakRootCauseClaim(value)) return false;
   return (
     hasFailureOrConsequenceSignal(value) ||
@@ -255,6 +256,15 @@ function isExistenceOnlyClaim(value: string) {
     /\b(existed|exists|was present|were present|present during|is available|was available|on disk|is on disk|was on disk|was there|were there|there was|there were|was found|were found|was included|were included|was located|were located|was listed|was detected|were detected|was observed|were observed|was seen|were seen|was discovered|were discovered|appeared|showed up)\b/
       .test(text);
   return hasExistencePhrase && !hasDefaultDataDirectoryConsequence(text);
+}
+
+function isPackageArtifactObservationClaim(value: string) {
+  const text = value.toLowerCase();
+  const packageArtifact = '(?:package metadata|package version|package artifact|package artifacts)';
+  const observationVerb = '(?:exist(?:ed|s)?|present|available|found|included|located|listed|detect(?:ed)?|observ(?:ed)?|saw|seen|discover(?:ed)?|appeared|showed up|was there|were there)';
+  const activeObservation = new RegExp(`\\b${observationVerb}\\b(?:\\s+\\w+){0,4}\\s+${packageArtifact}\\b`, 'i');
+  const artifactObservation = new RegExp(`\\b${packageArtifact}\\b(?:\\s+\\w+){0,4}\\s+${observationVerb}\\b`, 'i');
+  return activeObservation.test(text) || artifactObservation.test(text);
 }
 
 function hasDefaultDataDirectoryConsequence(value: string) {
