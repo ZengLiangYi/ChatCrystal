@@ -162,6 +162,7 @@ function hasSpecificEvidence(value: string) {
   return (
     /\b(data_dir|node_env|econrefused|note_tags|chatcrystal\.db|port|source_run_key|foreign_keys)\b|\/api\/[\w/-]+|\b[a-z0-9]+_[a-z0-9_]+\b|[a-z]:\\|\/[\w.-]+|[\u3400-\u9fff]/i
       .test(text) ||
+    hasHttpFailureSignal(text) ||
     /\b(api requests?|fastify readiness|server readiness|request setup|package metadata|package version|dist output|generated dist output|data directory|electron server|server entrypoint|client calls?)\b/i
       .test(text)
   );
@@ -190,13 +191,20 @@ function hasConcreteMechanism(value: string) {
     /\b(foreign_keys|orphan rows|cascade|nulling|resets foreign_keys)\b/i.test(text);
   const hasDedupeKey =
     /\b(dedupe|deduplicate)\b.+\b(source_run_key|key)\b/i.test(text);
+  const hasRequestFailureOrdering =
+    hasHttpFailureSignal(text) &&
+    (
+      /\b(ran after|after request setup|before issuing|before request setup|registration ran after)\b/i.test(text) ||
+      hasTimingOrder
+    );
   return (
     hasTimingOrder ||
     hasRaceReadiness ||
     hasPackageDistFlow ||
     hasDataDirFallback ||
     hasRelationalCleanup ||
-    hasDedupeKey
+    hasDedupeKey ||
+    hasRequestFailureOrdering
   );
 }
 
@@ -213,22 +221,34 @@ function hasConcreteTransferableText(value: string) {
 }
 
 function hasFailureOrConsequenceSignal(value: string) {
-  return /\b(race|raced|orphan|dedupe|deduplicate|stale dist|dist diverge|dist diverged|diverge|diverged|fallback|fell back|default data directory|econrefused|readiness issue|startup race|invalid note_tags|foreign_keys|cascade|nulling|source_run_key collision)\b/i
-    .test(value);
+  return (
+    /\b(race|raced|orphan|dedupe|deduplicate|stale dist|dist diverge|dist diverged|diverge|diverged|fallback|fell back|default data directory|econrefused|readiness issue|startup race|invalid note_tags|foreign_keys|cascade|nulling|source_run_key collision)\b/i
+      .test(value) ||
+    hasHttpFailureSignal(value)
+  );
 }
 
 function hasStrongRootCauseSignal(value: string) {
   return (
     hasFailureOrConsequenceSignal(value) ||
-    /\b(version parsing|package metadata|package version)\b.+\b(dist comparison|dist comparisons|generated dist output|dist output)\b/i
+    /\b(version parsing|package metadata|package version)\b.+\b(inconsistent|mismatch|wrong comparison|stale|diverged|diverge)\b.+\b(dist comparison|dist comparisons|generated dist output|dist output)\b/i
       .test(value) ||
-    /\b(dist comparison|dist comparisons|generated dist output|dist output)\b.+\b(version parsing|package metadata|package version)\b/i
+    /\b(inconsistent|mismatch|wrong comparison|stale|diverged|diverge)\b.+\b(version parsing|package metadata|package version)\b.+\b(dist comparison|dist comparisons|generated dist output|dist output)\b/i
       .test(value) ||
-    /\b(because|so)\b.+\b(ran before|imported.+before|used the default data directory|version parsing|generated dist output|default data directory|fell back|fallback|diverged|raced|race|econrefused)\b/i
+    /\b(dist comparison|dist comparisons|generated dist output|dist output)\b.+\b(inconsistent|mismatch|wrong comparison|stale|diverged|diverge)\b.+\b(version parsing|package metadata|package version)\b/i
       .test(value) ||
-    /\b(ran before|imported.+before|used the default data directory|version parsing|generated dist output|default data directory|fell back|fallback|diverged|raced|race|econrefused)\b.+\b(because|so)\b/i
+    /\b(because|so)\b.+\b(ran before|ran after|returned http [45]\d\d|returned [45]\d\d|http [45]\d\d|imported.+before|used the default data directory|version parsing|generated dist output|default data directory|fell back|fallback|diverged|raced|race|econrefused)\b/i
+      .test(value) ||
+    /\b(ran before|ran after|returned http [45]\d\d|returned [45]\d\d|http [45]\d\d|imported.+before|used the default data directory|version parsing|generated dist output|default data directory|fell back|fallback|diverged|raced|race|econrefused)\b.+\b(because|so)\b/i
       .test(value)
   );
+}
+
+function hasHttpFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasHttpError = /\b(http\s*)?[45]\d\d\b/.test(text);
+  const hasFailureContext = /\b(api|request|requests|route|http|returned|failed|threw|error)\b/.test(text);
+  return hasHttpError && hasFailureContext && !/\b(status\s*)?2\d\d\b/.test(text);
 }
 
 function hasActionableResolution(value: string) {
