@@ -296,6 +296,57 @@ test('validateMaterializedNoteQuality accepts concrete DATA_DIR Electron config 
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality rejects generic object-only mechanisms', () => {
+  const addResult = validateMaterializedNoteQuality(note({
+    title: 'Generic API config addition',
+    summary: 'Add API config because it should work.',
+    key_conclusions: ['Decision: Add API config because it should work.'],
+    raw_payload: {
+      summary: 'Add API config because it should work.',
+      outcome_type: 'decision',
+      decisions: ['Add API config because it should work.'],
+    },
+  }), { mode: 'auto' });
+  const cacheResult = validateMaterializedNoteQuality(note({
+    title: 'Generic server config cache pattern',
+    summary: 'Cache server config because it should work.',
+    key_conclusions: ['Pattern: Cache server config because it should work.'],
+    raw_payload: {
+      summary: 'Cache server config because it should work.',
+      outcome_type: 'pattern',
+      reusable_patterns: ['Cache server config because it should work.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(addResult.accepted, false);
+  assert.equal(addResult.reason, 'low-note-quality');
+  assert.ok(addResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(cacheResult.accepted, false);
+  assert.equal(cacheResult.reason, 'low-note-quality');
+  assert.ok(cacheResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic object-only root cause and resolution', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Generic API config fix',
+    summary: 'Add API config so the server works.',
+    key_conclusions: [
+      'Root cause: API config was wrong.',
+      'Resolution: Add API config so the server works.',
+    ],
+    raw_payload: {
+      summary: 'Add API config so the server works.',
+      outcome_type: 'fix',
+      root_cause: 'API config was wrong.',
+      resolution: 'Add API config so the server works.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality rejects generic readiness root cause and resolution', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Server readiness generic fix',

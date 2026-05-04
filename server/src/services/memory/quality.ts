@@ -20,7 +20,7 @@ function hasMeaningfulText(value: string, minLatin = 24, minCjk = 18) {
 }
 
 function isPlaceholderText(value: string) {
-  return /\b(unknown|n\/a|not sure|todo|tbd|appropriate change|fix the issue|task needed investigation|expected behavior|task works correctly|expected pattern)\b/i
+  return /\b(unknown|n\/a|not sure|todo|tbd|appropriate change|fix the issue|task needed investigation|expected behavior|task works correctly|expected pattern|was wrong)\b/i
     .test(value);
 }
 
@@ -100,6 +100,10 @@ function isVagueGenericLesson(value: string) {
     /\bshould\b.+\bcorrect pattern\b/.test(text) ||
     /\bthe (pattern|task) should\b/.test(text) ||
     /\bshould validate\b.+\bbecause\b/.test(text) ||
+    /\bbecause it should work\b/.test(text) ||
+    /\bso the server works\b/.test(text) ||
+    /\badd api config\b/.test(text) ||
+    /\bcache server config\b/.test(text) ||
     /\bexpected pattern\b/.test(text);
   const hasGenericTerms =
     /\b(the task|this task|the pattern|the implementation|implementation behavior|expected behavior|expected pattern|values?|input|correctness|going forward)\b/.test(text);
@@ -118,8 +122,14 @@ function isGenericStatusAction(value: string) {
 }
 
 function hasSpecificObject(value: string) {
-  return /\b(server|readiness|client calls?|request setup|package version|dist output|release checks?|node_env|data_dir|data directory|entrypoint|startup|npm link|sqlite|database|tags?|note_tags|embedding|jsonl|cursor|codex|claude|mcp|api|url|port|path|config|environment|schema|queue|watcher|electron|window state)\b|\b[a-z0-9]+_[a-z0-9_]+\b|[a-z]:\\|\/[\w.-]+|[\u3400-\u9fff]/i
-    .test(value.toLowerCase());
+  const text = value.toLowerCase();
+  const hasSpecificIdentifier =
+    /\b(data_dir|node_env|econrefused|note_tags|chatcrystal\.db|port|source_run_key|foreign_keys)\b|\/api\/[\w/-]+|\b[a-z0-9]+_[a-z0-9_]+\b|[a-z]:\\|\/[\w.-]+|[\u3400-\u9fff]/i
+      .test(text);
+  const hasConcreteMechanism =
+    /\b(before importing|raced server startup|raced startup|resets foreign_keys|orphan rows|commits can diverge|used the default data directory|stale dist|dedupe by source_run_key|client calls raced|request setup|package version parsing|dist comparisons?|generated dist output|release checks?|startup used the default data directory|imported the server before)\b/i
+      .test(text);
+  return hasSpecificIdentifier || hasConcreteMechanism;
 }
 
 function hasConcreteTransferableText(value: string) {
