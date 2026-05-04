@@ -72,6 +72,27 @@ test('validateMaterializedNoteQuality accepts readiness fixes with reliable outc
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality rejects generic resolutions with concrete root causes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Server readiness generic validation',
+    summary: 'Add validation to prevent future failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Add validation to prevent future failures.',
+    ],
+    raw_payload: {
+      summary: 'Add validation to prevent future failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Add validation to prevent future failures.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality rejects #87-like one-off status records in auto mode', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Check local dist and linked core',

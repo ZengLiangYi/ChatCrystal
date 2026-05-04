@@ -369,9 +369,17 @@ function hasActionableResolution(value: string) {
   return (
     hasNonPlaceholderMeaningfulText(value) &&
     hasConcreteTransferableAction(value) &&
+    hasSpecificObject(value) &&
+    hasConcreteMechanism(value) &&
+    !isGenericResolutionClaim(value) &&
     !isGenericStatusAction(value) &&
     !isVagueGenericFixClaim(value)
   );
+}
+
+function isGenericResolutionClaim(value: string) {
+  return /\b(add|use|apply)\b.+\bvalidation\b.+\b(prevent|avoid)\b.+\b(future failures?|failures?|issues?)\b/i
+    .test(value);
 }
 
 function hasDurableFixSignal(note: MaterializedTaskMemoryNote) {
