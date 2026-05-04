@@ -278,6 +278,8 @@ function hasPackageDistRootCauseSignal(value: string) {
     /\b(inconsistent|different formats)\b.+\b(version parsing|package version parsing|version normalization|package normalization)\b.+\bdist comparisons?\b.+\bunreliable\b/i
       .test(text) ||
     /\b(generated dist output|dist output)\b.+\bstale package metadata\b.+\bbecause\b.+\bversion bump\b.+\bran after\b.+\bdist generation\b/i
+      .test(text) ||
+    /\b(generated dist output|dist output)\b.+\bstale\b.+\bbecause\b.+\bdist generation\b.+\bran before\b.+\b(package metadata )?version bump\b/i
       .test(text);
   if ((isPackageArtifactObservationClaim(text) || isExistenceOnlyClaim(text)) && !hasExplicitPackageCausality(text)) {
     return false;

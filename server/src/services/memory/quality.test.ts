@@ -249,6 +249,25 @@ test('validateMaterializedNoteQuality accepts package version bump dist regenera
   assert.equal(result.accepted, true);
   assert.equal(result.reason, 'note-quality-ok');
   assert.deepEqual(result.warnings, []);
+
+  const inverseResult = validateMaterializedNoteQuality(note({
+    title: 'Regenerate dist after package version bump',
+    summary: 'Regenerate generated dist output after bumping package metadata so release artifacts carry the new package version.',
+    key_conclusions: [
+      'Root cause: Generated dist output stayed stale because dist generation ran before the package metadata version bump.',
+      'Resolution: Regenerate generated dist output after bumping package metadata so release artifacts carry the new package version.',
+    ],
+    raw_payload: {
+      summary: 'Regenerate generated dist output after bumping package metadata so release artifacts carry the new package version.',
+      outcome_type: 'fix',
+      root_cause: 'Generated dist output stayed stale because dist generation ran before the package metadata version bump.',
+      resolution: 'Regenerate generated dist output after bumping package metadata so release artifacts carry the new package version.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(inverseResult.accepted, true);
+  assert.equal(inverseResult.reason, 'note-quality-ok');
+  assert.deepEqual(inverseResult.warnings, []);
 });
 
 test('validateMaterializedNoteQuality rejects package parsing causes without dist consequence', () => {
