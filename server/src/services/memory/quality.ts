@@ -65,7 +65,10 @@ function hasConcreteTransferableAction(value: string) {
     'filter',
     'gate',
     'group',
+    'import',
     'index',
+    'initialize',
+    'load',
     'migrate',
     'normalize',
     'parse',
@@ -209,6 +212,7 @@ function hasConcreteMechanism(value: string) {
 }
 
 function hasConcreteTransferableText(value: string) {
+  if (hasPackageDistRootCauseShape(value) && !hasPackageItemSignal(value)) return false;
   return (
     hasNonPlaceholderMeaningfulText(value) &&
     hasConcreteTransferableAction(value) &&
@@ -219,6 +223,12 @@ function hasConcreteTransferableText(value: string) {
     !isGenericStatusAction(value) &&
     !isVagueGenericLesson(value)
   );
+}
+
+function hasPackageItemSignal(value: string) {
+  const text = value.toLowerCase();
+  if (/\b(current|local|status checks?|checked)\b/i.test(text)) return false;
+  return hasPackageDistRootCauseSignal(text);
 }
 
 function hasFailureOrConsequenceSignal(value: string) {

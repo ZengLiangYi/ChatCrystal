@@ -126,6 +126,26 @@ test('validateMaterializedNoteQuality rejects package version status comparisons
   );
 });
 
+test('validateMaterializedNoteQuality rejects package version status comparisons with divergence wording', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Package version status comparison',
+    summary: 'Compare current package version before generated dist output because generated dist output diverged during local status checks.',
+    key_conclusions: ['Decision: Compare current package version before generated dist output because generated dist output diverged during local status checks.'],
+    raw_payload: {
+      summary: 'Compare current package version before generated dist output because generated dist output diverged during local status checks.',
+      outcome_type: 'decision',
+      decisions: ['Compare current package version before generated dist output because generated dist output diverged during local status checks.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(
+    result.warnings.includes('one_off_status') ||
+    result.warnings.includes('durable_reusable_lesson'),
+  );
+});
+
 test('validateMaterializedNoteQuality accepts reusable package version fixes', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Normalize package version parsing before dist comparison',
@@ -505,6 +525,27 @@ test('validateMaterializedNoteQuality accepts natural NODE_ENV HTTP import order
       outcome_type: 'fix',
       root_cause: 'Production API requests returned HTTP 500 because NODE_ENV config was imported after request setup.',
       resolution: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts NODE_ENV import resolutions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Production API config import ordering caused HTTP 500',
+    summary: 'Import NODE_ENV config before request setup to prevent HTTP 500 in production API requests.',
+    key_conclusions: [
+      'Root cause: Production API requests returned HTTP 500 because NODE_ENV config was imported after request setup.',
+      'Resolution: Import NODE_ENV config before request setup to prevent HTTP 500 in production API requests.',
+    ],
+    raw_payload: {
+      summary: 'Import NODE_ENV config before request setup to prevent HTTP 500 in production API requests.',
+      outcome_type: 'fix',
+      root_cause: 'Production API requests returned HTTP 500 because NODE_ENV config was imported after request setup.',
+      resolution: 'Import NODE_ENV config before request setup to prevent HTTP 500 in production API requests.',
     },
   }), { mode: 'auto' });
 
