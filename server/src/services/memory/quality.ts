@@ -234,6 +234,7 @@ function hasStrongRootCauseSignal(value: string) {
   if (hasPackageDistRootCauseShape(value)) return hasPackageDistRootCauseSignal(value);
   if (isExistenceOnlyClaim(value)) return false;
   if (isPackageArtifactObservationClaim(value)) return false;
+  if (hasGenericRootCauseRationale(value)) return false;
   if (isWeakRootCauseClaim(value)) return false;
   if (hasHttpFailureSignal(value)) return hasConcreteHttpRootCauseSignal(value);
   return (
@@ -299,7 +300,27 @@ function isWeakRootCauseClaim(value: string) {
 }
 
 function hasConcreteRootCauseMechanism(value: string) {
-  return /\b(registration ran after request setup|missing route|route was unregistered|unregistered route|imported .+ after request setup|ran after request setup)\b/i
+  const text = value.toLowerCase();
+  const hasRegistrationOrdering =
+    /(?:\/api\/[\w/-]+|route|registration).+\b(was registered after request setup|registration ran after request setup|registered after request setup|ran after request setup)\b/i
+      .test(text);
+  const hasConfigOrdering =
+    /\b(config|node_env config)\b.+\b(imported|was imported)\b.+\b(node_env\s+)?after request setup\b/i
+      .test(text) ||
+    /\bnode_env\b.+\bconfig\b.+\b(imported|was imported)\b.+\bafter request setup\b/i
+      .test(text) ||
+    /\bimported\b.+\bnode_env\b.+\bafter request setup\b/i
+      .test(text);
+  const hasMissingRouteMechanism =
+    /\b(route|\/api\/[\w/-]+)\b.+\b(missing|unregistered|was missing|was unregistered)\b.+\b(before request setup|before api requests?|api requests?|request setup)\b/i
+      .test(text) ||
+    /\b(missing|unregistered)\b.+\b(route|\/api\/[\w/-]+)\b.+\b(before request setup|before api requests?|api requests?|request setup)\b/i
+      .test(text);
+  return hasRegistrationOrdering || hasConfigOrdering || hasMissingRouteMechanism;
+}
+
+function hasGenericRootCauseRationale(value: string) {
+  return /\bbecause\b.+\b(correctness|reliability|quality|it)\b.+\b(mattered|was important|is important)\b/i
     .test(value);
 }
 

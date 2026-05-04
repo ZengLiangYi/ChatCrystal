@@ -450,6 +450,27 @@ test('validateMaterializedNoteQuality accepts register-based HTTP failure fixes'
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts natural HTTP registration ordering fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before issuing API requests to prevent HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes was registered after request setup.',
+      'Resolution: Register /api/notes before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before issuing API requests to prevent HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes was registered after request setup.',
+      resolution: 'Register /api/notes before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality accepts concrete NODE_ENV HTTP failure fixes', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Production API config import ordering caused HTTP 500',
@@ -462,6 +483,27 @@ test('validateMaterializedNoteQuality accepts concrete NODE_ENV HTTP failure fix
       summary: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
       outcome_type: 'fix',
       root_cause: 'Production API requests returned HTTP 500 because config imported NODE_ENV after request setup.',
+      resolution: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts natural NODE_ENV HTTP import ordering fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Production API config import ordering caused HTTP 500',
+    summary: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    key_conclusions: [
+      'Root cause: Production API requests returned HTTP 500 because NODE_ENV config was imported after request setup.',
+      'Resolution: Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    ],
+    raw_payload: {
+      summary: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+      outcome_type: 'fix',
+      root_cause: 'Production API requests returned HTTP 500 because NODE_ENV config was imported after request setup.',
       resolution: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
     },
   }), { mode: 'auto' });
@@ -507,6 +549,27 @@ test('validateMaterializedNoteQuality rejects generic HTTP root cause rationales
   assert.equal(reliabilityResult.accepted, false);
   assert.equal(reliabilityResult.reason, 'low-note-quality');
   assert.ok(reliabilityResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic HTTP rationales with route tokens', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API HTTP 404 generic route fix',
+    summary: 'Register /api/notes before issuing API requests.',
+    key_conclusions: [
+      'Root cause: API returned HTTP 404 because correctness mattered; missing route.',
+      'Resolution: Register /api/notes before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before issuing API requests.',
+      outcome_type: 'fix',
+      root_cause: 'API returned HTTP 404 because correctness mattered; missing route.',
+      resolution: 'Register /api/notes before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects weak not-correct HTTP root causes', () => {
