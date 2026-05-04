@@ -101,6 +101,10 @@ function isVagueGenericLesson(value: string) {
     /\bthe (pattern|task) should\b/.test(text) ||
     /\bshould validate\b.+\bbecause\b/.test(text) ||
     /\bbecause it should work\b/.test(text) ||
+    /\bit should work correctly\b/.test(text) ||
+    /\bshould work\b/.test(text) ||
+    /\bshould work correctly\b/.test(text) ||
+    /\bso\b.+\bworks?\b/.test(text) ||
     /\bso the server works\b/.test(text) ||
     /\badd api config\b/.test(text) ||
     /\bcache server config\b/.test(text) ||

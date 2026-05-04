@@ -347,6 +347,36 @@ test('validateMaterializedNoteQuality rejects generic object-only root cause and
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects concrete identifiers with vague work rationales', () => {
+  const dataDirResult = validateMaterializedNoteQuality(note({
+    title: 'API config DATA_DIR decision',
+    summary: 'Set API config to DATA_DIR so API config should work.',
+    key_conclusions: ['Decision: Set API config to DATA_DIR so API config should work.'],
+    raw_payload: {
+      summary: 'Set API config to DATA_DIR so API config should work.',
+      outcome_type: 'decision',
+      decisions: ['Set API config to DATA_DIR so API config should work.'],
+    },
+  }), { mode: 'auto' });
+  const portResult = validateMaterializedNoteQuality(note({
+    title: 'PORT config correctness decision',
+    summary: 'Set server config to PORT because it should work correctly.',
+    key_conclusions: ['Decision: Set server config to PORT because it should work correctly.'],
+    raw_payload: {
+      summary: 'Set server config to PORT because it should work correctly.',
+      outcome_type: 'decision',
+      decisions: ['Set server config to PORT because it should work correctly.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(dataDirResult.accepted, false);
+  assert.equal(dataDirResult.reason, 'low-note-quality');
+  assert.ok(dataDirResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(portResult.accepted, false);
+  assert.equal(portResult.reason, 'low-note-quality');
+  assert.ok(portResult.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality rejects generic readiness root cause and resolution', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Server readiness generic fix',
