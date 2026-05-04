@@ -290,6 +290,44 @@ test('validateMaterializedNoteQuality rejects package metadata found or included
   assert.ok(includedResult.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects package metadata detected or observed existence claims', () => {
+  const detectedResult = validateMaterializedNoteQuality(note({
+    title: 'Package metadata release checks',
+    summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Package metadata was detected because generated dist output diverged during release checks.',
+      'Resolution: Normalize package metadata before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Package metadata was detected because generated dist output diverged during release checks.',
+      resolution: 'Normalize package metadata before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+  const observedResult = validateMaterializedNoteQuality(note({
+    title: 'Package metadata release checks',
+    summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Package metadata was observed because generated dist output diverged during release checks.',
+      'Resolution: Normalize package metadata before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Package metadata was observed because generated dist output diverged during release checks.',
+      resolution: 'Normalize package metadata before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(detectedResult.accepted, false);
+  assert.equal(detectedResult.reason, 'low-note-quality');
+  assert.ok(detectedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(observedResult.accepted, false);
+  assert.equal(observedResult.reason, 'low-note-quality');
+  assert.ok(observedResult.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality accepts API registration ordering HTTP failures', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'API registration ordering caused HTTP 404',
