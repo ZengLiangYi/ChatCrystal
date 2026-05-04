@@ -384,6 +384,8 @@ function hasActionableResolution(value: string) {
 
 function isGenericResolutionClaim(value: string) {
   return /\b(add|use|apply)\b.+\bvalidation\b.+\b(prevent|avoid)\b.+\b(future failures?|failures?|issues?)\b/i
+    .test(value) ||
+    /\bvalidate\b.+\b(?:to\s+)?(?:prevent|avoid)\b.+\b(future failures?|failures?|issues?)\b/i
     .test(value);
 }
 

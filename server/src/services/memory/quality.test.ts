@@ -91,6 +91,25 @@ test('validateMaterializedNoteQuality rejects generic resolutions with concrete 
   assert.equal(result.accepted, false);
   assert.equal(result.reason, 'low-note-quality');
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
+
+  const validateResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness validation prevents ECONNREFUSED',
+    summary: 'Validate server readiness to prevent future failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Validate server readiness to prevent future failures.',
+    ],
+    raw_payload: {
+      summary: 'Validate server readiness to prevent future failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Validate server readiness to prevent future failures.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(validateResult.accepted, false);
+  assert.equal(validateResult.reason, 'low-note-quality');
+  assert.ok(validateResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects #87-like one-off status records in auto mode', () => {
