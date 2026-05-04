@@ -216,6 +216,7 @@ function hasConcreteTransferableText(value: string) {
     hasSpecificEvidence(value) &&
     hasConcreteMechanism(value) &&
     hasFailureOrConsequenceSignal(value) &&
+    !isExistenceOnlyClaim(value) &&
     !isGenericStatusAction(value) &&
     !isVagueGenericLesson(value)
   );
@@ -230,6 +231,7 @@ function hasFailureOrConsequenceSignal(value: string) {
 }
 
 function hasStrongRootCauseSignal(value: string) {
+  if (isExistenceOnlyClaim(value)) return false;
   return (
     hasFailureOrConsequenceSignal(value) ||
     /\b(version parsing|package metadata|package version)\b.+\b(inconsistent|mismatch|wrong comparison|stale|diverged|diverge)\b.+\b(dist comparison|dist comparisons|generated dist output|dist output)\b/i
@@ -243,6 +245,11 @@ function hasStrongRootCauseSignal(value: string) {
     /\b(ran before|ran after|returned http [45]\d\d|returned [45]\d\d|http [45]\d\d|imported.+before|used the default data directory|version parsing.+(inconsistent|mismatch|wrong|stale|diverged|diverge)|default data directory|fell back|fallback|diverged|raced|race|econrefused)\b.+\b(because|so)\b/i
       .test(value)
   );
+}
+
+function isExistenceOnlyClaim(value: string) {
+  const text = value.toLowerCase();
+  return /\b(existed|exists|was present|were present|available|present during)\b/.test(text);
 }
 
 function hasHttpFailureSignal(value: string) {

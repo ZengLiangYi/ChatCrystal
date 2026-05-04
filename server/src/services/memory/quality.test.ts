@@ -210,6 +210,27 @@ test('validateMaterializedNoteQuality rejects package and dist existence under b
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects package metadata existence even with dist divergence words', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Package metadata release checks',
+    summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Package metadata existed because generated dist output diverged during release checks.',
+      'Resolution: Normalize package metadata before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Package metadata existed because generated dist output diverged during release checks.',
+      resolution: 'Normalize package metadata before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality accepts API registration ordering HTTP failures', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'API registration ordering caused HTTP 404',
@@ -510,6 +531,23 @@ test('validateMaterializedNoteQuality rejects generic unreliable behavior conseq
       summary: 'Set DATA_DIR before importing the Electron server entrypoint to prevent unreliable behavior.',
       outcome_type: 'decision',
       decisions: ['Set DATA_DIR before importing the Electron server entrypoint to prevent unreliable behavior.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects default data directory existence decisions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR default directory existence decision',
+    summary: 'Set DATA_DIR before importing the Electron server entrypoint because the default data directory exists.',
+    key_conclusions: ['Decision: Set DATA_DIR before importing the Electron server entrypoint because the default data directory exists.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server entrypoint because the default data directory exists.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before importing the Electron server entrypoint because the default data directory exists.'],
     },
   }), { mode: 'auto' });
 
