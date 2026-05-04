@@ -124,14 +124,13 @@ function hasDurableReusableSignal(note: MaterializedTaskMemoryNote) {
   const hasMeaningfulRootCause = Boolean(
     payload.root_cause &&
     hasNonPlaceholderMeaningfulText(payload.root_cause) &&
+    hasSpecificObject(payload.root_cause) &&
     !isGenericStatusAction(payload.root_cause) &&
     !isVagueGenericLesson(payload.root_cause),
   );
   const hasMeaningfulResolution = Boolean(
     payload.resolution &&
-    hasNonPlaceholderMeaningfulText(payload.resolution) &&
-    !isGenericStatusAction(payload.resolution) &&
-    !isVagueGenericLesson(payload.resolution),
+    hasConcreteTransferableText(payload.resolution),
   );
   const hasStructuredSignal =
     (hasMeaningfulRootCause && hasMeaningfulResolution) ||

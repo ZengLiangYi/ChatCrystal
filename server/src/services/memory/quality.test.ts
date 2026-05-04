@@ -228,6 +228,27 @@ test('validateMaterializedNoteQuality rejects generic compare and validate lesso
   assert.ok(validateResult.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects generic readiness root cause and resolution', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Server readiness generic fix',
+    summary: 'Use a better approach to handle server readiness properly.',
+    key_conclusions: [
+      'Root cause: Server readiness handling was incomplete during startup.',
+      'Resolution: Use a better approach to handle server readiness properly.',
+    ],
+    raw_payload: {
+      summary: 'Use a better approach to handle server readiness properly.',
+      outcome_type: 'fix',
+      root_cause: 'Server readiness handling was incomplete during startup.',
+      resolution: 'Use a better approach to handle server readiness properly.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality requires visible key conclusions', () => {
   const result = validateMaterializedNoteQuality(note({
     key_conclusions: [],
