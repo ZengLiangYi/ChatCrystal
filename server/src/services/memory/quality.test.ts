@@ -30,6 +30,27 @@ test('validateMaterializedNoteQuality accepts a readable reusable fix', () => {
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts natural readiness race fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client calls hit ECONNREFUSED because they ran before the local server was ready.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client calls hit ECONNREFUSED because they ran before the local server was ready.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality rejects #87-like one-off status records in auto mode', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Check local dist and linked core',
@@ -77,6 +98,27 @@ test('validateMaterializedNoteQuality accepts reusable package version fixes', (
       outcome_type: 'fix',
       root_cause: 'Inconsistent package version parsing made local release dist comparisons unreliable.',
       resolution: 'Normalize package version parsing before comparing generated dist output during local release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts natural package metadata and dist fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Normalize package metadata before dist comparison',
+    summary: 'Normalize package metadata before comparing generated dist output so release checks use the same version source.',
+    key_conclusions: [
+      'Root cause: Package metadata and generated dist output diverged because version parsing used different formats.',
+      'Resolution: Normalize package metadata before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before comparing generated dist output so release checks use the same version source.',
+      outcome_type: 'fix',
+      root_cause: 'Package metadata and generated dist output diverged because version parsing used different formats.',
+      resolution: 'Normalize package metadata before comparing generated dist output during release checks.',
     },
   }), { mode: 'auto' });
 
@@ -296,6 +338,27 @@ test('validateMaterializedNoteQuality accepts concrete DATA_DIR Electron config 
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts natural DATA_DIR import-ordering fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Configure DATA_DIR before Electron server import',
+    summary: 'Set DATA_DIR before importing the Electron server entrypoint so embedded startup uses the intended data directory.',
+    key_conclusions: [
+      'Root cause: The Electron main process imported the server before DATA_DIR was set, so startup fell back to the default data directory.',
+      'Resolution: Set DATA_DIR before importing the Electron server entrypoint.',
+    ],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server entrypoint so embedded startup uses the intended data directory.',
+      outcome_type: 'fix',
+      root_cause: 'The Electron main process imported the server before DATA_DIR was set, so startup fell back to the default data directory.',
+      resolution: 'Set DATA_DIR before importing the Electron server entrypoint.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality rejects generic object-only mechanisms', () => {
   const addResult = validateMaterializedNoteQuality(note({
     title: 'Generic API config addition',
@@ -401,6 +464,36 @@ test('validateMaterializedNoteQuality rejects concrete identifiers with vague wo
   assert.equal(apiResult.accepted, false);
   assert.equal(apiResult.reason, 'low-note-quality');
   assert.ok(apiResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects reliability rationales with concrete identifiers', () => {
+  const routeResult = validateMaterializedNoteQuality(note({
+    title: 'API notes route reliability decision',
+    summary: 'Index /api/notes before request setup timing so the route is reliable.',
+    key_conclusions: ['Decision: Index /api/notes before request setup timing so the route is reliable.'],
+    raw_payload: {
+      summary: 'Index /api/notes before request setup timing so the route is reliable.',
+      outcome_type: 'decision',
+      decisions: ['Index /api/notes before request setup timing so the route is reliable.'],
+    },
+  }), { mode: 'auto' });
+  const portResult = validateMaterializedNoteQuality(note({
+    title: 'PORT configuration reliability decision',
+    summary: 'Set PORT before importing the default data directory so configuration is reliable.',
+    key_conclusions: ['Decision: Set PORT before importing the default data directory so configuration is reliable.'],
+    raw_payload: {
+      summary: 'Set PORT before importing the default data directory so configuration is reliable.',
+      outcome_type: 'decision',
+      decisions: ['Set PORT before importing the default data directory so configuration is reliable.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(routeResult.accepted, false);
+  assert.equal(routeResult.reason, 'low-note-quality');
+  assert.ok(routeResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(portResult.accepted, false);
+  assert.equal(portResult.reason, 'low-note-quality');
+  assert.ok(portResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects generic readiness root cause and resolution', () => {

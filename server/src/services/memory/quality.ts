@@ -95,6 +95,8 @@ function isVagueGenericLesson(value: string) {
     /\bvalidation is important for correctness\b/.test(text) ||
     /\bcorrectness matters\b/.test(text) ||
     /\bcorrect pattern\b/.test(text) ||
+    /\bright value for reliability\b/.test(text) ||
+    /\b(for|so|because)\b.+\b(reliable|reliability|correctness)\b/.test(text) ||
     /\bbecause\b.+\bis important for correctness\b/.test(text) ||
     /\bshould\b.+\bbecause correctness\b/.test(text) ||
     /\bshould\b.+\bcorrect pattern\b/.test(text) ||
@@ -108,6 +110,8 @@ function isVagueGenericLesson(value: string) {
     /\bso the server works\b/.test(text) ||
     /\badd api config\b/.test(text) ||
     /\bcache server config\b/.test(text) ||
+    /\bbetter approach\b/.test(text) ||
+    /\bhandle\b.+\bproperly\b/.test(text) ||
     /\bexpected pattern\b/.test(text);
   const hasGenericTerms =
     /\b(the task|this task|the pattern|the implementation|implementation behavior|expected behavior|expected pattern|values?|input|correctness|going forward)\b/.test(text);
@@ -134,14 +138,42 @@ function hasSpecificEvidence(value: string) {
   return (
     /\b(data_dir|node_env|econrefused|note_tags|chatcrystal\.db|port|source_run_key|foreign_keys)\b|\/api\/[\w/-]+|\b[a-z0-9]+_[a-z0-9_]+\b|[a-z]:\\|\/[\w.-]+|[\u3400-\u9fff]/i
       .test(text) ||
-    /\b(request setup|package version|dist output|generated dist output|data directory|electron server|server entrypoint|client calls?)\b/i
+    /\b(api requests?|fastify readiness|server readiness|request setup|package metadata|package version|dist output|generated dist output|data directory|electron server|server entrypoint|client calls?)\b/i
       .test(text)
   );
 }
 
 function hasConcreteMechanism(value: string) {
-  return /\b(before importing|raced server startup|raced startup|resets foreign_keys|orphan rows|commits can diverge|used the default data directory|stale dist|dedupe by source_run_key|client calls raced|request setup timing|package version parsing|dist comparisons?|release checks?|startup used the default data directory|imported the server before|until readiness resolves|default data directory)\b/i
-    .test(value.toLowerCase());
+  const text = value.toLowerCase();
+  const hasTimingOrder =
+    /\b(before|after|until|when)\b.+\b(import|importing|issue|issuing|request|requests|setup|ready|readiness|server|startup|data_dir|entrypoint|metadata|dist|compare|comparing)\b/i
+      .test(text) ||
+    /\b(import|importing|issue|issuing|request|requests|setup|ready|readiness|server|startup|data_dir|entrypoint|metadata|dist|compare|comparing)\b.+\b(before|after|until|when)\b/i
+      .test(text);
+  const hasRaceReadiness =
+    /\b(race|raced|readiness|startup|econrefused)\b.+\b(request|requests|ready|server|client calls?|fastify)\b/i
+      .test(text) ||
+    /\b(request|requests|ready|server|client calls?|fastify)\b.+\b(race|raced|readiness|startup|econrefused)\b/i
+      .test(text);
+  const hasPackageDistFlow =
+    /\b(parse|parsing|normalize|normalizing|compare|comparing)\b.+\b(package metadata|package version|generated dist|dist output)\b/i
+      .test(text) ||
+    /\b(package metadata|package version|generated dist|dist output)\b.+\b(diverged|diverge|parse|parsing|normalize|normalizing|compare|comparing)\b/i
+      .test(text);
+  const hasDataDirFallback =
+    /\b(default data directory|data directory fallback|fell back|fallback)\b/i.test(text);
+  const hasRelationalCleanup =
+    /\b(foreign_keys|orphan rows|cascade|nulling|resets foreign_keys)\b/i.test(text);
+  const hasDedupeKey =
+    /\b(dedupe|deduplicate)\b.+\b(source_run_key|key)\b/i.test(text);
+  return (
+    hasTimingOrder ||
+    hasRaceReadiness ||
+    hasPackageDistFlow ||
+    hasDataDirFallback ||
+    hasRelationalCleanup ||
+    hasDedupeKey
+  );
 }
 
 function hasConcreteTransferableText(value: string) {
@@ -155,23 +187,37 @@ function hasConcreteTransferableText(value: string) {
   );
 }
 
+function hasActionableResolution(value: string) {
+  return (
+    hasNonPlaceholderMeaningfulText(value) &&
+    hasConcreteTransferableAction(value) &&
+    !isGenericStatusAction(value) &&
+    !isVagueGenericLesson(value)
+  );
+}
+
+function hasDurableFixSignal(note: MaterializedTaskMemoryNote) {
+  const rootCause = note.raw_payload.root_cause;
+  const resolution = note.raw_payload.resolution;
+  if (!rootCause || !resolution) return false;
+
+  const combined = `${rootCause}\n${resolution}`;
+  return (
+    hasNonPlaceholderMeaningfulText(rootCause) &&
+    hasActionableResolution(resolution) &&
+    hasSpecificEvidence(combined) &&
+    hasConcreteMechanism(combined) &&
+    !isGenericStatusAction(rootCause) &&
+    !isVagueGenericLesson(rootCause)
+  );
+}
+
 function hasDurableReusableSignal(note: MaterializedTaskMemoryNote) {
   if (isMostlyOneOffStatus(note)) return false;
   const payload = note.raw_payload;
   const conclusions = note.key_conclusions.join('\n').toLowerCase();
-  const hasMeaningfulRootCause = Boolean(
-    payload.root_cause &&
-    hasNonPlaceholderMeaningfulText(payload.root_cause) &&
-    hasSpecificObject(payload.root_cause) &&
-    !isGenericStatusAction(payload.root_cause) &&
-    !isVagueGenericLesson(payload.root_cause),
-  );
-  const hasMeaningfulResolution = Boolean(
-    payload.resolution &&
-    hasConcreteTransferableText(payload.resolution),
-  );
   const hasStructuredSignal =
-    (hasMeaningfulRootCause && hasMeaningfulResolution) ||
+    hasDurableFixSignal(note) ||
     Boolean(payload.reusable_patterns?.some((item) => hasConcreteTransferableText(item))) ||
     Boolean(payload.pitfalls?.some((item) => hasConcreteTransferableText(item))) ||
     Boolean(payload.decisions?.some((item) => hasConcreteTransferableText(item)));
