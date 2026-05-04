@@ -112,6 +112,48 @@ test('validateMaterializedNoteQuality rejects generic resolutions with concrete 
   assert.ok(validateResult.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects generic visible fixes with concrete raw payloads', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Server readiness issue resolved',
+    summary: 'The task now works correctly after the expected behavior was fixed.',
+    key_conclusions: [
+      'Root cause: The issue was fixed successfully.',
+      'Resolution: The correct behavior now works.',
+    ],
+    raw_payload: {
+      summary: 'The task now works correctly after the expected behavior was fixed.',
+      outcome_type: 'fix',
+      root_cause: 'Client calls raced server startup and produced ECONNREFUSED.',
+      resolution: 'Add request setup wait for Fastify readiness before client calls.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects visible status fixes with concrete raw payloads', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Local package version status check',
+    summary: 'Checked current local package version status and generated dist output.',
+    key_conclusions: [
+      'Root cause: Current local package status was checked.',
+      'Resolution: Generated dist output was present.',
+    ],
+    raw_payload: {
+      summary: 'Checked current local package version status and generated dist output.',
+      outcome_type: 'fix',
+      root_cause: 'Generated dist output kept stale package metadata because the version bump ran after dist generation.',
+      resolution: 'Regenerate generated dist output after bumping package metadata so release artifacts carry the new package version.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality rejects #87-like one-off status records in auto mode', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Check local dist and linked core',

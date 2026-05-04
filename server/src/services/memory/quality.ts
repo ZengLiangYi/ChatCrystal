@@ -415,8 +415,9 @@ function hasDurableFixSignal(note: MaterializedTaskMemoryNote) {
 function hasDurableReusableSignal(note: MaterializedTaskMemoryNote) {
   const payload = note.raw_payload;
   const hasVisibleSignal = hasVisibleQualitySignal(note);
+  const hasVisibleFixSignal = hasVisibleConcreteFixSignal(note);
   const hasFixSignal = hasDurableFixSignal(note);
-  if (hasFixSignal) return hasVisibleSignal;
+  if (hasFixSignal) return hasVisibleFixSignal;
   if (isMostlyOneOffStatus(note)) return false;
 
   const hasStructuredSignal =
@@ -424,6 +425,26 @@ function hasDurableReusableSignal(note: MaterializedTaskMemoryNote) {
     Boolean(payload.pitfalls?.some((item) => hasConcreteTransferableText(item))) ||
     Boolean(payload.decisions?.some((item) => hasConcreteTransferableText(item)));
   return hasStructuredSignal && hasVisibleSignal;
+}
+
+function conclusionText(note: MaterializedTaskMemoryNote, label: 'root cause' | 'resolution') {
+  const pattern = new RegExp(`^\\s*${label}:\\s*(.+)$`, 'i');
+  return note.key_conclusions
+    .map((item) => pattern.exec(item)?.[1]?.trim())
+    .filter((item): item is string => Boolean(item));
+}
+
+function hasVisibleConcreteFixSignal(note: MaterializedTaskMemoryNote) {
+  const rootCauses = conclusionText(note, 'root cause');
+  const resolutions = conclusionText(note, 'resolution');
+  return (
+    rootCauses.some((item) =>
+      hasNonPlaceholderMeaningfulText(item) &&
+      hasStrongRootCauseSignal(item) &&
+      !isVagueGenericFixClaim(item),
+    ) &&
+    resolutions.some((item) => hasActionableResolution(item))
+  );
 }
 
 function hasVisibleQualitySignal(note: MaterializedTaskMemoryNote) {
@@ -485,7 +506,7 @@ export function validateMaterializedNoteQuality(
   options: { mode: ValidationMode },
 ): NoteQualityDecision {
   const warnings: string[] = [];
-  const acceptedDurableFix = hasDurableFixSignal(note) && hasVisibleQualitySignal(note);
+  const acceptedDurableFix = hasDurableFixSignal(note) && hasVisibleConcreteFixSignal(note);
 
   if (!hasMeaningfulText(note.title, 10, 6) || isGenericTitle(note.title)) {
     warnings.push('title');
