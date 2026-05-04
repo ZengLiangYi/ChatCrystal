@@ -228,6 +228,23 @@ test('validateMaterializedNoteQuality rejects generic compare and validate lesso
   assert.ok(validateResult.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects boilerplate API validation patterns', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Generic API validation pattern',
+    summary: 'The pattern should validate API input because validation is important for correctness.',
+    key_conclusions: ['Pattern: The pattern should validate API input because validation is important for correctness.'],
+    raw_payload: {
+      summary: 'The pattern should validate API input because validation is important for correctness.',
+      outcome_type: 'pattern',
+      reusable_patterns: ['The pattern should validate API input because validation is important for correctness.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality rejects generic readiness root cause and resolution', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Server readiness generic fix',

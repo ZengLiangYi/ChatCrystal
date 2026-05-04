@@ -85,10 +85,15 @@ function hasConcreteTransferableAction(value: string) {
 
 function isVagueGenericLesson(value: string) {
   const text = value.toLowerCase();
-  return (
-    /\b(the task|this task|the pattern|the implementation|implementation behavior|expected behavior|expected pattern|values?|input|correctness|going forward)\b/.test(text) &&
-    !hasSpecificObject(text)
-  );
+  const hasBoilerplateClaim =
+    /\bvalidation is important for correctness\b/.test(text) ||
+    /\bbecause\b.+\bis important for correctness\b/.test(text) ||
+    /\bthe (pattern|task) should\b/.test(text) ||
+    /\bshould validate\b.+\bbecause\b/.test(text) ||
+    /\bexpected pattern\b/.test(text);
+  const hasGenericTerms =
+    /\b(the task|this task|the pattern|the implementation|implementation behavior|expected behavior|expected pattern|values?|input|correctness|going forward)\b/.test(text);
+  return hasBoilerplateClaim || (hasGenericTerms && !hasSpecificObject(text));
 }
 
 function isGenericStatusAction(value: string) {
