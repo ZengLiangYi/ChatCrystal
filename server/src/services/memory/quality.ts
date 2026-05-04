@@ -118,6 +118,30 @@ function isVagueGenericLesson(value: string) {
   return hasBoilerplateClaim || (hasGenericTerms && !hasSpecificObject(text));
 }
 
+function isVagueGenericFixClaim(value: string) {
+  const text = value.toLowerCase();
+  return (
+    /\b(unknown|n\/a|not sure|todo|tbd|appropriate change|fix the issue|task needed investigation|expected behavior|task works correctly|expected pattern|was wrong)\b/i
+      .test(text) ||
+    /\bvalidation is important for correctness\b/.test(text) ||
+    /\bcorrectness matters\b/.test(text) ||
+    /\bcorrect pattern\b/.test(text) ||
+    /\bright value for reliability\b/.test(text) ||
+    /\bbecause\b.+\bis important for correctness\b/.test(text) ||
+    /\bshould\b.+\bbecause correctness\b/.test(text) ||
+    /\bshould\b.+\bcorrect pattern\b/.test(text) ||
+    /\bbecause it should work\b/.test(text) ||
+    /\bit should work correctly\b/.test(text) ||
+    /\bshould work\b/.test(text) ||
+    /\bshould work correctly\b/.test(text) ||
+    /\bso\b.+\bworks?\b/.test(text) ||
+    /\badd api config\b/.test(text) ||
+    /\bcache server config\b/.test(text) ||
+    /\bbetter approach\b/.test(text) ||
+    /\bhandle\b.+\bproperly\b/.test(text)
+  );
+}
+
 function isGenericStatusAction(value: string) {
   const text = value.toLowerCase();
   const hasGenericAction = ['validate', 'investigate', 'check', 'checked', 'persist', 'record', 'recorded']
@@ -182,9 +206,15 @@ function hasConcreteTransferableText(value: string) {
     hasConcreteTransferableAction(value) &&
     hasSpecificEvidence(value) &&
     hasConcreteMechanism(value) &&
+    hasFailureOrConsequenceSignal(value) &&
     !isGenericStatusAction(value) &&
     !isVagueGenericLesson(value)
   );
+}
+
+function hasFailureOrConsequenceSignal(value: string) {
+  return /\b(avoid|prevents?|fix(?:es)?|fail(?:s|ed|ure|ures)?|race|raced|orphan|dedupe|deduplicate|stale|diverge|diverged|fallback|fell back|default data directory|econrefused|readiness issue|startup race|unreliable|invalid|mismatch)\b/i
+    .test(value);
 }
 
 function hasActionableResolution(value: string) {
@@ -192,7 +222,7 @@ function hasActionableResolution(value: string) {
     hasNonPlaceholderMeaningfulText(value) &&
     hasConcreteTransferableAction(value) &&
     !isGenericStatusAction(value) &&
-    !isVagueGenericLesson(value)
+    !isVagueGenericFixClaim(value)
   );
 }
 
@@ -208,7 +238,7 @@ function hasDurableFixSignal(note: MaterializedTaskMemoryNote) {
     hasSpecificEvidence(combined) &&
     hasConcreteMechanism(combined) &&
     !isGenericStatusAction(rootCause) &&
-    !isVagueGenericLesson(rootCause)
+    !isVagueGenericFixClaim(rootCause)
   );
 }
 

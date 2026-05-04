@@ -51,6 +51,27 @@ test('validateMaterializedNoteQuality accepts natural readiness race fixes', () 
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts readiness fixes with reliable outcome wording', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests so startup calls are reliable.',
+    key_conclusions: [
+      'Root cause: Client calls hit ECONNREFUSED because they ran before the local server was ready.',
+      'Resolution: Wait for Fastify readiness before issuing API requests so startup calls are reliable.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests so startup calls are reliable.',
+      outcome_type: 'fix',
+      root_cause: 'Client calls hit ECONNREFUSED because they ran before the local server was ready.',
+      resolution: 'Wait for Fastify readiness before issuing API requests so startup calls are reliable.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality rejects #87-like one-off status records in auto mode', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Check local dist and linked core',
@@ -359,6 +380,23 @@ test('validateMaterializedNoteQuality accepts natural DATA_DIR import-ordering f
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts causal self-contained DATA_DIR decisions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR Electron import ordering decision',
+    summary: 'Set DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory.',
+    key_conclusions: ['Decision: Set DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality rejects generic object-only mechanisms', () => {
   const addResult = validateMaterializedNoteQuality(note({
     title: 'Generic API config addition',
@@ -494,6 +532,23 @@ test('validateMaterializedNoteQuality rejects reliability rationales with concre
   assert.equal(portResult.accepted, false);
   assert.equal(portResult.reason, 'low-note-quality');
   assert.ok(portResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects identifier order decisions without consequences', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR PORT API ordering decision',
+    summary: 'Set DATA_DIR before PORT when configuring /api/notes request setup.',
+    key_conclusions: ['Decision: Set DATA_DIR before PORT when configuring /api/notes request setup.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before PORT when configuring /api/notes request setup.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before PORT when configuring /api/notes request setup.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects generic readiness root cause and resolution', () => {
