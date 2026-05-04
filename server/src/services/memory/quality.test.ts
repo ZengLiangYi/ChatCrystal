@@ -417,6 +417,23 @@ test('validateMaterializedNoteQuality accepts causal self-contained DATA_DIR dec
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality rejects generic unreliable behavior consequences', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR import ordering prevents unreliable behavior',
+    summary: 'Set DATA_DIR before importing the Electron server entrypoint to prevent unreliable behavior.',
+    key_conclusions: ['Decision: Set DATA_DIR before importing the Electron server entrypoint to prevent unreliable behavior.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server entrypoint to prevent unreliable behavior.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before importing the Electron server entrypoint to prevent unreliable behavior.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality rejects generic object-only mechanisms', () => {
   const addResult = validateMaterializedNoteQuality(note({
     title: 'Generic API config addition',
@@ -601,6 +618,27 @@ test('validateMaterializedNoteQuality rejects generic readiness root cause and r
       outcome_type: 'fix',
       root_cause: 'Server readiness handling was incomplete during startup.',
       resolution: 'Use a better approach to handle server readiness properly.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects readiness fixes with weak root causes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Server readiness generic fix',
+    summary: 'Wait for server readiness before API requests.',
+    key_conclusions: [
+      'Root cause: Server readiness was not correct before API requests.',
+      'Resolution: Wait for server readiness before API requests.',
+    ],
+    raw_payload: {
+      summary: 'Wait for server readiness before API requests.',
+      outcome_type: 'fix',
+      root_cause: 'Server readiness was not correct before API requests.',
+      resolution: 'Wait for server readiness before API requests.',
     },
   }), { mode: 'auto' });
 

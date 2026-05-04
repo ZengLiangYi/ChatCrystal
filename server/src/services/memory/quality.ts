@@ -213,8 +213,22 @@ function hasConcreteTransferableText(value: string) {
 }
 
 function hasFailureOrConsequenceSignal(value: string) {
-  return /\b(race|raced|orphan|dedupe|deduplicate|stale dist|dist diverge|dist diverged|diverge|diverged|fallback|fell back|default data directory|econrefused|readiness issue|startup race|unreliable|invalid note_tags|foreign_keys|cascade|nulling|source_run_key collision)\b/i
+  return /\b(race|raced|orphan|dedupe|deduplicate|stale dist|dist diverge|dist diverged|diverge|diverged|fallback|fell back|default data directory|econrefused|readiness issue|startup race|invalid note_tags|foreign_keys|cascade|nulling|source_run_key collision)\b/i
     .test(value);
+}
+
+function hasStrongRootCauseSignal(value: string) {
+  return (
+    hasFailureOrConsequenceSignal(value) ||
+    /\b(version parsing|package metadata|package version)\b.+\b(dist comparison|dist comparisons|generated dist output|dist output)\b/i
+      .test(value) ||
+    /\b(dist comparison|dist comparisons|generated dist output|dist output)\b.+\b(version parsing|package metadata|package version)\b/i
+      .test(value) ||
+    /\b(because|so)\b.+\b(ran before|imported.+before|used the default data directory|version parsing|generated dist output|default data directory|fell back|fallback|diverged|raced|race|econrefused)\b/i
+      .test(value) ||
+    /\b(ran before|imported.+before|used the default data directory|version parsing|generated dist output|default data directory|fell back|fallback|diverged|raced|race|econrefused)\b.+\b(because|so)\b/i
+      .test(value)
+  );
 }
 
 function hasActionableResolution(value: string) {
@@ -234,6 +248,7 @@ function hasDurableFixSignal(note: MaterializedTaskMemoryNote) {
   const combined = `${rootCause}\n${resolution}`;
   return (
     hasNonPlaceholderMeaningfulText(rootCause) &&
+    hasStrongRootCauseSignal(rootCause) &&
     hasActionableResolution(resolution) &&
     hasSpecificEvidence(combined) &&
     hasConcreteMechanism(combined) &&
