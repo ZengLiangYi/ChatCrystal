@@ -276,9 +276,22 @@ function hasPackageDistRootCauseSignal(value: string) {
       .test(text) ||
     /\b(inconsistent|different formats)\b.+\b(version parsing|package version parsing|version normalization|package normalization)\b.+\bdist comparisons?\b.+\bunreliable\b/i
       .test(text);
+  if ((isPackageArtifactObservationClaim(text) || isExistenceOnlyClaim(text)) && !hasExplicitPackageCausality(text)) {
+    return false;
+  }
   if (hasPositiveSignal) return true;
   if (isPackageArtifactObservationClaim(text) || isExistenceOnlyClaim(text)) return false;
   return false;
+}
+
+function hasExplicitPackageCausality(value: string) {
+  const text = value.toLowerCase();
+  return (
+    /\b(diverged|divergence|mismatch|stale(?: package metadata| output| dist)?|wrong comparison|comparison failure|dist comparisons? unreliable|differed from package metadata|differed from package version)\b.+\bbecause\b.+\b(version parsing|parsing|version normalization|normalization|normalize|normalized|different formats|inconsistent normalization|comparison|comparing)\b/i
+      .test(text) ||
+    /\b(version parsing|parsing|version normalization|normalization|normalize|normalized|different formats|inconsistent normalization|comparison|comparing)\b.+\b(caused|produced|led to|made)\b.+\b(diverged|divergence|mismatch|stale(?: package metadata| output| dist)?|wrong comparison|comparison failure|dist comparisons? unreliable|differed from package metadata|differed from package version)\b/i
+      .test(text)
+  );
 }
 
 function isExistenceOnlyClaim(value: string) {
