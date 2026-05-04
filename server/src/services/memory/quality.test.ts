@@ -133,6 +133,23 @@ test('validateMaterializedNoteQuality rejects generic visible fixes with concret
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects generic visible patterns with concrete raw payloads', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Reusable API request pattern',
+    summary: 'Use the correct pattern so API behavior works reliably across future tasks.',
+    key_conclusions: ['Pattern: Use the correct pattern for API behavior.'],
+    raw_payload: {
+      summary: 'Use the correct pattern so API behavior works reliably across future tasks.',
+      outcome_type: 'pattern',
+      reusable_patterns: ['Wait for Fastify readiness before issuing API requests because ECONNREFUSED happens when client calls race server startup.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality rejects visible status fixes with concrete raw payloads', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Local package version status check',
@@ -146,6 +163,27 @@ test('validateMaterializedNoteQuality rejects visible status fixes with concrete
       outcome_type: 'fix',
       root_cause: 'Generated dist output kept stale package metadata because the version bump ran after dist generation.',
       resolution: 'Regenerate generated dist output after bumping package metadata so release artifacts carry the new package version.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects first-person implementation diary fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Readiness implementation diary fix',
+    summary: 'I checked API requests and added the readiness wait.',
+    key_conclusions: [
+      'Root cause: I checked API requests and they hit ECONNREFUSED because client calls raced server startup.',
+      'Resolution: I added Fastify readiness wait before issuing API requests so startup calls are reliable.',
+    ],
+    raw_payload: {
+      summary: 'I checked API requests and added the readiness wait.',
+      outcome_type: 'fix',
+      root_cause: 'I checked API requests and they hit ECONNREFUSED because client calls raced server startup.',
+      resolution: 'I added Fastify readiness wait before issuing API requests so startup calls are reliable.',
     },
   }), { mode: 'auto' });
 

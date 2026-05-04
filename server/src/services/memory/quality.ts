@@ -408,7 +408,9 @@ function hasDurableFixSignal(note: MaterializedTaskMemoryNote) {
     hasSpecificEvidence(combined) &&
     hasConcreteMechanism(combined) &&
     !isGenericStatusAction(rootCause) &&
-    !isVagueGenericFixClaim(rootCause)
+    !isVagueGenericFixClaim(rootCause) &&
+    !isFirstPersonDiaryClaim(rootCause) &&
+    !isFirstPersonDiaryClaim(resolution)
   );
 }
 
@@ -424,10 +426,13 @@ function hasDurableReusableSignal(note: MaterializedTaskMemoryNote) {
     Boolean(payload.reusable_patterns?.some((item) => hasConcreteTransferableText(item))) ||
     Boolean(payload.pitfalls?.some((item) => hasConcreteTransferableText(item))) ||
     Boolean(payload.decisions?.some((item) => hasConcreteTransferableText(item)));
-  return hasStructuredSignal && hasVisibleSignal;
+  return hasStructuredSignal && hasVisibleStructuredSignal(note) && hasVisibleSignal;
 }
 
-function conclusionText(note: MaterializedTaskMemoryNote, label: 'root cause' | 'resolution') {
+function conclusionText(
+  note: MaterializedTaskMemoryNote,
+  label: 'root cause' | 'resolution' | 'pattern' | 'decision' | 'pitfall',
+) {
   const pattern = new RegExp(`^\\s*${label}:\\s*(.+)$`, 'i');
   return note.key_conclusions
     .map((item) => pattern.exec(item)?.[1]?.trim())
@@ -441,10 +446,19 @@ function hasVisibleConcreteFixSignal(note: MaterializedTaskMemoryNote) {
     rootCauses.some((item) =>
       hasNonPlaceholderMeaningfulText(item) &&
       hasStrongRootCauseSignal(item) &&
+      !isFirstPersonDiaryClaim(item) &&
       !isVagueGenericFixClaim(item),
     ) &&
-    resolutions.some((item) => hasActionableResolution(item))
+    resolutions.some((item) => hasActionableResolution(item) && !isFirstPersonDiaryClaim(item))
   );
+}
+
+function hasVisibleStructuredSignal(note: MaterializedTaskMemoryNote) {
+  return [
+    ...conclusionText(note, 'pattern'),
+    ...conclusionText(note, 'decision'),
+    ...conclusionText(note, 'pitfall'),
+  ].some((item) => hasConcreteTransferableText(item));
 }
 
 function hasVisibleQualitySignal(note: MaterializedTaskMemoryNote) {
