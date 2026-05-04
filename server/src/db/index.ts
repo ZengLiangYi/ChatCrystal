@@ -135,9 +135,18 @@ export function getDatabase(): Database {
   return db;
 }
 
+export function exportDatabasePreservingForeignKeys(activeDb: Database): Uint8Array {
+  try {
+    return activeDb.export();
+  } finally {
+    // sql.js export resets connection pragmas, so restore the invariant used by deletions.
+    activeDb.run('PRAGMA foreign_keys = ON;');
+  }
+}
+
 export function saveDatabase(): void {
   if (!db) return;
-  const data = db.export();
+  const data = exportDatabasePreservingForeignKeys(db);
   const buffer = Buffer.from(data);
   writeFileSync(DB_PATH, buffer);
 }
