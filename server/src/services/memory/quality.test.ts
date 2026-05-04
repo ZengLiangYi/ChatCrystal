@@ -106,6 +106,26 @@ test('validateMaterializedNoteQuality rejects one-off status records disguised a
   assert.ok(result.warnings.includes('one_off_status'));
 });
 
+test('validateMaterializedNoteQuality rejects package version status comparisons disguised as prevention', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Package version status prevents dist mismatch',
+    summary: 'Compare current package version before generated dist output to prevent mismatch in local status checks.',
+    key_conclusions: ['Decision: Compare current package version before generated dist output to prevent mismatch in local status checks.'],
+    raw_payload: {
+      summary: 'Compare current package version before generated dist output to prevent mismatch in local status checks.',
+      outcome_type: 'decision',
+      decisions: ['Compare current package version before generated dist output to prevent mismatch in local status checks.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(
+    result.warnings.includes('one_off_status') ||
+    result.warnings.includes('durable_reusable_lesson'),
+  );
+});
+
 test('validateMaterializedNoteQuality accepts reusable package version fixes', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Normalize package version parsing before dist comparison',
@@ -543,6 +563,23 @@ test('validateMaterializedNoteQuality rejects identifier order decisions without
       summary: 'Set DATA_DIR before PORT when configuring /api/notes request setup.',
       outcome_type: 'decision',
       decisions: ['Set DATA_DIR before PORT when configuring /api/notes request setup.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic prevention wording without named consequences', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR ordering prevents generic failure',
+    summary: 'Set DATA_DIR before server request setup to prevent failure in future runs.',
+    key_conclusions: ['Decision: Set DATA_DIR before server request setup to prevent failure in future runs.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before server request setup to prevent failure in future runs.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before server request setup to prevent failure in future runs.'],
     },
   }), { mode: 'auto' });
 

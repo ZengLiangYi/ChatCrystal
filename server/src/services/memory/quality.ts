@@ -213,7 +213,7 @@ function hasConcreteTransferableText(value: string) {
 }
 
 function hasFailureOrConsequenceSignal(value: string) {
-  return /\b(avoid|prevents?|fix(?:es)?|fail(?:s|ed|ure|ures)?|race|raced|orphan|dedupe|deduplicate|stale|diverge|diverged|fallback|fell back|default data directory|econrefused|readiness issue|startup race|unreliable|invalid|mismatch)\b/i
+  return /\b(race|raced|orphan|dedupe|deduplicate|stale dist|dist diverge|dist diverged|diverge|diverged|fallback|fell back|default data directory|econrefused|readiness issue|startup race|unreliable|invalid note_tags|foreign_keys|cascade|nulling|source_run_key collision)\b/i
     .test(value);
 }
 
@@ -278,7 +278,29 @@ function isMostlyOneOffStatus(note: MaterializedTaskMemoryNote) {
     '状态',
   ];
   const statusHits = statusWords.filter((word) => text.includes(word)).length;
-  return statusHits >= 3 && (!hasConcreteTransferableAction(text) || isGenericStatusAction(text));
+  return (
+    statusHits >= 3 &&
+    (
+      !hasConcreteTransferableAction(text) ||
+      isGenericStatusAction(text) ||
+      isStatusShapedSelfContainedItem(note)
+    )
+  );
+}
+
+function isStatusShapedSelfContainedItem(note: MaterializedTaskMemoryNote) {
+  if (note.raw_payload.root_cause || note.raw_payload.resolution) return false;
+
+  const text = joined(note);
+  const hasStatusShape =
+    /\b(current|checked|checks?|status|local|package version|version|dist output|generated dist output)\b/i
+      .test(text);
+  return hasStatusShape && !hasStrongReusableMechanism(text);
+}
+
+function hasStrongReusableMechanism(value: string) {
+  return /\b(normalize|normalizing|parse|parsing|diverge|diverged|default data directory|fallback|fell back|race|raced|orphan|dedupe|deduplicate|foreign_keys|cascade|nulling|source_run_key)\b/i
+    .test(value);
 }
 
 export function validateMaterializedNoteQuality(
