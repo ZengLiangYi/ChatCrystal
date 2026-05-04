@@ -35,12 +35,18 @@ function hasDurableReusableSignal(note: MaterializedTaskMemoryNote) {
   if (isMostlyOneOffStatus(note)) return false;
   const payload = note.raw_payload;
   const conclusions = note.key_conclusions.join('\n').toLowerCase();
+  const hasMeaningfulRootCause = Boolean(
+    payload.root_cause && hasMeaningfulText(payload.root_cause),
+  );
+  const hasMeaningfulResolution = Boolean(
+    payload.resolution && hasMeaningfulText(payload.resolution),
+  );
   const hasStructuredSignal =
-    Boolean(payload.root_cause && payload.resolution) ||
+    (hasMeaningfulRootCause && hasMeaningfulResolution) ||
     Boolean(payload.reusable_patterns?.some((item) => hasMeaningfulText(item))) ||
     Boolean(payload.pitfalls?.some((item) => hasMeaningfulText(item))) ||
     Boolean(payload.decisions?.some((item) => hasMeaningfulText(item))) ||
-    Boolean(payload.error_signatures?.length && (payload.root_cause || payload.resolution));
+    Boolean(payload.error_signatures?.length && (hasMeaningfulRootCause || hasMeaningfulResolution));
   const hasVisibleSignal =
     /root cause:|resolution:|pitfall:|pattern:|decision:|error signature:/i.test(conclusions);
   return hasStructuredSignal && hasVisibleSignal;
@@ -63,29 +69,43 @@ function isMostlyOneOffStatus(note: MaterializedTaskMemoryNote) {
     '检查',
     '状态',
   ];
-  const reusableLessonWords = [
-    'avoid',
-    'because',
-    'cause',
-    'causes',
-    'must',
-    'should',
-    'pattern',
-    'prevent',
-    'prevents',
-    'rationale',
-    'reuse',
-    'transferable',
+  const concreteActionWords = [
+    'block',
+    'cache',
+    'collapse',
+    'debounce',
+    'deduplicate',
+    'defer',
+    'enqueue',
+    'extract',
+    'filter',
+    'gate',
+    'group',
+    'index',
+    'migrate',
+    'normalize',
+    'parse',
+    'persist',
+    'prune',
+    'retry',
+    'sanitize',
+    'truncate',
+    'validate',
+    'wait for',
     '避免',
-    '模式',
-    '必须',
-    '应该',
     '防止',
     '复用',
   ];
   const statusHits = statusWords.filter((word) => text.includes(word)).length;
-  const reusableLessonHits = reusableLessonWords.filter((word) => text.includes(word)).length;
-  return statusHits >= 3 && reusableLessonHits === 0;
+  const hasConcreteTransferableAction = text
+    .split(/[.!?。！？\n]+/)
+    .some((sentence) => {
+      const sentenceStatusHits = statusWords.filter((word) => sentence.includes(word)).length;
+      const sentenceActionHits = concreteActionWords
+        .filter((word) => sentence.includes(word)).length;
+      return sentenceStatusHits === 0 && sentenceActionHits > 0;
+    });
+  return statusHits >= 3 && !hasConcreteTransferableAction;
 }
 
 export function validateMaterializedNoteQuality(

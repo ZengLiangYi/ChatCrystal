@@ -50,21 +50,39 @@ test('validateMaterializedNoteQuality rejects #87-like one-off status records in
 test('validateMaterializedNoteQuality rejects one-off status records disguised as decisions', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Local package version matched dist output',
-    summary: 'Current local package version matched the generated dist output.',
-    key_conclusions: ['Decision: Current local package version matched dist output.'],
+    summary: 'Current local package version should match the generated dist output.',
+    key_conclusions: ['Decision: Current local package version should match generated dist output.'],
     raw_payload: {
-      summary: 'Current local package version matched the generated dist output.',
+      summary: 'Current local package version should match the generated dist output.',
       outcome_type: 'decision',
-      decisions: ['Current local package version matched the generated dist output.'],
+      decisions: ['Current local package version should match the generated dist output.'],
     },
   }), { mode: 'auto' });
 
   assert.equal(result.accepted, false);
   assert.equal(result.reason, 'low-note-quality');
-  assert.ok(
-    result.warnings.includes('one_off_status') ||
-    result.warnings.includes('durable_reusable_lesson'),
-  );
+  assert.ok(result.warnings.includes('one_off_status'));
+});
+
+test('validateMaterializedNoteQuality rejects placeholder root cause and resolution fields', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Server readiness note with placeholder diagnosis',
+    summary: 'Requests must wait for server readiness before client calls.',
+    key_conclusions: [
+      'Root cause: n/a.',
+      'Resolution: ok.',
+    ],
+    raw_payload: {
+      summary: 'Requests must wait for server readiness before client calls.',
+      outcome_type: 'fix',
+      root_cause: 'n/a',
+      resolution: 'ok',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality requires visible key conclusions', () => {
