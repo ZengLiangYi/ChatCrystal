@@ -231,6 +231,46 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
   assert.ok(conclusionResult.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects low-quality extra key conclusions', () => {
+  const genericTakeawayResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Takeaway: The task now works correctly.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const diaryTakeawayResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Takeaway: I verified the fix during local testing.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(genericTakeawayResult.accepted, false);
+  assert.equal(genericTakeawayResult.reason, 'low-note-quality');
+  assert.ok(genericTakeawayResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(diaryTakeawayResult.accepted, false);
+  assert.equal(diaryTakeawayResult.reason, 'low-note-quality');
+  assert.ok(diaryTakeawayResult.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality rejects diary or status summaries with concrete conclusions', () => {
   const diaryResult = validateMaterializedNoteQuality(note({
     title: 'Server readiness race returns ECONNREFUSED',

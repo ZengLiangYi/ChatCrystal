@@ -20,7 +20,7 @@ function hasMeaningfulText(value: string, minLatin = 24, minCjk = 18) {
 }
 
 function isPlaceholderText(value: string) {
-  return /\b(unknown|n\/a|not sure|todo|tbd|appropriate change|fix the issue|task needed investigation|expected behavior|task works correctly|expected pattern|was wrong)\b/i
+  return /\b(unknown|n\/a|not sure|todo|tbd|appropriate change|fix the issue|task needed investigation|expected behavior|task (?:now )?works correctly|now works correctly|expected pattern|was wrong)\b/i
     .test(value);
 }
 
@@ -541,8 +541,26 @@ function hasVisibleStructuredSignal(note: MaterializedTaskMemoryNote) {
 }
 
 function hasVisibleConclusionBoilerplate(note: MaterializedTaskMemoryNote) {
-  return note.key_conclusions.some((item) =>
-    isMetaReusableClaim(item) || isGenericVisibleBoilerplateClaim(item));
+  return note.key_conclusions.some((item) => isLowQualityVisibleConclusion(item));
+}
+
+function isLowQualityVisibleConclusion(value: string) {
+  const body = value.replace(
+    /^\s*(root cause|resolution|pattern|decision|pitfall|takeaway|error signature):\s*/i,
+    '',
+  );
+  return (
+    isPlaceholderText(value) ||
+    isPlaceholderText(body) ||
+    isFirstPersonDiaryClaim(value) ||
+    isFirstPersonDiaryClaim(body) ||
+    isVisibleWorkLogClaim(body) ||
+    isVisibleStatusSnapshotText(body) ||
+    isMetaReusableClaim(value) ||
+    isMetaReusableClaim(body) ||
+    isGenericVisibleBoilerplateClaim(value) ||
+    isGenericVisibleBoilerplateClaim(body)
+  );
 }
 
 function hasVisibleQualitySignal(note: MaterializedTaskMemoryNote) {
