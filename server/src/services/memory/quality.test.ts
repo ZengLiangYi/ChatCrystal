@@ -222,6 +222,20 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
       resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
     },
   }), { mode: 'auto' });
+  const futureFailureResult = validateMaterializedNoteQuality(note({
+    title: 'Server request future failure prevention',
+    summary: 'Server requests now avoid future failures in the expected workflow.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Server requests now avoid future failures in the expected workflow.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(summaryResult.accepted, false);
   assert.equal(summaryResult.reason, 'low-note-quality');
@@ -229,6 +243,9 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
   assert.equal(conclusionResult.accepted, false);
   assert.equal(conclusionResult.reason, 'low-note-quality');
   assert.ok(conclusionResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(futureFailureResult.accepted, false);
+  assert.equal(futureFailureResult.reason, 'low-note-quality');
+  assert.ok(futureFailureResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects low-quality extra key conclusions', () => {
@@ -262,6 +279,21 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
       resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
     },
   }), { mode: 'auto' });
+  const releaseValidationResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Takeaway: Always validate behavior before release.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(genericTakeawayResult.accepted, false);
   assert.equal(genericTakeawayResult.reason, 'low-note-quality');
@@ -269,6 +301,9 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
   assert.equal(diaryTakeawayResult.accepted, false);
   assert.equal(diaryTakeawayResult.reason, 'low-note-quality');
   assert.ok(diaryTakeawayResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(releaseValidationResult.accepted, false);
+  assert.equal(releaseValidationResult.reason, 'low-note-quality');
+  assert.ok(releaseValidationResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects diary or status summaries with concrete conclusions', () => {
@@ -649,6 +684,27 @@ test('validateMaterializedNoteQuality accepts natural package metadata and dist 
       outcome_type: 'fix',
       root_cause: 'Package metadata and generated dist output diverged because version parsing used different formats.',
       resolution: 'Normalize package metadata before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts package metadata dist comparison patterns', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Normalize package metadata before dist comparison',
+    summary: 'Normalize package metadata before comparing generated dist output when version formats make dist comparisons unreliable.',
+    key_conclusions: [
+      'Pattern: Normalize package metadata before comparing generated dist output because inconsistent version formats made dist comparisons unreliable.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before comparing generated dist output when version formats make dist comparisons unreliable.',
+      outcome_type: 'pattern',
+      reusable_patterns: [
+        'Normalize package metadata before comparing generated dist output because inconsistent version formats made dist comparisons unreliable.',
+      ],
     },
   }), { mode: 'auto' });
 

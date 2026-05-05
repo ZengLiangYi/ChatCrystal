@@ -216,12 +216,15 @@ function hasConcreteMechanism(value: string) {
 
 function hasConcreteTransferableText(value: string) {
   if (hasPackageDistRootCauseShape(value) && !hasPackageItemSignal(value)) return false;
+  const hasConcreteConsequence =
+    hasFailureOrConsequenceSignal(value) ||
+    (hasPackageDistRootCauseShape(value) && hasPackageDistRootCauseSignal(value));
   return (
     hasNonPlaceholderMeaningfulText(value) &&
     hasConcreteTransferableAction(value) &&
     hasSpecificEvidence(value) &&
     hasConcreteMechanism(value) &&
-    hasFailureOrConsequenceSignal(value) &&
+    hasConcreteConsequence &&
     !isExistenceOnlyClaim(value) &&
     !isFirstPersonDiaryClaim(value) &&
     !isGenericStatusAction(value) &&
@@ -497,7 +500,18 @@ function isGenericVisibleBoilerplateClaim(value: string) {
   const hasGenericReliabilityFix =
     /\b(?:backend|api|server)?\s*reliability\s+fix\b/i.test(text) ||
     /\bfix\b.+\breliability\b/i.test(text);
-  return hasGenericReliabilityFix && !hasSpecificEvidence(text) && !hasConcreteMechanism(text);
+  const hasGenericFutureFailure =
+    /\bfuture failure prevention\b/i.test(text) ||
+    /\b(?:avoid|prevent|prevents?|prevention)\b.+\bfuture failures?\b/i.test(text) ||
+    /\bfuture failures?\b.+\bexpected workflow\b/i.test(text);
+  const hasGenericReleaseValidation =
+    /\balways validate behavior before release\b/i.test(text) ||
+    /\bvalidate behavior\b.+\bbefore release\b/i.test(text);
+  return (
+    hasGenericReliabilityFix ||
+    hasGenericFutureFailure ||
+    hasGenericReleaseValidation
+  ) && !hasSpecificEvidence(text) && !hasConcreteMechanism(text);
 }
 
 function isVisibleStatusSnapshotText(value: string) {
