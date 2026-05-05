@@ -256,7 +256,10 @@ function isFirstPersonDiaryClaim(value: string) {
     'updated',
     'verified',
   ].join('|');
-  return new RegExp(`(?:^|[:.!?]\\s*)\\b(?:i|we)\\s+(?:${diaryVerbs})\\b`, 'i')
+  return new RegExp(
+    `(?:^|[:.!?,;]\\s*|\\b(?:and|then|but|so)\\s+)\\b(?:i|we)\\s+(?:${diaryVerbs})\\b`,
+    'i',
+  )
     .test(value);
 }
 
@@ -590,7 +593,7 @@ function hasVisibleConclusionBoilerplate(note: MaterializedTaskMemoryNote) {
 }
 
 function isLowQualityVisibleConclusion(value: string) {
-  const labelMatch = /^\s*(root cause|resolution|pattern|decision|pitfall|takeaway|error signature):\s*/i
+  const labelMatch = /^\s*(root cause|resolution|pattern|decision|pitfall|takeaway|observation|build|test|error signature):\s*/i
     .exec(value);
   const label = labelMatch?.[1]?.toLowerCase();
   const body = value.slice(labelMatch?.[0]?.length ?? 0);
@@ -606,8 +609,17 @@ function isLowQualityVisibleConclusion(value: string) {
     isMetaReusableClaim(body) ||
     (shouldApplyGenericLessonGate && isVagueGenericLesson(body)) ||
     (shouldApplyGenericLessonGate && isVagueGenericFixClaim(body)) ||
+    (shouldApplyGenericLessonGate && !hasConcreteConclusionValue(body)) ||
     isGenericVisibleBoilerplateClaim(value) ||
     isGenericVisibleBoilerplateClaim(body)
+  );
+}
+
+function hasConcreteConclusionValue(value: string) {
+  return (
+    hasVisibleConcreteContent(value) ||
+    hasConcreteTransferableText(value) ||
+    hasFailureOrConsequenceSignal(value)
   );
 }
 

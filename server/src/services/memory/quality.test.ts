@@ -469,6 +469,36 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
       resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
     },
   }), { mode: 'auto' });
+  const investigationObservationResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Observation: The issue was investigated.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const allGoodResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'All good now.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(genericTakeawayResult.accepted, false);
   assert.equal(genericTakeawayResult.reason, 'low-note-quality');
@@ -497,6 +527,12 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
   assert.equal(maintenanceReliabilityResult.accepted, false);
   assert.equal(maintenanceReliabilityResult.reason, 'low-note-quality');
   assert.ok(maintenanceReliabilityResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(investigationObservationResult.accepted, false);
+  assert.equal(investigationObservationResult.reason, 'low-note-quality');
+  assert.ok(investigationObservationResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(allGoodResult.accepted, false);
+  assert.equal(allGoodResult.reason, 'low-note-quality');
+  assert.ok(allGoodResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects fix outcomes without visible fix conclusions', () => {
@@ -604,6 +640,20 @@ test('validateMaterializedNoteQuality rejects diary or status summaries with con
       resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
     },
   }), { mode: 'auto' });
+  const embeddedDiaryResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Requests hit ECONNREFUSED before Fastify readiness, and I added a wait before API requests.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Requests hit ECONNREFUSED before Fastify readiness, and I added a wait before API requests.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(diaryResult.accepted, false);
   assert.equal(diaryResult.reason, 'low-note-quality');
@@ -623,6 +673,9 @@ test('validateMaterializedNoteQuality rejects diary or status summaries with con
   assert.equal(testedResult.accepted, false);
   assert.equal(testedResult.reason, 'low-note-quality');
   assert.ok(testedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(embeddedDiaryResult.accepted, false);
+  assert.equal(embeddedDiaryResult.reason, 'low-note-quality');
+  assert.ok(embeddedDiaryResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects generic visible patterns with concrete raw payloads', () => {
