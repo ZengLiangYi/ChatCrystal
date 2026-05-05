@@ -228,7 +228,7 @@ function hasConcreteTransferableText(value: string) {
 }
 
 function isFirstPersonDiaryClaim(value: string) {
-  return /\b(i|we)\s+(added|checked|verified|fixed|implemented|updated|changed|found|diagnosed|switched|then)\b/i
+  return /\b(i|we)\s+(added|checked|verified|fixed|implemented|updated|changed|found|diagnosed|discovered|switched|then)\b/i
     .test(value);
 }
 
@@ -392,6 +392,8 @@ function isGenericResolutionClaim(value: string) {
   return /\b(add|use|apply)\b.+\bvalidation\b.+\b(prevent|avoid)\b.+\b(future failures?|failures?|issues?)\b/i
     .test(value) ||
     /\bvalidate\b.+\b(?:to\s+)?(?:prevent|avoid)\b.+\b(future failures?|failures?|issues?)\b/i
+    .test(value) ||
+    /\badd\b.+\b(readiness|guard)\b.+\b(prevent|avoid)\b.+\b(future failures?|failures?|issues?)\b/i
     .test(value);
 }
 

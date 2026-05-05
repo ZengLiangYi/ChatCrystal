@@ -110,6 +110,25 @@ test('validateMaterializedNoteQuality rejects generic resolutions with concrete 
   assert.equal(validateResult.accepted, false);
   assert.equal(validateResult.reason, 'low-note-quality');
   assert.ok(validateResult.warnings.includes('durable_reusable_lesson'));
+
+  const guardResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness guard prevents ECONNREFUSED',
+    summary: 'Add a server readiness guard before API requests to prevent future failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Add a server readiness guard before API requests to prevent future failures.',
+    ],
+    raw_payload: {
+      summary: 'Add a server readiness guard before API requests to prevent future failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Add a server readiness guard before API requests to prevent future failures.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(guardResult.accepted, false);
+  assert.equal(guardResult.reason, 'low-note-quality');
+  assert.ok(guardResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects generic visible fixes with concrete raw payloads', () => {
@@ -292,6 +311,20 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
       resolution: 'We switched request setup to wait for the Fastify readiness promise before issuing API requests.',
     },
   }), { mode: 'auto' });
+  const discoveredResult = validateMaterializedNoteQuality(note({
+    title: 'Readiness implementation diary fix',
+    summary: 'We discovered API requests hit ECONNREFUSED before Fastify readiness.',
+    key_conclusions: [
+      'Root cause: We discovered API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'We discovered API requests hit ECONNREFUSED before Fastify readiness.',
+      outcome_type: 'fix',
+      root_cause: 'We discovered API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(foundResult.accepted, false);
   assert.equal(foundResult.reason, 'low-note-quality');
@@ -302,6 +335,9 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
   assert.equal(switchedResult.accepted, false);
   assert.equal(switchedResult.reason, 'low-note-quality');
   assert.ok(switchedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(discoveredResult.accepted, false);
+  assert.equal(discoveredResult.reason, 'low-note-quality');
+  assert.ok(discoveredResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects #87-like one-off status records in auto mode', () => {
