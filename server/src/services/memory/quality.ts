@@ -242,7 +242,7 @@ function isFirstPersonDiaryClaim(value: string) {
     'updated',
     'verified',
   ].join('|');
-  return new RegExp(`(?:^|:\\s*)\\b(?:i|we)\\s+(?:${diaryVerbs})\\b`, 'i')
+  return new RegExp(`(?:^|[:.!?]\\s*)\\b(?:i|we)\\s+(?:${diaryVerbs})\\b`, 'i')
     .test(value);
 }
 
@@ -457,6 +457,7 @@ function hasVisibleTitleQuality(title: string) {
     !isGenericTitle(title) &&
     !isFirstPersonDiaryClaim(title) &&
     !isVagueGenericFixClaim(title) &&
+    !isMetaReusableClaim(title) &&
     !isVisibleStatusSnapshotText(title)
   );
 }
@@ -466,8 +467,17 @@ function hasVisibleSummaryQuality(summary: string) {
     hasNonPlaceholderMeaningfulText(summary) &&
     !isFirstPersonDiaryClaim(summary) &&
     !isVagueGenericFixClaim(summary) &&
+    !isMetaReusableClaim(summary) &&
     !isVisibleStatusSnapshotText(summary)
   );
+}
+
+function isMetaReusableClaim(value: string) {
+  const text = value.toLowerCase();
+  const hasMetaClaim =
+    /\b(reusable lesson|reusable note|future tasks?|this note captures|captures a reusable|for future tasks?)\b/i
+      .test(text);
+  return hasMetaClaim && !hasConcreteMechanism(text);
 }
 
 function isVisibleStatusSnapshotText(value: string) {
