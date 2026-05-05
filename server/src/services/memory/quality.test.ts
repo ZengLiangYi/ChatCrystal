@@ -499,6 +499,21 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
       resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
     },
   }), { mode: 'auto' });
+  const genericResolutionResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Resolution: Use the correct pattern.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(genericTakeawayResult.accepted, false);
   assert.equal(genericTakeawayResult.reason, 'low-note-quality');
@@ -533,6 +548,9 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
   assert.equal(allGoodResult.accepted, false);
   assert.equal(allGoodResult.reason, 'low-note-quality');
   assert.ok(allGoodResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(genericResolutionResult.accepted, false);
+  assert.equal(genericResolutionResult.reason, 'low-note-quality');
+  assert.ok(genericResolutionResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects fix outcomes without visible fix conclusions', () => {
@@ -1553,6 +1571,27 @@ test('validateMaterializedNoteQuality accepts NODE_ENV import resolutions', () =
       outcome_type: 'fix',
       root_cause: 'Production API requests returned HTTP 500 because NODE_ENV config was imported after request setup.',
       resolution: 'Import NODE_ENV config before request setup to prevent HTTP 500 in production API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts HTTP 429 queue retry fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Queue rate-limit retries prevent HTTP 429 failures',
+    summary: 'Retry queued provider requests after HTTP 429 rate-limit responses so batch summarization continues.',
+    key_conclusions: [
+      'Root cause: Provider API requests returned HTTP 429 because the queue retried immediately without rate-limit backoff.',
+      'Resolution: Retry queued provider requests after the Retry-After delay before resuming batch summarization.',
+    ],
+    raw_payload: {
+      summary: 'Retry queued provider requests after HTTP 429 rate-limit responses so batch summarization continues.',
+      outcome_type: 'fix',
+      root_cause: 'Provider API requests returned HTTP 429 because the queue retried immediately without rate-limit backoff.',
+      resolution: 'Retry queued provider requests after the Retry-After delay before resuming batch summarization.',
     },
   }), { mode: 'auto' });
 

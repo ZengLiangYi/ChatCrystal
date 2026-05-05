@@ -208,6 +208,11 @@ function hasConcreteMechanism(value: string) {
       .test(text) ||
     /\b(before|after|without content|validat(?:e|ing)|read(?:ing)?|skips?)\b.+\b(typeerror|parser|parsing|jsonl|response_item\.content|partial events?|partial codex events?|event shape|parser fields)\b/i
       .test(text);
+  const hasRetryBackoffFlow =
+    /\b(retry|retried|retries|queue|queued|provider requests?)\b.+\b(rate[- ]limit|http 429|429|retry-after|backoff|delay|resuming batch summarization)\b/i
+      .test(text) ||
+    /\b(rate[- ]limit|http 429|429|retry-after|backoff|delay)\b.+\b(retry|retried|retries|queue|queued|provider requests?)\b/i
+      .test(text);
   return (
     hasTimingOrder ||
     hasRaceReadiness ||
@@ -216,7 +221,8 @@ function hasConcreteMechanism(value: string) {
     hasRelationalCleanup ||
     hasDedupeKey ||
     hasRequestFailureOrdering ||
-    hasParserFieldValidation
+    hasParserFieldValidation ||
+    hasRetryBackoffFlow
   );
 }
 
@@ -397,7 +403,18 @@ function hasGenericRootCauseRationale(value: string) {
 }
 
 function hasConcreteHttpRootCauseSignal(value: string) {
-  return hasConcreteRootCauseMechanism(value);
+  return hasConcreteRootCauseMechanism(value) || hasRateLimitRetryRootCauseSignal(value);
+}
+
+function hasRateLimitRetryRootCauseSignal(value: string) {
+  const text = value.toLowerCase();
+  return (
+    /\b(http\s*)?429\b/.test(text) &&
+    /\b(rate[- ]limit|retry-after|backoff|queue|queued|provider api requests?|provider requests?)\b/i
+      .test(text) &&
+    /\b(retried immediately|retry immediately|without rate[- ]limit backoff|without backoff|backoff|retry-after|delay)\b/i
+      .test(text)
+  );
 }
 
 function hasHttpFailureSignal(value: string) {
@@ -608,7 +625,7 @@ function isLowQualityVisibleConclusion(value: string) {
     isMetaReusableClaim(value) ||
     isMetaReusableClaim(body) ||
     (shouldApplyGenericLessonGate && isVagueGenericLesson(body)) ||
-    (shouldApplyGenericLessonGate && isVagueGenericFixClaim(body)) ||
+    isVagueGenericFixClaim(body) ||
     (shouldApplyGenericLessonGate && !hasConcreteConclusionValue(body)) ||
     isGenericVisibleBoilerplateClaim(value) ||
     isGenericVisibleBoilerplateClaim(body)
