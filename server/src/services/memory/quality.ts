@@ -249,7 +249,10 @@ function isFirstPersonDiaryClaim(value: string) {
     'fixed',
     'found',
     'implemented',
+    'reviewed',
+    'resolved',
     'switched',
+    'tested',
     'updated',
     'verified',
   ].join('|');
@@ -489,7 +492,7 @@ function hasVisibleSummaryQuality(summary: string) {
 }
 
 function isVisibleWorkLogClaim(value: string) {
-  return /^(added|changed|checked|confirmed|diagnosed|discovered|fixed|found|implemented|noted|observed|switched|updated|verified)\b/i
+  return /^(added|changed|checked|confirmed|diagnosed|discovered|fixed|found|implemented|noted|observed|reviewed|resolved|switched|tested|testing|updated|verified)\b/i
     .test(value.trim());
 }
 
@@ -526,9 +529,10 @@ function isGenericVisibleBoilerplateClaim(value: string) {
 }
 
 function isVisibleStatusSnapshotText(value: string) {
-  const hasStatusVerb = /\b(checked|noted|observed|verified|verification|current|status)\b/i.test(value);
+  const hasStatusVerb = /\b(checked|noted|observed|reviewed|resolved|tested|testing passed|verified|verification|current|status)\b/i
+    .test(value);
   const hasStatusObject =
-    /\b(node_env|env|environment|production|local|package version|version|generated dist output|dist output)\b/i
+    /\b(node_env|env|environment|production|local|testing|server readiness|fastify readiness|api requests?|package version|version|generated dist output|dist output)\b/i
       .test(value);
   return hasStatusVerb && hasStatusObject && !hasStrongReusableMechanism(value);
 }
