@@ -167,7 +167,7 @@ function hasSpecificObject(value: string) {
 function hasSpecificEvidence(value: string) {
   const text = value.toLowerCase();
   return (
-    /\b(data_dir|node_env|econrefused|note_tags|chatcrystal\.db|port|source_run_key|foreign_keys)\b|\/api\/[\w/-]+|\b[a-z0-9]+_[a-z0-9_]+\b|[a-z]:\\|\/[\w.-]+|[\u3400-\u9fff]/i
+    /\b(data_dir|node_env|econrefused|typeerror|note_tags|chatcrystal\.db|port|source_run_key|foreign_keys)\b|\/api\/[\w/-]+|\b[a-z0-9]+_[a-z0-9_]+\b|[a-z]:\\|\/[\w.-]+|[\u3400-\u9fff]/i
       .test(text) ||
     hasHttpFailureSignal(text) ||
     /\b(api requests?|fastify readiness|server readiness|request setup|package metadata|package version|dist output|generated dist output|data directory|electron server|server entrypoint|client calls?)\b/i
@@ -203,6 +203,11 @@ function hasConcreteMechanism(value: string) {
       /\b(ran after|after request setup|before issuing|before request setup|registration ran after)\b/i.test(text) ||
       hasTimingOrder
     );
+  const hasParserFieldValidation =
+    /\b(typeerror|parser|parsing|jsonl|response_item\.content|partial events?|partial codex events?|event shape|parser fields)\b.+\b(before|after|without content|validat(?:e|ing)|read(?:ing)?|skip)\b/i
+      .test(text) ||
+    /\b(before|after|without content|validat(?:e|ing)|read(?:ing)?|skip)\b.+\b(typeerror|parser|parsing|jsonl|response_item\.content|partial events?|partial codex events?|event shape|parser fields)\b/i
+      .test(text);
   return (
     hasTimingOrder ||
     hasRaceReadiness ||
@@ -210,7 +215,8 @@ function hasConcreteMechanism(value: string) {
     hasDataDirFallback ||
     hasRelationalCleanup ||
     hasDedupeKey ||
-    hasRequestFailureOrdering
+    hasRequestFailureOrdering ||
+    hasParserFieldValidation
   );
 }
 
@@ -259,7 +265,7 @@ function hasPackageItemSignal(value: string) {
 
 function hasFailureOrConsequenceSignal(value: string) {
   return (
-    /\b(race|raced|orphan|dedupe|deduplicate|stale dist|dist diverge|dist diverged|diverge|diverged|econrefused|readiness issue|startup race|invalid note_tags|foreign_keys|cascade|nulling|source_run_key collision)\b/i
+    /\b(race|raced|orphan|dedupe|deduplicate|stale dist|dist diverge|dist diverged|diverge|diverged|econrefused|typeerror|threw|throws?|readiness issue|startup race|invalid note_tags|foreign_keys|cascade|nulling|source_run_key collision)\b/i
       .test(value) ||
     hasDefaultDataDirectoryConsequence(value) ||
     hasHttpFailureSignal(value)
@@ -505,9 +511,14 @@ function isGenericVisibleBoilerplateClaim(value: string) {
     /\b(?:avoid|prevent|prevents?|prevention)\b.+\bfuture failures?\b/i.test(text) ||
     /\bfuture failures?\b.+\bexpected workflow\b/i.test(text);
   const hasGenericReleaseValidation =
+    /\bvalidate behavior\b/i.test(text) ||
     /\balways validate behavior before release\b/i.test(text) ||
     /\bvalidate behavior\b.+\bbefore release\b/i.test(text);
-  return (
+  const hasGenericResolvedInvestigation =
+    /\bissue resolved after investigation\b/i.test(text) ||
+    /\bresolved after investigation\b/i.test(text) ||
+    /\bissue was resolved after investigation(?: and testing)?\b/i.test(text);
+  return hasGenericResolvedInvestigation || (
     hasGenericReliabilityFix ||
     hasGenericFutureFailure ||
     hasGenericReleaseValidation

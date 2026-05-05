@@ -250,6 +250,20 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
       resolution: 'Register /api/notes before request setup so API requests use the notes route.',
     },
   }), { mode: 'auto' });
+  const resolvedInvestigationResult = validateMaterializedNoteQuality(note({
+    title: 'Server request issue resolved after investigation',
+    summary: 'The server request issue was resolved after investigation and testing.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'The server request issue was resolved after investigation and testing.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(summaryResult.accepted, false);
   assert.equal(summaryResult.reason, 'low-note-quality');
@@ -263,6 +277,9 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
   assert.equal(routeBoilerplateResult.accepted, false);
   assert.equal(routeBoilerplateResult.reason, 'low-note-quality');
   assert.ok(routeBoilerplateResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(resolvedInvestigationResult.accepted, false);
+  assert.equal(resolvedInvestigationResult.reason, 'low-note-quality');
+  assert.ok(resolvedInvestigationResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects low-quality extra key conclusions', () => {
@@ -326,6 +343,21 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
       resolution: 'Register /api/notes before request setup so API requests use the notes route.',
     },
   }), { mode: 'auto' });
+  const validateBehaviorResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Takeaway: Validate behavior.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(genericTakeawayResult.accepted, false);
   assert.equal(genericTakeawayResult.reason, 'low-note-quality');
@@ -339,6 +371,9 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
   assert.equal(routeBoilerplateResult.accepted, false);
   assert.equal(routeBoilerplateResult.reason, 'low-note-quality');
   assert.ok(routeBoilerplateResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(validateBehaviorResult.accepted, false);
+  assert.equal(validateBehaviorResult.reason, 'low-note-quality');
+  assert.ok(validateBehaviorResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects diary or status summaries with concrete conclusions', () => {
@@ -1222,6 +1257,27 @@ test('validateMaterializedNoteQuality accepts not-registered HTTP route fixes', 
       outcome_type: 'fix',
       root_cause: 'API requests returned HTTP 404 because /api/notes route was not registered before request setup.',
       resolution: 'Register /api/notes before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts concrete parser TypeError fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Codex JSONL parser skips partial response_item events',
+    summary: 'Validate response_item.content before reading Codex parser fields so partial JSONL events do not throw TypeError.',
+    key_conclusions: [
+      'Root cause: Codex JSONL parsing threw TypeError because response_item.content was read before validating the partial event shape.',
+      'Resolution: Validate response_item.content before reading parser fields and skip partial Codex events without content.',
+    ],
+    raw_payload: {
+      summary: 'Validate response_item.content before reading Codex parser fields so partial JSONL events do not throw TypeError.',
+      outcome_type: 'fix',
+      root_cause: 'Codex JSONL parsing threw TypeError because response_item.content was read before validating the partial event shape.',
+      resolution: 'Validate response_item.content before reading parser fields and skip partial Codex events without content.',
     },
   }), { mode: 'auto' });
 
