@@ -325,6 +325,20 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
       resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
     },
   }), { mode: 'auto' });
+  const confirmedResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'I confirmed API requests hit ECONNREFUSED before Fastify readiness.',
+    key_conclusions: [
+      'Root cause: I confirmed client calls hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'I confirmed API requests hit ECONNREFUSED before Fastify readiness.',
+      outcome_type: 'fix',
+      root_cause: 'I confirmed client calls hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(foundResult.accepted, false);
   assert.equal(foundResult.reason, 'low-note-quality');
@@ -338,6 +352,9 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
   assert.equal(discoveredResult.accepted, false);
   assert.equal(discoveredResult.reason, 'low-note-quality');
   assert.ok(discoveredResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(confirmedResult.accepted, false);
+  assert.equal(confirmedResult.reason, 'low-note-quality');
+  assert.ok(confirmedResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects #87-like one-off status records in auto mode', () => {

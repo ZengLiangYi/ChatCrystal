@@ -228,7 +228,21 @@ function hasConcreteTransferableText(value: string) {
 }
 
 function isFirstPersonDiaryClaim(value: string) {
-  return /\b(i|we)\s+(added|checked|verified|fixed|implemented|updated|changed|found|diagnosed|discovered|switched|then)\b/i
+  const diaryVerbs = [
+    'added',
+    'changed',
+    'checked',
+    'confirmed',
+    'diagnosed',
+    'discovered',
+    'fixed',
+    'found',
+    'implemented',
+    'switched',
+    'updated',
+    'verified',
+  ].join('|');
+  return new RegExp(`(?:^|:\\s*)\\b(?:i|we)\\s+(?:${diaryVerbs})\\b`, 'i')
     .test(value);
 }
 
