@@ -249,6 +249,59 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
   assert.equal(result.accepted, false);
   assert.equal(result.reason, 'low-note-quality');
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
+
+  const foundResult = validateMaterializedNoteQuality(note({
+    title: 'Readiness implementation diary fix',
+    summary: 'Found readiness race and kept the wait.',
+    key_conclusions: [
+      'Root cause: I found client calls hit ECONNREFUSED because they ran before the local server was ready.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Found readiness race and kept the wait.',
+      outcome_type: 'fix',
+      root_cause: 'I found client calls hit ECONNREFUSED because they ran before the local server was ready.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const diagnosedResult = validateMaterializedNoteQuality(note({
+    title: 'Readiness implementation diary fix',
+    summary: 'Diagnosed readiness race and kept the wait.',
+    key_conclusions: [
+      'Root cause: We diagnosed client calls hit ECONNREFUSED because they ran before the local server was ready.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Diagnosed readiness race and kept the wait.',
+      outcome_type: 'fix',
+      root_cause: 'We diagnosed client calls hit ECONNREFUSED because they ran before the local server was ready.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const switchedResult = validateMaterializedNoteQuality(note({
+    title: 'Readiness implementation diary fix',
+    summary: 'Switched readiness handling and kept the wait.',
+    key_conclusions: [
+      'Root cause: Client calls hit ECONNREFUSED because they ran before the local server was ready.',
+      'Resolution: We switched request setup to wait for the Fastify readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Switched readiness handling and kept the wait.',
+      outcome_type: 'fix',
+      root_cause: 'Client calls hit ECONNREFUSED because they ran before the local server was ready.',
+      resolution: 'We switched request setup to wait for the Fastify readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(foundResult.accepted, false);
+  assert.equal(foundResult.reason, 'low-note-quality');
+  assert.ok(foundResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(diagnosedResult.accepted, false);
+  assert.equal(diagnosedResult.reason, 'low-note-quality');
+  assert.ok(diagnosedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(switchedResult.accepted, false);
+  assert.equal(switchedResult.reason, 'low-note-quality');
+  assert.ok(switchedResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects #87-like one-off status records in auto mode', () => {

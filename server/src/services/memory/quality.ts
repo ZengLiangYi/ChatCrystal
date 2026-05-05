@@ -228,7 +228,7 @@ function hasConcreteTransferableText(value: string) {
 }
 
 function isFirstPersonDiaryClaim(value: string) {
-  return /\b(i|we)\s+(added|checked|verified|fixed|implemented|updated|changed|then)\b/i
+  return /\b(i|we)\s+(added|checked|verified|fixed|implemented|updated|changed|found|diagnosed|switched|then)\b/i
     .test(value);
 }
 
