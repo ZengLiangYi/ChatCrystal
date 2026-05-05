@@ -250,6 +250,21 @@ test('validateMaterializedNoteQuality rejects diary or status summaries with con
     },
   }), { mode: 'auto' });
 
+  const observedResult = validateMaterializedNoteQuality(note({
+    title: 'Observed Fastify readiness during API checks',
+    summary: 'Observed Fastify readiness behavior during API request checks.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Observed Fastify readiness behavior during API request checks.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
   assert.equal(diaryResult.accepted, false);
   assert.equal(diaryResult.reason, 'low-note-quality');
   assert.ok(diaryResult.warnings.includes('durable_reusable_lesson'));
@@ -262,6 +277,9 @@ test('validateMaterializedNoteQuality rejects diary or status summaries with con
   assert.equal(foundResult.accepted, false);
   assert.equal(foundResult.reason, 'low-note-quality');
   assert.ok(foundResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(observedResult.accepted, false);
+  assert.equal(observedResult.reason, 'low-note-quality');
+  assert.ok(observedResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects generic visible patterns with concrete raw payloads', () => {

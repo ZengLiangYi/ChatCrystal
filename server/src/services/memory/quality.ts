@@ -475,7 +475,7 @@ function hasVisibleSummaryQuality(summary: string) {
 }
 
 function isVisibleWorkLogClaim(value: string) {
-  return /^(added|changed|checked|confirmed|diagnosed|discovered|fixed|found|implemented|switched|updated|verified)\b/i
+  return /^(added|changed|checked|confirmed|diagnosed|discovered|fixed|found|implemented|noted|observed|switched|updated|verified)\b/i
     .test(value.trim());
 }
 
@@ -488,7 +488,7 @@ function isMetaReusableClaim(value: string) {
 }
 
 function isVisibleStatusSnapshotText(value: string) {
-  const hasStatusVerb = /\b(checked|verified|verification|current|status)\b/i.test(value);
+  const hasStatusVerb = /\b(checked|noted|observed|verified|verification|current|status)\b/i.test(value);
   const hasStatusObject =
     /\b(node_env|env|environment|production|local|package version|version|generated dist output|dist output)\b/i
       .test(value);
