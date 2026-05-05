@@ -70,8 +70,10 @@ function hasConcreteTransferableAction(value: string) {
     'initialize',
     'load',
     'migrate',
+    'move',
     'normalize',
     'parse',
+    'place',
     'pin',
     'prune',
     'rebuild',
@@ -437,6 +439,7 @@ function hasDurableReusableSignal(note: MaterializedTaskMemoryNote) {
   const hasVisibleFixSignal = hasVisibleConcreteFixSignal(note);
   const hasFixSignal = hasDurableFixSignal(note);
   if (!hasVisibleTitleSummarySignal) return false;
+  if (hasVisibleConclusionBoilerplate(note)) return false;
   if (hasFixSignal) return hasVisibleFixSignal;
   if (isMostlyOneOffStatus(note)) return false;
 
@@ -459,6 +462,7 @@ function hasVisibleTitleQuality(title: string) {
     !isVisibleWorkLogClaim(title) &&
     !isVagueGenericFixClaim(title) &&
     !isMetaReusableClaim(title) &&
+    !isGenericVisibleBoilerplateClaim(title) &&
     !isVisibleStatusSnapshotText(title)
   );
 }
@@ -470,6 +474,7 @@ function hasVisibleSummaryQuality(summary: string) {
     !isVisibleWorkLogClaim(summary) &&
     !isVagueGenericFixClaim(summary) &&
     !isMetaReusableClaim(summary) &&
+    !isGenericVisibleBoilerplateClaim(summary) &&
     !isVisibleStatusSnapshotText(summary)
   );
 }
@@ -482,9 +487,17 @@ function isVisibleWorkLogClaim(value: string) {
 function isMetaReusableClaim(value: string) {
   const text = value.toLowerCase();
   const hasMetaClaim =
-    /\b(reusable lesson|reusable note|future tasks?|this note captures|captures a reusable|for future tasks?)\b/i
+    /\b(reusable lesson|reusable note|reusable fix|future work|future tasks?|this note captures|captures a reusable|for future work|for future tasks?)\b/i
       .test(text);
   return hasMetaClaim && !hasConcreteMechanism(text);
+}
+
+function isGenericVisibleBoilerplateClaim(value: string) {
+  const text = value.toLowerCase();
+  const hasGenericReliabilityFix =
+    /\b(?:backend|api|server)?\s*reliability\s+fix\b/i.test(text) ||
+    /\bfix\b.+\breliability\b/i.test(text);
+  return hasGenericReliabilityFix && !hasSpecificEvidence(text) && !hasConcreteMechanism(text);
 }
 
 function isVisibleStatusSnapshotText(value: string) {
@@ -525,6 +538,11 @@ function hasVisibleStructuredSignal(note: MaterializedTaskMemoryNote) {
     ...conclusionText(note, 'decision'),
     ...conclusionText(note, 'pitfall'),
   ].some((item) => hasConcreteTransferableText(item));
+}
+
+function hasVisibleConclusionBoilerplate(note: MaterializedTaskMemoryNote) {
+  return note.key_conclusions.some((item) =>
+    isMetaReusableClaim(item) || isGenericVisibleBoilerplateClaim(item));
 }
 
 function hasVisibleQualitySignal(note: MaterializedTaskMemoryNote) {

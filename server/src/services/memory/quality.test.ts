@@ -192,6 +192,45 @@ test('validateMaterializedNoteQuality rejects generic title and summary with con
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects generic reliability visible fields with concrete conclusions', () => {
+  const summaryResult = validateMaterializedNoteQuality(note({
+    title: 'Backend reliability fix',
+    summary: 'This backend reliability fix prevents request failures in future work.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'This backend reliability fix prevents request failures in future work.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const conclusionResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Takeaway: This note captures a reusable fix for future tasks.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(summaryResult.accepted, false);
+  assert.equal(summaryResult.reason, 'low-note-quality');
+  assert.ok(summaryResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(conclusionResult.accepted, false);
+  assert.equal(conclusionResult.reason, 'low-note-quality');
+  assert.ok(conclusionResult.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality rejects diary or status summaries with concrete conclusions', () => {
   const diaryResult = validateMaterializedNoteQuality(note({
     title: 'Server readiness race returns ECONNREFUSED',
@@ -999,6 +1038,44 @@ test('validateMaterializedNoteQuality accepts natural HTTP registration ordering
   assert.equal(result.accepted, true);
   assert.equal(result.reason, 'note-quality-ok');
   assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts moved or placed HTTP registration ordering fixes', () => {
+  const moveResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Move /api/notes registration before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Move /api/notes registration before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Move /api/notes registration before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Move /api/notes registration before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const placeResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Place /api/notes registration before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Place /api/notes registration before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Place /api/notes registration before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Place /api/notes registration before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(moveResult.accepted, true);
+  assert.equal(moveResult.reason, 'note-quality-ok');
+  assert.deepEqual(moveResult.warnings, []);
+  assert.equal(placeResult.accepted, true);
+  assert.equal(placeResult.reason, 'note-quality-ok');
+  assert.deepEqual(placeResult.warnings, []);
 });
 
 test('validateMaterializedNoteQuality accepts not-registered HTTP route fixes', () => {
