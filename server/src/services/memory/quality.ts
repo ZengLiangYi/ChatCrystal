@@ -452,6 +452,7 @@ function hasDurableReusableSignal(note: MaterializedTaskMemoryNote) {
   const hasFixSignal = hasDurableFixSignal(note);
   if (!hasVisibleTitleSummarySignal) return false;
   if (hasVisibleConclusionBoilerplate(note)) return false;
+  if (payload.outcome_type === 'fix') return hasFixSignal && hasVisibleFixSignal;
   if (hasFixSignal) return hasVisibleFixSignal;
   if (isMostlyOneOffStatus(note)) return false;
 
@@ -508,7 +509,10 @@ function isGenericVisibleBoilerplateClaim(value: string) {
   const text = value.toLowerCase();
   const hasGenericReliabilityFix =
     /\b(?:backend|api|server)?\s*reliability\s+fix\b/i.test(text) ||
-    /\bfix\b.+\breliability\b/i.test(text);
+    /\bfix\b.+\breliability\b/i.test(text) ||
+    /\breliability improvement\b/i.test(text) ||
+    /\bimprove\b.+\b(reliability|correctness)\b/i.test(text) ||
+    /\b(reliability|correctness)\b.+\bfuture requests?\b/i.test(text);
   const hasGenericFutureFailure =
     /\bfuture failure prevention\b/i.test(text) ||
     /\b(?:avoid|prevent|prevents?|prevention)\b.+\bfuture failures?\b/i.test(text) ||
@@ -529,12 +533,13 @@ function isGenericVisibleBoilerplateClaim(value: string) {
 }
 
 function isVisibleStatusSnapshotText(value: string) {
+  const hasPassStatus = /\b(build|npm test|tests?|testing)\b.+\bpassed\b/i.test(value);
   const hasStatusVerb = /\b(checked|noted|observed|reviewed|resolved|tested|testing passed|verified|verification|current|status)\b/i
     .test(value);
   const hasStatusObject =
     /\b(node_env|env|environment|production|local|testing|server readiness|fastify readiness|api requests?|package version|version|generated dist output|dist output)\b/i
       .test(value);
-  return hasStatusVerb && hasStatusObject && !hasStrongReusableMechanism(value);
+  return (hasPassStatus || (hasStatusVerb && hasStatusObject)) && !hasStrongReusableMechanism(value);
 }
 
 function conclusionText(

@@ -264,6 +264,20 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
       resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
     },
   }), { mode: 'auto' });
+  const reliabilityImprovementResult = validateMaterializedNoteQuality(note({
+    title: 'Server reliability improvement',
+    summary: 'Improve server reliability and correctness for future requests.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Improve server reliability and correctness for future requests.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(summaryResult.accepted, false);
   assert.equal(summaryResult.reason, 'low-note-quality');
@@ -280,6 +294,9 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
   assert.equal(resolvedInvestigationResult.accepted, false);
   assert.equal(resolvedInvestigationResult.reason, 'low-note-quality');
   assert.ok(resolvedInvestigationResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(reliabilityImprovementResult.accepted, false);
+  assert.equal(reliabilityImprovementResult.reason, 'low-note-quality');
+  assert.ok(reliabilityImprovementResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects low-quality extra key conclusions', () => {
@@ -373,6 +390,21 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
       resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
     },
   }), { mode: 'auto' });
+  const buildPassedResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Build: npm test passed.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(genericTakeawayResult.accepted, false);
   assert.equal(genericTakeawayResult.reason, 'low-note-quality');
@@ -392,6 +424,28 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
   assert.equal(localTestingResult.accepted, false);
   assert.equal(localTestingResult.reason, 'low-note-quality');
   assert.ok(localTestingResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(buildPassedResult.accepted, false);
+  assert.equal(buildPassedResult.reason, 'low-note-quality');
+  assert.ok(buildPassedResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects fix outcomes without visible fix conclusions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Fastify readiness prevents ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests because ECONNREFUSED happens when client calls race server startup.',
+    key_conclusions: [
+      'Pattern: Wait for Fastify readiness before issuing API requests because ECONNREFUSED happens when client calls race server startup.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests because ECONNREFUSED happens when client calls race server startup.',
+      outcome_type: 'fix',
+      reusable_patterns: ['Wait for Fastify readiness before issuing API requests because ECONNREFUSED happens when client calls race server startup.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects diary or status summaries with concrete conclusions', () => {
