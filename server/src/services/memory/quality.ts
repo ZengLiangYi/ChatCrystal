@@ -456,6 +456,7 @@ function hasVisibleTitleQuality(title: string) {
     hasNonPlaceholderMeaningfulText(title, 10, 6) &&
     !isGenericTitle(title) &&
     !isFirstPersonDiaryClaim(title) &&
+    !isVisibleWorkLogClaim(title) &&
     !isVagueGenericFixClaim(title) &&
     !isMetaReusableClaim(title) &&
     !isVisibleStatusSnapshotText(title)
@@ -466,10 +467,16 @@ function hasVisibleSummaryQuality(summary: string) {
   return (
     hasNonPlaceholderMeaningfulText(summary) &&
     !isFirstPersonDiaryClaim(summary) &&
+    !isVisibleWorkLogClaim(summary) &&
     !isVagueGenericFixClaim(summary) &&
     !isMetaReusableClaim(summary) &&
     !isVisibleStatusSnapshotText(summary)
   );
+}
+
+function isVisibleWorkLogClaim(value: string) {
+  return /^(added|changed|checked|confirmed|diagnosed|discovered|fixed|found|implemented|switched|updated|verified)\b/i
+    .test(value.trim());
 }
 
 function isMetaReusableClaim(value: string) {

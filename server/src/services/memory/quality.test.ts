@@ -221,6 +221,34 @@ test('validateMaterializedNoteQuality rejects diary or status summaries with con
       resolution: 'Regenerate generated dist output after bumping package metadata so release artifacts carry the new package version.',
     },
   }), { mode: 'auto' });
+  const addedResult = validateMaterializedNoteQuality(note({
+    title: 'Added server readiness wait after ECONNREFUSED',
+    summary: 'Added Fastify readiness wait after checking API request setup.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Added Fastify readiness wait after checking API request setup.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const foundResult = validateMaterializedNoteQuality(note({
+    title: 'Found readiness race before Fastify startup',
+    summary: 'Found client API requests hit ECONNREFUSED before Fastify readiness.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Found client API requests hit ECONNREFUSED before Fastify readiness.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(diaryResult.accepted, false);
   assert.equal(diaryResult.reason, 'low-note-quality');
@@ -228,6 +256,12 @@ test('validateMaterializedNoteQuality rejects diary or status summaries with con
   assert.equal(statusResult.accepted, false);
   assert.equal(statusResult.reason, 'low-note-quality');
   assert.ok(statusResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(addedResult.accepted, false);
+  assert.equal(addedResult.reason, 'low-note-quality');
+  assert.ok(addedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(foundResult.accepted, false);
+  assert.equal(foundResult.reason, 'low-note-quality');
+  assert.ok(foundResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects generic visible patterns with concrete raw payloads', () => {
