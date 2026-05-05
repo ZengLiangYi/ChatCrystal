@@ -511,7 +511,7 @@ function isGenericVisibleBoilerplateClaim(value: string) {
     hasGenericReliabilityFix ||
     hasGenericFutureFailure ||
     hasGenericReleaseValidation
-  ) && !hasSpecificEvidence(text) && !hasConcreteMechanism(text);
+  ) && !hasConcreteMechanism(text);
 }
 
 function isVisibleStatusSnapshotText(value: string) {

@@ -236,6 +236,20 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
       resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
     },
   }), { mode: 'auto' });
+  const routeBoilerplateResult = validateMaterializedNoteQuality(note({
+    title: 'API reliability fix for /api/notes',
+    summary: 'This /api/notes reliability fix prevents future failures in the expected workflow.',
+    key_conclusions: [
+      'Root cause: /api/notes returned HTTP 404 because the route was not registered before request setup.',
+      'Resolution: Register /api/notes before request setup so API requests use the notes route.',
+    ],
+    raw_payload: {
+      summary: 'This /api/notes reliability fix prevents future failures in the expected workflow.',
+      outcome_type: 'fix',
+      root_cause: '/api/notes returned HTTP 404 because the route was not registered before request setup.',
+      resolution: 'Register /api/notes before request setup so API requests use the notes route.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(summaryResult.accepted, false);
   assert.equal(summaryResult.reason, 'low-note-quality');
@@ -246,6 +260,9 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
   assert.equal(futureFailureResult.accepted, false);
   assert.equal(futureFailureResult.reason, 'low-note-quality');
   assert.ok(futureFailureResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(routeBoilerplateResult.accepted, false);
+  assert.equal(routeBoilerplateResult.reason, 'low-note-quality');
+  assert.ok(routeBoilerplateResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects low-quality extra key conclusions', () => {
@@ -294,6 +311,21 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
       resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
     },
   }), { mode: 'auto' });
+  const routeBoilerplateResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup to prevent HTTP 404.',
+    key_conclusions: [
+      'Root cause: /api/notes returned HTTP 404 because the route was not registered before request setup.',
+      'Resolution: Register /api/notes before request setup so API requests use the notes route.',
+      'Takeaway: This /api/notes reliability fix prevents future failures in the expected workflow.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup to prevent HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: '/api/notes returned HTTP 404 because the route was not registered before request setup.',
+      resolution: 'Register /api/notes before request setup so API requests use the notes route.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(genericTakeawayResult.accepted, false);
   assert.equal(genericTakeawayResult.reason, 'low-note-quality');
@@ -304,6 +336,9 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
   assert.equal(releaseValidationResult.accepted, false);
   assert.equal(releaseValidationResult.reason, 'low-note-quality');
   assert.ok(releaseValidationResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(routeBoilerplateResult.accepted, false);
+  assert.equal(routeBoilerplateResult.reason, 'low-note-quality');
+  assert.ok(routeBoilerplateResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects diary or status summaries with concrete conclusions', () => {
