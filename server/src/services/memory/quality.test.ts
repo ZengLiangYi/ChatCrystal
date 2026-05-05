@@ -133,6 +133,65 @@ test('validateMaterializedNoteQuality rejects generic visible fixes with concret
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects generic title and summary with concrete conclusions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Task works correctly after fix',
+    summary: 'Unknown expected behavior was fixed and task works correctly.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Unknown expected behavior was fixed and task works correctly.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects diary or status summaries with concrete conclusions', () => {
+  const diaryResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'I checked API requests and added the readiness wait.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'I checked API requests and added the readiness wait.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const statusResult = validateMaterializedNoteQuality(note({
+    title: 'Package version status check',
+    summary: 'Checked current local package version status and generated dist output.',
+    key_conclusions: [
+      'Root cause: Generated dist output kept stale package metadata because the version bump ran after dist generation.',
+      'Resolution: Regenerate generated dist output after bumping package metadata so release artifacts carry the new package version.',
+    ],
+    raw_payload: {
+      summary: 'Checked current local package version status and generated dist output.',
+      outcome_type: 'fix',
+      root_cause: 'Generated dist output kept stale package metadata because the version bump ran after dist generation.',
+      resolution: 'Regenerate generated dist output after bumping package metadata so release artifacts carry the new package version.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(diaryResult.accepted, false);
+  assert.equal(diaryResult.reason, 'low-note-quality');
+  assert.ok(diaryResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(statusResult.accepted, false);
+  assert.equal(statusResult.reason, 'low-note-quality');
+  assert.ok(statusResult.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality rejects generic visible patterns with concrete raw payloads', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Reusable API request pattern',

@@ -417,8 +417,10 @@ function hasDurableFixSignal(note: MaterializedTaskMemoryNote) {
 function hasDurableReusableSignal(note: MaterializedTaskMemoryNote) {
   const payload = note.raw_payload;
   const hasVisibleSignal = hasVisibleQualitySignal(note);
+  const hasVisibleTitleSummarySignal = hasVisibleTitleSummaryQuality(note);
   const hasVisibleFixSignal = hasVisibleConcreteFixSignal(note);
   const hasFixSignal = hasDurableFixSignal(note);
+  if (!hasVisibleTitleSummarySignal) return false;
   if (hasFixSignal) return hasVisibleFixSignal;
   if (isMostlyOneOffStatus(note)) return false;
 
@@ -427,6 +429,37 @@ function hasDurableReusableSignal(note: MaterializedTaskMemoryNote) {
     Boolean(payload.pitfalls?.some((item) => hasConcreteTransferableText(item))) ||
     Boolean(payload.decisions?.some((item) => hasConcreteTransferableText(item)));
   return hasStructuredSignal && hasVisibleStructuredSignal(note) && hasVisibleSignal;
+}
+
+function hasVisibleTitleSummaryQuality(note: MaterializedTaskMemoryNote) {
+  return hasVisibleTitleQuality(note.title) && hasVisibleSummaryQuality(note.summary);
+}
+
+function hasVisibleTitleQuality(title: string) {
+  return (
+    hasNonPlaceholderMeaningfulText(title, 10, 6) &&
+    !isGenericTitle(title) &&
+    !isFirstPersonDiaryClaim(title) &&
+    !isVagueGenericFixClaim(title) &&
+    !isVisibleStatusSnapshotText(title)
+  );
+}
+
+function hasVisibleSummaryQuality(summary: string) {
+  return (
+    hasNonPlaceholderMeaningfulText(summary) &&
+    !isFirstPersonDiaryClaim(summary) &&
+    !isVagueGenericFixClaim(summary) &&
+    !isVisibleStatusSnapshotText(summary)
+  );
+}
+
+function isVisibleStatusSnapshotText(value: string) {
+  const hasStatusVerb = /\b(checked|verified|verification|current|status)\b/i.test(value);
+  const hasStatusObject =
+    /\b(node_env|env|environment|production|local|package version|version|generated dist output|dist output)\b/i
+      .test(value);
+  return hasStatusVerb && hasStatusObject && !hasStrongReusableMechanism(value);
 }
 
 function conclusionText(
@@ -520,7 +553,10 @@ export function validateMaterializedNoteQuality(
   options: { mode: ValidationMode },
 ): NoteQualityDecision {
   const warnings: string[] = [];
-  const acceptedDurableFix = hasDurableFixSignal(note) && hasVisibleConcreteFixSignal(note);
+  const acceptedDurableFix =
+    hasDurableFixSignal(note) &&
+    hasVisibleConcreteFixSignal(note) &&
+    hasVisibleTitleSummaryQuality(note);
 
   if (!hasMeaningfulText(note.title, 10, 6) || isGenericTitle(note.title)) {
     warnings.push('title');
