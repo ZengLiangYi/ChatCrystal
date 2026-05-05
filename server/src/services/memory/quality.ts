@@ -121,7 +121,7 @@ function isVagueGenericLesson(value: string) {
     /\bhandle\b.+\bproperly\b/.test(text) ||
     /\bexpected pattern\b/.test(text);
   const hasGenericTerms =
-    /\b(the task|this task|the pattern|the implementation|implementation behavior|expected behavior|expected pattern|values?|input|correctness|going forward)\b/.test(text);
+    /\b(the task|this task|the pattern|the implementation|implementation behavior|expected behavior|expected pattern|values?|input|correctness|reliability|maintenance|going forward)\b/.test(text);
   return hasBoilerplateClaim || (hasGenericTerms && !hasSpecificObject(text));
 }
 
@@ -204,9 +204,9 @@ function hasConcreteMechanism(value: string) {
       hasTimingOrder
     );
   const hasParserFieldValidation =
-    /\b(typeerror|parser|parsing|jsonl|response_item\.content|partial events?|partial codex events?|event shape|parser fields)\b.+\b(before|after|without content|validat(?:e|ing)|read(?:ing)?|skip)\b/i
+    /\b(typeerror|parser|parsing|jsonl|response_item\.content|partial events?|partial codex events?|event shape|parser fields)\b.+\b(before|after|without content|validat(?:e|ing)|read(?:ing)?|skips?)\b/i
       .test(text) ||
-    /\b(before|after|without content|validat(?:e|ing)|read(?:ing)?|skip)\b.+\b(typeerror|parser|parsing|jsonl|response_item\.content|partial events?|partial codex events?|event shape|parser fields)\b/i
+    /\b(before|after|without content|validat(?:e|ing)|read(?:ing)?|skips?)\b.+\b(typeerror|parser|parsing|jsonl|response_item\.content|partial events?|partial codex events?|event shape|parser fields)\b/i
       .test(text);
   return (
     hasTimingOrder ||
@@ -470,6 +470,7 @@ function hasVisibleTitleSummaryQuality(note: MaterializedTaskMemoryNote) {
 function hasVisibleTitleQuality(title: string) {
   return (
     hasNonPlaceholderMeaningfulText(title, 10, 6) &&
+    hasVisibleConcreteContent(title) &&
     !isGenericTitle(title) &&
     !isFirstPersonDiaryClaim(title) &&
     !isVisibleWorkLogClaim(title) &&
@@ -483,6 +484,7 @@ function hasVisibleTitleQuality(title: string) {
 function hasVisibleSummaryQuality(summary: string) {
   return (
     hasNonPlaceholderMeaningfulText(summary) &&
+    hasVisibleConcreteContent(summary) &&
     !isFirstPersonDiaryClaim(summary) &&
     !isVisibleWorkLogClaim(summary) &&
     !isVagueGenericFixClaim(summary) &&
@@ -490,6 +492,15 @@ function hasVisibleSummaryQuality(summary: string) {
     !isGenericVisibleBoilerplateClaim(summary) &&
     !isVisibleStatusSnapshotText(summary)
   );
+}
+
+function hasVisibleConcreteContent(value: string) {
+  const text = value.toLowerCase();
+  if (hasSpecificEvidence(text) && hasConcreteMechanism(text)) return true;
+  if (hasSpecificEvidence(text) && hasFailureOrConsequenceSignal(text)) return true;
+  if (hasPackageDistRootCauseSignal(text)) return true;
+  if (/\bdata_dir\b.+\b(electron|import ordering|server entrypoint)\b/i.test(text)) return true;
+  return /\bdata_dir\b.+\b(prevents?|avoids?)\b.+\bfallback\b/i.test(text);
 }
 
 function isVisibleWorkLogClaim(value: string) {
@@ -579,10 +590,11 @@ function hasVisibleConclusionBoilerplate(note: MaterializedTaskMemoryNote) {
 }
 
 function isLowQualityVisibleConclusion(value: string) {
-  const body = value.replace(
-    /^\s*(root cause|resolution|pattern|decision|pitfall|takeaway|error signature):\s*/i,
-    '',
-  );
+  const labelMatch = /^\s*(root cause|resolution|pattern|decision|pitfall|takeaway|error signature):\s*/i
+    .exec(value);
+  const label = labelMatch?.[1]?.toLowerCase();
+  const body = value.slice(labelMatch?.[0]?.length ?? 0);
+  const shouldApplyGenericLessonGate = label !== 'root cause' && label !== 'resolution';
   return (
     isPlaceholderText(value) ||
     isPlaceholderText(body) ||
@@ -592,6 +604,8 @@ function isLowQualityVisibleConclusion(value: string) {
     isVisibleStatusSnapshotText(body) ||
     isMetaReusableClaim(value) ||
     isMetaReusableClaim(body) ||
+    (shouldApplyGenericLessonGate && isVagueGenericLesson(body)) ||
+    (shouldApplyGenericLessonGate && isVagueGenericFixClaim(body)) ||
     isGenericVisibleBoilerplateClaim(value) ||
     isGenericVisibleBoilerplateClaim(body)
   );

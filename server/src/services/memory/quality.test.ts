@@ -278,6 +278,34 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
       resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
     },
   }), { mode: 'auto' });
+  const genericTitleResult = validateMaterializedNoteQuality(note({
+    title: 'Backend request fix',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const genericSummaryResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'The request setup reliability was improved.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'The request setup reliability was improved.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(summaryResult.accepted, false);
   assert.equal(summaryResult.reason, 'low-note-quality');
@@ -297,6 +325,12 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
   assert.equal(reliabilityImprovementResult.accepted, false);
   assert.equal(reliabilityImprovementResult.reason, 'low-note-quality');
   assert.ok(reliabilityImprovementResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(genericTitleResult.accepted, false);
+  assert.equal(genericTitleResult.reason, 'low-note-quality');
+  assert.ok(genericTitleResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(genericSummaryResult.accepted, false);
+  assert.equal(genericSummaryResult.reason, 'low-note-quality');
+  assert.ok(genericSummaryResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects low-quality extra key conclusions', () => {
@@ -405,6 +439,36 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
       resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
     },
   }), { mode: 'auto' });
+  const correctPatternResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Takeaway: Use the correct pattern.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const maintenanceReliabilityResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Takeaway: Reliability matters for future maintenance.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(genericTakeawayResult.accepted, false);
   assert.equal(genericTakeawayResult.reason, 'low-note-quality');
@@ -427,6 +491,12 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
   assert.equal(buildPassedResult.accepted, false);
   assert.equal(buildPassedResult.reason, 'low-note-quality');
   assert.ok(buildPassedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(correctPatternResult.accepted, false);
+  assert.equal(correctPatternResult.reason, 'low-note-quality');
+  assert.ok(correctPatternResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(maintenanceReliabilityResult.accepted, false);
+  assert.equal(maintenanceReliabilityResult.reason, 'low-note-quality');
+  assert.ok(maintenanceReliabilityResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects fix outcomes without visible fix conclusions', () => {
