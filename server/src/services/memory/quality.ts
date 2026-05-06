@@ -52,6 +52,7 @@ function hasConcreteTransferableAction(value: string) {
   if (hasNegativeTransferableAction(text)) return true;
   if (hasSchemaDefaultArrayAction(text)) return true;
   if (hasDurableEngineeringPreventionAction(text)) return true;
+  if (hasImportDedupeAction(text)) return true;
   if (hasPersistenceSerializationAction(text)) return true;
   const concreteActionWords = [
     'add',
@@ -194,10 +195,12 @@ function hasSpecificObject(value: string) {
 function hasSpecificEvidence(value: string) {
   const text = value.toLowerCase();
   return (
-    /\b(data_dir|node_env|econrefused|typeerror|note_tags|chatcrystal\.db|port|source_run_key|foreign_keys)\b|\/api\/[\w/-]+|\b[a-z0-9]+_[a-z0-9_]+\b|[a-z]:\\|\/[\w.-]+|[\u3400-\u9fff]/i
+    /\b(data_dir|node_env|econrefused|typeerror|note_tags|chatcrystal\.db|port|source_run_key|foreign_keys)\b|\/api\/[\w/-]+|\b[a-z0-9]+_[a-z0-9_]+\b|[a-z]:\\|\/[\w.-]+/i
       .test(text) ||
+    hasChineseTechnicalEvidence(text) ||
     hasSchemaArrayEvidence(text) ||
     hasDurableEngineeringEvidence(text) ||
+    hasImportDedupeEvidence(text) ||
     hasContentSanitizationEvidence(text) ||
     hasPersistenceSnapshotEvidence(text) ||
     hasIndexConsistencyEvidence(text) ||
@@ -205,6 +208,11 @@ function hasSpecificEvidence(value: string) {
     /\b(api requests?|fastify readiness|server readiness|request setup|package metadata|package version|dist output|generated dist output|data directory|electron server|server entrypoint|client calls?)\b/i
       .test(text)
   );
+}
+
+function hasChineseTechnicalEvidence(value: string) {
+  return /接口|请求|路由|注册|配置|数据库|索引|语义搜索|向量|笔记|导入|解析|去重|文件|目录|环境变量|凭据|私钥|内网|脱敏|校准|样本|夹具|数据集|元数据|来源|隐私|构建|编译/
+    .test(value);
 }
 
 function hasSchemaArrayEvidence(value: string) {
@@ -267,6 +275,41 @@ function hasDurableEngineeringFailureSignal(value: string) {
     /\b(because|so|caused|led to|hid whether|could commit|cannot silently include|without review context|leak(?:ed|s|ing)?|returned|overwrote|threw)\b/i
       .test(text);
   return hasDurableEngineeringEvidence(text) && hasConcreteConsequence && hasFailureFlow;
+}
+
+function hasImportDedupeEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(chokidar|jsonl|mtime|file size|source file size|file revision|import scan|adapter|import dedupe key|dedupe key|duplicate inserts?|unchanged [\w -]*files?|reparsed|reparse|same file revision)\b/i
+    .test(text);
+}
+
+function hasImportDedupeAction(value: string) {
+  const text = value.toLowerCase();
+  const hasDedupeAction = /\b(use|skip|dedupe|deduplicate|key|compare|track)\b/i.test(text);
+  const hasRevisionKey =
+    /\b(file size|source file size|mtime|dedupe key|file revision|skip parsing|same file revision)\b/i
+      .test(text);
+  return hasImportDedupeEvidence(text) && hasDedupeAction && hasRevisionKey;
+}
+
+function hasImportDedupeMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasDedupeFlow =
+    /\b(import dedupe|dedupe key|dedupe|deduplicate|skip parsing|same file revision)\b/i
+      .test(text);
+  const hasRevisionOrWatcherEvidence =
+    /\b(file size|source file size|mtime|file revision|same file revision|chokidar|unchanged [\w -]*files?|jsonl|reparsed|reparse|repeated)\b/i
+      .test(text);
+  return hasImportDedupeEvidence(text) && hasDedupeFlow && hasRevisionOrWatcherEvidence;
+}
+
+function hasImportDedupeFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasRepeatedImportConsequence =
+    /\b(repeated events?|repeated jsonl parsing|reparsed|reparse|duplicate inserts?|same conversation|every chokidar event)\b/i
+      .test(text);
+  const hasCausalFlow = /\b(because|so|otherwise|attempted|prevents?|preventing)\b/i.test(text);
+  return hasImportDedupeEvidence(text) && hasRepeatedImportConsequence && hasCausalFlow;
 }
 
 function hasContentSanitizationEvidence(value: string) {
@@ -409,6 +452,7 @@ function hasConcreteMechanism(value: string) {
       .test(text);
   const hasSchemaDefaultArrayFlow = hasSchemaDefaultArrayMechanism(text);
   const hasDurableEngineeringFlow = hasDurableEngineeringMechanism(text);
+  const hasImportDedupeFlow = hasImportDedupeMechanism(text);
   const hasContentSanitizationFlow = hasContentSanitizationMechanism(text);
   const hasPersistenceSerializationFlow = hasPersistenceSerializationMechanism(text);
   const hasIndexConsistencyFlow = hasIndexConsistencyMechanism(text);
@@ -424,6 +468,7 @@ function hasConcreteMechanism(value: string) {
     hasRetryBackoffFlow ||
     hasSchemaDefaultArrayFlow ||
     hasDurableEngineeringFlow ||
+    hasImportDedupeFlow ||
     hasContentSanitizationFlow ||
     hasPersistenceSerializationFlow ||
     hasIndexConsistencyFlow
@@ -492,6 +537,7 @@ function hasFailureOrConsequenceSignal(value: string) {
       .test(value) ||
     hasSchemaArrayFailureSignal(value) ||
     hasDurableEngineeringFailureSignal(value) ||
+    hasImportDedupeFailureSignal(value) ||
     hasContentSanitizationFailureSignal(value) ||
     hasPersistenceSnapshotFailureSignal(value) ||
     hasIndexConsistencyFailureSignal(value) ||
@@ -834,10 +880,15 @@ function isVisibleStatusSnapshotText(value: string) {
       .test(value);
   const hasStatusVerb = /\b(checked|noted|observed|reviewed|resolved|tested|testing passed|verified|verification|current|status)\b/i
     .test(value);
+  const hasChineseStatus =
+    /已验证|验证通过|测试通过|构建通过|编译通过|类型检查通过|检查通过|已修复|修复已验证|ci\s*通过|持续集成通过/i
+      .test(value) ||
+    /(?:提高|提升).{0,12}(?:可靠性|正确性)|(?:可靠性|正确性).{0,12}(?:提高|提升)/
+      .test(value);
   const hasStatusObject =
     /\b(node_env|env|environment|production|local|testing|server readiness|fastify readiness|api requests?|package version|version|generated dist output|dist output)\b/i
       .test(value);
-  return (hasPassStatus || hasSuccessStatus || (hasStatusVerb && hasStatusObject)) &&
+  return (hasPassStatus || hasSuccessStatus || hasChineseStatus || (hasStatusVerb && hasStatusObject)) &&
     !hasStrongReusableMechanism(value);
 }
 

@@ -404,6 +404,45 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
       resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
     },
   }), { mode: 'auto' });
+  const chineseVerifiedResult = validateMaterializedNoteQuality(note({
+    title: 'API 注册顺序导致 /api/notes HTTP 404',
+    summary: '已验证 /api/notes HTTP 404 修复，测试通过。',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const chineseFixedReliabilityResult = validateMaterializedNoteQuality(note({
+    title: 'API 注册顺序导致 /api/notes HTTP 404',
+    summary: '已修复 /api/notes HTTP 404，接口可靠性提高。',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const chineseBuildPassedResult = validateMaterializedNoteQuality(note({
+    title: 'API 注册顺序导致 /api/notes HTTP 404',
+    summary: '构建通过，/api/notes HTTP 404 修复已验证。',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(summaryResult.accepted, false);
   assert.equal(summaryResult.reason, 'low-note-quality');
@@ -450,6 +489,15 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
   assert.equal(lintCompletedResult.accepted, false);
   assert.equal(lintCompletedResult.reason, 'low-note-quality');
   assert.ok(lintCompletedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseVerifiedResult.accepted, false);
+  assert.equal(chineseVerifiedResult.reason, 'low-note-quality');
+  assert.ok(chineseVerifiedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseFixedReliabilityResult.accepted, false);
+  assert.equal(chineseFixedReliabilityResult.reason, 'low-note-quality');
+  assert.ok(chineseFixedReliabilityResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseBuildPassedResult.accepted, false);
+  assert.equal(chineseBuildPassedResult.reason, 'low-note-quality');
+  assert.ok(chineseBuildPassedResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects low-quality extra key conclusions', () => {
@@ -1928,6 +1976,47 @@ test('validateMaterializedNoteQuality rejects generic fixture privacy reliabilit
       summary: 'Add privacy checks to fixtures so data is safer and reliable.',
       root_cause: 'Fixture data was unreliable.',
       resolution: 'Add privacy checks to fixtures so data is safer and reliable.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts watcher import dedupe fixes', () => {
+  const root_cause = 'Chokidar emitted repeated events for unchanged Claude JSONL files, so the import scan reparsed the same conversation and attempted duplicate inserts.';
+  const resolution = 'Use source file size and mtime as the import dedupe key and skip parsing when the adapter sees the same file revision again.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Watcher import dedupe prevents repeated JSONL parsing',
+    summary: 'Use source file size and mtime as the import dedupe key because unchanged Claude JSONL files can otherwise be reparsed on every chokidar event.',
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Use source file size and mtime as the import dedupe key because unchanged Claude JSONL files can otherwise be reparsed on every chokidar event.',
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic import dedupe reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Import dedupe reliability fix',
+    summary: 'Use import dedupe so imports are reliable.',
+    key_conclusions: [
+      'Root cause: Import dedupe was unreliable.',
+      'Resolution: Use import dedupe so imports are reliable.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Use import dedupe so imports are reliable.',
+      root_cause: 'Import dedupe was unreliable.',
+      resolution: 'Use import dedupe so imports are reliable.',
     },
   }), { mode: 'auto' });
 
