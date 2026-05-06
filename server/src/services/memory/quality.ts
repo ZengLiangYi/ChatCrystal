@@ -87,6 +87,7 @@ function hasConcreteTransferableAction(value: string) {
     'retry',
     'sanitize',
     'set',
+    'strip',
     'truncate',
     'validate',
     'wait',
@@ -195,6 +196,7 @@ function hasSpecificEvidence(value: string) {
     /\b(data_dir|node_env|econrefused|typeerror|note_tags|chatcrystal\.db|port|source_run_key|foreign_keys)\b|\/api\/[\w/-]+|\b[a-z0-9]+_[a-z0-9_]+\b|[a-z]:\\|\/[\w.-]+|[\u3400-\u9fff]/i
       .test(text) ||
     hasSchemaArrayEvidence(text) ||
+    hasContentSanitizationEvidence(text) ||
     hasPersistenceSnapshotEvidence(text) ||
     hasIndexConsistencyEvidence(text) ||
     hasHttpFailureSignal(text) ||
@@ -221,6 +223,39 @@ function hasSchemaDefaultArrayMechanism(value: string) {
   const hasIterationOrHandler =
     /\b(iterat(?:e|ed|es|ing|ion)|handler|handler logic)\b/i.test(text);
   return hasSchemaArrayEvidence(text) && hasOptionalOrDefaultArray && hasIterationOrHandler;
+}
+
+function hasContentSanitizationEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /<system-reminder>|<command-name>|\b(jsonl|source adapter|adapter|claude code|sanitizecontent|system xml tags?|xml tags?|system-reminder|command-name|system noise|raw jsonl|message content|human-facing notes?|note content|imported conversation messages?)\b/i
+    .test(text);
+}
+
+function hasContentSanitizationMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasSanitizeAction =
+    /\b(sanitize|sanitized|sanitizecontent|strip|stripped|remove|removed|filter|filtered|clean)\b/i
+      .test(text);
+  const hasImportedContentFlow =
+    /\b(pars(?:e|ed|es|ing)|sav(?:e|ed|es|ing)|import(?:ed|ing)?|raw jsonl|message content|conversation messages?|before saving)\b/i
+      .test(text);
+  const hasNoiseOrTagTarget =
+    /<system-reminder>|<command-name>|\b(system xml tags?|xml tags?|system-reminder|command-name|system noise|raw jsonl|message content)\b/i
+      .test(text);
+  return hasContentSanitizationEvidence(text) &&
+    hasSanitizeAction &&
+    (hasImportedContentFlow || hasNoiseOrTagTarget);
+}
+
+function hasContentSanitizationFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasLeakOrPollution =
+    /\b(leak(?:ed|s|ing)?|pollut(?:e|ed|es|ing|ion)|system noise|raw jsonl|become note content|human-facing notes?|note content)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|leak(?:ed|s|ing)? into|does not become|before saving|raw jsonl message content)\b/i
+      .test(text);
+  return hasContentSanitizationEvidence(text) && hasLeakOrPollution && hasCausalFlow;
 }
 
 function hasPersistenceSnapshotEvidence(value: string) {
@@ -329,6 +364,7 @@ function hasConcreteMechanism(value: string) {
     /\b(rate[- ]limit|http 429|429|retry-after|backoff|delay)\b.+\b(retry|retried|retries|queue|queued|provider requests?)\b/i
       .test(text);
   const hasSchemaDefaultArrayFlow = hasSchemaDefaultArrayMechanism(text);
+  const hasContentSanitizationFlow = hasContentSanitizationMechanism(text);
   const hasPersistenceSerializationFlow = hasPersistenceSerializationMechanism(text);
   const hasIndexConsistencyFlow = hasIndexConsistencyMechanism(text);
   return (
@@ -342,6 +378,7 @@ function hasConcreteMechanism(value: string) {
     hasParserFieldValidation ||
     hasRetryBackoffFlow ||
     hasSchemaDefaultArrayFlow ||
+    hasContentSanitizationFlow ||
     hasPersistenceSerializationFlow ||
     hasIndexConsistencyFlow
   );
@@ -408,6 +445,7 @@ function hasFailureOrConsequenceSignal(value: string) {
     /\b(race|raced|orphan|dedupe|deduplicate|stale dist|dist diverge|dist diverged|diverge|diverged|econrefused|typeerror|threw|throws?|readiness issue|startup race|invalid note_tags|foreign_keys|cascade|nulling|source_run_key collision)\b/i
       .test(value) ||
     hasSchemaArrayFailureSignal(value) ||
+    hasContentSanitizationFailureSignal(value) ||
     hasPersistenceSnapshotFailureSignal(value) ||
     hasIndexConsistencyFailureSignal(value) ||
     hasDefaultDataDirectoryConsequence(value) ||
@@ -744,6 +782,8 @@ function isVisibleStatusSnapshotText(value: string) {
     .test(value);
   const hasSuccessStatus =
     /\b(ci green|ci completed successfully|tests? succeeded|testing succeeded|verification succeeded|build succeeded|typecheck succeeded|lint succeeded)\b/i
+      .test(value) ||
+    /\b(typecheck|lint|ci|build|tests?|testing|verification)\b.+\bcompleted successfully\b/i
       .test(value);
   const hasStatusVerb = /\b(checked|noted|observed|reviewed|resolved|tested|testing passed|verified|verification|current|status)\b/i
     .test(value);

@@ -376,6 +376,34 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
       resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
     },
   }), { mode: 'auto' });
+  const typecheckCompletedResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Typecheck completed successfully for /api/notes HTTP 404 after the route registration ran before request setup.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Typecheck completed successfully for /api/notes HTTP 404 after the route registration ran before request setup.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const lintCompletedResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Lint completed successfully for /api/notes HTTP 404 after the route registration ran before request setup.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Lint completed successfully for /api/notes HTTP 404 after the route registration ran before request setup.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(summaryResult.accepted, false);
   assert.equal(summaryResult.reason, 'low-note-quality');
@@ -416,6 +444,12 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
   assert.equal(ciCompletedResult.accepted, false);
   assert.equal(ciCompletedResult.reason, 'low-note-quality');
   assert.ok(ciCompletedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(typecheckCompletedResult.accepted, false);
+  assert.equal(typecheckCompletedResult.reason, 'low-note-quality');
+  assert.ok(typecheckCompletedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(lintCompletedResult.accepted, false);
+  assert.equal(lintCompletedResult.reason, 'low-note-quality');
+  assert.ok(lintCompletedResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects low-quality extra key conclusions', () => {
@@ -1817,6 +1851,47 @@ test('validateMaterializedNoteQuality accepts concrete schema default array fixe
   assert.equal(result.accepted, true);
   assert.equal(result.reason, 'note-quality-ok');
   assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts imported content sanitization fixes', () => {
+  const root = 'The Claude Code adapter saved raw JSONL message content, so <system-reminder> and <command-name> tags leaked into human-facing notes.';
+  const resolution = 'Strip Claude system XML tags in sanitizeContent before saving imported conversation messages.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Claude system-reminder tags leak into notes',
+    summary: 'Sanitize <system-reminder> and <command-name> tags while parsing Claude Code JSONL so system noise does not become note content.',
+    key_conclusions: [`Root cause: ${root}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Sanitize <system-reminder> and <command-name> tags while parsing Claude Code JSONL so system noise does not become note content.',
+      root_cause: root,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic import sanitization reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Imported content sanitization reliability fix',
+    summary: 'Sanitize imported content so notes are reliable.',
+    key_conclusions: [
+      'Root cause: Imported content was unreliable.',
+      'Resolution: Sanitize imported content so notes are reliable.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Sanitize imported content so notes are reliable.',
+      root_cause: 'Imported content was unreliable.',
+      resolution: 'Sanitize imported content so notes are reliable.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality accepts concrete negative parser pitfalls', () => {
