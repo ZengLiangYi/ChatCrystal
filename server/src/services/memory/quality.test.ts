@@ -1399,6 +1399,20 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
       resolution: 'I used activeRequestId to gate setResults so stale /api/search responses do not overwrite current results.',
     },
   }), { mode: 'auto' });
+  const myFixResult = validateMaterializedNoteQuality(note({
+    title: 'My fix uses activeRequestId for search results',
+    summary: 'My fix uses activeRequestId to gate setResults so stale /api/search responses cannot overwrite current results.',
+    key_conclusions: [
+      'Root cause: Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      'Resolution: My fix uses activeRequestId to gate setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'My fix uses activeRequestId to gate setResults so stale /api/search responses cannot overwrite current results.',
+      root_cause: 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      resolution: 'My fix uses activeRequestId to gate setResults so stale /api/search responses cannot overwrite current results.',
+    },
+  }), { mode: 'auto' });
   const chineseLetResult = validateMaterializedNoteQuality(note({
     title: '我让 /api/notes register before request setup',
     summary: '我让 /api/notes register before request setup so API requests do not return HTTP 404.',
@@ -1454,6 +1468,9 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
   assert.equal(usedResult.accepted, false);
   assert.equal(usedResult.reason, 'low-note-quality');
   assert.ok(usedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(myFixResult.accepted, false);
+  assert.equal(myFixResult.reason, 'low-note-quality');
+  assert.ok(myFixResult.warnings.includes('durable_reusable_lesson'));
   assert.equal(chineseLetResult.accepted, false);
   assert.equal(chineseLetResult.reason, 'low-note-quality');
   assert.ok(chineseLetResult.warnings.includes('durable_reusable_lesson'));
@@ -3601,6 +3618,27 @@ test('validateMaterializedNoteQuality rejects Chinese technical-prefix status up
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects descriptor-prefix status update shells', () => {
+  const summary = 'API search status update: activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.';
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.';
+  const resolution = 'Gate setResults with activeRequestId so stale responses cannot overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: summary,
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality rejects English work record structured items', () => {
   const summary = 'Work record - use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
   const result = validateMaterializedNoteQuality(note({
@@ -3776,6 +3814,27 @@ test('validateMaterializedNoteQuality accepts route initialization HTTP failures
   const resolution = 'Wait for db initialization before accepting /api/import requests.';
   const result = validateMaterializedNoteQuality(note({
     title: 'Import route returns HTTP 500 before sql.js initialization',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts Vite proxy path rewrite fixes', () => {
+  const summary = 'Preserve the /api/search path in the Vite proxy so Fastify sees the registered route.';
+  const root_cause = 'The Vite dev proxy rewrote /api/search to /search, so Fastify returned HTTP 404 for search requests.';
+  const resolution = 'Disable proxy path rewrite for /api/search so search requests reach the registered Fastify route.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Vite proxy preserves /api/search path',
     summary,
     key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
     raw_payload: {
@@ -4181,6 +4240,27 @@ test('validateMaterializedNoteQuality rejects generic initialization reliability
       summary: 'Wait for initialization to improve API reliability.',
       root_cause: 'API initialization was unreliable.',
       resolution: 'Wait for initialization to improve API reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic proxy rewrite reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Proxy routing reliability fix',
+    summary: 'Fix proxy routing for reliability.',
+    key_conclusions: [
+      'Root cause: Proxy routing reliability mattered.',
+      'Resolution: Disable proxy rewrite to improve quality.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Fix proxy routing for reliability.',
+      root_cause: 'Proxy routing reliability mattered.',
+      resolution: 'Disable proxy rewrite to improve quality.',
     },
   }), { mode: 'auto' });
 

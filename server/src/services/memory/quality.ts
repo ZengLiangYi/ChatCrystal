@@ -1045,7 +1045,12 @@ function isFirstPersonDiaryClaim(value: string) {
     `(?:^|[:.!?,;]\\s*|\\b(?:and|then|but|so)\\s+)\\b(?:i|we)\\s+(?:${diaryVerbs})\\b`,
     'i',
   )
-    .test(value);
+    .test(value) ||
+    new RegExp(
+      `(?:^|[:.!?,;]\\s*)\\bmy\\s+(?:fix|change|implementation)\\s+(?:${diaryVerbs})\\b`,
+      'i',
+    )
+      .test(value);
 }
 
 function hasChineseFirstPersonDiaryClaim(value: string) {
@@ -1291,13 +1296,18 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
       .test(text) ||
     /\bdaemon\b.+\bexit code\b|\bexit code\b.+\bdaemon\b/i
       .test(text);
+  const hasNamedProxyRoutingObject =
+    /\b(vite dev proxy|vite proxy|dev proxy|proxy path rewrite|proxy rewrite|proxy rewrote|registered fastify route|registered route|fastify)\b/i
+      .test(text) &&
+    /\b(\/api\/[\w/-]+|\/search|proxy|route|fastify|http\s*404)\b/i
+      .test(text);
   const hasNamedMigrationObject =
     /\b(sqlite|chatcrystal\.db|migration|migrations?|not null|default|existing rows?|existing \w+ rows?|notes column|column nullable|backfill|constraint)\b/i
       .test(text) &&
     /\b(migration|migrations?|not null|backfill|chatcrystal\.db|constraint)\b/i
       .test(text);
   const hasEngineeringContext =
-    /\b(sqlite|sql\.js|table|rows?|index|indexed lookup|lookup|lookups?|query|queries|filtered|filtering|request timeouts?|timed out|large imports?|messages?|note detail|cache|schema|parser|jsonl|constraint|unique|duplicate|receipt|receipts|writeback|search|frontend|react|requests?|responses?|initialization|initialized|route|mcp|json-rpc|stdio|stdout|stderr|framing|transport|logs?|diagnostics?|tags?|joins?|deletion|cleanup|filter chips?|webui|websocket|listeners?|useeffect|remounts?|unmount|child_process|child process|daemon|pid|spawn|exit code|serve|status|dead server|migration|not null|default|backfill|column|startup)\b/i
+    /\b(sqlite|sql\.js|table|rows?|index|indexed lookup|lookup|lookups?|query|queries|filtered|filtering|request timeouts?|timed out|large imports?|messages?|note detail|cache|schema|parser|jsonl|constraint|unique|duplicate|receipt|receipts|writeback|search|frontend|react|requests?|responses?|initialization|initialized|route|mcp|json-rpc|stdio|stdout|stderr|framing|transport|logs?|diagnostics?|tags?|joins?|deletion|cleanup|filter chips?|webui|websocket|listeners?|useeffect|remounts?|unmount|child_process|child process|daemon|pid|spawn|exit code|serve|status|dead server|migration|not null|default|backfill|column|startup|vite|proxy|fastify|rewrite|registered route)\b/i
       .test(text);
   return (
     hasConcreteToken ||
@@ -1308,6 +1318,7 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
     hasNamedLifecycleObject ||
     hasNamedListenerObject ||
     hasNamedProcessLifecycleObject ||
+    hasNamedProxyRoutingObject ||
     hasNamedMigrationObject
   ) && hasEngineeringContext;
 }
@@ -1356,6 +1367,11 @@ function hasStrictStructuralEngineeringAction(value: string) {
       .test(text) ||
     /\b(persist|persisting|write|writing)\b.+\bpid\b.+\b(after|before)\b.+\b(spawn handshake|child|exit event|ready)\b/i
       .test(text);
+  const hasConcreteProxyRoutingAction =
+    /\b(preserve|preserves|preserved|disable|disabled)\b.+\b(proxy path rewrite|proxy rewrite|\/api\/[\w/-]+ path|\/api\/[\w/-]+)\b/i
+      .test(text) ||
+    /\b(disable|disabled)\b.+\bproxy\b.+\brewrite\b.+\b(route|\/api\/[\w/-]+|fastify)\b/i
+      .test(text);
   const hasConcreteMigrationAction =
     /\bbackfill\b.+\b(existing rows?|existing \w+ rows?|rows?)\b/i
       .test(text) ||
@@ -1373,6 +1389,7 @@ function hasStrictStructuralEngineeringAction(value: string) {
       hasConcreteTransportAction ||
       hasConcreteListenerAction ||
       hasConcreteProcessLifecycleAction ||
+      hasConcreteProxyRoutingAction ||
       hasConcreteMigrationAction
     );
 }
@@ -1473,6 +1490,17 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
       .test(text) ||
     /\b(?:crystal status|status)\b.+\b(?:connect|connects|connecting)\b.+\bdead server\b/i
       .test(text);
+  const hasProxyPathRewriteFlow =
+    /\b(vite dev proxy|vite proxy|dev proxy|proxy)\b.+\b(rewrote|rewrites?|rewrite|path rewrite|preserv(?:e|es|ed|ing))\b.+(?:\/api\/[\w/-]+|\/search|\b(?:path|registered route|fastify|route)\b)/i
+      .test(text) ||
+    /\bpreserv(?:e|es|ed|ing)\b.+\/api\/[\w/-]+.+\b(vite proxy|dev proxy|proxy)\b.+\b(fastify|registered route|route)\b/i
+      .test(text) ||
+    /\/api\/[\w/-]+.+\bpath\b.+\b(vite proxy|proxy|fastify|registered route)\b/i
+      .test(text) ||
+    /\/api\/[\w/-]+.+\b(rewrote|rewrites?|rewrite)\b.+\/[\w/-]+.+\bfastify\b.+\b(?:returned\s+)?http\s*404\b/i
+      .test(text) ||
+    /\b(disable|disabled|preserv(?:e|es|ed|ing))\b.+\bproxy\b.+\b(path rewrite|rewrite|\/api\/[\w/-]+)\b.+\b(registered fastify route|registered route|fastify|route)\b/i
+      .test(text);
   const hasMigrationConstraintFlow =
     /\bmigration\b.+\badd(?:ed)?\b.+\bnot null\b.+\bwithout a default\b/i
       .test(text) ||
@@ -1485,7 +1513,7 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
     /\badd\b.+\bcolumn\b.+\bnullable\b.+\bbackfill\b.+\benforce\b.+\bnot null\b/i
       .test(text);
   const hasCausalFlow =
-    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|gat(?:e|es|ed|ing)|ignore|latest query|request id|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|wait|reserve|left|no longer existed|deleting notes?|note deletion|cleanup|prune|filter|duplicate|appended twice|remounts?|unmount|spawn handshake|exit event|exit code|dead server|nonzero|non-zero|backfill|not null|default|constraint|violat(?:e|ed|es|ing))\b/i
+    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|gat(?:e|es|ed|ing)|ignore|latest query|request id|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|wait|reserve|left|no longer existed|deleting notes?|note deletion|cleanup|prune|filter|duplicate|appended twice|remounts?|unmount|spawn handshake|exit event|exit code|dead server|nonzero|non-zero|backfill|not null|default|constraint|violat(?:e|ed|es|ing)|rewrote|rewrite|proxy|preserv(?:e|es|ed|ing)|registered route)\b/i
       .test(text);
   return hasStrictStructuralEngineeringEvidence(text) &&
     hasCausalFlow &&
@@ -1500,6 +1528,7 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
       hasTransportFramingFlow ||
       hasListenerCleanupFlow ||
       hasProcessLifecycleFlow ||
+      hasProxyPathRewriteFlow ||
       hasMigrationConstraintFlow
     );
 }
@@ -1803,7 +1832,9 @@ function isExplicitEnglishStatusShell(value: string) {
 
 function hasTechnicalPrefixStatusShell(value: string) {
   const text = value.trim();
-  const technicalPrefix = String.raw`(?:\/api\/[\w/-]+|[a-z0-9]+_[a-z0-9_]+|[a-z][a-z0-9_]*\.[a-z_][a-z0-9_]*|activerequestid|setresults|data_dir|node_env|child_process|jsonl|sqlite|sql\.js|websocket|mcp|json-rpc)`;
+  const descriptorWord = String.raw`(?:api|search|vite|proxy|fastify|react|sqlite|database|mcp|websocket|codex|claude|import|jsonl|electron|daemon|embedding|llm|route)`;
+  const chineseDescriptorWord = String.raw`(?:搜索|接口|代理|路由|导入|数据库|前端|后端)`;
+  const technicalPrefix = String.raw`(?:\/api\/[\w/-]+|[a-z0-9]+_[a-z0-9_]+|[a-z][a-z0-9_]*\.[a-z_][a-z0-9_]*|activerequestid|setresults|data_dir|node_env|child_process|jsonl|sqlite|sql\.js|websocket|mcp|json-rpc|${descriptorWord}(?:\s+${descriptorWord}){0,2}|${chineseDescriptorWord}(?:\s+${chineseDescriptorWord}){0,2})`;
   const englishShell = String.raw`(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task)\s+(?:record|report|note|summary|update|log|entry)|(?:status|record|update|implementation|result|outcome|completion(?:\s+(?:note|record))?|completed|done))`;
   const chineseShell = String.raw`(?:状态记录|记录状态|工作日志|日志记录|工作记录|执行记录|完成记录|状态更新|运行结果|执行结果|结果记录|结果报告|任务结果|实现结果|修复结果|工作结果|状态结果|运行记录|任务记录|实现记录|实现说明|更新记录|变更记录|变更摘要|本次修复|本次执行|本次任务|本次改动|本轮执行|本轮修复|本轮任务|本轮改动|修复记录|结果|完成|已完成|完成说明)`;
   return new RegExp(`^\\s*${technicalPrefix}\\s+${englishShell}\\s*(?:[:\\-\\u2013\\u2014])`, 'i')
