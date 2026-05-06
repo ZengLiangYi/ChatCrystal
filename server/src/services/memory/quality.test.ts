@@ -3293,6 +3293,29 @@ test('validateMaterializedNoteQuality accepts writeback receipt uniqueness fixes
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts unique note tag pair constraint fixes', () => {
+  const summary = 'Add a UNIQUE(note_id, tag_id) constraint so repeated summarization cannot create duplicate tag chips for one note.';
+  const root_cause = 'note_tags allowed duplicate note_id and tag_id pairs, so repeated summarization could show duplicate tag chips for one note.';
+  const resolution = 'Add a UNIQUE(note_id, tag_id) constraint and reuse the existing note_tags row when a tag is already attached.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'note_tags needs unique note-tag pairs',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+    tags: [],
+    embedding_text: '',
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality accepts queue conversation_id dedupe fixes', () => {
   const summary = 'Deduplicate queue jobs by conversation_id before enqueueing summarize work so retries reuse the pending job instead of writing duplicate notes.';
   const root_cause = 'summarize --all retries enqueued the same conversation_id more than once, so two queue jobs wrote duplicate notes for the same conversation.';
@@ -4225,6 +4248,38 @@ test('validateMaterializedNoteQuality rejects confirmation done and verified res
   }
 });
 
+test('validateMaterializedNoteQuality rejects shows and is result shells with concrete fix payloads', () => {
+  const root_cause = '/api/search returned HTTP 500 because route registration ran after request setup.';
+  const resolution = 'Register /api/search before request setup so API requests return JSON instead of HTTP 500.';
+  const shells = [
+    'Test shows /api/search registers before request setup so API requests do not return HTTP 500',
+    'Result is /api/search registers before request setup so API requests do not return HTTP 500',
+    'Progress is /api/search registers before request setup so API requests do not return HTTP 500',
+    'Validation shows /api/search registers before request setup so API requests do not return HTTP 500',
+    'QA shows /api/search registers before request setup so API requests do not return HTTP 500',
+  ];
+
+  for (const text of shells) {
+    const result = validateMaterializedNoteQuality(note({
+      title: text,
+      summary: text,
+      key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary: text,
+        root_cause,
+        resolution,
+      },
+      tags: [],
+      embedding_text: '',
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, text);
+    assert.equal(result.reason, 'low-note-quality', text);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), text);
+  }
+});
+
 test('validateMaterializedNoteQuality rejects English work record structured items', () => {
   const summary = 'Work record - use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
   const result = validateMaterializedNoteQuality(note({
@@ -4688,6 +4743,28 @@ test('validateMaterializedNoteQuality rejects generic duplicate constraint relia
       summary: 'Add constraints to prevent duplicates and improve database reliability.',
       root_cause: 'Duplicate records were unreliable.',
       resolution: 'Add constraints to prevent duplicates and improve database reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic tag constraint reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Tag duplicate prevention fix',
+    summary: 'Add unique tag constraints to prevent duplicates and improve tag reliability.',
+    key_conclusions: [
+      'Root cause: Duplicate tag chips reduced reliability.',
+      'Resolution: Add unique tag constraints to prevent duplicates and improve tag reliability.',
+    ],
+    tags: ['tags', 'database'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Add unique tag constraints to prevent duplicates and improve tag reliability.',
+      root_cause: 'Duplicate tag chips reduced reliability.',
+      resolution: 'Add unique tag constraints to prevent duplicates and improve tag reliability.',
     },
   }), { mode: 'auto' });
 

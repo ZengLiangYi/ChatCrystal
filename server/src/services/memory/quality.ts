@@ -1327,6 +1327,57 @@ function hasSqlParameterizationFailureSignal(value: string) {
   return hasSqlParameterizationEvidence(text) && hasQueryBreakage && hasCausalFlow;
 }
 
+function hasGeneralUniqueConstraintEvidence(value: string) {
+  const text = value.toLowerCase();
+  const hasUniqueConstraint =
+    /\bunique\s*\([^)]*,[^)]*\)|\bunique (?:key|constraint)\b/i.test(text);
+  const hasUniquePairDescriptor = /\bunique\b.+\bpairs?\b/i.test(text);
+  const hasNamedDbPair =
+    /\b[a-z0-9]+_[a-z0-9_]+\b|\b[a-z_]+_id\b.+\b[a-z_]+_id\b|\bnote-[a-z]+\s+pairs?\b/i
+      .test(text);
+  const hasDbContext =
+    /\b(table|rows?|constraint|pairs?|tags?|chips?|database|db|sqlite|sql\.js)\b/i
+      .test(text);
+  return (hasUniqueConstraint || hasUniquePairDescriptor) && hasNamedDbPair && hasDbContext;
+}
+
+function hasGeneralUniqueConstraintAction(value: string) {
+  const text = value.toLowerCase();
+  return hasGeneralUniqueConstraintEvidence(text) &&
+    (
+      /\b(add|create)\b.+\b(unique\s*\([^)]*\)|unique key|unique constraint|constraint)\b/i
+        .test(text) ||
+      /\breuse\b.+\bexisting\b.+\b[a-z0-9_]+ row\b/i.test(text)
+    );
+}
+
+function hasGeneralUniqueConstraintMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasUniquePrevention =
+    /\bunique\s*\([^)]*,[^)]*\).+\b(?:duplicate|repeated|reuse|existing|pairs?|chips?|rows?)\b/i
+      .test(text);
+  const hasDuplicatePairFlow =
+    /\b(?:allowed|allows?|without|no|missing|lacked|lacks)\b.+\bduplicate\b.+\b[a-z_]+_id\b.+\b(?:[a-z_]+_id\b|pairs?)\b/i
+      .test(text) ||
+    /\bduplicate\b.+\b[a-z_]+_id\b.+\b(?:[a-z_]+_id\b|pairs?)\b.+\b(?:chips?|rows?|notes?)\b/i
+      .test(text);
+  const hasReuseExistingRow =
+    /\breuse\b.+\bexisting\b.+\b[a-z0-9_]+ row\b.+\b(?:tag|duplicate|attached)\b/i
+      .test(text);
+  return hasUniquePrevention || hasDuplicatePairFlow || (hasGeneralUniqueConstraintEvidence(text) && hasReuseExistingRow);
+}
+
+function hasGeneralUniqueConstraintFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasDuplicateConsequence =
+    /\bduplicate (?:tag chips?|rows?|notes?|pairs?)\b/i.test(text) ||
+    /\bduplicate\b.+\bfor one\b/i.test(text);
+  const hasCausalFlow =
+    /\b(so|because|cannot create|could show|allowed|allows?|reuse|existing|repeated)\b/i
+      .test(text);
+  return hasDuplicateConsequence && hasCausalFlow;
+}
+
 function hasStrictStructuralEngineeringEvidence(value: string) {
   const text = value.toLowerCase();
   const hasConcreteToken =
@@ -1335,6 +1386,7 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
   const hasNamedDbObject =
     /\b(unique\s*\([^)]*\)|writeback receipts?|writeback_receipts|receipt rows?|source_agent|source_run_key|write_task_memory)\b/i
       .test(text) ||
+    hasGeneralUniqueConstraintEvidence(text) ||
     /\b(unique key|unique constraint)\b.+\b(writeback|receipt|source_agent|source_run_key)\b/i
       .test(text) ||
     /\b(writeback|receipt|source_agent|source_run_key)\b.+\b(unique key|unique constraint)\b/i
@@ -1410,7 +1462,8 @@ function hasStrictStructuralEngineeringAction(value: string) {
     /\b(add|create)\b.+\b(unique\s*\([^)]*\)|unique key|unique constraint|constraint|index|idx_[a-z0-9_]+)\b/i
       .test(text) ||
     /\b(return|reuse)\b.+\b(existing receipt row|first note|existing row)\b/i
-      .test(text);
+      .test(text) ||
+    hasGeneralUniqueConstraintAction(text);
   const hasConcreteAsyncAction =
     /\b(use\b.+\babortcontroller|abortcontroller\b.+\bcancel|cancel(?: older| previous| prior)?\b.+\b(?:\/api\/search|requests?|responses?))\b/i
       .test(text) ||
@@ -1507,7 +1560,8 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
     /\b(return|reuse)\b.+\b(existing receipt row|existing row|first note)\b.+\b(retries|reuse|instead of inserting duplicate rows?)\b/i
       .test(text) ||
     /\b(source_run_key|writeback_receipts|receipt rows?)\b.+\b(unique\s*\([^)]*\)|unique key|unique constraint|duplicate receipt rows?|duplicate notes?)\b/i
-      .test(text);
+      .test(text) ||
+    hasGeneralUniqueConstraintMechanism(text);
   const hasStaleAsyncResponseFlow =
     /\b(overlapping|slower previous|previous|older|stale)\b.+\b(\/api\/search|search requests?|responses?)\b.+\b(overwrote|overwrite|replace|current query results?|current results)\b/i
       .test(text) ||
@@ -1669,6 +1723,7 @@ function hasStrictStructuralEngineeringFailureSignal(value: string) {
   const hasNamedConsequence =
     /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|duplicate conversation jobs?|duplicate messages?|duplicate websocket messages?|appended twice|stale responses?|stale results?|overwrote the current query results?|overwrote current results?|overwrite the current query results?|overwrite current results?|replace current results?|orphan note_tags rows?|orphan tags?|unused tags?|count 0|joins? whose note_id no longer existed|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream)|false serve success|dead server|looked like a running server|running server|nonzero exit codes?|non-zero exit codes?|exit code\s*\d+|migration (?:does not )?fail(?:s|ed)?|migration failures?|existing row failures?|constraint violation|violated the constraint|fell through to the spa fallback|clients? received index\.html instead of json|return json instead of index\.html|returns? html for api json)\b/i
       .test(text) ||
+    hasGeneralUniqueConstraintFailureSignal(text) ||
     /(?:旧(?:的)?\s*)?(?:\/api\/search\s*)?响应.{0,20}覆盖.{0,12}(?:当前查询结果|新结果)/i
       .test(text);
   const hasCausalFlow =
@@ -1945,6 +2000,7 @@ function hasVisibleConcreteContent(value: string) {
   if (isLowValueOutcomeStatusClaim(text)) return false;
   if (isChineseVisibleStatusShell(text)) return false;
   if (isGenericReleaseValidationClaim(text)) return false;
+  if (hasGeneralUniqueConstraintEvidence(text)) return true;
   if (hasSpecificEvidence(text) && hasConcreteMechanism(text)) return true;
   if (hasSpecificEvidence(text) && hasFailureOrConsequenceSignal(text)) return true;
   if (hasPackageDistRootCauseSignal(text)) return true;
@@ -1963,6 +2019,7 @@ function isExplicitEnglishStatusShell(value: string) {
       .test(value.trim()) ||
     isValidationResultStatusShell(value) ||
     isConfirmationResultStatusShell(value) ||
+    isPredicateResultStatusShell(value) ||
     isCurrentRunImplementationShell(value) ||
     isCurrentRunStatusObservationClaim(value);
 }
@@ -1985,6 +2042,13 @@ function isConfirmationResultStatusShell(value: string) {
         .test(text)
     ) ||
     isChineseConfirmationResultStatusShell(text);
+}
+
+function isPredicateResultStatusShell(value: string) {
+  const text = value.trim();
+  return hasSpecificEvidence(text) &&
+    /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?(?:(?:smoke\s+)?test|result|progress|validation|qa)\s+(?:shows?|is)\b/i
+      .test(text);
 }
 
 function hasTechnicalPrefixStatusShell(value: string) {
