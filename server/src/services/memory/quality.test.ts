@@ -320,6 +320,20 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
       resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
     },
   }), { mode: 'auto' });
+  const localTestsSucceededResult = validateMaterializedNoteQuality(note({
+    title: 'Local tests succeeded for /api/notes HTTP 404',
+    summary: 'Local tests succeeded for the /api/notes HTTP 404 fix.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Local tests succeeded for the /api/notes HTTP 404 fix.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(summaryResult.accepted, false);
   assert.equal(summaryResult.reason, 'low-note-quality');
@@ -348,6 +362,9 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
   assert.equal(allGoodRouteResult.accepted, false);
   assert.equal(allGoodRouteResult.reason, 'low-note-quality');
   assert.ok(allGoodRouteResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(localTestsSucceededResult.accepted, false);
+  assert.equal(localTestsSucceededResult.reason, 'low-note-quality');
+  assert.ok(localTestsSucceededResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects low-quality extra key conclusions', () => {
@@ -593,6 +610,36 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
       resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
     },
   }), { mode: 'auto' });
+  const routeCiGreenResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+      'Build: CI green for /api/notes HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const routeTestsSucceededResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+      'Test: Local tests succeeded for /api/notes HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(genericTakeawayResult.accepted, false);
   assert.equal(genericTakeawayResult.reason, 'low-note-quality');
@@ -642,6 +689,12 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
   assert.equal(routeAllGoodTakeawayResult.accepted, false);
   assert.equal(routeAllGoodTakeawayResult.reason, 'low-note-quality');
   assert.ok(routeAllGoodTakeawayResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(routeCiGreenResult.accepted, false);
+  assert.equal(routeCiGreenResult.reason, 'low-note-quality');
+  assert.ok(routeCiGreenResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(routeTestsSucceededResult.accepted, false);
+  assert.equal(routeTestsSucceededResult.reason, 'low-note-quality');
+  assert.ok(routeTestsSucceededResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects fix outcomes without visible fix conclusions', () => {

@@ -600,12 +600,16 @@ function isGenericReleaseValidationClaim(value: string) {
 
 function isVisibleStatusSnapshotText(value: string) {
   const hasPassStatus = /\b(build|npm test|tests?|testing)\b.+\bpassed\b/i.test(value);
+  const hasSuccessStatus =
+    /\b(ci green|tests? succeeded|testing succeeded|verification succeeded|build succeeded)\b/i
+      .test(value);
   const hasStatusVerb = /\b(checked|noted|observed|reviewed|resolved|tested|testing passed|verified|verification|current|status)\b/i
     .test(value);
   const hasStatusObject =
     /\b(node_env|env|environment|production|local|testing|server readiness|fastify readiness|api requests?|package version|version|generated dist output|dist output)\b/i
       .test(value);
-  return (hasPassStatus || (hasStatusVerb && hasStatusObject)) && !hasStrongReusableMechanism(value);
+  return (hasPassStatus || hasSuccessStatus || (hasStatusVerb && hasStatusObject)) &&
+    !hasStrongReusableMechanism(value);
 }
 
 function conclusionText(
