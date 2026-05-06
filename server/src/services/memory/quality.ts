@@ -1203,7 +1203,7 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
     /\b(writeback|receipt|source_agent|source_run_key)\b.+\b(unique key|unique constraint)\b/i
       .test(text);
   const hasNamedAsyncObject =
-    /\b(abortcontroller|react search|search view|\/api\/search|search request sequence|stale search requests?|stale responses?|stale results?|previous responses?|current query results?|current results|overlapping requests?|overlapping \/api\/search requests?)\b/i
+    /\b(abortcontroller|activerequestid|setresults|react search|search view|\/api\/search|search request sequence|stale search requests?|stale responses?|stale results?|previous responses?|current query results?|current results|overlapping requests?|overlapping \/api\/search requests?)\b/i
       .test(text);
   const hasNamedRelationObject =
     /\b(note_ids?|note_tags|tag counts?|filter chips?|webui|deletenotewithreview|note deletion|orphan tags?|unused tags?|joins? whose note_id|existing notes?)\b/i
@@ -1240,7 +1240,7 @@ function hasStrictStructuralEngineeringAction(value: string) {
   const hasConcreteAsyncAction =
     /\b(use\b.+\babortcontroller|abortcontroller\b.+\bcancel|cancel(?: older| previous| prior)?\b.+\b(?:\/api\/search|requests?|responses?))\b/i
       .test(text) ||
-    /\b(gate)\b.+\b(result updates?|responses?|requests?)\b.+\b(active|latest|request id|query)\b/i
+    /\b(gate)\b.+\b(result updates?|responses?|requests?|setresults)\b.+\b(active|activerequestid|latest|request id|query)\b/i
       .test(text) ||
     /\b(ignore)\b.+\b(responses?)\b.+\b(not from the latest query|older|previous|stale|latest query)\b/i
       .test(text);
@@ -1301,9 +1301,15 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
       .test(text) ||
     /\bstale responses?\b.+\b(cannot|do not|does not)\b.+\b(replace|overwrite)\b.+\bcurrent results\b/i
       .test(text) ||
-    /\b(gate)\b.+\b(result updates?|search result updates?|current results)\b.+\b(active|latest|request id|\/api\/search|query)\b/i
+    /\bgat(?:e|es|ed|ing)\b.+\b(result updates?|search result updates?|current results)\b.+\b(active|activerequestid|latest|request id|\/api\/search|query)\b/i
+      .test(text) ||
+    /\b(gate)\b.+\bsetresults\b.+\bactiverequestid\b/i
+      .test(text) ||
+    /\bactiverequestid\b.+\bgat(?:e|es|ed|ing)\b.+\bstale\b.+\b(?:\/api\/search|responses?)\b/i
       .test(text) ||
     /\b(active|latest)\b.+\b(\/api\/search\s+)?request id\b.+\b(older responses?|stale responses?|current results|overwrite)\b/i
+      .test(text) ||
+    /\bactiverequestid\b.+\b(?:was\s+)?not checked\b.+\bbefore\b.+\bsetresults\b/i
       .test(text) ||
     /\b(ignore)\b.+\bresponses?\b.+\b(not from the latest query|older|previous|stale|latest query)\b/i
       .test(text) ||
@@ -1339,7 +1345,7 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
     /\b(reserve)\b.+\b(process\.stdout|stdout)\b.+\b(json-rpc|json rpc|response frames?|stdio)\b/i
       .test(text);
   const hasCausalFlow =
-    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|gate|ignore|latest query|request id|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|wait|reserve|left|no longer existed|deleting notes?|note deletion|cleanup|prune|filter)\b/i
+    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|gat(?:e|es|ed|ing)|ignore|latest query|request id|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|wait|reserve|left|no longer existed|deleting notes?|note deletion|cleanup|prune|filter)\b/i
       .test(text);
   return hasStrictStructuralEngineeringEvidence(text) &&
     hasCausalFlow &&
@@ -1646,7 +1652,7 @@ function isVisibleWorkLogClaim(value: string) {
 }
 
 function isExplicitEnglishStatusShell(value: string) {
-  return /^\s*(?:(?:status|work|implementation|execution|completion|fix|run)\s+(?:record|report|note|summary|update|log)|work\s*log|worklog|status|record|completion(?:\s+(?:note|record))?|completed|done|this\s+fix|this\s+run)\s*(?:[:\-\u2013\u2014])/i
+  return /^\s*(?:(?:status|work|implementation|execution|completion|fix|result)\s+(?:record|report|note|summary|update|log)|run\s+results?|work\s*log|worklog|status|record|completion(?:\s+(?:note|record))?|completed|done|this\s+fix|this\s+run)\s*(?:[:\-\u2013\u2014])/i
     .test(value.trim()) ||
     isCurrentRunImplementationShell(value);
 }
@@ -1694,7 +1700,7 @@ function hasChineseVisibleMechanism(value: string) {
 function isChineseVisibleStatusShell(value: string) {
   if (!/[\u3400-\u9fff]/.test(value)) return false;
   const hasStatusRecordShell =
-    /^\s*(?:状态记录|记录状态|工作日志|日志记录|工作记录|执行记录|完成记录|状态更新|本次修复|本次执行|修复记录|完成|已完成|完成说明)\s*(?:[：:\-\u2013\u2014]|$)/i
+    /^\s*(?:状态记录|记录状态|工作日志|日志记录|工作记录|执行记录|完成记录|状态更新|运行结果|执行结果|结果记录|结果报告|本次修复|本次执行|修复记录|完成|已完成|完成说明)\s*(?:[：:\-\u2013\u2014]|$)/i
       .test(value) ||
     /(?:^|[\s：:])(?:状态记录|记录状态|工作日志|日志记录|工作记录)(?:[\s：:]|$)|^(?:状态|记录)\s*[：:]/i
       .test(value) ||

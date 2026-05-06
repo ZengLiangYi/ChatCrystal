@@ -3191,6 +3191,26 @@ test('validateMaterializedNoteQuality accepts request-id gated stale response fi
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts activeRequestId setResults stale response fixes', () => {
+  const summary = 'Gate setResults by activeRequestId so stale /api/search responses cannot overwrite current results.';
+  const root_cause = 'Older /api/search responses overwrote current results because activeRequestId was not checked before setResults.';
+  const resolution = 'Gate setResults by activeRequestId so stale /api/search responses cannot overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'activeRequestId gates stale /api/search responses',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality rejects Chinese status-shell structured items', () => {
   const summary = '状态记录：使用 active request id gate /api/search result updates，避免 stale responses overwrite current results.';
   const result = validateMaterializedNoteQuality(note({
@@ -3205,6 +3225,23 @@ test('validateMaterializedNoteQuality rejects Chinese status-shell structured it
       decisions: [
         summary,
       ],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects Chinese result-shell structured items', () => {
+  const summary = '运行结果：AbortController cancel older /api/search requests before stale responses overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: '运行结果：AbortController cancel older /api/search responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      decisions: [summary],
     },
   }), { mode: 'auto' });
 
@@ -3238,6 +3275,24 @@ test('validateMaterializedNoteQuality rejects English worklog structured items',
     summary,
     key_conclusions: [`Decision: ${summary}`],
     tags: ['search', 'frontend'],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects English result report structured items', () => {
+  const summary = 'Result report: AbortController cancel older /api/search requests before stale responses overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
     raw_payload: {
       outcome_type: 'decision',
       summary,
@@ -3649,6 +3704,27 @@ test('validateMaterializedNoteQuality rejects generic request-id gating reliabil
       summary: 'Gate requests by request id to improve search reliability.',
       root_cause: 'Search requests were unreliable.',
       resolution: 'Gate requests by request id to improve search reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic activeRequestId reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search result reliability fix',
+    summary: 'Use activeRequestId to improve reliability.',
+    key_conclusions: [
+      'Root cause: Search result reliability mattered.',
+      'Resolution: Gate setResults for reliability.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Use activeRequestId to improve reliability.',
+      root_cause: 'Search result reliability mattered.',
+      resolution: 'Gate setResults for reliability.',
     },
   }), { mode: 'auto' });
 
