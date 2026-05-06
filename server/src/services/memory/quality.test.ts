@@ -3192,6 +3192,27 @@ test('validateMaterializedNoteQuality accepts React Query queryKey filter fixes'
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts Redis cache key dimension fixes', () => {
+  const summary = 'Include tenant_id and locale in i18n cache keys because caching translations only by phrase_id reused English strings for zh-CN users.';
+  const root_cause = 'The i18n Redis cache key used phrase_id without locale, so zh-CN requests reused the cached English translation.';
+  const resolution = 'Build the cache key from tenant_id, locale, and phrase_id, and invalidate that key when translation rows change.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Redis cache key omits locale causing stale translations',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality rejects generic UI cache reliability fixes', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'UI cache reliability fix',
@@ -4291,6 +4312,29 @@ test('validateMaterializedNoteQuality rejects broad test and diagnostic shells w
     assert.equal(result.reason, 'low-note-quality', title);
     assert.ok(result.warnings.includes('durable_reusable_lesson'), title);
   }
+});
+
+test('validateMaterializedNoteQuality rejects diagnostic evidence status wrappers with concrete fix payloads', () => {
+  const summary = 'Diagnostic evidence found /api/search returned HTTP 404 because route registration ran after request setup.';
+  const root_cause = 'API requests returned HTTP 404 because /api/search registration ran after request setup.';
+  const resolution = 'Register /api/search before request setup so API requests do not return HTTP 404.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Diagnostic evidence found /api/search route ordering caused HTTP 404',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+    tags: [],
+    embedding_text: '',
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects validation regression and QA result shells with concrete fix payloads', () => {

@@ -764,18 +764,24 @@ function hasIndexConsistencyFailureSignal(value: string) {
 
 function hasFrontendCacheEvidence(value: string) {
   const text = value.toLowerCase();
-  return /\b(react query|querykey|query keys?|cache keys?|deletenote|delete mutation|note delete mutation|tags cache|notes cache|cache entry|active tag filter|tag filters?|request url|filtered rows?|sidebar|tag counts?|filter chips?|stale tag filters?|derived tag counts?)\b/i
+  return /\b(react query|querykey|query keys?|cache key|cache keys?|redis|i18n|tenant_id|locale|phrase_id|translations?|translation rows?|cached english|zh-cn|deletenote|delete mutation|note delete mutation|tags cache|notes cache|cache entry|active tag filter|tag filters?|request url|filtered rows?|sidebar|tag counts?|filter chips?|stale tag filters?|derived tag counts?)\b/i
     .test(text);
 }
 
 function hasFrontendCacheInvalidationAction(value: string) {
   const text = value.toLowerCase();
   const hasCacheAction = /\b(invalidate|invalidated|refetch|reload|refresh|update)\b/i.test(text);
-  const hasCacheTarget = /\b(cache|querykey|query keys?|cache keys?|react query|tags?|notes?|tag counts?)\b/i.test(text);
+  const hasCacheTarget = /\b(cache|querykey|query keys?|cache keys?|react query|redis|i18n|translations?|translation rows?|tags?|notes?|tag counts?)\b/i.test(text);
   const hasCacheKeyAction =
     /\b(include|add)\b.+\b(active tag filter|tag filter|filter)\b.+\b(querykey|query key|cache key)\b/i
       .test(text) ||
     /\b(querykey|query key|cache key)\b.+\b(include|add|active tag filter|tag filter|filter|separate)\b/i
+      .test(text) ||
+    /\b(include|add|build|compose|derive|set)\b.+\b(tenant_id|locale|phrase_id)\b.+\b(cache key|cache keys?)\b/i
+      .test(text) ||
+    /\b(build|compose|derive|set)\b.+\b(cache key|cache keys?)\b.+\b(tenant_id|locale|phrase_id)\b/i
+      .test(text) ||
+    /\b(cache key|cache keys?)\b.+\b(tenant_id|locale|phrase_id)\b/i
       .test(text);
   return hasFrontendCacheEvidence(text) &&
     ((hasCacheAction && hasCacheTarget) || hasCacheKeyAction);
@@ -796,9 +802,15 @@ function hasFrontendCacheInvalidationMechanism(value: string) {
       .test(text) ||
     /\b(active tag filter|tag filter|filter)\b.+\b(omit(?:ted)?|missing)\b.+\b(querykey|query key|cache key)\b/i
       .test(text) ||
-    /\b(querykey|query key|cache key)\b.+\b(omitted|missing|without|include|included|active tag filter|tag filter|filter)\b.+\b(stale filtered rows?|request url|separate notes cache entry|cache entry)\b/i
+    /\b(querykey|query key|cache key)\b.+\b(omitted|missing|without|include|included|active tag filter|tag filter|filter|tenant_id|locale|phrase_id)\b.+\b(stale filtered rows?|stale translations?|wrong translations?|cached english|english strings?|zh-cn|request url|separate notes cache entry|cache entry)\b/i
       .test(text) ||
     /\b(notes cache|react query cache|cache)\b.+\b(reused|reuse)\b.+\bstale filtered rows?\b/i
+      .test(text) ||
+    /\b(redis|i18n|cache|cache key|cache keys?)\b.+\b(reused|reuse)\b.+\b(cached english|english strings?|stale translations?|wrong translations?|zh-cn)\b/i
+      .test(text) ||
+    /\bcach(?:e|ing)\b.+\btranslations?\b.+\bonly by\b.+\bphrase_id\b.+\b(reused|reuse)\b.+\b(english strings?|cached english|zh-cn)\b/i
+      .test(text) ||
+    /\b(cache key|cache keys?)\b.+\b(used|uses|omit(?:s|ted)?|without)\b.+\bphrase_id\b.+\b(without|no|omit(?:s|ted)?)\b.+\blocale\b/i
       .test(text) ||
     /\b(active tag filter|tag filter|filter)\b.+\b(querykey|query key|cache key)\b.+\b(separate notes cache entry|stale filtered rows?|request url)\b/i
       .test(text);
@@ -809,13 +821,13 @@ function hasFrontendCacheInvalidationMechanism(value: string) {
 function hasFrontendCacheFailureSignal(value: string) {
   const text = value.toLowerCase();
   const hasStaleUi =
-    /\b(stale|kept stale|does not show stale|cannot show stale|stale filtered rows?|stale tag filters?|stale filter chips?|stale tag counts?|stale note tags?)\b/i
+    /\b(stale|kept stale|does not show stale|cannot show stale|stale filtered rows?|stale tag filters?|stale filter chips?|stale tag counts?|stale note tags?|stale translations?|wrong translations?|cached english|english strings?)\b/i
       .test(text);
   const hasUiTarget =
-    /\b(sidebar|filter chips?|tag filters?|active tag filter|tag counts?|derived tag counts?|ui|react query|querykey|query key|cache key|request url|filtered rows?|tags cache|notes cache|cache entry)\b/i
+    /\b(sidebar|filter chips?|tag filters?|active tag filter|tag counts?|derived tag counts?|ui|react query|redis|i18n|tenant_id|locale|phrase_id|querykey|query key|cache key|request url|filtered rows?|translations?|translation rows?|tags cache|notes cache|cache entry|zh-cn)\b/i
       .test(text);
   const hasCausalFlow =
-    /\b(so|because|after|but|did not invalidate|removed|delete|deletion|leaves?|omitted|missing|reused|reuse|changed|separate)\b/i
+    /\b(so|because|after|but|did not invalidate|removed|delete|deletion|leaves?|omitted|missing|without|reused|reuse|used|only by|changed|separate)\b/i
       .test(text);
   return hasFrontendCacheEvidence(text) && hasStaleUi && hasUiTarget && hasCausalFlow;
 }
@@ -2106,6 +2118,7 @@ function isExplicitEnglishStatusShell(value: string) {
     /^\s*(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task|progress|verification|validation|regression|qa|diagnostics?|(?:smoke\s+)?test)\s+(?:record|report|note|summary|update|log|entry|check|result|results?|confirmed)|(?:implementation|task|fix|execution|run|work|status)\s+results?|run\s+results?|work\s*log(?:\s+entry)?|worklog(?:\s+entry)?|status|record|update|implementation|result|outcome|progress|verification|validation|regression|qa|check|diagnostics?|(?:smoke\s+)?test|completion(?:\s+(?:note|record))?|completed|done|this\s+fix|this\s+run)\s*(?:[:\-\u2013\u2014])/i
       .test(value.trim()) ||
     isValidationResultStatusShell(value) ||
+    isDiagnosticEvidenceStatusShell(value) ||
     isConfirmationResultStatusShell(value) ||
     isPredicateResultStatusShell(value) ||
     isCurrentRunImplementationShell(value) ||
@@ -2114,6 +2127,11 @@ function isExplicitEnglishStatusShell(value: string) {
 
 function isValidationResultStatusShell(value: string) {
   return /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?(?:validation|regression|qa)\s+(?:confirmed|passed|succeeded|completed)\b/i
+    .test(value.trim());
+}
+
+function isDiagnosticEvidenceStatusShell(value: string) {
+  return /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?diagnostic evidence\s+(?:found|shows?|confirmed|indicates?)\b/i
     .test(value.trim());
 }
 
