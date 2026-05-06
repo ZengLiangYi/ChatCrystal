@@ -1923,14 +1923,18 @@ function hasTechnicalPrefixStatusShell(value: string) {
     .test(text) ||
     new RegExp(`^\\s*${technicalPrefix}\\s+${englishShell}\\s+(?:for|on|about)\\b`, 'i')
       .test(text) ||
+    new RegExp(`^\\s*${technicalPrefix}\\s+${englishShell}\\s+(?=(?:\\/api\\/|http\\s*[45]\\d\\d\\b|returns?\\b|returned\\b|responds?\\b|because\\b))`, 'i')
+      .test(text) ||
     new RegExp(`^\\s*${technicalPrefix}\\s*${chineseShell}\\s*(?:[：:\\-\\u2013\\u2014]|$)`, 'i')
+      .test(text) ||
+    new RegExp(`^\\s*${technicalPrefix}\\s*${chineseShell}\\s+(?=(?:\\/api\\/|http\\s*[45]\\d\\d\\b|返回|因为|因|导致))`, 'i')
       .test(text);
 }
 
 function isCurrentRunImplementationShell(value: string) {
   const text = value.trim();
   const currentRunSubject = '(?:run|execution|fix|task|change)';
-  const currentRunPrefix = `(?:(?:(?:in|during)\\s+(?:this|the\\s+current)\\s+${currentRunSubject})|(?:(?:the\\s+)?current|this)\\s+${currentRunSubject})`;
+  const currentRunPrefix = `(?:(?:(?:in|during|for)\\s+(?:this|the\\s+current|this\\s+current)\\s+${currentRunSubject})|(?:(?:the\\s+)?current|this)\\s+${currentRunSubject})`;
   const implementationVerb = '(?:use|uses|used|did|add|adds|added|set|sets|configured?|register(?:s|ed)?|wait(?:s|ed)?|block(?:s|ed)?|gate(?:s|d)?|ignore(?:s|d)?|cancel(?:s|ed|led)?|move(?:s|d)?|place(?:s|d)?|import(?:s|ed)?|update(?:s|d)?|fix(?:es|ed)?|change(?:s|d)?|validat(?:e|es|ed)|normaliz(?:e|es|ed)|parse(?:s|d)?|strip(?:s|ped)?|debounce(?:s|d)?|route(?:s|d)?|return(?:s|ed)?|prune(?:s|d)?|remove(?:s|d)?|wrap(?:s|ped)?)';
   const hasCurrentRunPrefix =
     new RegExp(`^\\s*${currentRunPrefix}\\b`, 'i').test(text);
