@@ -1306,13 +1306,18 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
       .test(text) &&
     /\b(\/api\/[\w/-]+|\/search|proxy|route|fastify|http\s*404)\b/i
       .test(text);
+  const hasNamedSpaFallbackObject =
+    /\b(spa fallback|fallback handler|index\.html|json|api route|clients?|registered after the fallback handler)\b/i
+      .test(text) &&
+    /\b(\/api\/[\w/-]+|api route|requests?|route|fallback handler)\b/i
+      .test(text);
   const hasNamedMigrationObject =
     /\b(sqlite|chatcrystal\.db|migration|migrations?|not null|default|existing rows?|existing \w+ rows?|notes column|column nullable|backfill|constraint)\b/i
       .test(text) &&
     /\b(migration|migrations?|not null|backfill|chatcrystal\.db|constraint)\b/i
       .test(text);
   const hasEngineeringContext =
-    /\b(sqlite|sql\.js|table|rows?|index|indexed lookup|lookup|lookups?|query|queries|filtered|filtering|request timeouts?|timed out|large imports?|messages?|note detail|cache|schema|parser|jsonl|constraint|unique|duplicate|receipt|receipts|writeback|search|frontend|react|requests?|responses?|initialization|initialized|route|mcp|json-rpc|stdio|stdout|stderr|framing|transport|logs?|diagnostics?|tags?|joins?|deletion|cleanup|filter chips?|webui|websocket|listeners?|useeffect|remounts?|unmount|child_process|child process|daemon|pid|spawn|exit code|serve|status|dead server|migration|not null|default|backfill|column|startup|vite|proxy|fastify|rewrite|registered route)\b/i
+    /\b(sqlite|sql\.js|table|rows?|index|indexed lookup|lookup|lookups?|query|queries|filtered|filtering|request timeouts?|timed out|large imports?|messages?|note detail|cache|schema|parser|jsonl|constraint|unique|duplicate|receipt|receipts|writeback|search|frontend|react|requests?|responses?|initialization|initialized|route|mcp|json-rpc|stdio|stdout|stderr|framing|transport|logs?|diagnostics?|tags?|joins?|deletion|cleanup|filter chips?|webui|websocket|listeners?|useeffect|remounts?|unmount|child_process|child process|daemon|pid|spawn|exit code|serve|status|dead server|migration|not null|default|backfill|column|startup|vite|proxy|fastify|rewrite|registered route|spa fallback|fallback handler|index\.html|conversation_id|queue jobs?|enqueue|enqueueing|summarize)\b/i
       .test(text);
   return (
     hasConcreteToken ||
@@ -1324,6 +1329,7 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
     hasNamedListenerObject ||
     hasNamedProcessLifecycleObject ||
     hasNamedProxyRoutingObject ||
+    hasNamedSpaFallbackObject ||
     hasNamedMigrationObject
   ) && hasEngineeringContext;
 }
@@ -1331,7 +1337,7 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
 function hasStrictStructuralEngineeringAction(value: string) {
   const text = value.toLowerCase();
   const hasAction =
-    /\b(add|create|remove|wrap|validate|normalize|configure|set|index|return|reuse|cancel|use|wait|send|reserve|filter|prune|clean up|cleanup)\b/i
+    /\b(add|create|remove|wrap|validate|normalize|configure|set|index|return|reuse|cancel|use|wait|send|reserve|filter|prune|clean up|cleanup|register|deduplicate|dedupe|enqueue|enqueueing|ensure)\b/i
       .test(text);
   const hasConcreteDbAction =
     /\b(add|create)\b.+\b(unique\s*\([^)]*\)|unique key|unique constraint|constraint|index|idx_[a-z0-9_]+)\b/i
@@ -1341,9 +1347,16 @@ function hasStrictStructuralEngineeringAction(value: string) {
   const hasConcreteAsyncAction =
     /\b(use\b.+\babortcontroller|abortcontroller\b.+\bcancel|cancel(?: older| previous| prior)?\b.+\b(?:\/api\/search|requests?|responses?))\b/i
       .test(text) ||
+    /\bensure\b.+\bactiverequestid\b.+\bmatches\b.+\bbefore\b.+\bsetresults\b/i
+      .test(text) ||
     /\b(gate)\b.+\b(result updates?|responses?|requests?|setresults)\b.+\b(active|activerequestid|latest|request id|query)\b/i
       .test(text) ||
     /\b(ignore)\b.+\b(responses?)\b.+\b(not from the latest query|older|previous|stale|latest query)\b/i
+      .test(text);
+  const hasConcreteQueueDedupeAction =
+    /\b(deduplicate|dedupe)\b.+\bqueue jobs?\b.+\bconversation_id\b/i
+      .test(text) ||
+    /\b(reuse|reuses?)\b.+\bpending job\b.+\bduplicate notes?\b/i
       .test(text);
   const hasConcreteRelationAction =
     /\b(filter|filtered)\b.+\b(tag counts?|tags?)\b.+\b(existing notes?|existing note_ids?|note_ids?)\b/i
@@ -1377,6 +1390,11 @@ function hasStrictStructuralEngineeringAction(value: string) {
       .test(text) ||
     /\b(disable|disabled)\b.+\bproxy\b.+\brewrite\b.+\b(route|\/api\/[\w/-]+|fastify)\b/i
       .test(text);
+  const hasConcreteSpaFallbackAction =
+    /\bregister\b.+(?:\/api\/[\w/-]+|\bapi route\b).+\bbefore\b.+\b(?:spa fallback|fallback handler)\b/i
+      .test(text) ||
+    /\breturn\b.+\bjson\b.+\binstead of\b.+\bindex\.html\b/i
+      .test(text);
   const hasConcreteMigrationAction =
     /\bbackfill\b.+\b(existing rows?|existing \w+ rows?|rows?)\b/i
       .test(text) ||
@@ -1389,12 +1407,14 @@ function hasStrictStructuralEngineeringAction(value: string) {
       hasAction ||
       hasConcreteDbAction ||
       hasConcreteAsyncAction ||
+      hasConcreteQueueDedupeAction ||
       hasConcreteRelationAction ||
       hasConcreteLifecycleAction ||
       hasConcreteTransportAction ||
       hasConcreteListenerAction ||
       hasConcreteProcessLifecycleAction ||
       hasConcreteProxyRoutingAction ||
+      hasConcreteSpaFallbackAction ||
       hasConcreteMigrationAction
     );
 }
@@ -1442,9 +1462,22 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
       .test(text) ||
     /\bactiverequestid\b.+\b(?:was\s+)?not checked\b.+\bbefore\b.+\bsetresults\b/i
       .test(text) ||
+    /\bsetresults\b.+\b(?:did not|without)\b.+\bcheck(?:ing)?\b.+\bactiverequestid\b/i
+      .test(text) ||
+    /\bensure\b.+\bactiverequestid\b.+\bmatches\b.+\bbefore\b.+\bsetresults\b.+\bstale\b.+\b(?:\/api\/search|responses?)\b/i
+      .test(text) ||
     /\b(ignore)\b.+\bresponses?\b.+\b(not from the latest query|older|previous|stale|latest query)\b/i
       .test(text) ||
     /\bolder\b.+\b\/api\/search responses?\b.+\b(after a newer query|newer query)\b.+\boverwrite\b.+\bcurrent results\b/i
+      .test(text);
+  const hasQueueDedupeFlow =
+    /\b(?:summarize --all|retries|retry)\b.+\benqueued\b.+\bsame conversation_id\b.+\bduplicate notes?\b/i
+      .test(text) ||
+    /\bqueue jobs?\b.+\bduplicate notes?\b.+\bsame conversation\b/i
+      .test(text) ||
+    /\bdeduplicate\b.+\bqueue jobs?\b.+\bconversation_id\b.+\b(retries|pending job|duplicate notes?|enqueueing)\b/i
+      .test(text) ||
+    /\bconversation_id\b.+\b(?:more than once|duplicate notes?|pending job|enqueueing|queue jobs?)\b/i
       .test(text);
   const hasRelationCleanupFlow =
     /\b(filter|filtered)\b.+\b(tag counts?|tags?)\b.+\b(existing notes?|existing note_ids?|note_ids?)\b/i
@@ -1506,6 +1539,17 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
       .test(text) ||
     /\b(disable|disabled|preserv(?:e|es|ed|ing))\b.+\bproxy\b.+\b(path rewrite|rewrite|\/api\/[\w/-]+)\b.+\b(registered fastify route|registered route|fastify|route)\b/i
       .test(text);
+  const hasSpaFallbackRouteFlow =
+    /(?:\/api\/[\w/-]+|\bapi route\b).+\bfell through\b.+\bspa fallback\b.+\bbecause\b.+\bregistered after\b.+\bfallback handler\b/i
+      .test(text) ||
+    /\bapi route\b.+\bbefore\b.+\bspa fallback\b.+\breturns?\b.+\bjson\b/i
+      .test(text) ||
+    /\bapi route\b.+\bregistered after\b.+\bfallback handler\b.+\bindex\.html\b.+\bjson\b/i
+      .test(text) ||
+    /\bregister\b.+\b(?:\/api\/[\w/-]+|api route)\b.+\bbefore\b.+\bspa fallback\b.+\bjson\b.+\bindex\.html\b/i
+      .test(text) ||
+    /\bclients?\b.+\breceived\b.+\bindex\.html\b.+\binstead of\b.+\bjson\b/i
+      .test(text);
   const hasMigrationConstraintFlow =
     /\bmigration\b.+\badd(?:ed)?\b.+\bnot null\b.+\bwithout a default\b/i
       .test(text) ||
@@ -1518,7 +1562,7 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
     /\badd\b.+\bcolumn\b.+\bnullable\b.+\bbackfill\b.+\benforce\b.+\bnot null\b/i
       .test(text);
   const hasCausalFlow =
-    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|gat(?:e|es|ed|ing)|ignore|latest query|request id|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|wait|reserve|left|no longer existed|deleting notes?|note deletion|cleanup|prune|filter|duplicate|appended twice|remounts?|unmount|spawn handshake|exit event|exit code|dead server|nonzero|non-zero|backfill|not null|default|constraint|violat(?:e|ed|es|ing)|rewrote|rewrite|proxy|preserv(?:e|es|ed|ing)|registered route)\b/i
+    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|gat(?:e|es|ed|ing)|ignore|latest query|request id|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|wait|reserve|left|no longer existed|deleting notes?|note deletion|cleanup|prune|filter|duplicate|deduplicate|dedupe|enqueued|enqueue|pending job|appended twice|remounts?|unmount|spawn handshake|exit event|exit code|dead server|nonzero|non-zero|backfill|not null|default|constraint|violat(?:e|ed|es|ing)|rewrote|rewrite|proxy|preserv(?:e|es|ed|ing)|registered route|fell through|spa fallback|fallback handler|index\.html)\b/i
       .test(text);
   return hasStrictStructuralEngineeringEvidence(text) &&
     hasCausalFlow &&
@@ -1528,12 +1572,14 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
       hasLookupScanFlow ||
       hasUniquenessConstraintFlow ||
       hasStaleAsyncResponseFlow ||
+      hasQueueDedupeFlow ||
       hasRelationCleanupFlow ||
       hasInitializationOrderFlow ||
       hasTransportFramingFlow ||
       hasListenerCleanupFlow ||
       hasProcessLifecycleFlow ||
       hasProxyPathRewriteFlow ||
+      hasSpaFallbackRouteFlow ||
       hasMigrationConstraintFlow
     );
 }
@@ -1541,10 +1587,10 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
 function hasStrictStructuralEngineeringFailureSignal(value: string) {
   const text = value.toLowerCase();
   const hasNamedConsequence =
-    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|duplicate messages?|duplicate websocket messages?|appended twice|stale responses?|stale results?|overwrote the current query results?|overwrote current results?|overwrite the current query results?|overwrite current results?|replace current results?|orphan note_tags rows?|orphan tags?|unused tags?|count 0|joins? whose note_id no longer existed|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream)|false serve success|dead server|looked like a running server|running server|nonzero exit codes?|non-zero exit codes?|exit code\s*\d+|migration (?:does not )?fail(?:s|ed)?|migration failures?|existing row failures?|constraint violation|violated the constraint)\b/i
+    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|duplicate messages?|duplicate websocket messages?|appended twice|stale responses?|stale results?|overwrote the current query results?|overwrote current results?|overwrite the current query results?|overwrite current results?|replace current results?|orphan note_tags rows?|orphan tags?|unused tags?|count 0|joins? whose note_id no longer existed|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream)|false serve success|dead server|looked like a running server|running server|nonzero exit codes?|non-zero exit codes?|exit code\s*\d+|migration (?:does not )?fail(?:s|ed)?|migration failures?|existing row failures?|constraint violation|violated the constraint|fell through to the spa fallback|clients? received index\.html instead of json|return json instead of index\.html)\b/i
       .test(text);
   const hasCausalFlow =
-    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|overwrote|overwrite|reused|reuse|retried|retries|cancel|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|left|no longer existed|deleting notes?|note deletion|cleanup|filter|prune|remounts?|unmount|duplicate|appended twice|spawn handshake|exit event|exit code|nonzero|non-zero|dead server|backfill|not null|default|constraint|violat(?:e|ed|es|ing)|migration)\b/i
+    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|overwrote|overwrite|reused|reuse|retried|retries|cancel|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|left|no longer existed|deleting notes?|note deletion|cleanup|filter|prune|remounts?|unmount|duplicate|deduplicate|dedupe|enqueued|enqueue|pending job|appended twice|spawn handshake|exit event|exit code|nonzero|non-zero|dead server|backfill|not null|default|constraint|violat(?:e|ed|es|ing)|migration|fell through|spa fallback|fallback handler|index\.html)\b/i
       .test(text);
   return hasStrictStructuralEngineeringEvidence(text) && hasNamedConsequence && hasCausalFlow;
 }
@@ -1831,15 +1877,18 @@ function isVisibleWorkLogClaim(value: string) {
 function isExplicitEnglishStatusShell(value: string) {
   return hasTechnicalPrefixStatusShell(value) ||
     /^\s*(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task)\s+(?:record|report|note|summary|update|log|entry)|(?:implementation|task|fix|execution|run|work|status)\s+results?|run\s+results?|work\s*log(?:\s+entry)?|worklog(?:\s+entry)?|status|record|update|implementation|result|outcome|completion(?:\s+(?:note|record))?|completed|done|this\s+fix|this\s+run)\s*(?:[:\-\u2013\u2014])/i
-    .test(value.trim()) ||
-    isCurrentRunImplementationShell(value);
+      .test(value.trim()) ||
+    isCurrentRunImplementationShell(value) ||
+    isCurrentRunStatusObservationClaim(value);
 }
 
 function hasTechnicalPrefixStatusShell(value: string) {
   const text = value.trim();
   const descriptorWord = String.raw`(?:api|search|vite|proxy|fastify|react|sqlite|database|mcp|websocket|codex|claude|import|jsonl|electron|daemon|embedding|llm|route)`;
   const chineseDescriptorWord = String.raw`(?:搜索|接口|代理|路由|导入|数据库|前端|后端)`;
-  const technicalPrefix = String.raw`(?:\/api\/[\w/-]+|[a-z0-9]+_[a-z0-9_]+|[a-z][a-z0-9_]*\.[a-z_][a-z0-9_]*|activerequestid|setresults|data_dir|node_env|child_process|jsonl|sqlite|sql\.js|websocket|mcp|json-rpc|${descriptorWord}(?:\s+${descriptorWord}){0,2}|${chineseDescriptorWord}(?:\s+${chineseDescriptorWord}){0,2})`;
+  const englishDescriptorPrefix = String.raw`(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,3})`;
+  const chineseDescriptorPrefix = String.raw`(?:[\u3400-\u9fff]{2,16})`;
+  const technicalPrefix = String.raw`(?:\/api\/[\w/-]+|[a-z0-9]+_[a-z0-9_]+|[a-z][a-z0-9_]*\.[a-z_][a-z0-9_]*|activerequestid|setresults|data_dir|node_env|child_process|jsonl|sqlite|sql\.js|websocket|mcp|json-rpc|${descriptorWord}(?:\s+${descriptorWord}){0,2}|${chineseDescriptorWord}(?:\s+${chineseDescriptorWord}){0,2}|${englishDescriptorPrefix}|${chineseDescriptorPrefix})`;
   const englishShell = String.raw`(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task)\s+(?:record|report|note|summary|update|log|entry)|(?:status|record|update|implementation|result|outcome|completion(?:\s+(?:note|record))?|completed|done))`;
   const chineseShell = String.raw`(?:状态记录|记录状态|工作日志|日志记录|工作记录|执行记录|完成记录|状态更新|运行结果|执行结果|结果记录|结果报告|任务结果|实现结果|修复结果|工作结果|状态结果|运行记录|任务记录|实现记录|实现说明|更新记录|变更记录|变更摘要|本次修复|本次执行|本次任务|本次改动|本轮执行|本轮修复|本轮任务|本轮改动|修复记录|结果|完成|已完成|完成说明)`;
   return new RegExp(`^\\s*${technicalPrefix}\\s+${englishShell}\\s*(?:[:\\-\\u2013\\u2014])`, 'i')
@@ -1851,7 +1900,7 @@ function hasTechnicalPrefixStatusShell(value: string) {
 function isCurrentRunImplementationShell(value: string) {
   const text = value.trim();
   const currentRunSubject = '(?:run|execution|fix|task|change)';
-  const currentRunPrefix = `(?:(?:in\\s+(?:this|the\\s+current)\\s+${currentRunSubject})|(?:(?:the\\s+)?current|this)\\s+${currentRunSubject})`;
+  const currentRunPrefix = `(?:(?:(?:in|during)\\s+(?:this|the\\s+current)\\s+${currentRunSubject})|(?:(?:the\\s+)?current|this)\\s+${currentRunSubject})`;
   const implementationVerb = '(?:use|uses|used|did|add|adds|added|set|sets|configured?|register(?:s|ed)?|wait(?:s|ed)?|block(?:s|ed)?|gate(?:s|d)?|ignore(?:s|d)?|cancel(?:s|ed|led)?|move(?:s|d)?|place(?:s|d)?|import(?:s|ed)?|update(?:s|d)?|fix(?:es|ed)?|change(?:s|d)?|validat(?:e|es|ed)|normaliz(?:e|es|ed)|parse(?:s|d)?|strip(?:s|ped)?|debounce(?:s|d)?|route(?:s|d)?|return(?:s|ed)?|prune(?:s|d)?|remove(?:s|d)?|wrap(?:s|ped)?)';
   const hasCurrentRunPrefix =
     new RegExp(`^\\s*${currentRunPrefix}\\b`, 'i').test(text);
@@ -1859,6 +1908,16 @@ function isCurrentRunImplementationShell(value: string) {
     new RegExp(`^\\s*${currentRunPrefix}\\b.{0,80}\\b${implementationVerb}\\b`, 'i')
       .test(text);
   return hasCurrentRunPrefix && hasImplementationAction && hasSpecificEvidence(text);
+}
+
+function isCurrentRunStatusObservationClaim(value: string) {
+  const text = value.trim();
+  return (
+    /\b(?:during|in)\s+this\s+run\b/i.test(text) &&
+    hasSpecificEvidence(text) &&
+    /\b(returned|returns?|http\s*[45]\d\d|observed|recorded|checked|verified|passed|completed|fixed|status)\b/i
+      .test(text)
+  );
 }
 
 function isLowValueOutcomeStatusClaim(value: string) {
@@ -2054,6 +2113,8 @@ function isLowQualityVisibleConclusion(value: string) {
     isFirstPersonDiaryClaim(body) ||
     isExplicitEnglishStatusShell(value) ||
     isExplicitEnglishStatusShell(body) ||
+    isCurrentRunStatusObservationClaim(value) ||
+    isCurrentRunStatusObservationClaim(body) ||
     isVisibleWorkLogClaim(body) ||
     isVisibleStatusSnapshotText(body) ||
     isLowValueOutcomeStatusClaim(value) ||

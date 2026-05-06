@@ -949,6 +949,21 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
       resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
     },
   }), { mode: 'auto' });
+  const currentRunObservationResult = validateMaterializedNoteQuality(note({
+    title: 'API search activeRequestId gate prevents stale responses',
+    summary: 'Gate setResults with activeRequestId so stale /api/search responses cannot overwrite current results.',
+    key_conclusions: [
+      'Root cause: Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      'Resolution: Gate setResults with activeRequestId so stale responses cannot overwrite current results.',
+      'Observation: /api/search returned HTTP 500 during this run.',
+    ],
+    raw_payload: {
+      summary: 'Gate setResults with activeRequestId so stale /api/search responses cannot overwrite current results.',
+      outcome_type: 'fix',
+      root_cause: 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      resolution: 'Gate setResults with activeRequestId so stale responses cannot overwrite current results.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(genericTakeawayResult.accepted, false);
   assert.equal(genericTakeawayResult.reason, 'low-note-quality');
@@ -1013,6 +1028,9 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
   assert.equal(routeCiCompletedResult.accepted, false);
   assert.equal(routeCiCompletedResult.reason, 'low-note-quality');
   assert.ok(routeCiCompletedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(currentRunObservationResult.accepted, false);
+  assert.equal(currentRunObservationResult.reason, 'low-note-quality');
+  assert.ok(currentRunObservationResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects fix outcomes without visible fix conclusions', () => {
@@ -3203,6 +3221,27 @@ test('validateMaterializedNoteQuality accepts writeback receipt uniqueness fixes
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts queue conversation_id dedupe fixes', () => {
+  const summary = 'Deduplicate queue jobs by conversation_id before enqueueing summarize work so retries reuse the pending job instead of writing duplicate notes.';
+  const root_cause = 'summarize --all retries enqueued the same conversation_id more than once, so two queue jobs wrote duplicate notes for the same conversation.';
+  const resolution = 'Deduplicate queue jobs by conversation_id before enqueueing summarize work so retries reuse the pending job instead of writing duplicate notes.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Queue conversation_id dedupe prevents duplicate notes',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality accepts SQL parameterized tag lookup fixes', () => {
   const summary = 'Bind tag names as SQL parameters because interpolated tag strings with quotes broke note tag lookup queries.';
   const root_cause = 'Tag names containing quotes broke SQL lookup queries because the notes route interpolated tag text directly into WHERE clauses.';
@@ -3300,6 +3339,27 @@ test('validateMaterializedNoteQuality accepts activeRequestId setResults stale r
     key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
     raw_payload: {
       outcome_type: 'fix',
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts activeRequestId invariant stale response fixes', () => {
+  const summary = 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.';
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.';
+  const resolution = 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Stale search responses overwrite current results',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
       root_cause,
       resolution,
     },
@@ -3641,6 +3701,8 @@ test('validateMaterializedNoteQuality rejects Chinese technical-prefix status up
 
 test('validateMaterializedNoteQuality rejects descriptor-prefix status update shells', () => {
   const summary = 'API search status update: activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.';
+  const semanticSummary = 'Semantic search status update: activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.';
+  const chineseSummary = '语义搜索状态更新：activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.';
   const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.';
   const resolution = 'Gate setResults with activeRequestId so stale responses cannot overwrite current results.';
   const result = validateMaterializedNoteQuality(note({
@@ -3654,10 +3716,38 @@ test('validateMaterializedNoteQuality rejects descriptor-prefix status update sh
       resolution,
     },
   }), { mode: 'auto' });
+  const semanticResult = validateMaterializedNoteQuality(note({
+    title: semanticSummary,
+    summary: semanticSummary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: semanticSummary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+  const chineseResult = validateMaterializedNoteQuality(note({
+    title: chineseSummary,
+    summary: chineseSummary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: chineseSummary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
 
   assert.equal(result.accepted, false);
   assert.equal(result.reason, 'low-note-quality');
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
+  assert.equal(semanticResult.accepted, false);
+  assert.equal(semanticResult.reason, 'low-note-quality');
+  assert.ok(semanticResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseResult.accepted, false);
+  assert.equal(chineseResult.reason, 'low-note-quality');
+  assert.ok(chineseResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects English work record structured items', () => {
@@ -3702,6 +3792,26 @@ test('validateMaterializedNoteQuality rejects in-this-run implementation shells'
     title: 'Search request id gate prevents stale responses',
     summary,
     key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects during-this-run implementation shells', () => {
+  const summary = 'During this run, gate setResults by activeRequestId so stale /api/search responses cannot overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    tags: [],
+    embedding_text: '',
     raw_payload: {
       outcome_type: 'decision',
       summary,
@@ -3856,6 +3966,27 @@ test('validateMaterializedNoteQuality accepts Vite proxy path rewrite fixes', ()
   const resolution = 'Disable proxy path rewrite for /api/search so search requests reach the registered Fastify route.';
   const result = validateMaterializedNoteQuality(note({
     title: 'Vite proxy preserves /api/search path',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts SPA fallback route-ordering fixes', () => {
+  const summary = 'Register /api/notes before the SPA fallback handler so API requests return JSON instead of index.html.';
+  const root_cause = '/api/notes fell through to the SPA fallback because the API route was registered after the fallback handler, so clients received index.html instead of JSON.';
+  const resolution = 'Register /api/notes before the SPA fallback handler so API requests return JSON instead of index.html.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API route before SPA fallback returns JSON',
     summary,
     key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
     raw_payload: {
