@@ -109,6 +109,7 @@ function hasConcreteTransferableAction(value: string) {
   if (hasFrontendCacheInvalidationAction(text)) return true;
   if (hasSqliteWalSidecarAction(text)) return true;
   if (hasProviderBaseUrlAction(text)) return true;
+  if (hasImportContentArrayAction(text)) return true;
   return concreteActionWords.some((word) => hasWord(text, word));
 }
 
@@ -211,6 +212,7 @@ function hasSpecificEvidence(value: string) {
     hasSchemaArrayEvidence(text) ||
     hasJsonParsingEvidence(text) ||
     hasProviderBaseUrlEvidence(text) ||
+    hasImportContentArrayEvidence(text) ||
     hasDurableEngineeringEvidence(text) ||
     hasImportDedupeEvidence(text) ||
     hasContentSanitizationEvidence(text) ||
@@ -329,6 +331,45 @@ function hasProviderBaseUrlFailureSignal(value: string) {
     hasHttpNotFound &&
     hasWrongEndpointFlow &&
     hasCausalFlow;
+}
+
+function hasImportContentArrayEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(codex adapter|codex jsonl|response_item\.content|content arrays?|array-shaped assistant content|assistant content|assistant messages?|imported conversation messages?|empty imported conversation messages?|text fragments?)\b/i
+    .test(text);
+}
+
+function hasImportContentArrayAction(value: string) {
+  const text = value.toLowerCase();
+  const hasAction =
+    /\b(parse|parsed|extract|extracted|join|joined|save|saving)\b/i.test(text);
+  const hasTarget =
+    /\b(response_item\.content|content arrays?|assistant content|text fragments?|conversation messages?|assistant messages?)\b/i
+      .test(text);
+  return hasImportContentArrayEvidence(text) && hasAction && hasTarget;
+}
+
+function hasImportContentArrayMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasStringVsArrayFlow =
+    /\btreated\b.+\bresponse_item\.content\b.+\bplain string\b/i.test(text) ||
+    /\barray-shaped assistant content\b/i.test(text) ||
+    /\bresponse_item\.content arrays?\b/i.test(text);
+  const hasParseJoinFlow =
+    /\b(parse|extract)\b.+\b(response_item\.content|content arrays?)\b.+\b(join|text fragments?|save|saving|conversation messages?)\b/i
+      .test(text) ||
+    /\b(join|joined)\b.+\btext fragments?\b.+\b(before saving|conversation messages?|assistant messages?)\b/i
+      .test(text);
+  return hasImportContentArrayEvidence(text) && (hasStringVsArrayFlow || hasParseJoinFlow);
+}
+
+function hasImportContentArrayFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasContentLoss =
+    /\b(empty turns?|empty imported conversation messages?|empty messages?|missing assistant text|lost assistant text|lost assistant content|missing assistant content|without assistant text)\b/i
+      .test(text);
+  const hasCausalFlow = /\b(so|because|instead of|produced|lost|missing)\b/i.test(text);
+  return hasImportContentArrayEvidence(text) && hasContentLoss && hasCausalFlow;
 }
 
 function hasDurableEngineeringEvidence(value: string) {
@@ -726,6 +767,7 @@ function hasConcreteMechanism(value: string) {
   const hasSchemaDefaultArrayFlow = hasSchemaDefaultArrayMechanism(text);
   const hasJsonParsingFlow = hasJsonParsingMechanism(text);
   const hasProviderBaseUrlFlow = hasProviderBaseUrlMechanism(text);
+  const hasImportContentArrayFlow = hasImportContentArrayMechanism(text);
   const hasDurableEngineeringFlow = hasDurableEngineeringMechanism(text);
   const hasImportDedupeFlow = hasImportDedupeMechanism(text);
   const hasContentSanitizationFlow = hasContentSanitizationMechanism(text);
@@ -748,6 +790,7 @@ function hasConcreteMechanism(value: string) {
     hasSchemaDefaultArrayFlow ||
     hasJsonParsingFlow ||
     hasProviderBaseUrlFlow ||
+    hasImportContentArrayFlow ||
     hasDurableEngineeringFlow ||
     hasImportDedupeFlow ||
     hasContentSanitizationFlow ||
@@ -852,6 +895,7 @@ function hasFailureOrConsequenceSignal(value: string) {
     hasSchemaArrayFailureSignal(value) ||
     hasJsonParsingFailureSignal(value) ||
     hasProviderBaseUrlFailureSignal(value) ||
+    hasImportContentArrayFailureSignal(value) ||
     hasDurableEngineeringFailureSignal(value) ||
     hasImportDedupeFailureSignal(value) ||
     hasContentSanitizationFailureSignal(value) ||
@@ -1409,6 +1453,7 @@ function hasUsefulCodeSnippet(
     hasSchemaArrayEvidence(combined) ||
     hasJsonParsingEvidence(combined) ||
     hasProviderBaseUrlEvidence(combined) ||
+    hasImportContentArrayEvidence(combined) ||
     hasContentSanitizationEvidence(combined) ||
     hasPersistenceSnapshotEvidence(combined) ||
     hasIndexConsistencyEvidence(combined) ||
@@ -1431,7 +1476,12 @@ function isPlaceholderFunctionCallSnippet(code: string) {
   if (!args) return true;
   return args
     .split(',')
-    .every((arg) => /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?$/.test(arg.trim()));
+    .every((arg) => isSimplePlaceholderArgument(arg.trim()));
+}
+
+function isSimplePlaceholderArgument(value: string) {
+  return /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?$/.test(value) ||
+    /^["'`][^"'`]+["'`]$/.test(value);
 }
 
 function hasLowQualityTags(note: MaterializedTaskMemoryNote) {

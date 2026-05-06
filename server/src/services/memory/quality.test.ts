@@ -2002,6 +2002,50 @@ test('validateMaterializedNoteQuality accepts concrete parser TypeError fixes', 
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts Codex content array import fixes', () => {
+  const summary = 'Extract text from response_item.content arrays while parsing Codex JSONL so imported conversations keep assistant messages instead of empty turns.';
+  const root_cause = 'The Codex adapter treated response_item.content as a plain string, so array-shaped assistant content produced empty imported conversation messages.';
+  const resolution = 'Parse response_item.content arrays and join text fragments before saving Codex conversation messages.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Codex response_item content arrays lost assistant text',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['codex', 'import'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic imported content reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Imported content reliability fix',
+    summary: 'Parse imported content so messages are reliable.',
+    key_conclusions: [
+      'Root cause: Imported content reliability mattered for messages.',
+      'Resolution: Parse imported content so messages are reliable.',
+    ],
+    tags: ['import'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Parse imported content so messages are reliable.',
+      root_cause: 'Imported content reliability mattered for messages.',
+      resolution: 'Parse imported content so messages are reliable.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality accepts fenced LLM JSON parsing fixes', () => {
   const fence = '```';
   const summary = `Strip ${fence}json markdown fences in extractJSON before JSON.parse because LLM summaries can return fenced objects that throw SyntaxError.`;
@@ -2190,6 +2234,25 @@ test('validateMaterializedNoteQuality rejects identifier-only snippets', () => {
       }],
     },
   }), { mode: 'auto' });
+  const quotedPlaceholderCallResult = validateMaterializedNoteQuality(note({
+    title: 'Set DATA_DIR before importing Electron server',
+    summary: 'Set DATA_DIR before importing the Electron server so embedded startup uses the intended ChatCrystal data directory.',
+    key_conclusions: [
+      'Root cause: The Electron main process imported the server before DATA_DIR was configured, so startup used the default data directory.',
+      'Resolution: Set DATA_DIR before importing the Electron server entrypoint.',
+    ],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server so embedded startup uses the intended ChatCrystal data directory.',
+      outcome_type: 'fix',
+      root_cause: 'The Electron main process imported the server before DATA_DIR was configured, so startup used the default data directory.',
+      resolution: 'Set DATA_DIR before importing the Electron server entrypoint.',
+      code_snippets: [{
+        language: 'ts',
+        code: 'handle("DATA_DIR")',
+        description: 'Set DATA_DIR before importing the Electron server entrypoint.',
+      }],
+    },
+  }), { mode: 'auto' });
 
   assert.equal(result.accepted, false);
   assert.equal(result.reason, 'low-note-quality');
@@ -2200,6 +2263,9 @@ test('validateMaterializedNoteQuality rejects identifier-only snippets', () => {
   assert.equal(placeholderCallResult.accepted, false);
   assert.equal(placeholderCallResult.reason, 'low-note-quality');
   assert.ok(placeholderCallResult.warnings.includes('code_snippets'));
+  assert.equal(quotedPlaceholderCallResult.accepted, false);
+  assert.equal(quotedPlaceholderCallResult.reason, 'low-note-quality');
+  assert.ok(quotedPlaceholderCallResult.warnings.includes('code_snippets'));
 });
 
 test('validateMaterializedNoteQuality accepts imported content sanitization fixes', () => {
