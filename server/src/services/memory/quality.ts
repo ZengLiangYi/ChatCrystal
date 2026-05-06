@@ -1534,7 +1534,7 @@ function isVisibleWorkLogClaim(value: string) {
 }
 
 function isExplicitEnglishStatusShell(value: string) {
-  return /^\s*(?:work\s*log|worklog|status\s+record|status|record)\s*(?:[:\-\u2013\u2014])/i
+  return /^\s*(?:work\s*log|worklog|status\s+record|status\s+update|status|record|execution\s+record|completion\s+record|fix\s+record|this\s+fix|this\s+run|run\s+log)\s*(?:[:\-\u2013\u2014])/i
     .test(value.trim());
 }
 
@@ -1571,6 +1571,8 @@ function hasChineseVisibleMechanism(value: string) {
 function isChineseVisibleStatusShell(value: string) {
   if (!/[\u3400-\u9fff]/.test(value)) return false;
   const hasStatusRecordShell =
+    /^\s*(?:状态记录|记录状态|工作日志|日志记录|工作记录|执行记录|完成记录|状态更新|本次修复|本次执行|修复记录)\s*(?:[：:\-\u2013\u2014]|$)/i
+      .test(value) ||
     /(?:^|[\s：:])(?:状态记录|记录状态|工作日志|日志记录|工作记录)(?:[\s：:]|$)|^(?:状态|记录)\s*[：:]/i
       .test(value) ||
     /(?:已记录|记录了).{0,80}(?:已修复|修复完成|已完成|完成|处理完成|解决完成)/i

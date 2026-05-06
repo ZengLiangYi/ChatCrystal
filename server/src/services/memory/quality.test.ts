@@ -3186,6 +3186,66 @@ test('validateMaterializedNoteQuality rejects English worklog dash structured it
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects English execution record structured items', () => {
+  const summary = 'Execution record: use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+    tags: [],
+    embedding_text: '',
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects Chinese execution record structured items', () => {
+  const summary = '执行记录：使用 active request id gate /api/search result updates，避免 stale responses overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+    tags: [],
+    embedding_text: '',
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts non-shell execution order notes', () => {
+  const root_cause = 'API requests returned HTTP 404 because /api/notes registration ran after request setup.';
+  const resolution = 'Register /api/notes before request setup so API requests do not return HTTP 404.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API registration execution order caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality accepts route initialization HTTP failures', () => {
   const summary = 'POST /api/import returned HTTP 500 because the route handled requests before sql.js finished initialization; wait for db initialization before accepting import requests.';
   const root_cause = 'POST /api/import returned HTTP 500 because the route handled requests before sql.js finished initialization.';
