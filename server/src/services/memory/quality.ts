@@ -1010,17 +1010,37 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
   const hasConcreteToken =
     /\b[a-z0-9]+_[a-z0-9_]+\b|\b[a-z][a-z0-9_]*\.[a-z_][a-z0-9_]*\b|\/api\/[\w/-]+/i
       .test(text);
-  const hasEngineeringContext =
-    /\b(sqlite|sql\.js|table|rows?|index|indexed lookup|lookup|lookups?|query|queries|filtered|filtering|request timeouts?|timed out|large imports?|messages?|note detail|cache|schema|parser|jsonl)\b/i
+  const hasNamedDbObject =
+    /\b(unique\s*\([^)]*\)|writeback receipts?|writeback_receipts|receipt rows?|source_agent|source_run_key|write_task_memory)\b/i
+      .test(text) ||
+    /\b(unique key|unique constraint)\b.+\b(writeback|receipt|source_agent|source_run_key)\b/i
+      .test(text) ||
+    /\b(writeback|receipt|source_agent|source_run_key)\b.+\b(unique key|unique constraint)\b/i
       .test(text);
-  return hasConcreteToken && hasEngineeringContext;
+  const hasNamedAsyncObject =
+    /\b(abortcontroller|react search|search view|\/api\/search|stale search requests?|stale responses?|previous responses?|current query results?|current results|overlapping requests?|overlapping \/api\/search requests?)\b/i
+      .test(text);
+  const hasEngineeringContext =
+    /\b(sqlite|sql\.js|table|rows?|index|indexed lookup|lookup|lookups?|query|queries|filtered|filtering|request timeouts?|timed out|large imports?|messages?|note detail|cache|schema|parser|jsonl|constraint|unique|duplicate|receipt|receipts|writeback|search|frontend|react|requests?|responses?)\b/i
+      .test(text);
+  return (hasConcreteToken || hasNamedDbObject || hasNamedAsyncObject) && hasEngineeringContext;
 }
 
 function hasStrictStructuralEngineeringAction(value: string) {
   const text = value.toLowerCase();
-  return hasStrictStructuralEngineeringEvidence(text) &&
-    /\b(add|create|remove|wrap|validate|normalize|configure|set|index)\b/i
+  const hasAction =
+    /\b(add|create|remove|wrap|validate|normalize|configure|set|index|return|reuse|cancel|use)\b/i
       .test(text);
+  const hasConcreteDbAction =
+    /\b(add|create)\b.+\b(unique\s*\([^)]*\)|unique key|unique constraint|constraint|index|idx_[a-z0-9_]+)\b/i
+      .test(text) ||
+    /\b(return|reuse)\b.+\b(existing receipt row|first note|existing row)\b/i
+      .test(text);
+  const hasConcreteAsyncAction =
+    /\b(use\b.+\babortcontroller|abortcontroller\b.+\bcancel|cancel(?: older| previous| prior)?\b.+\b(?:\/api\/search|requests?|responses?))\b/i
+      .test(text);
+  return hasStrictStructuralEngineeringEvidence(text) &&
+    (hasAction || hasConcreteDbAction || hasConcreteAsyncAction);
 }
 
 function hasStrictStructuralEngineeringMechanism(value: string) {
@@ -1034,25 +1054,49 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
   const hasFilterWithoutIndex =
     /\b(filtered|filtering)\b.+\bby\b.+\b[a-z_][a-z0-9_]*\b.+\bwithout an index\b/i
       .test(text);
+  const hasUniquenessConstraintFlow =
+    /\b(unique\s*\([^)]*\)|unique key|unique constraint)\b.+\b(prevents?|preventing|duplicate rows?|duplicate notes?|receipt rows?)\b/i
+      .test(text) ||
+    /\b(retried|retries|retry|reused|reuse)\b.+\b(source_run_key|same source_run_key|same run|one agent run|write_task_memory)\b.+\b(duplicate receipt rows?|duplicate rows?|duplicate notes?|no unique|unique constraint)\b/i
+      .test(text) ||
+    /\b(no|without|had no)\b.+\b(unique\s*\([^)]*\)|unique key|unique constraint)\b.+\b(duplicate receipt rows?|duplicate rows?|duplicate notes?)\b/i
+      .test(text) ||
+    /\b(return|reuse)\b.+\b(existing receipt row|existing row|first note)\b.+\b(retries|reuse|instead of inserting duplicate rows?)\b/i
+      .test(text) ||
+    /\b(source_run_key|writeback_receipts|receipt rows?)\b.+\b(unique\s*\([^)]*\)|unique key|unique constraint|duplicate receipt rows?|duplicate notes?)\b/i
+      .test(text);
+  const hasStaleAsyncResponseFlow =
+    /\b(overlapping|slower previous|previous|older|stale)\b.+\b(\/api\/search|search requests?|responses?)\b.+\b(overwrote|overwrite|replace|current query results?|current results)\b/i
+      .test(text) ||
+    /\b(overwrote|overwrite|replace)\b.+\b(current query results?|current results)\b/i
+      .test(text) ||
+    /\b(cancel|abortcontroller)\b.+\b(previous|older|prior|stale)\b.+\b(\/api\/search|requests?|responses?)\b/i
+      .test(text) ||
+    /\b(cancel|abortcontroller)\b.+\b(before starting the next query|before updating results|next query)\b/i
+      .test(text) ||
+    /\bstale responses?\b.+\b(cannot|do not|does not)\b.+\b(replace|overwrite)\b.+\bcurrent results\b/i
+      .test(text);
   const hasCausalFlow =
-    /\b(because|so|caused|without|instead of|before|avoid|avoids|prevent|prevents|timed out)\b/i
+    /\b(because|so|but|caused|without|instead of|before|after|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|return existing)\b/i
       .test(text);
   return hasStrictStructuralEngineeringEvidence(text) &&
     hasCausalFlow &&
     (
       (hasIndexDefinition && hasLookupScanFlow) ||
       hasFilterWithoutIndex ||
-      hasLookupScanFlow
+      hasLookupScanFlow ||
+      hasUniquenessConstraintFlow ||
+      hasStaleAsyncResponseFlow
     );
 }
 
 function hasStrictStructuralEngineeringFailureSignal(value: string) {
   const text = value.toLowerCase();
   const hasNamedConsequence =
-    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row)\b/i
+    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|stale responses?|overwrote the current query results?|overwrote current results?|replace current results?)\b/i
       .test(text);
   const hasCausalFlow =
-    /\b(because|so|caused|without|instead of|before|avoid|avoids|prevent|prevents)\b/i
+    /\b(because|so|but|caused|without|instead of|before|after|avoid|avoids|prevent|prevents|overwrote|overwrite|reused|reuse|retried|retries|cancel|return existing)\b/i
       .test(text);
   return hasStrictStructuralEngineeringEvidence(text) && hasNamedConsequence && hasCausalFlow;
 }

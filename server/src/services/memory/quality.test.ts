@@ -2934,6 +2934,50 @@ test('validateMaterializedNoteQuality accepts indexed lookup timeout fixes', () 
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts writeback receipt uniqueness fixes', () => {
+  const summary = 'Add UNIQUE(source_agent, source_run_key) on the writeback_receipts table because retried write_task_memory calls inserted duplicate receipt rows and duplicate notes for the same run.';
+  const root_cause = 'Retried write_task_memory calls reused the same source_run_key, but the writeback_receipts table had no UNIQUE(source_agent, source_run_key) constraint, so duplicate receipt rows created duplicate notes for one agent run.';
+  const resolution = 'Add UNIQUE(source_agent, source_run_key) on writeback_receipts and return the existing receipt row so retries reuse the first note instead of inserting duplicate rows.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Writeback receipt unique key prevents duplicate notes',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['writeback', 'database'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts stale async search response fixes', () => {
+  const summary = 'Cancel older /api/search requests because slower previous responses overwrote the current query results in the React search view.';
+  const root_cause = 'React search fired overlapping /api/search requests, so a slower previous response overwrote the current query results.';
+  const resolution = 'Use AbortController to cancel the previous /api/search request before starting the next query so stale responses cannot replace current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Cancel stale search requests before updating results',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['search', 'frontend'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality accepts stale Vectra index cleanup fixes', () => {
   const root = 'Semantic search returned stale note_id hits because note deletion removed sql.js rows without removing Vectra index entries.';
   const resolution = 'Remove Vectra index entries after deleting sql.js note rows so semantic search cannot return deleted notes.';
@@ -3010,6 +3054,50 @@ test('validateMaterializedNoteQuality rejects generic index performance reliabil
       summary: 'Add indexes to improve database performance and reliability.',
       root_cause: 'Database performance was unreliable.',
       resolution: 'Add indexes to improve database performance and reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic duplicate constraint reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Database duplicate prevention fix',
+    summary: 'Add constraints to prevent duplicates and improve database reliability.',
+    key_conclusions: [
+      'Root cause: Duplicate records were unreliable.',
+      'Resolution: Add constraints to prevent duplicates and improve database reliability.',
+    ],
+    tags: ['writeback', 'database'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Add constraints to prevent duplicates and improve database reliability.',
+      root_cause: 'Duplicate records were unreliable.',
+      resolution: 'Add constraints to prevent duplicates and improve database reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic frontend cancel reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Frontend request reliability fix',
+    summary: 'Cancel requests to improve frontend reliability.',
+    key_conclusions: [
+      'Root cause: Frontend requests were unreliable.',
+      'Resolution: Cancel requests to improve frontend reliability.',
+    ],
+    tags: ['search', 'frontend'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Cancel requests to improve frontend reliability.',
+      root_cause: 'Frontend requests were unreliable.',
+      resolution: 'Cancel requests to improve frontend reliability.',
     },
   }), { mode: 'auto' });
 
