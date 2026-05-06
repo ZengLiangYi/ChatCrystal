@@ -1875,6 +1875,34 @@ test('validateMaterializedNoteQuality accepts concrete parser TypeError fixes', 
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts fenced LLM JSON parsing fixes', () => {
+  const fence = '```';
+  const summary = `Strip ${fence}json markdown fences in extractJSON before JSON.parse because LLM summaries can return fenced objects that throw SyntaxError.`;
+  const root_cause = `generateText returned ${fence}json fenced output, and extractJSON passed the fence text to JSON.parse, so parsing threw SyntaxError before note fields were persisted.`;
+  const resolution = `Strip optional ${fence}json fences in extractJSON before calling JSON.parse so summarized notes persist parsed title, summary, and conclusions.`;
+  const result = validateMaterializedNoteQuality(note({
+    title: 'extractJSON must strip fenced LLM JSON',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['llm', 'json'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+      code_snippets: [{
+        language: 'ts',
+        code: 'const parsed = JSON.parse(stripOptionalJsonFence(output));',
+        description: 'Strip optional fenced JSON before calling JSON.parse.',
+      }],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality accepts concrete schema default array fixes', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Zod optional arrays can throw during iteration',
@@ -1899,6 +1927,28 @@ test('validateMaterializedNoteQuality accepts concrete schema default array fixe
   assert.equal(result.accepted, true);
   assert.equal(result.reason, 'note-quality-ok');
   assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects placeholder snippets and generic tags', () => {
+  const result = validateMaterializedNoteQuality(note({
+    tags: ['success', 'fixed', 'reliable'],
+    raw_payload: {
+      summary: 'Requests must wait for server readiness before client calls.',
+      outcome_type: 'fix',
+      root_cause: 'Client calls raced server startup.',
+      resolution: 'Block request setup until readiness resolves.',
+      code_snippets: [{
+        language: 'text',
+        code: 'TODO',
+        description: 'fix the issue',
+      }],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('code_snippets'));
+  assert.ok(result.warnings.includes('tags'));
 });
 
 test('validateMaterializedNoteQuality accepts imported content sanitization fixes', () => {

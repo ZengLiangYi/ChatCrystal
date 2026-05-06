@@ -199,6 +199,7 @@ function hasSpecificEvidence(value: string) {
       .test(text) ||
     hasChineseTechnicalEvidence(text) ||
     hasSchemaArrayEvidence(text) ||
+    hasJsonParsingEvidence(text) ||
     hasDurableEngineeringEvidence(text) ||
     hasImportDedupeEvidence(text) ||
     hasContentSanitizationEvidence(text) ||
@@ -233,6 +234,37 @@ function hasSchemaDefaultArrayMechanism(value: string) {
   const hasIterationOrHandler =
     /\b(iterat(?:e|ed|es|ing|ion)|handler|handler logic)\b/i.test(text);
   return hasSchemaArrayEvidence(text) && hasOptionalOrDefaultArray && hasIterationOrHandler;
+}
+
+function hasJsonParsingEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /```json|\b(generatetext|extractjson|json\.parse|syntaxerror|llm summaries?|llm summary|fenced output|fenced objects?|markdown fences?|json fences?|fence text|note fields?|parsed title|parsed summary|parsed conclusions)\b/i
+    .test(text);
+}
+
+function hasJsonParsingMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasFenceOrParser =
+    /```json|\b(extractjson|json\.parse|fences?|fenced|markdown fences?|parse|parsing|parsed)\b/i
+      .test(text);
+  const hasStripBeforeParse =
+    /\b(strip|stripped|remove|removed|trim)\b.+\b(fences?|fenced|markdown|json\.parse|parse|parsing)\b/i
+      .test(text) ||
+    /\b(fences?|fenced|markdown)\b.+\b(strip|stripped|remove|removed|trim)\b/i
+      .test(text) ||
+    /\bbefore\b.+\b(json\.parse|parse|parsing|calling json\.parse)\b/i
+      .test(text);
+  return hasJsonParsingEvidence(text) && hasFenceOrParser && hasStripBeforeParse;
+}
+
+function hasJsonParsingFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasParsingFailure =
+    /\b(syntaxerror|throw|threw|throws?|parsing threw|not persisted|before note fields were persisted|fenced output|fenced objects?)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|returned|passed|before|can return|persist)\b/i.test(text);
+  return hasJsonParsingEvidence(text) && hasParsingFailure && hasCausalFlow;
 }
 
 function hasDurableEngineeringEvidence(value: string) {
@@ -451,6 +483,7 @@ function hasConcreteMechanism(value: string) {
     /\b(rate[- ]limit|http 429|429|retry-after|backoff|delay)\b.+\b(retry|retried|retries|queue|queued|provider requests?)\b/i
       .test(text);
   const hasSchemaDefaultArrayFlow = hasSchemaDefaultArrayMechanism(text);
+  const hasJsonParsingFlow = hasJsonParsingMechanism(text);
   const hasDurableEngineeringFlow = hasDurableEngineeringMechanism(text);
   const hasImportDedupeFlow = hasImportDedupeMechanism(text);
   const hasContentSanitizationFlow = hasContentSanitizationMechanism(text);
@@ -467,6 +500,7 @@ function hasConcreteMechanism(value: string) {
     hasParserFieldValidation ||
     hasRetryBackoffFlow ||
     hasSchemaDefaultArrayFlow ||
+    hasJsonParsingFlow ||
     hasDurableEngineeringFlow ||
     hasImportDedupeFlow ||
     hasContentSanitizationFlow ||
@@ -536,6 +570,7 @@ function hasFailureOrConsequenceSignal(value: string) {
     /\b(race|raced|orphan|dedupe|deduplicate|stale dist|dist diverge|dist diverged|diverge|diverged|econrefused|typeerror|threw|throws?|readiness issue|startup race|invalid note_tags|foreign_keys|cascade|nulling|source_run_key collision)\b/i
       .test(value) ||
     hasSchemaArrayFailureSignal(value) ||
+    hasJsonParsingFailureSignal(value) ||
     hasDurableEngineeringFailureSignal(value) ||
     hasImportDedupeFailureSignal(value) ||
     hasContentSanitizationFailureSignal(value) ||
@@ -1030,6 +1065,51 @@ function hasStrongReusableMechanism(value: string) {
     .test(value);
 }
 
+function hasLowQualityCodeSnippets(note: MaterializedTaskMemoryNote) {
+  return Boolean(note.raw_payload.code_snippets?.some((snippet) => !hasUsefulCodeSnippet(snippet)));
+}
+
+function hasUsefulCodeSnippet(
+  snippet: NonNullable<MaterializedTaskMemoryNote['raw_payload']['code_snippets']>[number],
+) {
+  const language = snippet.language.trim().toLowerCase();
+  const code = snippet.code.trim();
+  const description = snippet.description?.trim() ?? '';
+  if (!hasMeaningfulText(code, 4, 4) || isPlaceholderText(code)) return false;
+  if (!hasNonPlaceholderMeaningfulText(description, 12, 8)) return false;
+
+  const combined = `${language}\n${code}\n${description}`;
+  const hasConcreteCodeShape =
+    /[{}();=<>]/.test(code) ||
+    /\b(pragma|select|insert|update|delete|create table|json\.parse|z\.object|z\.array|const|let|function|return|import|export|class)\b/i
+      .test(code) ||
+    /\/api\/[\w/-]+|\b[a-z0-9]+_[a-z0-9_]+\b/i.test(code);
+  const hasConcreteEvidence =
+    /\b(pragma\s+foreign_keys|foreign_keys|json\.parse|z\.object|z\.array|response_item\.content|data_dir|node_env|source_run_key|note_tags)\b/i
+      .test(combined) ||
+    hasSchemaArrayEvidence(combined) ||
+    hasJsonParsingEvidence(combined) ||
+    hasContentSanitizationEvidence(combined) ||
+    hasPersistenceSnapshotEvidence(combined) ||
+    hasIndexConsistencyEvidence(combined) ||
+    hasImportDedupeEvidence(combined) ||
+    hasDurableEngineeringEvidence(combined) ||
+    hasSpecificEvidence(combined);
+  const isPlainText = /^(text|txt|plain|plaintext)$/.test(language);
+  return hasConcreteEvidence && (!isPlainText || hasConcreteCodeShape);
+}
+
+function hasLowQualityTags(note: MaterializedTaskMemoryNote) {
+  return note.tags.some((tag) => isLowQualityTag(tag));
+}
+
+function isLowQualityTag(tag: string) {
+  const normalized = tag.trim().toLowerCase();
+  if (!normalized || isPlaceholderText(normalized)) return true;
+  return /^(success|fixed|reliable|done|verified|test[-_\s]?passed|passed|ok|okay|resolved|working|complete|completed|all[-_\s]?good)$/i
+    .test(normalized);
+}
+
 export function validateMaterializedNoteQuality(
   note: MaterializedTaskMemoryNote,
   options: { mode: ValidationMode },
@@ -1048,6 +1128,12 @@ export function validateMaterializedNoteQuality(
   }
   if (!note.key_conclusions.some((item) => hasMeaningfulText(item, 16, 10))) {
     warnings.push('key_conclusions');
+  }
+  if (hasLowQualityCodeSnippets(note)) {
+    warnings.push('code_snippets');
+  }
+  if (hasLowQualityTags(note)) {
+    warnings.push('tags');
   }
   if (!hasDurableReusableSignal(note)) {
     warnings.push('durable_reusable_lesson');
