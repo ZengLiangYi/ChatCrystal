@@ -514,6 +514,38 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
       resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
     },
   }), { mode: 'auto' });
+  const genericRootCauseResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+      'Root cause: Server configuration issue.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const genericRouteFixResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+      'Root cause: API route misconfiguration.',
+      'Resolution: Update the API route configuration.',
+      'Resolution: Apply the route fix.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(genericTakeawayResult.accepted, false);
   assert.equal(genericTakeawayResult.reason, 'low-note-quality');
@@ -551,6 +583,12 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
   assert.equal(genericResolutionResult.accepted, false);
   assert.equal(genericResolutionResult.reason, 'low-note-quality');
   assert.ok(genericResolutionResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(genericRootCauseResult.accepted, false);
+  assert.equal(genericRootCauseResult.reason, 'low-note-quality');
+  assert.ok(genericRootCauseResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(genericRouteFixResult.accepted, false);
+  assert.equal(genericRouteFixResult.reason, 'low-note-quality');
+  assert.ok(genericRouteFixResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects fix outcomes without visible fix conclusions', () => {

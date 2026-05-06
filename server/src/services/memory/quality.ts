@@ -587,14 +587,22 @@ function hasVisibleConcreteFixSignal(note: MaterializedTaskMemoryNote) {
   const rootCauses = conclusionText(note, 'root cause');
   const resolutions = conclusionText(note, 'resolution');
   return (
-    rootCauses.some((item) =>
-      hasNonPlaceholderMeaningfulText(item) &&
-      hasStrongRootCauseSignal(item) &&
-      !isFirstPersonDiaryClaim(item) &&
-      !isVagueGenericFixClaim(item),
-    ) &&
-    resolutions.some((item) => hasActionableResolution(item) && !isFirstPersonDiaryClaim(item))
+    rootCauses.some((item) => hasVisibleRootCauseConclusionQuality(item)) &&
+    resolutions.some((item) => hasVisibleResolutionConclusionQuality(item))
   );
+}
+
+function hasVisibleRootCauseConclusionQuality(value: string) {
+  return (
+    hasNonPlaceholderMeaningfulText(value) &&
+    hasStrongRootCauseSignal(value) &&
+    !isFirstPersonDiaryClaim(value) &&
+    !isVagueGenericFixClaim(value)
+  );
+}
+
+function hasVisibleResolutionConclusionQuality(value: string) {
+  return hasActionableResolution(value) && !isFirstPersonDiaryClaim(value);
 }
 
 function hasVisibleStructuredSignal(note: MaterializedTaskMemoryNote) {
@@ -615,7 +623,7 @@ function isLowQualityVisibleConclusion(value: string) {
   const label = labelMatch?.[1]?.toLowerCase();
   const body = value.slice(labelMatch?.[0]?.length ?? 0);
   const shouldApplyGenericLessonGate = label !== 'root cause' && label !== 'resolution';
-  return (
+  const hasLowQualityBody =
     isPlaceholderText(value) ||
     isPlaceholderText(body) ||
     isFirstPersonDiaryClaim(value) ||
@@ -626,10 +634,15 @@ function isLowQualityVisibleConclusion(value: string) {
     isMetaReusableClaim(body) ||
     (shouldApplyGenericLessonGate && isVagueGenericLesson(body)) ||
     isVagueGenericFixClaim(body) ||
-    (shouldApplyGenericLessonGate && !hasConcreteConclusionValue(body)) ||
     isGenericVisibleBoilerplateClaim(value) ||
-    isGenericVisibleBoilerplateClaim(body)
-  );
+    isGenericVisibleBoilerplateClaim(body);
+  if (label === 'root cause') {
+    return hasLowQualityBody || !hasVisibleRootCauseConclusionQuality(body);
+  }
+  if (label === 'resolution') {
+    return hasLowQualityBody || !hasVisibleResolutionConclusionQuality(body);
+  }
+  return hasLowQualityBody || (shouldApplyGenericLessonGate && !hasConcreteConclusionValue(body));
 }
 
 function hasConcreteConclusionValue(value: string) {
