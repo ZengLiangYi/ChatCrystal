@@ -183,11 +183,15 @@ function hasSpecificEvidence(value: string) {
 
 function hasConcreteMechanism(value: string) {
   const text = value.toLowerCase();
+  const hasGenericReleaseValidation = isGenericReleaseValidationClaim(text);
   const hasTimingOrder =
-    /\b(before|after|until|when)\b.+\b(import|importing|issue|issuing|request|requests|setup|ready|readiness|server|startup|data_dir|entrypoint|metadata|dist|compare|comparing)\b/i
+    !hasGenericReleaseValidation &&
+    (
+      /\b(before|after|until|when)\b.+\b(import|importing|issue|issuing|request|requests|setup|ready|readiness|server|startup|data_dir|entrypoint|metadata|dist|compare|comparing)\b/i
       .test(text) ||
-    /\b(import|importing|issue|issuing|request|requests|setup|ready|readiness|server|startup|data_dir|entrypoint|metadata|dist|compare|comparing)\b.+\b(before|after|until|when)\b/i
-      .test(text);
+      /\b(import|importing|issue|issuing|request|requests|setup|ready|readiness|server|startup|data_dir|entrypoint|metadata|dist|compare|comparing)\b.+\b(before|after|until|when)\b/i
+        .test(text)
+    );
   const hasRaceReadiness =
     /\b(race|raced|readiness|startup|econrefused)\b.+\b(request|requests|ready|server|client calls?|fastify)\b/i
       .test(text) ||
@@ -245,6 +249,7 @@ function hasConcreteTransferableText(value: string) {
     hasConcreteConsequence &&
     !isExistenceOnlyClaim(value) &&
     !isFirstPersonDiaryClaim(value) &&
+    !isGenericReleaseValidationClaim(value) &&
     !isGenericStatusAction(value) &&
     !isVagueGenericLesson(value)
   );
@@ -525,6 +530,7 @@ function hasVisibleSummaryQuality(summary: string) {
 function hasVisibleConcreteContent(value: string) {
   const text = value.toLowerCase();
   if (isLowValueOutcomeStatusClaim(text)) return false;
+  if (isGenericReleaseValidationClaim(text)) return false;
   if (hasSpecificEvidence(text) && hasConcreteMechanism(text)) return true;
   if (hasSpecificEvidence(text) && hasFailureOrConsequenceSignal(text)) return true;
   if (hasPackageDistRootCauseSignal(text)) return true;
@@ -571,7 +577,8 @@ function isGenericVisibleBoilerplateClaim(value: string) {
   const hasGenericReleaseValidation =
     /\bvalidate behavior\b/i.test(text) ||
     /\balways validate behavior before release\b/i.test(text) ||
-    /\bvalidate behavior\b.+\bbefore release\b/i.test(text);
+    /\bvalidate behavior\b.+\bbefore release\b/i.test(text) ||
+    isGenericReleaseValidationClaim(text);
   const hasGenericResolvedInvestigation =
     /\bissue resolved after investigation\b/i.test(text) ||
     /\bresolved after investigation\b/i.test(text) ||
@@ -581,6 +588,14 @@ function isGenericVisibleBoilerplateClaim(value: string) {
     hasGenericFutureFailure ||
     hasGenericReleaseValidation
   ) && !hasConcreteMechanism(text);
+}
+
+function isGenericReleaseValidationClaim(value: string) {
+  const text = value.toLowerCase();
+  return (
+    /\bvalidat(?:e|ing|ion)\b.+\b(api requests?|requests?)\b.+\bbefore release\b/i.test(text) ||
+    /\b(api requests?|requests?)\b.+\bvalidat(?:e|ing|ion)\b.+\bbefore release\b/i.test(text)
+  );
 }
 
 function isVisibleStatusSnapshotText(value: string) {
@@ -669,6 +684,7 @@ function isLowQualityVisibleConclusion(value: string) {
 
 function hasConcreteConclusionValue(value: string) {
   if (isLowValueOutcomeStatusClaim(value)) return false;
+  if (isGenericReleaseValidationClaim(value)) return false;
   return (
     hasVisibleConcreteContent(value) ||
     hasConcreteTransferableText(value) ||

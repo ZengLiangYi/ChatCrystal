@@ -1969,6 +1969,27 @@ test('validateMaterializedNoteQuality rejects boilerplate API validation pattern
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects generic API request validation before release', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API request validation before release prevents HTTP 404',
+    summary: 'Validate API requests before release to prevent /api/notes HTTP 404.',
+    key_conclusions: [
+      'Pattern: Validate API requests before release to prevent /api/notes HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Validate API requests before release to prevent /api/notes HTTP 404.',
+      outcome_type: 'pattern',
+      reusable_patterns: [
+        'Validate API requests before release to prevent /api/notes HTTP 404.',
+      ],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality rejects boilerplate config pattern claims', () => {
   const apiResult = validateMaterializedNoteQuality(note({
     title: 'Generic API config indexing decision',
