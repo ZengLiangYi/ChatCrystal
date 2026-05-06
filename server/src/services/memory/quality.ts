@@ -1433,8 +1433,13 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
       .test(text) &&
     /\b(migration|migrations?|not null|backfill|chatcrystal\.db|constraint)\b/i
       .test(text);
+  const hasNamedEventOrderObject =
+    /\b(jsonl|events?|event order|file-order parsing|timestamp|transcript|out-of-order writes?|user and assistant turns?|conversation (?:order|sequence))\b/i
+      .test(text) &&
+    /\b(jsonl|event order|timestamp|transcript|file-order|conversation|turns?)\b/i
+      .test(text);
   const hasEngineeringContext =
-    /\b(sqlite|sql\.js|table|rows?|index|indexed lookup|lookup|lookups?|query|queries|filtered|filtering|request timeouts?|timed out|large imports?|messages?|note detail|cache|schema|parser|jsonl|constraint|unique|duplicate|receipt|receipts|writeback|search|frontend|react|requests?|responses?|initialization|initialized|route|mcp|json-rpc|stdio|stdout|stderr|framing|transport|logs?|diagnostics?|tags?|joins?|deletion|cleanup|filter chips?|webui|websocket|listeners?|useeffect|remounts?|unmount|child_process|child process|daemon|pid|spawn|exit code|serve|status|dead server|migration|not null|default|backfill|column|startup|vite|proxy|fastify|rewrite|registered route|spa fallback|fallback handler|index\.html|conversation_id|queue jobs?|enqueue|enqueueing|summarize|activerequestid|setresults)\b/i
+    /\b(sqlite|sql\.js|table|rows?|index|indexed lookup|lookup|lookups?|query|queries|filtered|filtering|request timeouts?|timed out|large imports?|messages?|note detail|cache|schema|parser|jsonl|event order|file-order parsing|out-of-order|timestamp|transcript|conversation sequence|user and assistant turns?|constraint|unique|duplicate|receipt|receipts|writeback|search|frontend|react|requests?|responses?|initialization|initialized|route|mcp|json-rpc|stdio|stdout|stderr|framing|transport|logs?|diagnostics?|tags?|joins?|deletion|cleanup|filter chips?|webui|websocket|listeners?|useeffect|remounts?|unmount|child_process|child process|daemon|pid|spawn|exit code|serve|status|dead server|migration|not null|default|backfill|column|startup|vite|proxy|fastify|rewrite|registered route|spa fallback|fallback handler|index\.html|conversation_id|queue jobs?|enqueue|enqueueing|summarize|activerequestid|setresults)\b/i
       .test(text) ||
     /(?:语义搜索|响应|查询结果|旧响应|旧的.*响应|覆盖.*结果)/i.test(text);
   return (
@@ -1449,7 +1454,8 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
     hasNamedProxyRoutingObject ||
     hasNamedSpaFallbackObject ||
     hasNamedQueueDedupeObject ||
-    hasNamedMigrationObject
+    hasNamedMigrationObject ||
+    hasNamedEventOrderObject
   ) && hasEngineeringContext;
 }
 
@@ -1694,8 +1700,17 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
       .test(text) ||
     /\badd\b.+\bcolumn\b.+\bnullable\b.+\bbackfill\b.+\benforce\b.+\bnot null\b/i
       .test(text);
+  const hasEventOrderFlow =
+    /\b(jsonl|events?|event order|file-order parsing|timestamp|transcript|turns?|conversation (?:order|sequence))\b.+\b(out[- ]of[- ]order|file-order|invert|normaliz(?:e|es|ed|ing|ation)|timestamp|real conversation sequence|preserv(?:e|es|ed|ing) conversation order)\b/i
+      .test(text) ||
+    /\bnormaliz(?:e|es|ed|ing|ation)\b.+\bevent order\b.+\btimestamp\b.+\b(before|transcript|sequence)\b/i
+      .test(text) ||
+    /\bfile-order parsing\b.+\binvert\b.+\buser\b.+\bassistant turns?\b/i
+      .test(text) ||
+    /\bout-of-order writes?\b.+\binvert\b.+\buser\b.+\bassistant turns?\b/i
+      .test(text);
   const hasCausalFlow =
-    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|gat(?:e|es|ed|ing)|ignore|latest query|request id|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|wait|reserve|left|no longer existed|deleting notes?|note deletion|cleanup|prune|filter|duplicate|deduplicate|dedupe|enqueued|enqueue|pending job|appended twice|remounts?|unmount|spawn handshake|exit event|exit code|dead server|nonzero|non-zero|backfill|not null|default|constraint|violat(?:e|ed|es|ing)|rewrote|rewrite|proxy|preserv(?:e|es|ed|ing)|registered route|fell through|spa fallback|fallback handler|index\.html)\b/i
+    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|gat(?:e|es|ed|ing)|ignore|latest query|request id|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|wait|reserve|left|no longer existed|deleting notes?|note deletion|cleanup|prune|filter|duplicate|deduplicate|dedupe|enqueued|enqueue|pending job|appended twice|remounts?|unmount|spawn handshake|exit event|exit code|dead server|nonzero|non-zero|backfill|not null|default|constraint|violat(?:e|ed|es|ing)|rewrote|rewrite|proxy|preserv(?:e|es|ed|ing)|registered route|fell through|spa fallback|fallback handler|index\.html|out-of-order|file-order|invert|timestamp|conversation sequence)\b/i
       .test(text) ||
     /(?:因为|所以|导致|避免|防止|覆盖|校验|没有|未)/i.test(text);
   return hasStrictStructuralEngineeringEvidence(text) &&
@@ -1714,20 +1729,21 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
       hasProcessLifecycleFlow ||
       hasProxyPathRewriteFlow ||
       hasSpaFallbackRouteFlow ||
-      hasMigrationConstraintFlow
+      hasMigrationConstraintFlow ||
+      hasEventOrderFlow
     );
 }
 
 function hasStrictStructuralEngineeringFailureSignal(value: string) {
   const text = value.toLowerCase();
   const hasNamedConsequence =
-    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|duplicate conversation jobs?|duplicate messages?|duplicate websocket messages?|appended twice|stale responses?|stale results?|overwrote the current query results?|overwrote current results?|overwrite the current query results?|overwrite current results?|replace current results?|orphan note_tags rows?|orphan tags?|unused tags?|count 0|joins? whose note_id no longer existed|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream)|false serve success|dead server|looked like a running server|running server|nonzero exit codes?|non-zero exit codes?|exit code\s*\d+|migration (?:does not )?fail(?:s|ed)?|migration failures?|existing row failures?|constraint violation|violated the constraint|fell through to the spa fallback|clients? received index\.html instead of json|return json instead of index\.html|returns? html for api json)\b/i
+    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|duplicate conversation jobs?|duplicate messages?|duplicate websocket messages?|appended twice|stale responses?|stale results?|overwrote the current query results?|overwrote current results?|overwrite the current query results?|overwrite current results?|replace current results?|invert user and assistant turns?|inverted user and assistant turns?|out-of-order writes?|file-order parsing can invert|orphan note_tags rows?|orphan tags?|unused tags?|count 0|joins? whose note_id no longer existed|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream)|false serve success|dead server|looked like a running server|running server|nonzero exit codes?|non-zero exit codes?|exit code\s*\d+|migration (?:does not )?fail(?:s|ed)?|migration failures?|existing row failures?|constraint violation|violated the constraint|fell through to the spa fallback|clients? received index\.html instead of json|return json instead of index\.html|returns? html for api json)\b/i
       .test(text) ||
     hasGeneralUniqueConstraintFailureSignal(text) ||
     /(?:旧(?:的)?\s*)?(?:\/api\/search\s*)?响应.{0,20}覆盖.{0,12}(?:当前查询结果|新结果)/i
       .test(text);
   const hasCausalFlow =
-    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|overwrote|overwrite|reused|reuse|retried|retries|cancel|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|left|no longer existed|deleting notes?|note deletion|cleanup|filter|prune|remounts?|unmount|duplicate|deduplicate|dedupe|enqueued|enqueue|pending job|appended twice|spawn handshake|exit event|exit code|nonzero|non-zero|dead server|backfill|not null|default|constraint|violat(?:e|ed|es|ing)|migration|fell through|spa fallback|fallback handler|index\.html)\b/i
+    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|overwrote|overwrite|reused|reuse|retried|retries|cancel|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|left|no longer existed|deleting notes?|note deletion|cleanup|filter|prune|remounts?|unmount|duplicate|deduplicate|dedupe|enqueued|enqueue|pending job|appended twice|spawn handshake|exit event|exit code|nonzero|non-zero|dead server|backfill|not null|default|constraint|violat(?:e|ed|es|ing)|migration|fell through|spa fallback|fallback handler|index\.html|out-of-order|file-order|invert|timestamp|conversation sequence)\b/i
       .test(text) ||
     /(?:因为|所以|导致|避免|防止|覆盖|校验|没有|未)/i.test(text);
   return hasStrictStructuralEngineeringEvidence(text) && hasNamedConsequence && hasCausalFlow;
@@ -2201,6 +2217,7 @@ function isGenericVisibleBoilerplateClaim(value: string) {
 function isGenericReleaseValidationClaim(value: string) {
   const text = value.toLowerCase();
   return (
+    /\bvalidat(?:e|ing|ion)\b.+(?:\/api\/[\w/-]+|api requests?|requests?)\b.+\bbefore release\b/i.test(text) ||
     /\bvalidat(?:e|ing|ion)\b.+\b(api requests?|requests?)\b.+\bbefore release\b/i.test(text) ||
     /\b(api requests?|requests?)\b.+\bvalidat(?:e|ing|ion)\b.+\bbefore release\b/i.test(text)
   );
@@ -2308,6 +2325,9 @@ function isLowQualityVisibleConclusion(value: string) {
     isVagueGenericFixClaim(body) ||
     isGenericVisibleBoilerplateClaim(value) ||
     isGenericVisibleBoilerplateClaim(body);
+  if (label === 'observation' && isBareObservationStatusConclusion(body)) {
+    return true;
+  }
   if (label === 'root cause') {
     return hasLowQualityBody || !hasVisibleRootCauseConclusionQuality(body);
   }
@@ -2315,6 +2335,18 @@ function isLowQualityVisibleConclusion(value: string) {
     return hasLowQualityBody || !hasVisibleResolutionConclusionQuality(body);
   }
   return hasLowQualityBody || (shouldApplyGenericLessonGate && !hasConcreteConclusionValue(body));
+}
+
+function isBareObservationStatusConclusion(value: string) {
+  const text = value.trim();
+  const hasBareStatus =
+    /\b(?:returned|returns|responded|responds|hit|hits|threw|throws?|failed|fails?)\b.+\b(?:http\s*[45]\d\d|[45]\d\d|econrefused|typeerror|error)\b/i
+      .test(text) ||
+    /\b(?:http\s*[45]\d\d|econrefused|typeerror)\b\.?$/i.test(text);
+  const hasMechanismOrAction =
+    /\b(because|so|before|after|without|instead of|when|while|by|ensure|gate|register|wait|normalize|deduplicate|dedupe|bind|add|remove|wrap|use)\b/i
+      .test(text);
+  return hasBareStatus && !hasMechanismOrAction;
 }
 
 function hasConcreteConclusionValue(value: string) {

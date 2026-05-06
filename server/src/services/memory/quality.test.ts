@@ -1052,6 +1052,31 @@ test('validateMaterializedNoteQuality rejects fix outcomes without visible fix c
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects bare observation conclusions appended to concrete fixes', () => {
+  const summary = 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.';
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.';
+  const resolution = 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Stale search responses overwrite current results',
+    summary,
+    key_conclusions: [
+      `Root cause: ${root_cause}`,
+      `Resolution: ${resolution}`,
+      'Observation: /api/search returned HTTP 500.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality rejects diary or status summaries with concrete conclusions', () => {
   const diaryResult = validateMaterializedNoteQuality(note({
     title: 'Server readiness race returns ECONNREFUSED',
@@ -2951,6 +2976,27 @@ test('validateMaterializedNoteQuality accepts JSONL partial-write debounce fixes
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts JSONL event order normalization fixes', () => {
+  const summary = 'Normalize JSONL event order by timestamp before building the transcript so out-of-order writes do not invert user and assistant turns.';
+  const root_cause = 'JSONL sessions can flush events out of order, so file-order parsing can invert user and assistant turns.';
+  const resolution = 'Normalize parsed event order by timestamp before building the transcript so summarization receives the real conversation sequence.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'JSONL event order normalization preserves conversation order',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality rejects generic import dedupe reliability fixes', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Import dedupe reliability fix',
@@ -2964,6 +3010,28 @@ test('validateMaterializedNoteQuality rejects generic import dedupe reliability 
       summary: 'Use import dedupe so imports are reliable.',
       root_cause: 'Import dedupe was unreliable.',
       resolution: 'Use import dedupe so imports are reliable.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic JSONL order reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'JSONL event order reliability fix',
+    summary: 'Normalize JSONL event order to improve transcript reliability.',
+    key_conclusions: [
+      'Root cause: JSONL event order was unreliable.',
+      'Resolution: Normalize JSONL event order to improve transcript reliability.',
+    ],
+    tags: ['jsonl', 'import'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Normalize JSONL event order to improve transcript reliability.',
+      root_cause: 'JSONL event order was unreliable.',
+      resolution: 'Normalize JSONL event order to improve transcript reliability.',
     },
   }), { mode: 'auto' });
 
@@ -5334,6 +5402,24 @@ test('validateMaterializedNoteQuality rejects generic API request validation bef
       reusable_patterns: [
         'Validate API requests before release to prevent /api/notes HTTP 404.',
       ],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects endpoint validation before release boilerplate', () => {
+  const summary = 'Validate /api/search before release because HTTP 500 request failures can happen.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Validate /api/search before release HTTP 500',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
     },
   }), { mode: 'auto' });
 
