@@ -1010,14 +1010,17 @@ function isFirstPersonDiaryClaim(value: string) {
   const diaryVerbs = Array.from(new Set([
     ...concreteActionWords.filter((word) => !/[\u3400-\u9fff]/.test(word)),
     'added',
+    'adds',
     'changed',
     'checked',
     'confirmed',
     'configured',
+    'configures',
     'diagnosed',
     'discovered',
     'fixed',
     'found',
+    'gates',
     'implemented',
     'imported',
     'caused',
@@ -1037,6 +1040,8 @@ function isFirstPersonDiaryClaim(value: string) {
     'updated',
     'use',
     'used',
+    'uses',
+    'sets',
     'verified',
   ]))
     .map(regexEscape)

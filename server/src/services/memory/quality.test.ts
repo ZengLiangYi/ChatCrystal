@@ -1413,6 +1413,24 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
       resolution: 'My fix uses activeRequestId to gate setResults so stale /api/search responses cannot overwrite current results.',
     },
   }), { mode: 'auto' });
+  const exactMyFix = 'My fix uses activeRequestId to gate setResults so stale /api/search responses cannot overwrite current results.';
+  const exactMyFixRoot = 'Older /api/search responses overwrote current results because setResults ran without checking activeRequestId.';
+  const exactMyFixResult = validateMaterializedNoteQuality(note({
+    title: exactMyFix,
+    summary: exactMyFix,
+    key_conclusions: [
+      `Root cause: ${exactMyFixRoot}`,
+      `Resolution: ${exactMyFix}`,
+    ],
+    embedding_text: '',
+    tags: [],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: exactMyFix,
+      root_cause: exactMyFixRoot,
+      resolution: exactMyFix,
+    },
+  }), { mode: 'auto' });
   const chineseLetResult = validateMaterializedNoteQuality(note({
     title: '我让 /api/notes register before request setup',
     summary: '我让 /api/notes register before request setup so API requests do not return HTTP 404.',
@@ -1471,6 +1489,9 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
   assert.equal(myFixResult.accepted, false);
   assert.equal(myFixResult.reason, 'low-note-quality');
   assert.ok(myFixResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(exactMyFixResult.accepted, false);
+  assert.equal(exactMyFixResult.reason, 'low-note-quality');
+  assert.ok(exactMyFixResult.warnings.includes('durable_reusable_lesson'));
   assert.equal(chineseLetResult.accepted, false);
   assert.equal(chineseLetResult.reason, 'low-note-quality');
   assert.ok(chineseLetResult.warnings.includes('durable_reusable_lesson'));
