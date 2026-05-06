@@ -1239,11 +1239,19 @@ function hasSqlParameterizationMechanism(value: string) {
     /\binterpolat(?:e|ed|ing)\b.+\b(tag text|tag strings?|tag names?|strings?|text)\b.+\b(where clauses?|sql syntax|queries?|lookups?|quotes?)\b/i
       .test(text) ||
     /\b(where clauses?)\b.+\binterpolat(?:e|ed|ing)\b.+\b(tag text|tag strings?|tag names?)\b/i
+      .test(text) ||
+    /\binterpolat(?:e|ed|ing)\b.+\buser-controlled tag names?\b.+\b(?:sql\s+)?where clauses?\b/i
+      .test(text) ||
+    /\bquotes?\b.+\btag\b.+\b(?:alter(?:ed|s|ing)|chang(?:ed|es|ing))\b.+\bsql syntax\b/i
       .test(text);
   const hasParameterizationFix =
     /\bbind\b.+\btag names?\b.+\b(sql\.js\s+)?parameters?\b.+\bquotes?\b.+\bdata\b.+\binstead of sql syntax\b/i
       .test(text) ||
     /\bquotes?\b.+\bstay\b.+\bdata\b.+\binstead of sql syntax\b/i
+      .test(text) ||
+    /\bquotes?\b.+\bstay\b.+\bdata\b.+\binstead of\b.+\balter(?:ing)?\b.+\bwhere clause syntax\b/i
+      .test(text) ||
+    /\bbind\b.+\btag names?\b.+\bsql parameters?\b.+\binstead of\b.+\binterpolat(?:e|ing)\b.+\bwhere clauses?\b/i
       .test(text);
   const hasCausalFlow =
     /\b(because|so|before|prevent|prevents|broke|breakage|instead of|interpolat(?:e|ed|ing)|bind|where clauses?|sql syntax)\b/i
@@ -1262,6 +1270,12 @@ function hasSqlParameterizationFailureSignal(value: string) {
     /\b(broke|breaks?|breakage|broken)\b.+\b(sql lookup queries?|lookup queries?|queries?|lookups?)\b/i
       .test(text) ||
     /\bsql syntax\b.+\b(quotes?|tag text|tag strings?|tag names?)\b/i
+      .test(text) ||
+    /\bsql syntax injection\b/i
+      .test(text) ||
+    /\bquotes?\b.+\btag\b.+\b(?:alter(?:ed|s|ing)|chang(?:ed|es|ing))\b.+\bsql syntax\b/i
+      .test(text) ||
+    /\balter(?:ed|s|ing)\b.+\bwhere clause syntax\b/i
       .test(text);
   const hasCausalFlow =
     /\b(because|so|before|prevent|prevents|broke|breakage|instead of|interpolat(?:e|ed|ing)|where clauses?|sql syntax)\b/i
@@ -2042,7 +2056,7 @@ function isGenericReleaseValidationClaim(value: string) {
 }
 
 function isVisibleStatusSnapshotText(value: string) {
-  const hasPassStatus = /\b(build|npm test|tests?|testing|typecheck|lint|ci)\b.+\bpassed\b/i
+  const hasPassStatus = /\b(build|npm test|tests?|testing|typecheck|lint|ci|verification)\b.+\bpassed\b/i
     .test(value);
   const hasSuccessStatus =
     /\b(ci green|ci completed successfully|tests? succeeded|testing succeeded|verification succeeded|build succeeded|typecheck succeeded|lint succeeded)\b/i

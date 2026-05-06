@@ -1212,6 +1212,25 @@ test('validateMaterializedNoteQuality rejects visible status fixes with concrete
   assert.equal(result.accepted, false);
   assert.equal(result.reason, 'low-note-quality');
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
+
+  const verificationResult = validateMaterializedNoteQuality(note({
+    title: 'Search verification passed activeRequestId gates stale /api/search responses',
+    summary: 'Search verification passed activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+    key_conclusions: [
+      'Root cause: Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      'Resolution: Gate setResults with activeRequestId so stale responses cannot overwrite current results.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Search verification passed activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+      root_cause: 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      resolution: 'Gate setResults with activeRequestId so stale responses cannot overwrite current results.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(verificationResult.accepted, false);
+  assert.equal(verificationResult.reason, 'low-note-quality');
+  assert.ok(verificationResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects first-person implementation diary fixes', () => {
@@ -3276,6 +3295,25 @@ test('validateMaterializedNoteQuality accepts SQL parameterized tag lookup fixes
   assert.equal(result.accepted, true);
   assert.equal(result.reason, 'note-quality-ok');
   assert.deepEqual(result.warnings, []);
+
+  const syntaxSummary = 'Bind tag names as SQL parameters so quotes stay data instead of altering WHERE clause syntax.';
+  const syntaxRootCause = 'Tag lookup interpolated user-controlled tag names into SQL WHERE clauses, so quotes in a tag altered SQL syntax.';
+  const syntaxResolution = 'Bind tag names as SQL parameters instead of interpolating them into WHERE clauses.';
+  const syntaxResult = validateMaterializedNoteQuality(note({
+    title: 'Parameterized tag queries prevent SQL syntax injection',
+    summary: syntaxSummary,
+    key_conclusions: [`Root cause: ${syntaxRootCause}`, `Resolution: ${syntaxResolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: syntaxSummary,
+      root_cause: syntaxRootCause,
+      resolution: syntaxResolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(syntaxResult.accepted, true);
+  assert.equal(syntaxResult.reason, 'note-quality-ok');
+  assert.deepEqual(syntaxResult.warnings, []);
 });
 
 test('validateMaterializedNoteQuality accepts SQLite migration backfill constraint fixes', () => {
