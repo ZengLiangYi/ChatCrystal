@@ -8,6 +8,52 @@ export type NoteQualityDecision = {
   warnings: string[];
 };
 
+const concreteActionWords = [
+  'add',
+  'block',
+  'cache',
+  'collapse',
+  'configure',
+  'compare',
+  'comparing',
+  'debounce',
+  'deduplicate',
+  'defer',
+  'enqueue',
+  'extract',
+  'filter',
+  'gate',
+  'group',
+  'import',
+  'index',
+  'initialize',
+  'load',
+  'migrate',
+  'move',
+  'normalize',
+  'parse',
+  'place',
+  'pin',
+  'prune',
+  'rebuild',
+  'regenerate',
+  'register',
+  'remove',
+  'replace',
+  'retry',
+  'sanitize',
+  'set',
+  'strip',
+  'truncate',
+  'validate',
+  'wait',
+  'wait for',
+  'wrap',
+  '避免',
+  '防止',
+  '复用',
+] as const;
+
 function compactLength(value: string) {
   return value.replace(/\s+/g, '').length;
 }
@@ -40,11 +86,15 @@ function joined(note: MaterializedTaskMemoryNote) {
   ].join('\n').toLowerCase();
 }
 
+function regexEscape(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function hasWord(text: string, word: string) {
   if (/[\u3400-\u9fff]/.test(word)) {
     return text.includes(word);
   }
-  return new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text);
+  return new RegExp(`\\b${regexEscape(word)}\\b`, 'i').test(text);
 }
 
 function hasConcreteTransferableAction(value: string) {
@@ -58,51 +108,6 @@ function hasConcreteTransferableAction(value: string) {
   if (hasCrossPlatformPathAction(text)) return true;
   if (hasFrontendCacheInvalidationAction(text)) return true;
   if (hasSqliteWalSidecarAction(text)) return true;
-  const concreteActionWords = [
-    'add',
-    'block',
-    'cache',
-    'collapse',
-    'configure',
-    'compare',
-    'comparing',
-    'debounce',
-    'deduplicate',
-    'defer',
-    'enqueue',
-    'extract',
-    'filter',
-    'gate',
-    'group',
-    'import',
-    'index',
-    'initialize',
-    'load',
-    'migrate',
-    'move',
-    'normalize',
-    'parse',
-    'place',
-    'pin',
-    'prune',
-    'rebuild',
-    'regenerate',
-    'register',
-    'remove',
-    'replace',
-    'retry',
-    'sanitize',
-    'set',
-    'strip',
-    'truncate',
-    'validate',
-    'wait',
-    'wait for',
-    'wrap',
-    '避免',
-    '防止',
-    '复用',
-  ];
   return concreteActionWords.some((word) => hasWord(text, word));
 }
 
@@ -723,29 +728,35 @@ function hasConcreteTransferableText(value: string) {
 
 function isFirstPersonDiaryClaim(value: string) {
   if (hasChineseFirstPersonDiaryClaim(value)) return true;
-  const diaryVerbs = [
+  const diaryVerbs = Array.from(new Set([
+    ...concreteActionWords.filter((word) => !/[\u3400-\u9fff]/.test(word)),
     'added',
     'changed',
     'checked',
     'confirmed',
+    'configured',
     'diagnosed',
     'discovered',
     'fixed',
     'found',
     'implemented',
-    'block',
-    'configure',
+    'imported',
+    'loaded',
+    'moved',
+    'normalized',
+    'parsed',
+    'pruned',
     'reviewed',
     'resolved',
-    'place',
-    'register',
-    'set',
+    'sanitized',
+    'stripped',
     'switched',
     'tested',
     'updated',
     'verified',
-    'wait',
-  ].join('|');
+  ]))
+    .map(regexEscape)
+    .join('|');
   return new RegExp(
     `(?:^|[:.!?,;]\\s*|\\b(?:and|then|but|so)\\s+)\\b(?:i|we)\\s+(?:${diaryVerbs})\\b`,
     'i',
@@ -754,9 +765,24 @@ function isFirstPersonDiaryClaim(value: string) {
 }
 
 function hasChineseFirstPersonDiaryClaim(value: string) {
-  const chineseAction = '(?:添加|修复|设置|配置|注册|等待|发现|验证|检查|确认|诊断|切换|更新|实现|改动|修改|处理|解决)';
-  const englishAction = '(?:add|added|block|configure|configured|fix|fixed|import|importing|place|placed|register|registered|set|switch|switched|update|updated|validate|validated|verify|verified|wait)';
-  return new RegExp(`(?:我|我们)(?:已经|已)?${chineseAction}|(?:我|我们)(?:已经|已)?(?:把|将).{0,80}(?:${chineseAction}|\\b${englishAction}\\b)`, 'i')
+  const chineseAction = '(?:添加|修复|设置|配置|注册|等待|发现|验证|检查|确认|诊断|切换|更新|实现|改动|修改|处理|解决|去掉|剥离|规范化|清理|解析|移除|删除|过滤|截断|剪枝)';
+  const englishAction = Array.from(new Set([
+    ...concreteActionWords.filter((word) => !/[\u3400-\u9fff]/.test(word)),
+    'added',
+    'configured',
+    'fixed',
+    'imported',
+    'importing',
+    'placed',
+    'registered',
+    'switched',
+    'updated',
+    'validated',
+    'verified',
+  ]))
+    .map(regexEscape)
+    .join('|');
+  return new RegExp(`(?:我|我们)(?:已经|已)?${chineseAction}|(?:我|我们)(?:已经|已)?(?:把|将).{0,80}(?:${chineseAction}|\\b(?:${englishAction})\\b)`, 'i')
     .test(value);
 }
 
@@ -1310,8 +1336,21 @@ function hasLowQualityTags(note: MaterializedTaskMemoryNote) {
   return note.tags.some((tag) => isLowQualityTag(tag));
 }
 
+function normalizeTagForQuality(tag: string) {
+  let normalized = tag.trim().toLowerCase();
+  for (let i = 0; i < 3; i += 1) {
+    normalized = normalized
+      .replace(/^#+\s*/, '')
+      .replace(/^[\[\]()（）【】]+/, '')
+      .replace(/[\[\]()（）【】]+$/, '')
+      .replace(/[.。!！,，;；:：]+$/, '')
+      .trim();
+  }
+  return normalized;
+}
+
 function isLowQualityTag(tag: string) {
-  const normalized = tag.trim().toLowerCase();
+  const normalized = normalizeTagForQuality(tag);
   if (!normalized || isPlaceholderText(normalized)) return true;
   return /^(fix|bug|issue|bugfix|bug[-_\s]?fix|success|fixed|reliable|reliability|quality|done|verified|test[-_\s]?passed|passed|ok|okay|resolved|working|complete|completed|all[-_\s]?good|status|checked|reviewed|tested|修复|已修复|修复完成|已完成|完成|已验证|验证|测试通过|测试|通过|可靠性|成功|状态|检查|问题|质量)$/i
     .test(normalized);

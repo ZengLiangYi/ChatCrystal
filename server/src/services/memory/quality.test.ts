@@ -1169,6 +1169,20 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
       resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
     },
   }), { mode: 'auto' });
+  const stripResult = validateMaterializedNoteQuality(note({
+    title: 'I strip fenced JSON before JSON.parse',
+    summary: 'I strip markdown fences before JSON.parse so fenced LLM summaries persist parsed title, summary, and conclusions.',
+    key_conclusions: [
+      'Root cause: LLM summaries can return fenced JSON, so passing the markdown fence text directly into JSON.parse threw SyntaxError before note fields were persisted.',
+      'Resolution: I strip markdown fences before JSON.parse so fenced LLM summaries persist parsed title, summary, and conclusions.',
+    ],
+    raw_payload: {
+      summary: 'I strip markdown fences before JSON.parse so fenced LLM summaries persist parsed title, summary, and conclusions.',
+      outcome_type: 'fix',
+      root_cause: 'LLM summaries can return fenced JSON, so passing the markdown fence text directly into JSON.parse threw SyntaxError before note fields were persisted.',
+      resolution: 'I strip markdown fences before JSON.parse so fenced LLM summaries persist parsed title, summary, and conclusions.',
+    },
+  }), { mode: 'auto' });
   const chineseDiaryResult = validateMaterializedNoteQuality(note({
     title: 'Fastify readiness 竞态导致 ECONNREFUSED',
     summary: '我添加了 Fastify readiness 等待，所以 API requests 不会在 server startup 前触发 ECONNREFUSED。',
@@ -1181,6 +1195,20 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
       outcome_type: 'fix',
       root_cause: 'API requests hit ECONNREFUSED because they ran before Fastify readiness during server startup.',
       resolution: '我添加了 Fastify readiness wait before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const chineseStripResult = validateMaterializedNoteQuality(note({
+    title: 'extractJSON must strip fenced LLM JSON',
+    summary: '我将 markdown fences 去掉 before JSON.parse so fenced LLM summaries persist parsed title, summary, and conclusions.',
+    key_conclusions: [
+      'Root cause: LLM summaries can return fenced JSON, so passing the markdown fence text directly into JSON.parse threw SyntaxError before note fields were persisted.',
+      'Resolution: 我将 markdown fences 去掉 before JSON.parse so fenced LLM summaries persist parsed title, summary, and conclusions.',
+    ],
+    raw_payload: {
+      summary: '我将 markdown fences 去掉 before JSON.parse so fenced LLM summaries persist parsed title, summary, and conclusions.',
+      outcome_type: 'fix',
+      root_cause: 'LLM summaries can return fenced JSON, so passing the markdown fence text directly into JSON.parse threw SyntaxError before note fields were persisted.',
+      resolution: '我将 markdown fences 去掉 before JSON.parse so fenced LLM summaries persist parsed title, summary, and conclusions.',
     },
   }), { mode: 'auto' });
 
@@ -1202,9 +1230,15 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
   assert.equal(laterSentenceResult.accepted, false);
   assert.equal(laterSentenceResult.reason, 'low-note-quality');
   assert.ok(laterSentenceResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(stripResult.accepted, false);
+  assert.equal(stripResult.reason, 'low-note-quality');
+  assert.ok(stripResult.warnings.includes('durable_reusable_lesson'));
   assert.equal(chineseDiaryResult.accepted, false);
   assert.equal(chineseDiaryResult.reason, 'low-note-quality');
   assert.ok(chineseDiaryResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseStripResult.accepted, false);
+  assert.equal(chineseStripResult.reason, 'low-note-quality');
+  assert.ok(chineseStripResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects #87-like one-off status records in auto mode', () => {
@@ -1980,6 +2014,9 @@ test('validateMaterializedNoteQuality rejects generic fix tags', () => {
   const chineseStatusResult = validateMaterializedNoteQuality(note({
     tags: ['已完成', '通过', '状态'],
   }), { mode: 'auto' });
+  const decoratedResult = validateMaterializedNoteQuality(note({
+    tags: ['#fixed', 'fixed.', '[fixed]', '已修复。', '#测试通过'],
+  }), { mode: 'auto' });
 
   assert.equal(result.accepted, false);
   assert.equal(result.reason, 'low-note-quality');
@@ -1990,6 +2027,9 @@ test('validateMaterializedNoteQuality rejects generic fix tags', () => {
   assert.equal(chineseStatusResult.accepted, false);
   assert.equal(chineseStatusResult.reason, 'low-note-quality');
   assert.ok(chineseStatusResult.warnings.includes('tags'));
+  assert.equal(decoratedResult.accepted, false);
+  assert.equal(decoratedResult.reason, 'low-note-quality');
+  assert.ok(decoratedResult.warnings.includes('tags'));
 });
 
 test('validateMaterializedNoteQuality rejects identifier-only snippets', () => {
