@@ -2221,6 +2221,7 @@ function isExplicitEnglishStatusShell(value: string) {
     isDiagnosticEvidenceStatusShell(value) ||
     isConfirmationResultStatusShell(value) ||
     isPredicateResultStatusShell(value) ||
+    isUndelimitedStatusPrefixShell(value) ||
     isCurrentRunImplementationShell(value) ||
     isCurrentRunStatusObservationClaim(value);
 }
@@ -2254,6 +2255,13 @@ function isPredicateResultStatusShell(value: string) {
   const text = value.trim();
   return hasSpecificEvidence(text) &&
     /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?(?:(?:smoke\s+)?test|result|progress|validation|qa|check|acceptance)\s+(?:shows?|is)\b/i
+      .test(text);
+}
+
+function isUndelimitedStatusPrefixShell(value: string) {
+  const text = value.trim();
+  return hasSpecificEvidence(text) &&
+    /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?(?:status check|progress|verification note|completion check|result check)\s+(?=(?:activeRequestId|setResults|\/api\/|stale\b|http\b|api\b|[a-z0-9_]+\.[a-z_]))/i
       .test(text);
 }
 

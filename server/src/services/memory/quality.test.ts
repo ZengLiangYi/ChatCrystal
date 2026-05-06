@@ -4301,6 +4301,38 @@ test('validateMaterializedNoteQuality rejects broad status check shells with con
   }
 });
 
+test('validateMaterializedNoteQuality rejects no-separator status prefix shells with concrete fix payloads', () => {
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.';
+  const resolution = 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.';
+  const prefixes = [
+    'Status check',
+    'Progress',
+    'Search progress',
+    'Verification note',
+    'Search completion check',
+    'Result check',
+  ];
+
+  for (const prefix of prefixes) {
+    const text = `${prefix} activeRequestId gates stale /api/search responses before setResults so older responses cannot overwrite current results.`;
+    const result = validateMaterializedNoteQuality(note({
+      title: text,
+      summary: text,
+      key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary: text,
+        root_cause,
+        resolution,
+      },
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, text);
+    assert.equal(result.reason, 'low-note-quality', text);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), text);
+  }
+});
+
 test('validateMaterializedNoteQuality rejects broad test and diagnostic shells with concrete fix payloads', () => {
   const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.';
   const resolution = 'Gate setResults with activeRequestId so stale responses cannot overwrite current results.';
