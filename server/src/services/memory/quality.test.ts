@@ -3446,6 +3446,27 @@ test('validateMaterializedNoteQuality accepts transaction-scoped advisory lock f
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts offset commits after durable processing', () => {
+  const summary = 'Commit Kafka consumer offsets only after the database transaction commits so a crash cannot acknowledge unprocessed messages.';
+  const root_cause = 'The consumer committed offsets before the database transaction committed, so a crash acknowledged messages whose rows were never persisted.';
+  const resolution = 'Commit offsets after the database transaction commits and retry the same partition offset when persistence fails.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Kafka offset commit after processing prevents message loss',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality accepts indexed lookup timeout fixes', () => {
   const summary = 'Add idx_messages_conversation_id on messages.conversation_id because note detail lookups scanned the full messages table and timed out on large imports.';
   const root_cause = 'Note detail lookups filtered messages by conversation_id without an index, so large imports caused full table scans and request timeouts.';
@@ -4527,6 +4548,30 @@ test('validateMaterializedNoteQuality rejects smoke and acceptance pass status s
   assert.equal(englishResult.reason, 'low-note-quality');
   assert.ok(englishResult.warnings.includes('durable_reusable_lesson'));
 
+  const englishShells = [
+    'Acceptance passed activeRequestId gates stale /api/search responses before setResults so older responses cannot overwrite current results.',
+    'E2E passed activeRequestId gates stale /api/search responses before setResults so older responses cannot overwrite current results.',
+    'Scenario passed activeRequestId gates stale /api/search responses before setResults so older responses cannot overwrite current results.',
+  ];
+
+  for (const text of englishShells) {
+    const result = validateMaterializedNoteQuality(note({
+      title: text,
+      summary: text,
+      key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary: text,
+        root_cause,
+        resolution,
+      },
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, text);
+    assert.equal(result.reason, 'low-note-quality', text);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), text);
+  }
+
   const chineseSummary = '在 setResults 前校验 activeRequestId，避免旧的 /api/search 响应覆盖当前查询结果。';
   const chineseRootCause = '旧的 /api/search 响应覆盖当前查询结果，因为 setResults 前没有校验 activeRequestId。';
   const chineseResolution = '在 setResults 前校验 activeRequestId，避免旧的 /api/search 响应覆盖当前查询结果。';
@@ -5089,6 +5134,27 @@ test('validateMaterializedNoteQuality rejects generic lock reliability fixes', (
       summary: 'Use transaction locks to improve queue reliability.',
       root_cause: 'Queue locks were unreliable.',
       resolution: 'Use transaction locks to improve queue reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic offset commit reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Kafka offset reliability fix',
+    summary: 'Commit offsets properly to improve message reliability.',
+    key_conclusions: [
+      'Root cause: Offset commits were unreliable.',
+      'Resolution: Commit offsets properly to improve message reliability.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Commit offsets properly to improve message reliability.',
+      root_cause: 'Offset commits were unreliable.',
+      resolution: 'Commit offsets properly to improve message reliability.',
     },
   }), { mode: 'auto' });
 

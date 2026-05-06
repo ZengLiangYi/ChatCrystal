@@ -120,6 +120,7 @@ function hasConcreteTransferableAction(value: string) {
   if (hasImportContentArrayAction(text)) return true;
   if (hasSignatureRawBodyAction(text)) return true;
   if (hasAdvisoryLockTransactionAction(text)) return true;
+  if (hasOffsetCommitAfterProcessingAction(text)) return true;
   return concreteActionWords.some((word) => hasWord(text, word));
 }
 
@@ -228,6 +229,7 @@ function hasSpecificEvidence(value: string) {
     hasImportContentArrayEvidence(text) ||
     hasSignatureRawBodyEvidence(text) ||
     hasAdvisoryLockTransactionEvidence(text) ||
+    hasOffsetCommitAfterProcessingEvidence(text) ||
     hasDurableEngineeringEvidence(text) ||
     hasImportDedupeEvidence(text) ||
     hasContentSanitizationEvidence(text) ||
@@ -623,6 +625,52 @@ function hasAdvisoryLockTransactionFailureSignal(value: string) {
     /\b(because|so|after|before|rollback|rollbacks?|failed jobs?|surviv(?:e|ed|es)|block(?:ed)?|retries|releases?)\b/i
       .test(text);
   return hasAdvisoryLockTransactionEvidence(text) && hasLockFailure && hasCausalFlow;
+}
+
+function hasOffsetCommitAfterProcessingEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(kafka|consumer offsets?|offset commits?|commit(?:ted)? offsets?|partition offset|acknowledg(?:e|ed|es|ing)? messages?|unprocessed messages?)\b/i
+    .test(text) &&
+    /\b(offsets?|commit(?:ted|s)?|database transaction|transaction commits?|persist(?:ed|s|ence)?|messages?)\b/i
+      .test(text);
+}
+
+function hasOffsetCommitAfterProcessingAction(value: string) {
+  const text = value.toLowerCase();
+  const hasCommitAfterProcessingAction =
+    /\bcommit\b.+\boffsets?\b.+\b(only after|after)\b.+\b(database transaction|transaction commits?|persist(?:ed|s|ence)?)\b/i
+      .test(text) ||
+    /\bretry\b.+\b(same partition offset|partition offset|same .*offset)\b.+\b(persistence fails?|persist(?:ence)? fails?|fails?)\b/i
+      .test(text);
+  return hasOffsetCommitAfterProcessingEvidence(text) && hasCommitAfterProcessingAction;
+}
+
+function hasOffsetCommitAfterProcessingMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasEarlyCommitCrashFlow =
+    /\bcommit(?:ted)?\b.+\boffsets?\b.+\bbefore\b.+\b(database transaction|transaction commits?|persist(?:ed|s|ence)?)\b/i
+      .test(text) ||
+    /\bcrash\b.+\backnowledg(?:e|ed|es|ing)\b.+\b(unprocessed messages?|messages whose rows were never persisted)\b/i
+      .test(text) ||
+    /\backnowledg(?:e|ed|es|ing)\b.+\bmessages?\b.+\b(rows? (?:were )?never persisted|unprocessed|message loss)\b/i
+      .test(text);
+  const hasPostCommitRetryFlow =
+    /\bcommit\b.+\boffsets?\b.+\b(after|only after)\b.+\b(database transaction|transaction commits?)\b/i
+      .test(text) ||
+    /\bretry\b.+\b(same partition offset|partition offset|same .*offset)\b.+\b(persistence fails?|fails?)\b/i
+      .test(text);
+  return hasOffsetCommitAfterProcessingEvidence(text) && (hasEarlyCommitCrashFlow || hasPostCommitRetryFlow);
+}
+
+function hasOffsetCommitAfterProcessingFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasOffsetFailure =
+    /\b(message loss|acknowledg(?:e|ed|es|ing) unprocessed messages?|unprocessed messages?|rows? (?:were )?never persisted|persistence fails?|crash)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|before|after|crash|acknowledg(?:e|ed|es|ing)|never persisted|persistence fails?|retry|commit(?:ted)?|transaction commits?)\b/i
+      .test(text);
+  return hasOffsetCommitAfterProcessingEvidence(text) && hasOffsetFailure && hasCausalFlow;
 }
 
 function hasDurableEngineeringEvidence(value: string) {
@@ -1066,6 +1114,7 @@ function hasConcreteMechanism(value: string) {
   const hasImportContentArrayFlow = hasImportContentArrayMechanism(text);
   const hasSignatureRawBodyFlow = hasSignatureRawBodyMechanism(text);
   const hasAdvisoryLockTransactionFlow = hasAdvisoryLockTransactionMechanism(text);
+  const hasOffsetCommitAfterProcessingFlow = hasOffsetCommitAfterProcessingMechanism(text);
   const hasDurableEngineeringFlow = hasDurableEngineeringMechanism(text);
   const hasImportDedupeFlow = hasImportDedupeMechanism(text);
   const hasContentSanitizationFlow = hasContentSanitizationMechanism(text);
@@ -1098,6 +1147,7 @@ function hasConcreteMechanism(value: string) {
     hasImportContentArrayFlow ||
     hasSignatureRawBodyFlow ||
     hasAdvisoryLockTransactionFlow ||
+    hasOffsetCommitAfterProcessingFlow ||
     hasDurableEngineeringFlow ||
     hasImportDedupeFlow ||
     hasContentSanitizationFlow ||
@@ -1236,6 +1286,7 @@ function hasFailureOrConsequenceSignal(value: string) {
     hasImportContentArrayFailureSignal(value) ||
     hasSignatureRawBodyFailureSignal(value) ||
     hasAdvisoryLockTransactionFailureSignal(value) ||
+    hasOffsetCommitAfterProcessingFailureSignal(value) ||
     hasDurableEngineeringFailureSignal(value) ||
     hasImportDedupeFailureSignal(value) ||
     hasContentSanitizationFailureSignal(value) ||
@@ -2366,7 +2417,7 @@ function isGenericReleaseValidationClaim(value: string) {
 }
 
 function isVisibleStatusSnapshotText(value: string) {
-  const hasPassStatus = /\b(build|npm test|tests?|testing|typecheck|lint|ci|verification|checks?|smoke(?: tests?)?)\b.+\bpassed\b/i
+  const hasPassStatus = /\b(build|npm test|tests?|testing|typecheck|lint|ci|verification|checks?|smoke(?: tests?)?|acceptance|e2e|scenario)\b.+\bpassed\b/i
     .test(value);
   const hasSuccessStatus =
     /\b(ci green|ci completed successfully|tests? succeeded|testing succeeded|verification succeeded|build succeeded|typecheck succeeded|lint succeeded)\b/i
