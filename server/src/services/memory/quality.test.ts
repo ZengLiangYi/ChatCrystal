@@ -609,6 +609,28 @@ test('validateMaterializedNoteQuality accepts Chinese summaries with concrete ro
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts Chinese route ordering fixes', () => {
+  const summary = '在 request setup 前注册 /api/notes 路由，避免 API requests 返回 HTTP 404。';
+  const root_cause = '/api/notes 路由在 request setup 之后才注册，导致 API requests 返回 HTTP 404。';
+  const resolution = '在 request setup 前注册 /api/notes 路由，避免 API requests 返回 HTTP 404。';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API 注册顺序导致 /api/notes HTTP 404',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['api-route'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality rejects low-quality extra key conclusions', () => {
   const genericTakeawayResult = validateMaterializedNoteQuality(note({
     title: 'Server readiness race returns ECONNREFUSED',
@@ -3021,6 +3043,24 @@ test('validateMaterializedNoteQuality rejects Chinese status-shell structured it
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects Chinese worklog structured items', () => {
+  const summary = '工作日志：使用 active request id gate /api/search result updates，避免 stale responses overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      summary,
+      outcome_type: 'decision',
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality accepts route initialization HTTP failures', () => {
   const summary = 'POST /api/import returned HTTP 500 because the route handled requests before sql.js finished initialization; wait for db initialization before accepting import requests.';
   const root_cause = 'POST /api/import returned HTTP 500 because the route handled requests before sql.js finished initialization.';
@@ -3275,6 +3315,41 @@ test('validateMaterializedNoteQuality rejects generic orphan tag cleanup reliabi
   assert.equal(result.accepted, false);
   assert.equal(result.reason, 'low-note-quality');
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic Chinese route and worklog boilerplate', () => {
+  const routeResult = validateMaterializedNoteQuality(note({
+    title: '路由可靠性修复',
+    summary: '注册路由以提高可靠性。',
+    key_conclusions: [
+      'Root cause: 路由可靠性不稳定。',
+      'Resolution: 注册路由以提高可靠性。',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: '注册路由以提高可靠性。',
+      root_cause: '路由可靠性不稳定。',
+      resolution: '注册路由以提高可靠性。',
+    },
+  }), { mode: 'auto' });
+
+  const worklogResult = validateMaterializedNoteQuality(note({
+    title: '路由问题工作日志',
+    summary: '工作日志：已修复路由问题。',
+    key_conclusions: ['Decision: 工作日志：已修复路由问题。'],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary: '工作日志：已修复路由问题。',
+      decisions: ['工作日志：已修复路由问题。'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(routeResult.accepted, false);
+  assert.equal(routeResult.reason, 'low-note-quality');
+  assert.ok(routeResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(worklogResult.accepted, false);
+  assert.equal(worklogResult.reason, 'low-note-quality');
+  assert.ok(worklogResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects generic initialization reliability fixes', () => {

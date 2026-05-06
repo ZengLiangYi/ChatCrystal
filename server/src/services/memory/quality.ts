@@ -49,6 +49,7 @@ const concreteActionWords = [
   'wait',
   'wait for',
   'wrap',
+  '注册',
   '避免',
   '防止',
   '复用',
@@ -99,6 +100,7 @@ function hasWord(text: string, word: string) {
 
 function hasConcreteTransferableAction(value: string) {
   const text = value.toLowerCase();
+  if (hasChineseRouteOrderingSignal(text)) return true;
   if (hasNegativeTransferableAction(text)) return true;
   if (hasSchemaDefaultArrayAction(text)) return true;
   if (hasDurableEngineeringPreventionAction(text)) return true;
@@ -784,6 +786,7 @@ function hasConcreteMechanism(value: string) {
   const hasFrontendCacheFlow = hasFrontendCacheInvalidationMechanism(text);
   const hasSqliteWalSidecarFlow = hasSqliteWalSidecarMechanism(text);
   return (
+    hasChineseRouteOrderingSignal(text) ||
     hasTimingOrder ||
     hasRaceReadiness ||
     hasPackageDistFlow ||
@@ -1282,6 +1285,7 @@ function isWeakRootCauseClaim(value: string) {
 
 function hasConcreteRootCauseMechanism(value: string) {
   const text = value.toLowerCase();
+  if (hasChineseRouteOrderingSignal(text)) return true;
   const hasRegistrationOrdering =
     /(?:\/api\/[\w/-]+|route|registration).+\b(was registered after request setup|registration ran after request setup|registered after request setup|ran after request setup)\b/i
       .test(text);
@@ -1305,6 +1309,19 @@ function hasConcreteRootCauseMechanism(value: string) {
 function hasGenericRootCauseRationale(value: string) {
   return /\bbecause\b.+\b(correctness|reliability|quality|it)\b.+\b(mattered|was important|is important)\b/i
     .test(value);
+}
+
+function hasChineseRouteOrderingSignal(value: string) {
+  return /\/api\/[\w/-]+/i.test(value) &&
+    /路由/.test(value) &&
+    /注册/.test(value) &&
+    /request setup/i.test(value) &&
+    (
+      /(?:在\s*)?request setup.{0,8}(?:前|之前).{0,24}注册/i.test(value) ||
+      /request setup.{0,12}(?:之后|后).{0,12}(?:才)?注册/i.test(value) ||
+      /注册.{0,24}(?:在\s*)?request setup.{0,8}(?:前|之前)/i.test(value)
+    ) &&
+    /(?:导致|避免|防止|返回|http\s*[45]\d\d)/i.test(value);
 }
 
 function hasConcreteHttpRootCauseSignal(value: string) {
@@ -1478,7 +1495,7 @@ function hasChineseVisibleMechanism(value: string) {
 function isChineseVisibleStatusShell(value: string) {
   if (!/[\u3400-\u9fff]/.test(value)) return false;
   const hasStatusRecordShell =
-    /(?:^|[\s：:])(?:状态记录|记录状态)(?:[\s：:]|$)|^状态\s*[：:]/i
+    /(?:^|[\s：:])(?:状态记录|记录状态|工作日志|日志记录|工作记录)(?:[\s：:]|$)|^(?:状态|记录)\s*[：:]/i
       .test(value) ||
     /(?:已记录|记录了).{0,80}(?:已修复|修复完成|已完成|完成|处理完成|解决完成)/i
       .test(value);
