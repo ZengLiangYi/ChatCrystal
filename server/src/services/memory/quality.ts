@@ -422,15 +422,15 @@ function hasDurableEngineeringFailureSignal(value: string) {
 
 function hasImportDedupeEvidence(value: string) {
   const text = value.toLowerCase();
-  return /\b(chokidar|jsonl|mtime|file size|source file size|file revision|import scan|adapter|import dedupe key|dedupe key|duplicate inserts?|unchanged [\w -]*files?|reparsed|reparse|same file revision)\b/i
+  return /\b(chokidar|jsonl|mtime|file size|source file size|file revision|import scan|adapter|import dedupe key|dedupe key|duplicate inserts?|unchanged [\w -]*files?|reparsed|reparse|same file revision|claude code|appends?|appending|truncated lines?|partial writes?|latest (?:imported )?(?:conversation )?messages?|file size and mtime|stop changing|stay stable|stabiliz(?:e|es|ed|ing))\b/i
     .test(text);
 }
 
 function hasImportDedupeAction(value: string) {
   const text = value.toLowerCase();
-  const hasDedupeAction = /\b(use|skip|dedupe|deduplicate|key|compare|track)\b/i.test(text);
+  const hasDedupeAction = /\b(use|skip|dedupe|deduplicate|key|compare|track|debounce|wait)\b/i.test(text);
   const hasRevisionKey =
-    /\b(file size|source file size|mtime|dedupe key|file revision|skip parsing|same file revision)\b/i
+    /\b(file size|source file size|mtime|dedupe key|file revision|skip parsing|same file revision|stay stable|stop changing|stable before parsing|partial writes? (?:are )?skipped)\b/i
       .test(text);
   return hasImportDedupeEvidence(text) && hasDedupeAction && hasRevisionKey;
 }
@@ -443,15 +443,25 @@ function hasImportDedupeMechanism(value: string) {
   const hasRevisionOrWatcherEvidence =
     /\b(file size|source file size|mtime|file revision|same file revision|chokidar|unchanged [\w -]*files?|jsonl|reparsed|reparse|repeated)\b/i
       .test(text);
-  return hasImportDedupeEvidence(text) && hasDedupeFlow && hasRevisionOrWatcherEvidence;
+  const hasPartialWriteFlow =
+    /\b(chokidar|jsonl|claude code|adapter)\b.+\b(appends?|appending|partial writes?|truncated lines?|file size|mtime|stable|stabiliz(?:e|es|ed|ing)|stop changing)\b/i
+      .test(text) ||
+    /\b(debounce|wait)\b.+\b(imports?|jsonl)\b.+\b(until|before)\b.+\b(file size|mtime|stable|stabiliz(?:e|es|ed|ing)|stop changing|parsing|appends?)\b/i
+      .test(text) ||
+    /\bparsing\b.+\bwhile\b.+\b(claude code|[\w -]+)?\s*appending\b/i
+      .test(text) ||
+    /\b(imports?|jsonl)\b.+\buntil\b.+\bappends?\b.+\bstabiliz(?:e|es|ed|ing)\b/i
+      .test(text);
+  return hasImportDedupeEvidence(text) &&
+    ((hasDedupeFlow && hasRevisionOrWatcherEvidence) || hasPartialWriteFlow);
 }
 
 function hasImportDedupeFailureSignal(value: string) {
   const text = value.toLowerCase();
   const hasRepeatedImportConsequence =
-    /\b(repeated events?|repeated jsonl parsing|reparsed|reparse|duplicate inserts?|same conversation|every chokidar event)\b/i
+    /\b(repeated events?|repeated jsonl parsing|reparsed|reparse|duplicate inserts?|same conversation|every chokidar event|truncated lines?|drop(?:ped)? (?:the )?(?:latest )?(?:imported )?(?:conversation )?messages?|partial writes?)\b/i
       .test(text);
-  const hasCausalFlow = /\b(because|so|otherwise|attempted|prevents?|preventing)\b/i.test(text);
+  const hasCausalFlow = /\b(because|so|otherwise|attempted|prevents?|preventing|while|before|until|skipped)\b/i.test(text);
   return hasImportDedupeEvidence(text) && hasRepeatedImportConsequence && hasCausalFlow;
 }
 
@@ -1448,6 +1458,7 @@ function hasVisibleSummaryQuality(summary: string) {
 
 function hasVisibleConcreteContent(value: string) {
   const text = value.toLowerCase();
+  if (isExplicitEnglishStatusShell(text)) return false;
   if (isLowValueOutcomeStatusClaim(text)) return false;
   if (isChineseVisibleStatusShell(text)) return false;
   if (isGenericReleaseValidationClaim(text)) return false;
@@ -1463,9 +1474,15 @@ function isVisibleWorkLogClaim(value: string) {
     .test(value.trim());
 }
 
+function isExplicitEnglishStatusShell(value: string) {
+  return /^\s*(?:work\s*log|worklog|status\s+record|status|record)\s*:/i
+    .test(value.trim());
+}
+
 function isLowValueOutcomeStatusClaim(value: string) {
   const text = value.toLowerCase();
   return (
+    isExplicitEnglishStatusShell(value) ||
     /\ball good(?: now)?\b/i.test(text) ||
     /\brecorded that\b/i.test(text) ||
     /\bis now fixed\b/i.test(text) ||
@@ -1640,6 +1657,8 @@ function isLowQualityVisibleConclusion(value: string) {
     isPlaceholderText(body) ||
     isFirstPersonDiaryClaim(value) ||
     isFirstPersonDiaryClaim(body) ||
+    isExplicitEnglishStatusShell(value) ||
+    isExplicitEnglishStatusShell(body) ||
     isVisibleWorkLogClaim(body) ||
     isVisibleStatusSnapshotText(body) ||
     isLowValueOutcomeStatusClaim(value) ||

@@ -2658,6 +2658,28 @@ test('validateMaterializedNoteQuality accepts watcher import dedupe fixes', () =
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts JSONL partial-write debounce fixes', () => {
+  const summary = 'Debounce chokidar JSONL imports until file size and mtime stop changing because parsing while Claude Code is appending can read truncated lines and drop the latest messages.';
+  const root_cause = 'Chokidar fired while Claude Code was still appending JSONL, so the adapter parsed a truncated line and dropped the latest imported conversation messages.';
+  const resolution = 'Debounce imports until file size and mtime stay stable before parsing the JSONL file so partial writes are skipped.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Debounce JSONL imports until appends stabilize',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['import', 'jsonl'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality rejects generic import dedupe reliability fixes', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Import dedupe reliability fix',
@@ -2671,6 +2693,28 @@ test('validateMaterializedNoteQuality rejects generic import dedupe reliability 
       summary: 'Use import dedupe so imports are reliable.',
       root_cause: 'Import dedupe was unreliable.',
       resolution: 'Use import dedupe so imports are reliable.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic JSONL import debounce reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'JSONL import reliability fix',
+    summary: 'Debounce imports to improve reliability.',
+    key_conclusions: [
+      'Root cause: JSONL imports were unreliable.',
+      'Resolution: Debounce imports to improve reliability.',
+    ],
+    tags: ['import', 'jsonl'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Debounce imports to improve reliability.',
+      root_cause: 'JSONL imports were unreliable.',
+      resolution: 'Debounce imports to improve reliability.',
     },
   }), { mode: 'auto' });
 
@@ -3052,6 +3096,25 @@ test('validateMaterializedNoteQuality rejects Chinese worklog structured items',
     raw_payload: {
       summary,
       outcome_type: 'decision',
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects English worklog structured items', () => {
+  const summary = 'Worklog: use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    tags: ['search', 'frontend'],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
       decisions: [summary],
     },
   }), { mode: 'auto' });
