@@ -1050,7 +1050,7 @@ function isFirstPersonDiaryClaim(value: string) {
     .map(regexEscape)
     .join('|');
   return new RegExp(
-    `(?:^|[:.!?,;]\\s*|\\b(?:and|then|but|so)\\s+)\\b(?:i|we)\\s+(?:${diaryVerbs})\\b`,
+    `(?:^|[:.!?,;]\\s*|\\b(?:and|then|but|so)\\s+)\\b(?:i|we)\\s+(?:(?:now|then|just|already|currently|also|finally)\\s+)?(?:${diaryVerbs})\\b`,
     'i',
   )
     .test(value) ||
@@ -1247,7 +1247,7 @@ function hasSqlParameterizationMechanism(value: string) {
       .test(text) ||
     /\binterpolat(?:e|ed|ing)\b.+\buser-controlled tag names?\b.+\b(?:sql\s+)?where clauses?\b/i
       .test(text) ||
-    /\binterpolat(?:e|ed|ing)\b.+\btag text\b.+\bcrafted tag payload\b.+\bchang(?:e|ed|es|ing)\b.+\b(?:sql\s+)?where clause syntax\b/i
+    /\binterpolat(?:e|ed|ing)\b.+\btag text\b.+\bcrafted tag payloads?\b.+\bchang(?:e|ed|es|ing)\b.+\b(?:sql\s+)?where clause syntax\b/i
       .test(text) ||
     /\bquotes?\b.+\btag\b.+\b(?:alter(?:ed|s|ing)|chang(?:ed|es|ing))\b.+\bsql syntax\b/i
       .test(text);
@@ -1257,6 +1257,8 @@ function hasSqlParameterizationMechanism(value: string) {
     /\bbind\b.+\btag values?\b.+\b(sql\.js\s+)?parameters?\b.+\binstead of\b.+\binterpolat(?:e|ing)\b.+\btag text\b.+\bwhere clauses?\b/i
       .test(text) ||
     /\bsql parameters?\b.+\btag filters?\b.+\buser-controlled tag text\b.+\bstays?\b.+\bdata\b.+\binstead of executable sql\b/i
+      .test(text) ||
+    /\bparameterized queries?\b.+\btag lookups?\b.+\buser-controlled tag text\b.+\bstays?\b.+\bdata\b.+\binstead of executable sql\b/i
       .test(text) ||
     /\bquotes?\b.+\bstay\b.+\bdata\b.+\binstead of sql syntax\b/i
       .test(text) ||
@@ -1286,7 +1288,7 @@ function hasSqlParameterizationFailureSignal(value: string) {
       .test(text) ||
     /\bquotes?\b.+\btag\b.+\b(?:alter(?:ed|s|ing)|chang(?:ed|es|ing))\b.+\bsql syntax\b/i
       .test(text) ||
-    /\bcrafted tag payload\b.+\bchang(?:e|ed|es|ing)\b.+\b(?:sql\s+)?where clause syntax\b/i
+    /\bcrafted tag payloads?\b.+\bchang(?:e|ed|es|ing)\b.+\b(?:sql\s+)?where clause syntax\b/i
       .test(text) ||
     /\balter(?:ed|s|ing)\b.+\bwhere clause syntax\b/i
       .test(text);
@@ -1917,7 +1919,7 @@ function isVisibleWorkLogClaim(value: string) {
 
 function isExplicitEnglishStatusShell(value: string) {
   return hasTechnicalPrefixStatusShell(value) ||
-    /^\s*(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task)\s+(?:record|report|note|summary|update|log|entry)|(?:implementation|task|fix|execution|run|work|status)\s+results?|run\s+results?|work\s*log(?:\s+entry)?|worklog(?:\s+entry)?|status|record|update|implementation|result|outcome|completion(?:\s+(?:note|record))?|completed|done|this\s+fix|this\s+run)\s*(?:[:\-\u2013\u2014])/i
+    /^\s*(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task|progress)\s+(?:record|report|note|summary|update|log|entry)|(?:implementation|task|fix|execution|run|work|status)\s+results?|run\s+results?|work\s*log(?:\s+entry)?|worklog(?:\s+entry)?|status|record|update|implementation|result|outcome|completion(?:\s+(?:note|record))?|completed|done|this\s+fix|this\s+run)\s*(?:[:\-\u2013\u2014])/i
       .test(value.trim()) ||
     isCurrentRunImplementationShell(value) ||
     isCurrentRunStatusObservationClaim(value);
@@ -1930,7 +1932,7 @@ function hasTechnicalPrefixStatusShell(value: string) {
   const englishDescriptorPrefix = String.raw`(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,3})`;
   const chineseDescriptorPrefix = String.raw`(?:[\u3400-\u9fff]{2,16})`;
   const technicalPrefix = String.raw`(?:\/api\/[\w/-]+|[a-z0-9]+_[a-z0-9_]+|[a-z][a-z0-9_]*\.[a-z_][a-z0-9_]*|activerequestid|setresults|data_dir|node_env|child_process|jsonl|sqlite|sql\.js|websocket|mcp|json-rpc|${descriptorWord}(?:\s+${descriptorWord}){0,2}|${chineseDescriptorWord}(?:\s+${chineseDescriptorWord}){0,2}|${englishDescriptorPrefix}|${chineseDescriptorPrefix})`;
-  const englishShell = String.raw`(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task)\s+(?:record|report|note|summary|update|log|entry)|(?:status|record|update|implementation|result|outcome|completion(?:\s+(?:note|record))?|completed|done))`;
+  const englishShell = String.raw`(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task|progress)\s+(?:record|report|note|summary|update|log|entry)|(?:status|record|update|implementation|result|outcome|completion(?:\s+(?:note|record))?|completed|done))`;
   const chineseShell = String.raw`(?:状态记录|记录状态|工作日志|日志记录|工作记录|执行记录|完成记录|状态更新|运行结果|执行结果|结果记录|结果报告|任务结果|实现结果|修复结果|工作结果|状态结果|运行记录|任务记录|实现记录|实现说明|更新记录|变更记录|变更摘要|本次修复|本次执行|本次任务|本次改动|本轮执行|本轮修复|本轮任务|本轮改动|修复记录|状态|结果|完成|已完成|完成说明)`;
   return new RegExp(`^\\s*${technicalPrefix}\\s+${englishShell}\\s*(?:[:\\-\\u2013\\u2014])`, 'i')
     .test(text) ||
