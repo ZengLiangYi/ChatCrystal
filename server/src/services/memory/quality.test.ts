@@ -306,6 +306,20 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
       resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
     },
   }), { mode: 'auto' });
+  const allGoodRouteResult = validateMaterializedNoteQuality(note({
+    title: 'All good now for /api/notes HTTP 404',
+    summary: 'All good now for /api/notes HTTP 404 after the route fix.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'All good now for /api/notes HTTP 404 after the route fix.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(summaryResult.accepted, false);
   assert.equal(summaryResult.reason, 'low-note-quality');
@@ -331,6 +345,9 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
   assert.equal(genericSummaryResult.accepted, false);
   assert.equal(genericSummaryResult.reason, 'low-note-quality');
   assert.ok(genericSummaryResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(allGoodRouteResult.accepted, false);
+  assert.equal(allGoodRouteResult.reason, 'low-note-quality');
+  assert.ok(allGoodRouteResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects low-quality extra key conclusions', () => {
@@ -546,6 +563,36 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
       resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
     },
   }), { mode: 'auto' });
+  const routeInvestigationObservationResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+      'Observation: The issue was investigated for /api/notes HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const routeAllGoodTakeawayResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+      'Takeaway: All good now for /api/notes HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(genericTakeawayResult.accepted, false);
   assert.equal(genericTakeawayResult.reason, 'low-note-quality');
@@ -589,6 +636,12 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
   assert.equal(genericRouteFixResult.accepted, false);
   assert.equal(genericRouteFixResult.reason, 'low-note-quality');
   assert.ok(genericRouteFixResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(routeInvestigationObservationResult.accepted, false);
+  assert.equal(routeInvestigationObservationResult.reason, 'low-note-quality');
+  assert.ok(routeInvestigationObservationResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(routeAllGoodTakeawayResult.accepted, false);
+  assert.equal(routeAllGoodTakeawayResult.reason, 'low-note-quality');
+  assert.ok(routeAllGoodTakeawayResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects fix outcomes without visible fix conclusions', () => {
@@ -1546,6 +1599,27 @@ test('validateMaterializedNoteQuality accepts concrete parser TypeError fixes', 
       outcome_type: 'fix',
       root_cause: 'Codex JSONL parsing threw TypeError because response_item.content was read before validating the partial event shape.',
       resolution: 'Validate response_item.content before reading parser fields and skip partial Codex events without content.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts concrete negative parser pitfalls', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Codex parser partial events throw TypeError',
+    summary: 'Validate response_item.content before reading parser fields so partial Codex events do not throw TypeError.',
+    key_conclusions: [
+      'Pitfall: Do not read response_item.content before validating parser fields because partial Codex events throw TypeError.',
+    ],
+    raw_payload: {
+      summary: 'Validate response_item.content before reading parser fields so partial Codex events do not throw TypeError.',
+      outcome_type: 'pitfall',
+      pitfalls: [
+        'Do not read response_item.content before validating parser fields because partial Codex events throw TypeError.',
+      ],
     },
   }), { mode: 'auto' });
 

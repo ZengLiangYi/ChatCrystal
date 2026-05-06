@@ -49,6 +49,7 @@ function hasWord(text: string, word: string) {
 
 function hasConcreteTransferableAction(value: string) {
   const text = value.toLowerCase();
+  if (hasNegativeTransferableAction(text)) return true;
   const concreteActionWords = [
     'add',
     'block',
@@ -94,6 +95,11 @@ function hasConcreteTransferableAction(value: string) {
     '复用',
   ];
   return concreteActionWords.some((word) => hasWord(text, word));
+}
+
+function hasNegativeTransferableAction(text: string) {
+  return /\bdo not\b.+\b(read|write|call|use|access|parse)\b.+\bbefore\b.+\b(validat(?:e|ing)|check(?:ing)?|parse|parsing)\b/i
+    .test(text);
 }
 
 function isVagueGenericLesson(value: string) {
@@ -494,6 +500,7 @@ function hasVisibleTitleQuality(title: string) {
     !isGenericTitle(title) &&
     !isFirstPersonDiaryClaim(title) &&
     !isVisibleWorkLogClaim(title) &&
+    !isLowValueOutcomeStatusClaim(title) &&
     !isVagueGenericFixClaim(title) &&
     !isMetaReusableClaim(title) &&
     !isGenericVisibleBoilerplateClaim(title) &&
@@ -507,6 +514,7 @@ function hasVisibleSummaryQuality(summary: string) {
     hasVisibleConcreteContent(summary) &&
     !isFirstPersonDiaryClaim(summary) &&
     !isVisibleWorkLogClaim(summary) &&
+    !isLowValueOutcomeStatusClaim(summary) &&
     !isVagueGenericFixClaim(summary) &&
     !isMetaReusableClaim(summary) &&
     !isGenericVisibleBoilerplateClaim(summary) &&
@@ -516,6 +524,7 @@ function hasVisibleSummaryQuality(summary: string) {
 
 function hasVisibleConcreteContent(value: string) {
   const text = value.toLowerCase();
+  if (isLowValueOutcomeStatusClaim(text)) return false;
   if (hasSpecificEvidence(text) && hasConcreteMechanism(text)) return true;
   if (hasSpecificEvidence(text) && hasFailureOrConsequenceSignal(text)) return true;
   if (hasPackageDistRootCauseSignal(text)) return true;
@@ -526,6 +535,17 @@ function hasVisibleConcreteContent(value: string) {
 function isVisibleWorkLogClaim(value: string) {
   return /^(added|changed|checked|confirmed|diagnosed|discovered|fixed|found|implemented|noted|observed|reviewed|resolved|switched|tested|testing|updated|verified)\b/i
     .test(value.trim());
+}
+
+function isLowValueOutcomeStatusClaim(value: string) {
+  const text = value.toLowerCase();
+  return (
+    /\ball good(?: now)?\b/i.test(text) ||
+    /\b(issue|task|fix|route fix|route|request|requests?)\b.+\b(investigated|investigation)\b/i
+      .test(text) ||
+    /\b(investigated|investigation)\b.+\b(issue|task|fix|route|request|requests?)\b/i
+      .test(text)
+  );
 }
 
 function isMetaReusableClaim(value: string) {
@@ -630,6 +650,8 @@ function isLowQualityVisibleConclusion(value: string) {
     isFirstPersonDiaryClaim(body) ||
     isVisibleWorkLogClaim(body) ||
     isVisibleStatusSnapshotText(body) ||
+    isLowValueOutcomeStatusClaim(value) ||
+    isLowValueOutcomeStatusClaim(body) ||
     isMetaReusableClaim(value) ||
     isMetaReusableClaim(body) ||
     (shouldApplyGenericLessonGate && isVagueGenericLesson(body)) ||
@@ -646,6 +668,7 @@ function isLowQualityVisibleConclusion(value: string) {
 }
 
 function hasConcreteConclusionValue(value: string) {
+  if (isLowValueOutcomeStatusClaim(value)) return false;
   return (
     hasVisibleConcreteContent(value) ||
     hasConcreteTransferableText(value) ||
