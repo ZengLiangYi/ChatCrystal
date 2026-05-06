@@ -2271,6 +2271,48 @@ test('validateMaterializedNoteQuality accepts concrete schema default array fixe
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts Zod date coercion boundary fixes', () => {
+  const summary = 'Use z.coerce.date() at HTTP boundaries because JSON request bodies carry dates as strings and z.date() rejects them before handler logic runs.';
+  const root_cause = 'The route returned HTTP 400 because z.date() expected a Date instance while JSON request bodies supplied ISO date strings.';
+  const resolution = 'Use z.coerce.date() in the request schema so ISO strings convert before validation reaches handler logic.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Zod date schemas need coercion for JSON payloads',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic Zod validation reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Zod validation reliability fix',
+    summary: 'Use Zod validation to improve reliability.',
+    key_conclusions: [
+      'Root cause: Zod validation reliability mattered.',
+      'Resolution: Coerce inputs to avoid future issues.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Use Zod validation to improve reliability.',
+      root_cause: 'Zod validation reliability mattered.',
+      resolution: 'Coerce inputs to avoid future issues.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality rejects placeholder snippets and generic tags', () => {
   const result = validateMaterializedNoteQuality(note({
     tags: ['success', 'fixed', 'reliable'],
@@ -3117,6 +3159,26 @@ test('validateMaterializedNoteQuality rejects English worklog structured items',
       summary,
       decisions: [summary],
     },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects English worklog dash structured items', () => {
+  const summary = 'Work log - use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+    tags: [],
+    embedding_text: '',
   }), { mode: 'auto' });
 
   assert.equal(result.accepted, false);

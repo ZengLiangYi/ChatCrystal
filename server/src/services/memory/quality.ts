@@ -103,6 +103,7 @@ function hasConcreteTransferableAction(value: string) {
   if (hasChineseRouteOrderingSignal(text)) return true;
   if (hasNegativeTransferableAction(text)) return true;
   if (hasSchemaDefaultArrayAction(text)) return true;
+  if (hasSchemaBoundaryAction(text)) return true;
   if (hasDurableEngineeringPreventionAction(text)) return true;
   if (hasImportDedupeAction(text)) return true;
   if (hasPersistenceSerializationAction(text)) return true;
@@ -214,6 +215,7 @@ function hasSpecificEvidence(value: string) {
       .test(text) ||
     hasChineseTechnicalEvidence(text) ||
     hasSchemaArrayEvidence(text) ||
+    hasSchemaBoundaryEvidence(text) ||
     hasJsonParsingEvidence(text) ||
     hasProviderBaseUrlEvidence(text) ||
     hasImportContentArrayEvidence(text) ||
@@ -257,6 +259,48 @@ function hasSchemaDefaultArrayMechanism(value: string) {
   const hasIterationOrHandler =
     /\b(iterat(?:e|ed|es|ing|ion)|handler|handler logic)\b/i.test(text);
   return hasSchemaArrayEvidence(text) && hasOptionalOrDefaultArray && hasIterationOrHandler;
+}
+
+function hasSchemaBoundaryEvidence(value: string) {
+  const text = value.toLowerCase();
+  const hasSchemaToken =
+    /(?:\bzod\b|z\.coerce\.[a-z]+\(\)|z\.[a-z]+\(\)|\brequest schema\b|\bdate schemas?\b|\bschema\b)/i
+      .test(text);
+  const hasBoundaryToken =
+    /\b(http boundaries?|json request bodies?|json payloads?|request bodies?|iso date strings?|date instance|handler logic|validation|payloads?)\b/i
+      .test(text);
+  return hasSchemaToken && hasBoundaryToken;
+}
+
+function hasSchemaBoundaryAction(value: string) {
+  const text = value.toLowerCase();
+  const hasCoercionAction =
+    /\b(use|change|set|configure)\b.+\bz\.coerce\.[a-z]+\(\)/i.test(text) ||
+    /\b(coerce|convert|transform)\b.+\b(iso strings?|json request bodies?|request schema|before validation|handler logic)\b/i
+      .test(text) ||
+    /\bz\.coerce\.[a-z]+\(\)\b.+\b(request schema|validation|handler logic)\b/i
+      .test(text);
+  return hasSchemaBoundaryEvidence(text) && hasCoercionAction;
+}
+
+function hasSchemaBoundaryMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasBoundaryConversion =
+    /\b(coercion|coerce|coerce\.[a-z]+|convert|converts?|transform)\b/i.test(text) &&
+    /\b(json|payloads?|request schema|date schemas?|iso strings?|validation|handler logic)\b/i
+      .test(text);
+  const hasJsonTypeMismatch =
+    /\b(json request bodies?|json payloads?|request bodies?)\b.+\b(carry|supplied|supply|strings?|iso date strings?)\b/i
+      .test(text) ||
+    /z\.date\(\).+\b(expected|expects?)\b.+\bdate instance\b.+\b(iso date strings?|json request bodies?|supplied|supply)\b/i
+      .test(text) ||
+    /\bdate instance\b.+\bwhile\b.+\b(json request bodies?|request bodies?|iso date strings?)\b.+\b(supplied|supply|carry)\b/i
+      .test(text);
+  const hasValidationBoundary =
+    /\b(before validation|before handler logic|validation reaches handler logic|handler logic runs?|rejects? them before handler logic)\b/i
+      .test(text);
+  return hasSchemaBoundaryEvidence(text) &&
+    (hasBoundaryConversion || hasJsonTypeMismatch || hasValidationBoundary);
 }
 
 function hasJsonParsingEvidence(value: string) {
@@ -781,6 +825,7 @@ function hasConcreteMechanism(value: string) {
     /\b(rate[- ]limit|http 429|429|retry-after|backoff|delay)\b.+\b(retry|retried|retries|queue|queued|provider requests?)\b/i
       .test(text);
   const hasSchemaDefaultArrayFlow = hasSchemaDefaultArrayMechanism(text);
+  const hasSchemaBoundaryFlow = hasSchemaBoundaryMechanism(text);
   const hasJsonParsingFlow = hasJsonParsingMechanism(text);
   const hasProviderBaseUrlFlow = hasProviderBaseUrlMechanism(text);
   const hasImportContentArrayFlow = hasImportContentArrayMechanism(text);
@@ -807,6 +852,7 @@ function hasConcreteMechanism(value: string) {
     hasParserFieldValidation ||
     hasRetryBackoffFlow ||
     hasSchemaDefaultArrayFlow ||
+    hasSchemaBoundaryFlow ||
     hasJsonParsingFlow ||
     hasProviderBaseUrlFlow ||
     hasImportContentArrayFlow ||
@@ -924,6 +970,7 @@ function hasFailureOrConsequenceSignal(value: string) {
     /\b(race|raced|orphan|dedupe|deduplicate|stale dist|dist diverge|dist diverged|diverge|diverged|econrefused|typeerror|threw|throws?|readiness issue|startup race|invalid note_tags|foreign_keys|cascade|nulling|source_run_key collision)\b/i
       .test(value) ||
     hasSchemaArrayFailureSignal(value) ||
+    hasSchemaBoundaryFailureSignal(value) ||
     hasJsonParsingFailureSignal(value) ||
     hasProviderBaseUrlFailureSignal(value) ||
     hasImportContentArrayFailureSignal(value) ||
@@ -951,6 +998,17 @@ function hasSchemaArrayFailureSignal(value: string) {
   const hasIterationOrHandler =
     /\b(iterat(?:e|ed|es|ing|ion)|handler|handler logic)\b/i.test(text);
   return hasSchemaArrayEvidence(text) && hasArrayFailure && hasIterationOrHandler;
+}
+
+function hasSchemaBoundaryFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasValidationFailure =
+    /\b(http\s*400|returned\s+400|rejects?|rejected|validation failure|before handler logic|before handler logic runs?)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|before|while|expected|expects?|supplied|supply|carry|convert|converts?)\b/i
+      .test(text);
+  return hasSchemaBoundaryEvidence(text) && hasValidationFailure && hasCausalFlow;
 }
 
 function hasPersistenceSnapshotFailureSignal(value: string) {
@@ -1338,6 +1396,7 @@ function hasConcreteHttpRootCauseSignal(value: string) {
   return hasConcreteRootCauseMechanism(value) ||
     hasRateLimitRetryRootCauseSignal(value) ||
     hasProviderBaseUrlFailureSignal(value) ||
+    hasSchemaBoundaryFailureSignal(value) ||
     (
       hasStrictStructuralEngineeringMechanism(value) &&
       hasStrictStructuralEngineeringFailureSignal(value)
@@ -1475,7 +1534,7 @@ function isVisibleWorkLogClaim(value: string) {
 }
 
 function isExplicitEnglishStatusShell(value: string) {
-  return /^\s*(?:work\s*log|worklog|status\s+record|status|record)\s*:/i
+  return /^\s*(?:work\s*log|worklog|status\s+record|status|record)\s*(?:[:\-\u2013\u2014])/i
     .test(value.trim());
 }
 
