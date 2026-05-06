@@ -1894,6 +1894,48 @@ test('validateMaterializedNoteQuality rejects generic import sanitization reliab
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality accepts fixture provenance privacy governance fixes', () => {
+  const summary = 'Wrap experience-gate calibration samples in a dataset object with provenance and privacy assertions so fixture corpora cannot silently include raw user paths or secrets.';
+  const root_cause = 'Anonymous JSON sample arrays hid whether the experience-gate calibration corpus came from synthetic data, so future updates could commit raw local paths, private IPs, or secret-like tokens without review context.';
+  const resolution = 'Store samples under a fixture object with provenance, contains_real_user_data=false, sanitization rules, and tests that reject user paths, private IPs, credentials, and private-key text before committing calibration changes.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Calibration fixtures need synthetic provenance metadata',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic fixture privacy reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Fixture privacy reliability fix',
+    summary: 'Add privacy checks to fixtures so data is safer and reliable.',
+    key_conclusions: [
+      'Root cause: Fixture data was unreliable.',
+      'Resolution: Add privacy checks to fixtures so data is safer and reliable.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Add privacy checks to fixtures so data is safer and reliable.',
+      root_cause: 'Fixture data was unreliable.',
+      resolution: 'Add privacy checks to fixtures so data is safer and reliable.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality accepts concrete negative parser pitfalls', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Codex parser partial events throw TypeError',

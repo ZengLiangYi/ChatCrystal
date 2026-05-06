@@ -51,6 +51,7 @@ function hasConcreteTransferableAction(value: string) {
   const text = value.toLowerCase();
   if (hasNegativeTransferableAction(text)) return true;
   if (hasSchemaDefaultArrayAction(text)) return true;
+  if (hasDurableEngineeringPreventionAction(text)) return true;
   if (hasPersistenceSerializationAction(text)) return true;
   const concreteActionWords = [
     'add',
@@ -196,6 +197,7 @@ function hasSpecificEvidence(value: string) {
     /\b(data_dir|node_env|econrefused|typeerror|note_tags|chatcrystal\.db|port|source_run_key|foreign_keys)\b|\/api\/[\w/-]+|\b[a-z0-9]+_[a-z0-9_]+\b|[a-z]:\\|\/[\w.-]+|[\u3400-\u9fff]/i
       .test(text) ||
     hasSchemaArrayEvidence(text) ||
+    hasDurableEngineeringEvidence(text) ||
     hasContentSanitizationEvidence(text) ||
     hasPersistenceSnapshotEvidence(text) ||
     hasIndexConsistencyEvidence(text) ||
@@ -223,6 +225,48 @@ function hasSchemaDefaultArrayMechanism(value: string) {
   const hasIterationOrHandler =
     /\b(iterat(?:e|ed|es|ing|ion)|handler|handler logic)\b/i.test(text);
   return hasSchemaArrayEvidence(text) && hasOptionalOrDefaultArray && hasIterationOrHandler;
+}
+
+function hasDurableEngineeringEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(json|jsonl|fixtures?|fixture corpora|corpus|samples?|calibration samples?|calibration corpus|dataset object|fixture object|experience-gate|provenance|contains_real_user_data|synthetic data|raw local paths?|raw user paths?|private ips?|credentials?|private-key text|secret-like tokens?|secrets?|sanitization rules?)\b/i
+    .test(text);
+}
+
+function hasDurableEngineeringPreventionAction(value: string) {
+  const text = value.toLowerCase();
+  return hasDurableEngineeringEvidence(text) &&
+    /\b(wrap|store|stored|reject|rejects?|test|tests|sanitize|sanitiz(?:e|ed|es|ing|ation)|strip|validate|assert|assertions?)\b/i
+      .test(text);
+}
+
+function hasDurableEngineeringMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasConcreteGovernanceMechanism =
+    /\b(dataset object|fixture object|provenance metadata|synthetic provenance|provenance|privacy assertions?|contains_real_user_data=false|sanitization rules?|tests? that reject|before committing|review context)\b/i
+      .test(text);
+  const hasSensitiveDataEvidence =
+    /\b(raw local paths?|raw user paths?|private ips?|credentials?|private-key text|secret-like tokens?|secrets?)\b/i
+      .test(text);
+  const hasDataArtifact =
+    /\b(json sample arrays?|json|fixtures?|fixture corpora|corpus|samples?|calibration samples?|calibration corpus|dataset object|fixture object|experience-gate)\b/i
+      .test(text);
+  return hasDurableEngineeringEvidence(text) &&
+    (
+      hasConcreteGovernanceMechanism ||
+      (hasDurableEngineeringPreventionAction(text) && hasSensitiveDataEvidence && hasDataArtifact)
+    );
+}
+
+function hasDurableEngineeringFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasConcreteConsequence =
+    /\b(hid whether|could commit|cannot silently include|silently include|leak(?:ed|s|ing)?|raw local paths?|raw user paths?|private ips?|credentials?|private-key text|secret-like tokens?|secrets?|without review context|missing review context|privacy leak|private data|sensitive data)\b/i
+      .test(text);
+  const hasFailureFlow =
+    /\b(because|so|caused|led to|hid whether|could commit|cannot silently include|without review context|leak(?:ed|s|ing)?|returned|overwrote|threw)\b/i
+      .test(text);
+  return hasDurableEngineeringEvidence(text) && hasConcreteConsequence && hasFailureFlow;
 }
 
 function hasContentSanitizationEvidence(value: string) {
@@ -364,6 +408,7 @@ function hasConcreteMechanism(value: string) {
     /\b(rate[- ]limit|http 429|429|retry-after|backoff|delay)\b.+\b(retry|retried|retries|queue|queued|provider requests?)\b/i
       .test(text);
   const hasSchemaDefaultArrayFlow = hasSchemaDefaultArrayMechanism(text);
+  const hasDurableEngineeringFlow = hasDurableEngineeringMechanism(text);
   const hasContentSanitizationFlow = hasContentSanitizationMechanism(text);
   const hasPersistenceSerializationFlow = hasPersistenceSerializationMechanism(text);
   const hasIndexConsistencyFlow = hasIndexConsistencyMechanism(text);
@@ -378,6 +423,7 @@ function hasConcreteMechanism(value: string) {
     hasParserFieldValidation ||
     hasRetryBackoffFlow ||
     hasSchemaDefaultArrayFlow ||
+    hasDurableEngineeringFlow ||
     hasContentSanitizationFlow ||
     hasPersistenceSerializationFlow ||
     hasIndexConsistencyFlow
@@ -445,6 +491,7 @@ function hasFailureOrConsequenceSignal(value: string) {
     /\b(race|raced|orphan|dedupe|deduplicate|stale dist|dist diverge|dist diverged|diverge|diverged|econrefused|typeerror|threw|throws?|readiness issue|startup race|invalid note_tags|foreign_keys|cascade|nulling|source_run_key collision)\b/i
       .test(value) ||
     hasSchemaArrayFailureSignal(value) ||
+    hasDurableEngineeringFailureSignal(value) ||
     hasContentSanitizationFailureSignal(value) ||
     hasPersistenceSnapshotFailureSignal(value) ||
     hasIndexConsistencyFailureSignal(value) ||
