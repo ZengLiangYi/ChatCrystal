@@ -334,6 +334,48 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
       resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
     },
   }), { mode: 'auto' });
+  const typecheckPassedResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Typecheck passed for /api/notes HTTP 404 after the route registration ran before request setup.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Typecheck passed for /api/notes HTTP 404 after the route registration ran before request setup.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const lintPassedResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Lint passed for /api/notes HTTP 404 after the route registration ran before request setup.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Lint passed for /api/notes HTTP 404 after the route registration ran before request setup.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const ciCompletedResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'CI completed successfully for /api/notes HTTP 404 after the route registration ran before request setup.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'CI completed successfully for /api/notes HTTP 404 after the route registration ran before request setup.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(summaryResult.accepted, false);
   assert.equal(summaryResult.reason, 'low-note-quality');
@@ -365,6 +407,15 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
   assert.equal(localTestsSucceededResult.accepted, false);
   assert.equal(localTestsSucceededResult.reason, 'low-note-quality');
   assert.ok(localTestsSucceededResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(typecheckPassedResult.accepted, false);
+  assert.equal(typecheckPassedResult.reason, 'low-note-quality');
+  assert.ok(typecheckPassedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(lintPassedResult.accepted, false);
+  assert.equal(lintPassedResult.reason, 'low-note-quality');
+  assert.ok(lintPassedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(ciCompletedResult.accepted, false);
+  assert.equal(ciCompletedResult.reason, 'low-note-quality');
+  assert.ok(ciCompletedResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects low-quality extra key conclusions', () => {
@@ -640,6 +691,51 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
       resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
     },
   }), { mode: 'auto' });
+  const routeTypecheckPassedResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+      'Build: Typecheck passed for /api/notes HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const routeLintPassedResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+      'Build: Lint passed for /api/notes HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const routeCiCompletedResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+      'Build: CI completed successfully for /api/notes HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(genericTakeawayResult.accepted, false);
   assert.equal(genericTakeawayResult.reason, 'low-note-quality');
@@ -695,6 +791,15 @@ test('validateMaterializedNoteQuality rejects low-quality extra key conclusions'
   assert.equal(routeTestsSucceededResult.accepted, false);
   assert.equal(routeTestsSucceededResult.reason, 'low-note-quality');
   assert.ok(routeTestsSucceededResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(routeTypecheckPassedResult.accepted, false);
+  assert.equal(routeTypecheckPassedResult.reason, 'low-note-quality');
+  assert.ok(routeTypecheckPassedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(routeLintPassedResult.accepted, false);
+  assert.equal(routeLintPassedResult.reason, 'low-note-quality');
+  assert.ok(routeLintPassedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(routeCiCompletedResult.accepted, false);
+  assert.equal(routeCiCompletedResult.reason, 'low-note-quality');
+  assert.ok(routeCiCompletedResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects fix outcomes without visible fix conclusions', () => {
@@ -1840,6 +1945,26 @@ test('validateMaterializedNoteQuality accepts serialized DB persistence fixes', 
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts stale Vectra index cleanup fixes', () => {
+  const root = 'Semantic search returned stale note_id hits because note deletion removed sql.js rows without removing Vectra index entries.';
+  const resolution = 'Remove Vectra index entries after deleting sql.js note rows so semantic search cannot return deleted notes.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Note deletion leaves Vectra index entries stale',
+    summary: 'Remove Vectra index entries after deleting notes from sql.js so semantic search does not return stale note_id hits.',
+    key_conclusions: [`Root cause: ${root}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Remove Vectra index entries after deleting notes from sql.js so semantic search does not return stale note_id hits.',
+      root_cause: root,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality rejects generic DB queue reliability fixes', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'DB queue reliability fix',
@@ -1853,6 +1978,27 @@ test('validateMaterializedNoteQuality rejects generic DB queue reliability fixes
       summary: 'Queue chatcrystal.db writes so database reliability improves.',
       root_cause: 'DB writes were unreliable.',
       resolution: 'Queue chatcrystal.db writes so database reliability improves.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic search index cleanup reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search index cleanup reliability fix',
+    summary: 'Clean up semantic search index entries so search reliability improves.',
+    key_conclusions: [
+      'Root cause: Search index entries were unreliable.',
+      'Resolution: Clean up semantic search index entries so search reliability improves.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Clean up semantic search index entries so search reliability improves.',
+      root_cause: 'Search index entries were unreliable.',
+      resolution: 'Clean up semantic search index entries so search reliability improves.',
     },
   }), { mode: 'auto' });
 

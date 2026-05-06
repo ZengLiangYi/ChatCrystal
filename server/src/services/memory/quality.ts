@@ -196,6 +196,7 @@ function hasSpecificEvidence(value: string) {
       .test(text) ||
     hasSchemaArrayEvidence(text) ||
     hasPersistenceSnapshotEvidence(text) ||
+    hasIndexConsistencyEvidence(text) ||
     hasHttpFailureSignal(text) ||
     /\b(api requests?|fastify readiness|server readiness|request setup|package metadata|package version|dist output|generated dist output|data directory|electron server|server entrypoint|client calls?)\b/i
       .test(text)
@@ -246,6 +247,45 @@ function hasPersistenceSerializationMechanism(value: string) {
     );
 }
 
+function hasIndexConsistencyEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(vectra|semantic search|note_id|search index|vector index|index entries?|deleted notes?|note rows?|sql\.js rows?)\b/i
+    .test(text);
+}
+
+function hasIndexConsistencyMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasIndexReference =
+    /\b(vectra|semantic search|note_id|search index|vector index|index entries?)\b/i
+      .test(text);
+  const hasDeletionOrCleanup =
+    /\b(delet(?:e|ed|es|ing|ion)|remov(?:e|ed|es|ing)|clean(?:up| up)|prun(?:e|ed|es|ing))\b/i
+      .test(text);
+  const hasStaleOrDeletedReference =
+    /\b(stale|orphan|deleted notes?|stale note_id hits?|note_id hits?|return(?:ed|s|ing)? stale|return(?:ed|s|ing)? deleted)\b/i
+      .test(text);
+  const hasRowIndexRelation =
+    /\b(sql\.js rows?|note rows?|rows?)\b.+\b(vectra|semantic search|search index|vector index|index entries?)\b/i
+      .test(text) ||
+    /\b(vectra|semantic search|search index|vector index|index entries?)\b.+\b(sql\.js rows?|note rows?|rows?)\b/i
+      .test(text);
+  return hasIndexConsistencyEvidence(text) &&
+    hasIndexReference &&
+    hasDeletionOrCleanup &&
+    (hasStaleOrDeletedReference || hasRowIndexRelation);
+}
+
+function hasIndexConsistencyFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasStaleReference =
+    /\b(stale|orphan|deleted notes?|stale note_id hits?|note_id hits?|return(?:ed|s|ing)? stale|return(?:ed|s|ing)? deleted)\b/i
+      .test(text);
+  const hasCausalDeletion =
+    /\b(because|without|after delet(?:e|ing)|after removing|removed|deletion|delet(?:e|ed|es|ing)|cannot return|leaves?)\b/i
+      .test(text);
+  return hasIndexConsistencyEvidence(text) && hasStaleReference && hasCausalDeletion;
+}
+
 function hasConcreteMechanism(value: string) {
   const text = value.toLowerCase();
   const hasGenericReleaseValidation = isGenericReleaseValidationClaim(text);
@@ -290,6 +330,7 @@ function hasConcreteMechanism(value: string) {
       .test(text);
   const hasSchemaDefaultArrayFlow = hasSchemaDefaultArrayMechanism(text);
   const hasPersistenceSerializationFlow = hasPersistenceSerializationMechanism(text);
+  const hasIndexConsistencyFlow = hasIndexConsistencyMechanism(text);
   return (
     hasTimingOrder ||
     hasRaceReadiness ||
@@ -301,7 +342,8 @@ function hasConcreteMechanism(value: string) {
     hasParserFieldValidation ||
     hasRetryBackoffFlow ||
     hasSchemaDefaultArrayFlow ||
-    hasPersistenceSerializationFlow
+    hasPersistenceSerializationFlow ||
+    hasIndexConsistencyFlow
   );
 }
 
@@ -367,6 +409,7 @@ function hasFailureOrConsequenceSignal(value: string) {
       .test(value) ||
     hasSchemaArrayFailureSignal(value) ||
     hasPersistenceSnapshotFailureSignal(value) ||
+    hasIndexConsistencyFailureSignal(value) ||
     hasDefaultDataDirectoryConsequence(value) ||
     hasHttpFailureSignal(value)
   );
@@ -697,9 +740,10 @@ function isGenericReleaseValidationClaim(value: string) {
 }
 
 function isVisibleStatusSnapshotText(value: string) {
-  const hasPassStatus = /\b(build|npm test|tests?|testing)\b.+\bpassed\b/i.test(value);
+  const hasPassStatus = /\b(build|npm test|tests?|testing|typecheck|lint|ci)\b.+\bpassed\b/i
+    .test(value);
   const hasSuccessStatus =
-    /\b(ci green|tests? succeeded|testing succeeded|verification succeeded|build succeeded)\b/i
+    /\b(ci green|ci completed successfully|tests? succeeded|testing succeeded|verification succeeded|build succeeded|typecheck succeeded|lint succeeded)\b/i
       .test(value);
   const hasStatusVerb = /\b(checked|noted|observed|reviewed|resolved|tested|testing passed|verified|verification|current|status)\b/i
     .test(value);
