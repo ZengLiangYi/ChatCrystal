@@ -2245,6 +2245,48 @@ test('validateMaterializedNoteQuality rejects generic custom provider reliabilit
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality accepts embedding model capability fixes', () => {
+  const summary = 'Configure embedding.provider and embedding.model separately from the LLM so semantic search calls a model that supports /v1/embeddings.';
+  const root_cause = 'Semantic search returned HTTP 500 because the configured embedding model reused the chat LLM, which did not expose a /v1/embeddings endpoint.';
+  const resolution = 'Set embedding.model to a real embedding model such as text-embedding-3-small before running semantic search.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Embedding model mismatch caused semantic search 500',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic embedding config reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Embedding search reliability fix',
+    summary: 'Configure embeddings for reliability.',
+    key_conclusions: [
+      'Root cause: Embedding configuration reliability mattered.',
+      'Resolution: Set embedding model to improve search.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Configure embeddings for reliability.',
+      root_cause: 'Embedding configuration reliability mattered.',
+      resolution: 'Set embedding model to improve search.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality accepts concrete schema default array fixes', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Zod optional arrays can throw during iteration',
@@ -3199,6 +3241,42 @@ test('validateMaterializedNoteQuality rejects English execution record structure
     },
     tags: [],
     embedding_text: '',
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects completion shell structured items', () => {
+  const summary = 'Completion: use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects Chinese completion shell structured items', () => {
+  const summary = '已完成：使用 active request id gate /api/search result updates，避免 stale responses overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
   }), { mode: 'auto' });
 
   assert.equal(result.accepted, false);

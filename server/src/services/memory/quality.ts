@@ -114,6 +114,7 @@ function hasConcreteTransferableAction(value: string) {
   if (hasFrontendCacheInvalidationAction(text)) return true;
   if (hasSqliteWalSidecarAction(text)) return true;
   if (hasProviderBaseUrlAction(text)) return true;
+  if (hasEmbeddingModelConfigAction(text)) return true;
   if (hasImportContentArrayAction(text)) return true;
   return concreteActionWords.some((word) => hasWord(text, word));
 }
@@ -218,6 +219,7 @@ function hasSpecificEvidence(value: string) {
     hasSchemaBoundaryEvidence(text) ||
     hasJsonParsingEvidence(text) ||
     hasProviderBaseUrlEvidence(text) ||
+    hasEmbeddingModelConfigEvidence(text) ||
     hasImportContentArrayEvidence(text) ||
     hasDurableEngineeringEvidence(text) ||
     hasImportDedupeEvidence(text) ||
@@ -381,6 +383,57 @@ function hasProviderBaseUrlFailureSignal(value: string) {
     hasHttpNotFound &&
     hasWrongEndpointFlow &&
     hasCausalFlow;
+}
+
+function hasEmbeddingModelConfigEvidence(value: string) {
+  const text = value.toLowerCase();
+  const hasConcreteConfig =
+    /\bembedding\.(?:provider|model)\b|\/v1\/embeddings\b|\btext-embedding-[\w-]+\b/i
+      .test(text);
+  const hasSemanticEmbeddingBoundary =
+    /\bsemantic search\b/i.test(text) &&
+    /\b(embedding model|embeddings? endpoint|chat llm|llm|\/v1\/embeddings)\b/i
+      .test(text);
+  return hasConcreteConfig || hasSemanticEmbeddingBoundary;
+}
+
+function hasEmbeddingModelConfigAction(value: string) {
+  const text = value.toLowerCase();
+  const hasAction = /\b(configure|configured|set|separate|use)\b/i.test(text);
+  const hasTarget =
+    /\bembedding\.(?:provider|model)\b|\/v1\/embeddings\b|\btext-embedding-[\w-]+\b|\breal embedding model\b/i
+      .test(text);
+  return hasEmbeddingModelConfigEvidence(text) && hasAction && hasTarget;
+}
+
+function hasEmbeddingModelConfigMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasCapabilityBoundary =
+    /\b(embedding model|embedding\.(?:provider|model)|semantic search)\b.+\b(supports?|calls?|expose[sd]?|endpoint|\/v1\/embeddings)\b/i
+      .test(text) ||
+    /\b(chat llm|llm)\b.+\b(did not expose|does not expose|lacked|missing|without|reused)\b.+\/v1\/embeddings\b/i
+      .test(text) ||
+    /\/v1\/embeddings\b.+\b(supports?|endpoint|embedding model|semantic search)\b/i
+      .test(text);
+  const hasSeparatedModelFlow =
+    /\b(configure|set)\b.+\bembedding\.(?:provider|model)\b.+\b(separately|real embedding model|text-embedding-[\w-]+|semantic search)\b/i
+      .test(text) ||
+    /\bembedding model\b.+\b(reused|reuse)\b.+\b(chat llm|llm)\b/i
+      .test(text) ||
+    /\bmodel mismatch\b.+\b(semantic search|embedding model|http\s*500|500)\b/i
+      .test(text);
+  return hasEmbeddingModelConfigEvidence(text) && (hasCapabilityBoundary || hasSeparatedModelFlow);
+}
+
+function hasEmbeddingModelConfigFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasNamedFailure =
+    /\b(http\s*500|returned\s+500|semantic search\s+500|model mismatch|did not expose|does not expose|missing \/v1\/embeddings|lacked \/v1\/embeddings|without \/v1\/embeddings)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|which|caused|returned|reused|missing|did not expose|does not expose|without)\b/i
+      .test(text);
+  return hasEmbeddingModelConfigEvidence(text) && hasNamedFailure && hasCausalFlow;
 }
 
 function hasImportContentArrayEvidence(value: string) {
@@ -828,6 +881,7 @@ function hasConcreteMechanism(value: string) {
   const hasSchemaBoundaryFlow = hasSchemaBoundaryMechanism(text);
   const hasJsonParsingFlow = hasJsonParsingMechanism(text);
   const hasProviderBaseUrlFlow = hasProviderBaseUrlMechanism(text);
+  const hasEmbeddingModelConfigFlow = hasEmbeddingModelConfigMechanism(text);
   const hasImportContentArrayFlow = hasImportContentArrayMechanism(text);
   const hasDurableEngineeringFlow = hasDurableEngineeringMechanism(text);
   const hasImportDedupeFlow = hasImportDedupeMechanism(text);
@@ -855,6 +909,7 @@ function hasConcreteMechanism(value: string) {
     hasSchemaBoundaryFlow ||
     hasJsonParsingFlow ||
     hasProviderBaseUrlFlow ||
+    hasEmbeddingModelConfigFlow ||
     hasImportContentArrayFlow ||
     hasDurableEngineeringFlow ||
     hasImportDedupeFlow ||
@@ -973,6 +1028,7 @@ function hasFailureOrConsequenceSignal(value: string) {
     hasSchemaBoundaryFailureSignal(value) ||
     hasJsonParsingFailureSignal(value) ||
     hasProviderBaseUrlFailureSignal(value) ||
+    hasEmbeddingModelConfigFailureSignal(value) ||
     hasImportContentArrayFailureSignal(value) ||
     hasDurableEngineeringFailureSignal(value) ||
     hasImportDedupeFailureSignal(value) ||
@@ -1396,6 +1452,7 @@ function hasConcreteHttpRootCauseSignal(value: string) {
   return hasConcreteRootCauseMechanism(value) ||
     hasRateLimitRetryRootCauseSignal(value) ||
     hasProviderBaseUrlFailureSignal(value) ||
+    hasEmbeddingModelConfigFailureSignal(value) ||
     hasSchemaBoundaryFailureSignal(value) ||
     (
       hasStrictStructuralEngineeringMechanism(value) &&
@@ -1534,7 +1591,7 @@ function isVisibleWorkLogClaim(value: string) {
 }
 
 function isExplicitEnglishStatusShell(value: string) {
-  return /^\s*(?:work\s*log|worklog|status\s+record|status\s+update|status|record|execution\s+record|completion\s+record|fix\s+record|this\s+fix|this\s+run|run\s+log)\s*(?:[:\-\u2013\u2014])/i
+  return /^\s*(?:work\s*log|worklog|status\s+record|status\s+update|status|record|execution\s+record|completion(?:\s+(?:note|record))?|completed|done|fix\s+record|this\s+fix|this\s+run|run\s+log)\s*(?:[:\-\u2013\u2014])/i
     .test(value.trim());
 }
 
@@ -1571,7 +1628,7 @@ function hasChineseVisibleMechanism(value: string) {
 function isChineseVisibleStatusShell(value: string) {
   if (!/[\u3400-\u9fff]/.test(value)) return false;
   const hasStatusRecordShell =
-    /^\s*(?:状态记录|记录状态|工作日志|日志记录|工作记录|执行记录|完成记录|状态更新|本次修复|本次执行|修复记录)\s*(?:[：:\-\u2013\u2014]|$)/i
+    /^\s*(?:状态记录|记录状态|工作日志|日志记录|工作记录|执行记录|完成记录|状态更新|本次修复|本次执行|修复记录|完成|已完成|完成说明)\s*(?:[：:\-\u2013\u2014]|$)/i
       .test(value) ||
     /(?:^|[\s：:])(?:状态记录|记录状态|工作日志|日志记录|工作记录)(?:[\s：:]|$)|^(?:状态|记录)\s*[：:]/i
       .test(value) ||
