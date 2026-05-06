@@ -1037,6 +1037,34 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects first-person implementation decisions with action verbs', () => {
+  const decisions = [
+    'I set DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory.',
+    'I configure DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory.',
+    'I register /api/notes before request setup so API requests do not return HTTP 404.',
+    'I wait for Fastify readiness before issuing API requests because ECONNREFUSED happens when requests race startup.',
+    'I block request setup until Fastify readiness resolves to prevent ECONNREFUSED.',
+    'I place /api/notes registration before request setup so API requests do not return HTTP 404.',
+  ];
+
+  for (const decision of decisions) {
+    const result = validateMaterializedNoteQuality(note({
+      title: decision,
+      summary: decision,
+      key_conclusions: [`Decision: ${decision}`],
+      raw_payload: {
+        summary: decision,
+        outcome_type: 'decision',
+        decisions: [decision],
+      },
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, decision);
+    assert.equal(result.reason, 'low-note-quality', decision);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), decision);
+  }
+});
+
 test('validateMaterializedNoteQuality rejects one-off status records disguised as decisions', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Local package version matched dist output',
@@ -1652,6 +1680,32 @@ test('validateMaterializedNoteQuality accepts concrete parser TypeError fixes', 
       outcome_type: 'fix',
       root_cause: 'Codex JSONL parsing threw TypeError because response_item.content was read before validating the partial event shape.',
       resolution: 'Validate response_item.content before reading parser fields and skip partial Codex events without content.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts concrete schema default array fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Zod optional arrays can throw during iteration',
+    summary: 'Use z.array(ItemSchema).default([]) when handlers iterate request.items so omitted arrays do not become undefined.',
+    key_conclusions: [
+      'Root cause: z.array(ItemSchema).optional() allowed request.items to be undefined, and the handler iterated it as an array.',
+      'Resolution: Change the schema to z.array(ItemSchema).default([]) so omitted items are materialized as an empty array before handler logic runs.',
+    ],
+    raw_payload: {
+      summary: 'Use z.array(ItemSchema).default([]) when handlers iterate request.items so omitted arrays do not become undefined.',
+      outcome_type: 'fix',
+      root_cause: 'z.array(ItemSchema).optional() allowed request.items to be undefined, and the handler iterated it as an array.',
+      resolution: 'Change the schema to z.array(ItemSchema).default([]) so omitted items are materialized as an empty array before handler logic runs.',
+      code_snippets: [{
+        language: 'ts',
+        code: 'const RequestSchema = z.object({ items: z.array(ItemSchema).default([]) });',
+        description: 'Default omitted items to an empty array before iteration.',
+      }],
     },
   }), { mode: 'auto' });
 

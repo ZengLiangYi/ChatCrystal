@@ -50,6 +50,7 @@ function hasWord(text: string, word: string) {
 function hasConcreteTransferableAction(value: string) {
   const text = value.toLowerCase();
   if (hasNegativeTransferableAction(text)) return true;
+  if (hasSchemaDefaultArrayAction(text)) return true;
   const concreteActionWords = [
     'add',
     'block',
@@ -100,6 +101,15 @@ function hasConcreteTransferableAction(value: string) {
 function hasNegativeTransferableAction(text: string) {
   return /\bdo not\b.+\b(read|write|call|use|access|parse)\b.+\bbefore\b.+\b(validat(?:e|ing)|check(?:ing)?|parse|parsing)\b/i
     .test(text);
+}
+
+function hasSchemaDefaultArrayAction(text: string) {
+  return (
+    /\b(use|change|set|default|materializ(?:e|ed)|configure)\b.+\b(schema|z\.array|default\(\[\]\)|empty array|omitted items?)\b/i
+      .test(text) ||
+    /\b(schema|z\.array|default\(\[\]\)|empty array|omitted items?)\b.+\b(default|materializ(?:e|ed)|empty array)\b/i
+      .test(text)
+  );
 }
 
 function isVagueGenericLesson(value: string) {
@@ -175,10 +185,31 @@ function hasSpecificEvidence(value: string) {
   return (
     /\b(data_dir|node_env|econrefused|typeerror|note_tags|chatcrystal\.db|port|source_run_key|foreign_keys)\b|\/api\/[\w/-]+|\b[a-z0-9]+_[a-z0-9_]+\b|[a-z]:\\|\/[\w.-]+|[\u3400-\u9fff]/i
       .test(text) ||
+    hasSchemaArrayEvidence(text) ||
     hasHttpFailureSignal(text) ||
     /\b(api requests?|fastify readiness|server readiness|request setup|package metadata|package version|dist output|generated dist output|data directory|electron server|server entrypoint|client calls?)\b/i
       .test(text)
   );
+}
+
+function hasSchemaArrayEvidence(value: string) {
+  const text = value.toLowerCase();
+  return (
+    /\b(zod|z\.array|z\.object|request\.\w+|\w+schema)\b/i.test(text) ||
+    /\.(?:optional|default)\(/i.test(text) ||
+    /\bdefault\(\[\]\)\b/i.test(text)
+  );
+}
+
+function hasSchemaDefaultArrayMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasOptionalOrDefaultArray =
+    /\b(optional arrays?|omitted arrays?|omitted items?|undefined|empty array)\b/i.test(text) ||
+    /\.(?:optional|default)\(/i.test(text) ||
+    /\bdefault\(\[\]\)\b/i.test(text);
+  const hasIterationOrHandler =
+    /\b(iterat(?:e|ed|es|ing|ion)|handler|handler logic)\b/i.test(text);
+  return hasSchemaArrayEvidence(text) && hasOptionalOrDefaultArray && hasIterationOrHandler;
 }
 
 function hasConcreteMechanism(value: string) {
@@ -223,6 +254,7 @@ function hasConcreteMechanism(value: string) {
       .test(text) ||
     /\b(rate[- ]limit|http 429|429|retry-after|backoff|delay)\b.+\b(retry|retried|retries|queue|queued|provider requests?)\b/i
       .test(text);
+  const hasSchemaDefaultArrayFlow = hasSchemaDefaultArrayMechanism(text);
   return (
     hasTimingOrder ||
     hasRaceReadiness ||
@@ -232,7 +264,8 @@ function hasConcreteMechanism(value: string) {
     hasDedupeKey ||
     hasRequestFailureOrdering ||
     hasParserFieldValidation ||
-    hasRetryBackoffFlow
+    hasRetryBackoffFlow ||
+    hasSchemaDefaultArrayFlow
   );
 }
 
@@ -266,12 +299,18 @@ function isFirstPersonDiaryClaim(value: string) {
     'fixed',
     'found',
     'implemented',
+    'block',
+    'configure',
     'reviewed',
     'resolved',
+    'place',
+    'register',
+    'set',
     'switched',
     'tested',
     'updated',
     'verified',
+    'wait',
   ].join('|');
   return new RegExp(
     `(?:^|[:.!?,;]\\s*|\\b(?:and|then|but|so)\\s+)\\b(?:i|we)\\s+(?:${diaryVerbs})\\b`,
@@ -290,9 +329,20 @@ function hasFailureOrConsequenceSignal(value: string) {
   return (
     /\b(race|raced|orphan|dedupe|deduplicate|stale dist|dist diverge|dist diverged|diverge|diverged|econrefused|typeerror|threw|throws?|readiness issue|startup race|invalid note_tags|foreign_keys|cascade|nulling|source_run_key collision)\b/i
       .test(value) ||
+    hasSchemaArrayFailureSignal(value) ||
     hasDefaultDataDirectoryConsequence(value) ||
     hasHttpFailureSignal(value)
   );
+}
+
+function hasSchemaArrayFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasArrayFailure =
+    /\b(undefined|throws?|throw|omitted arrays?|omitted items?|optional arrays?)\b/i.test(text) ||
+    /\.optional\(\)/i.test(text);
+  const hasIterationOrHandler =
+    /\b(iterat(?:e|ed|es|ing|ion)|handler|handler logic)\b/i.test(text);
+  return hasSchemaArrayEvidence(text) && hasArrayFailure && hasIterationOrHandler;
 }
 
 function hasStrongRootCauseSignal(value: string) {
