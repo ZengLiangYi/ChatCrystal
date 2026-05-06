@@ -1035,6 +1035,8 @@ function isFirstPersonDiaryClaim(value: string) {
     'switched',
     'tested',
     'updated',
+    'use',
+    'used',
     'verified',
   ]))
     .map(regexEscape)
@@ -1281,8 +1283,11 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
   const hasNamedLifecycleObject =
     /\b(db initialization|database initialization|sql\.js initialization|sql\.js finished initialization|finished initialization|accepting import requests?|accepting \/api\/[\w/-]+ requests?|route handled requests?)\b/i
       .test(text);
+  const hasNamedListenerObject =
+    /\b(websocket|web socket|message listener|event listener|useeffect cleanup|useeffect|remounts?|unmount|socket\.addeventlistener|socket\.removeeventlistener|addeventlistener|removeeventlistener)\b/i
+      .test(text);
   const hasEngineeringContext =
-    /\b(sqlite|sql\.js|table|rows?|index|indexed lookup|lookup|lookups?|query|queries|filtered|filtering|request timeouts?|timed out|large imports?|messages?|note detail|cache|schema|parser|jsonl|constraint|unique|duplicate|receipt|receipts|writeback|search|frontend|react|requests?|responses?|initialization|initialized|route|mcp|json-rpc|stdio|stdout|stderr|framing|transport|logs?|diagnostics?|tags?|joins?|deletion|cleanup|filter chips?|webui)\b/i
+    /\b(sqlite|sql\.js|table|rows?|index|indexed lookup|lookup|lookups?|query|queries|filtered|filtering|request timeouts?|timed out|large imports?|messages?|note detail|cache|schema|parser|jsonl|constraint|unique|duplicate|receipt|receipts|writeback|search|frontend|react|requests?|responses?|initialization|initialized|route|mcp|json-rpc|stdio|stdout|stderr|framing|transport|logs?|diagnostics?|tags?|joins?|deletion|cleanup|filter chips?|webui|websocket|listeners?|useeffect|remounts?|unmount)\b/i
       .test(text);
   return (
     hasConcreteToken ||
@@ -1290,7 +1295,8 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
     hasNamedAsyncObject ||
     hasNamedRelationObject ||
     hasNamedTransportObject ||
-    hasNamedLifecycleObject
+    hasNamedLifecycleObject ||
+    hasNamedListenerObject
   ) && hasEngineeringContext;
 }
 
@@ -1324,6 +1330,13 @@ function hasStrictStructuralEngineeringAction(value: string) {
       .test(text) ||
     /\b(reserve)\b.+\b(process\.stdout|stdout)\b.+\b(json-rpc|json rpc|response frames?|stdio)\b/i
       .test(text);
+  const hasConcreteListenerAction =
+    /\b(pair)\b.+\bsocket\.addeventlistener\b.+\bsocket\.removeeventlistener\b/i
+      .test(text) ||
+    /\b(return)\b.+\buseeffect cleanup\b.+\bsocket\.removeeventlistener\b/i
+      .test(text) ||
+    /\b(remove|cleanup|clean up)\b.+\b(message listener|event listener|websocket listener|socket\.removeeventlistener)\b/i
+      .test(text);
   return hasStrictStructuralEngineeringEvidence(text) &&
     (
       hasAction ||
@@ -1331,7 +1344,8 @@ function hasStrictStructuralEngineeringAction(value: string) {
       hasConcreteAsyncAction ||
       hasConcreteRelationAction ||
       hasConcreteLifecycleAction ||
-      hasConcreteTransportAction
+      hasConcreteTransportAction ||
+      hasConcreteListenerAction
     );
 }
 
@@ -1411,8 +1425,19 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
       .test(text) ||
     /\b(reserve)\b.+\b(process\.stdout|stdout)\b.+\b(json-rpc|json rpc|response frames?|stdio)\b/i
       .test(text);
+  const hasListenerCleanupFlow =
+    /\bsocket\.addeventlistener\b.+\bsocket\.removeeventlistener\b.+\b(useeffect cleanup|cleanup|remounts?|duplicate websocket messages?|duplicate messages?)\b/i
+      .test(text) ||
+    /\breact remounts?\b.+\bsocket\.addeventlistener\b.+\bwithout removing\b.+\b(message listener|previous message listener)\b/i
+      .test(text) ||
+    /\bwithout removing\b.+\bprevious message listener\b.+\b(websocket message|message)\b.+\b(appended twice|duplicate)\b/i
+      .test(text) ||
+    /\buseeffect cleanup\b.+\bsocket\.removeeventlistener\b.+\b(before unmount|remounts?|one message listener)\b/i
+      .test(text) ||
+    /\blistener cleanup\b.+\bprevents?\b.+\bduplicate messages?\b/i
+      .test(text);
   const hasCausalFlow =
-    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|gat(?:e|es|ed|ing)|ignore|latest query|request id|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|wait|reserve|left|no longer existed|deleting notes?|note deletion|cleanup|prune|filter)\b/i
+    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|gat(?:e|es|ed|ing)|ignore|latest query|request id|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|wait|reserve|left|no longer existed|deleting notes?|note deletion|cleanup|prune|filter|duplicate|appended twice|remounts?|unmount)\b/i
       .test(text);
   return hasStrictStructuralEngineeringEvidence(text) &&
     hasCausalFlow &&
@@ -1424,17 +1449,18 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
       hasStaleAsyncResponseFlow ||
       hasRelationCleanupFlow ||
       hasInitializationOrderFlow ||
-      hasTransportFramingFlow
+      hasTransportFramingFlow ||
+      hasListenerCleanupFlow
     );
 }
 
 function hasStrictStructuralEngineeringFailureSignal(value: string) {
   const text = value.toLowerCase();
   const hasNamedConsequence =
-    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|stale responses?|stale results?|overwrote the current query results?|overwrote current results?|overwrite the current query results?|overwrite current results?|replace current results?|orphan note_tags rows?|orphan tags?|unused tags?|count 0|joins? whose note_id no longer existed|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream))\b/i
+    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|duplicate messages?|duplicate websocket messages?|appended twice|stale responses?|stale results?|overwrote the current query results?|overwrote current results?|overwrite the current query results?|overwrite current results?|replace current results?|orphan note_tags rows?|orphan tags?|unused tags?|count 0|joins? whose note_id no longer existed|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream))\b/i
       .test(text);
   const hasCausalFlow =
-    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|overwrote|overwrite|reused|reuse|retried|retries|cancel|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|left|no longer existed|deleting notes?|note deletion|cleanup|filter|prune)\b/i
+    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|overwrote|overwrite|reused|reuse|retried|retries|cancel|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|left|no longer existed|deleting notes?|note deletion|cleanup|filter|prune|remounts?|unmount|duplicate|appended twice)\b/i
       .test(text);
   return hasStrictStructuralEngineeringEvidence(text) && hasNamedConsequence && hasCausalFlow;
 }
@@ -1719,7 +1745,7 @@ function isVisibleWorkLogClaim(value: string) {
 }
 
 function isExplicitEnglishStatusShell(value: string) {
-  return /^\s*(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task)\s+(?:record|report|note|summary|update|log)|(?:implementation|task|fix|execution|run|work|status)\s+results?|run\s+results?|work\s*log|worklog|status|record|update|implementation|result|outcome|completion(?:\s+(?:note|record))?|completed|done|this\s+fix|this\s+run)\s*(?:[:\-\u2013\u2014])/i
+  return /^\s*(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task)\s+(?:record|report|note|summary|update|log|entry)|(?:implementation|task|fix|execution|run|work|status)\s+results?|run\s+results?|work\s*log(?:\s+entry)?|worklog(?:\s+entry)?|status|record|update|implementation|result|outcome|completion(?:\s+(?:note|record))?|completed|done|this\s+fix|this\s+run)\s*(?:[:\-\u2013\u2014])/i
     .test(value.trim()) ||
     isCurrentRunImplementationShell(value);
 }
@@ -1727,9 +1753,9 @@ function isExplicitEnglishStatusShell(value: string) {
 function isCurrentRunImplementationShell(value: string) {
   const text = value.trim();
   const hasCurrentRunPrefix =
-    /^\s*(?:this|current)\s+(?:run|execution|fix|task|change)\b/i.test(text);
+    /^\s*(?:the\s+)?(?:this|current)\s+(?:run|execution|fix|task|change)\b/i.test(text);
   const hasImplementationAction =
-    /^\s*(?:this|current)\s+(?:run|execution|fix|task|change)\b.{0,40}\b(?:use|uses|used|did|add|adds|added|set|sets|configured?|register(?:s|ed)?|wait(?:s|ed)?|block(?:s|ed)?|gate(?:s|d)?|ignore(?:s|d)?|cancel(?:s|ed|led)?|move(?:s|d)?|place(?:s|d)?|import(?:s|ed)?|update(?:s|d)?|fix(?:es|ed)?|change(?:s|d)?|validat(?:e|es|ed)|normaliz(?:e|es|ed)|parse(?:s|d)?|strip(?:s|ped)?|debounce(?:s|d)?|route(?:s|d)?|return(?:s|ed)?|prune(?:s|d)?|remove(?:s|d)?|wrap(?:s|ped)?)\b/i
+    /^\s*(?:the\s+)?(?:this|current)\s+(?:run|execution|fix|task|change)\b.{0,40}\b(?:use|uses|used|did|add|adds|added|set|sets|configured?|register(?:s|ed)?|wait(?:s|ed)?|block(?:s|ed)?|gate(?:s|d)?|ignore(?:s|d)?|cancel(?:s|ed|led)?|move(?:s|d)?|place(?:s|d)?|import(?:s|ed)?|update(?:s|d)?|fix(?:es|ed)?|change(?:s|d)?|validat(?:e|es|ed)|normaliz(?:e|es|ed)|parse(?:s|d)?|strip(?:s|ped)?|debounce(?:s|d)?|route(?:s|d)?|return(?:s|ed)?|prune(?:s|d)?|remove(?:s|d)?|wrap(?:s|ped)?)\b/i
       .test(text);
   return hasCurrentRunPrefix && hasImplementationAction && hasSpecificEvidence(text);
 }

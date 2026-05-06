@@ -1385,6 +1385,20 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
       resolution: 'I made /api/notes register before request setup so API requests do not return HTTP 404.',
     },
   }), { mode: 'auto' });
+  const usedResult = validateMaterializedNoteQuality(note({
+    title: 'API search activeRequestId gate prevents stale responses',
+    summary: 'I used activeRequestId to gate setResults so stale /api/search responses do not overwrite current results.',
+    key_conclusions: [
+      'Root cause: Older /api/search responses overwrote current results because setResults was not gated by the latest activeRequestId.',
+      'Resolution: I used activeRequestId to gate setResults so stale /api/search responses do not overwrite current results.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'I used activeRequestId to gate setResults so stale /api/search responses do not overwrite current results.',
+      root_cause: 'Older /api/search responses overwrote current results because setResults was not gated by the latest activeRequestId.',
+      resolution: 'I used activeRequestId to gate setResults so stale /api/search responses do not overwrite current results.',
+    },
+  }), { mode: 'auto' });
   const chineseLetResult = validateMaterializedNoteQuality(note({
     title: '我让 /api/notes register before request setup',
     summary: '我让 /api/notes register before request setup so API requests do not return HTTP 404.',
@@ -1437,6 +1451,9 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
   assert.equal(madeResult.accepted, false);
   assert.equal(madeResult.reason, 'low-note-quality');
   assert.ok(madeResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(usedResult.accepted, false);
+  assert.equal(usedResult.reason, 'low-note-quality');
+  assert.ok(usedResult.warnings.includes('durable_reusable_lesson'));
   assert.equal(chineseLetResult.accepted, false);
   assert.equal(chineseLetResult.reason, 'low-note-quality');
   assert.ok(chineseLetResult.warnings.includes('durable_reusable_lesson'));
@@ -3233,6 +3250,27 @@ test('validateMaterializedNoteQuality accepts activeRequestId setResults stale r
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts WebSocket listener cleanup fixes', () => {
+  const summary = 'Pair socket.addEventListener with socket.removeEventListener in the React useEffect cleanup so remounts do not duplicate WebSocket messages.';
+  const root_cause = 'React remounts called socket.addEventListener without removing the previous message listener, so each incoming WebSocket message was appended twice.';
+  const resolution = 'Return a useEffect cleanup that calls socket.removeEventListener before unmount so remounts keep one message listener.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'WebSocket listener cleanup prevents duplicate messages',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality rejects Chinese status-shell structured items', () => {
   const summary = '状态记录：使用 active request id gate /api/search result updates，避免 stale responses overwrite current results.';
   const result = validateMaterializedNoteQuality(note({
@@ -3301,6 +3339,27 @@ test('validateMaterializedNoteQuality rejects English worklog structured items',
       outcome_type: 'decision',
       summary,
       decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects English status entry fixes', () => {
+  const summary = 'Status entry: wait for db initialization before accepting /api/import requests so imports do not return HTTP 500.';
+  const root_cause = 'POST /api/import returned HTTP 500 because the route handled requests before sql.js finished initialization.';
+  const resolution = 'Wait for db initialization before accepting /api/import requests.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Import route returns HTTP 500 before sql.js initialization',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
     },
   }), { mode: 'auto' });
 
@@ -3860,6 +3919,27 @@ test('validateMaterializedNoteQuality rejects generic SQL parameterization relia
       summary: 'Bind SQL parameters for reliability.',
       root_cause: 'SQL query reliability mattered.',
       resolution: 'Use parameterized queries to improve quality.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic listener cleanup reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Listener cleanup reliability fix',
+    summary: 'Clean up listeners for reliability.',
+    key_conclusions: [
+      'Root cause: Listener reliability mattered.',
+      'Resolution: Use cleanup to improve quality.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Clean up listeners for reliability.',
+      root_cause: 'Listener reliability mattered.',
+      resolution: 'Use cleanup to improve quality.',
     },
   }), { mode: 'auto' });
 
