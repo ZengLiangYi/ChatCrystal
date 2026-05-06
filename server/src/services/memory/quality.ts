@@ -1353,8 +1353,9 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
     /\b(migration|migrations?|not null|backfill|chatcrystal\.db|constraint)\b/i
       .test(text);
   const hasEngineeringContext =
-    /\b(sqlite|sql\.js|table|rows?|index|indexed lookup|lookup|lookups?|query|queries|filtered|filtering|request timeouts?|timed out|large imports?|messages?|note detail|cache|schema|parser|jsonl|constraint|unique|duplicate|receipt|receipts|writeback|search|frontend|react|requests?|responses?|initialization|initialized|route|mcp|json-rpc|stdio|stdout|stderr|framing|transport|logs?|diagnostics?|tags?|joins?|deletion|cleanup|filter chips?|webui|websocket|listeners?|useeffect|remounts?|unmount|child_process|child process|daemon|pid|spawn|exit code|serve|status|dead server|migration|not null|default|backfill|column|startup|vite|proxy|fastify|rewrite|registered route|spa fallback|fallback handler|index\.html|conversation_id|queue jobs?|enqueue|enqueueing|summarize)\b/i
-      .test(text);
+    /\b(sqlite|sql\.js|table|rows?|index|indexed lookup|lookup|lookups?|query|queries|filtered|filtering|request timeouts?|timed out|large imports?|messages?|note detail|cache|schema|parser|jsonl|constraint|unique|duplicate|receipt|receipts|writeback|search|frontend|react|requests?|responses?|initialization|initialized|route|mcp|json-rpc|stdio|stdout|stderr|framing|transport|logs?|diagnostics?|tags?|joins?|deletion|cleanup|filter chips?|webui|websocket|listeners?|useeffect|remounts?|unmount|child_process|child process|daemon|pid|spawn|exit code|serve|status|dead server|migration|not null|default|backfill|column|startup|vite|proxy|fastify|rewrite|registered route|spa fallback|fallback handler|index\.html|conversation_id|queue jobs?|enqueue|enqueueing|summarize|activerequestid|setresults)\b/i
+      .test(text) ||
+    /(?:语义搜索|响应|查询结果|旧响应|旧的.*响应|覆盖.*结果)/i.test(text);
   return (
     hasConcreteToken ||
     hasNamedDbObject ||
@@ -1506,6 +1507,12 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
     /\b(ignore)\b.+\bresponses?\b.+\b(not from the latest query|older|previous|stale|latest query)\b/i
       .test(text) ||
     /\bolder\b.+\b\/api\/search responses?\b.+\b(after a newer query|newer query)\b.+\boverwrite\b.+\bcurrent results\b/i
+      .test(text) ||
+    /(?:旧(?:的)?\s*)?(?:\/api\/search\s*)?响应.{0,20}覆盖.{0,12}(?:当前查询结果|新结果)/i
+      .test(text) ||
+    /(?:在\s*)?setresults.{0,8}前.{0,12}校验.{0,16}activerequestid.{0,30}(?:避免|防止).{0,24}(?:旧(?:的)?\s*)?(?:\/api\/search\s*)?响应.{0,20}覆盖/i
+      .test(text) ||
+    /setresults.{0,8}前.{0,12}(?:没有|未).{0,8}校验.{0,16}activerequestid/i
       .test(text);
   const hasQueueDedupeFlow =
     /\bsummarize\b.+\bretries\b.+\benqueue\b.+\bduplicate conversation jobs?\b/i
@@ -1606,7 +1613,8 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
       .test(text);
   const hasCausalFlow =
     /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|gat(?:e|es|ed|ing)|ignore|latest query|request id|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|wait|reserve|left|no longer existed|deleting notes?|note deletion|cleanup|prune|filter|duplicate|deduplicate|dedupe|enqueued|enqueue|pending job|appended twice|remounts?|unmount|spawn handshake|exit event|exit code|dead server|nonzero|non-zero|backfill|not null|default|constraint|violat(?:e|ed|es|ing)|rewrote|rewrite|proxy|preserv(?:e|es|ed|ing)|registered route|fell through|spa fallback|fallback handler|index\.html)\b/i
-      .test(text);
+      .test(text) ||
+    /(?:因为|所以|导致|避免|防止|覆盖|校验|没有|未)/i.test(text);
   return hasStrictStructuralEngineeringEvidence(text) &&
     hasCausalFlow &&
     (
@@ -1631,10 +1639,13 @@ function hasStrictStructuralEngineeringFailureSignal(value: string) {
   const text = value.toLowerCase();
   const hasNamedConsequence =
     /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|duplicate conversation jobs?|duplicate messages?|duplicate websocket messages?|appended twice|stale responses?|stale results?|overwrote the current query results?|overwrote current results?|overwrite the current query results?|overwrite current results?|replace current results?|orphan note_tags rows?|orphan tags?|unused tags?|count 0|joins? whose note_id no longer existed|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream)|false serve success|dead server|looked like a running server|running server|nonzero exit codes?|non-zero exit codes?|exit code\s*\d+|migration (?:does not )?fail(?:s|ed)?|migration failures?|existing row failures?|constraint violation|violated the constraint|fell through to the spa fallback|clients? received index\.html instead of json|return json instead of index\.html|returns? html for api json)\b/i
+      .test(text) ||
+    /(?:旧(?:的)?\s*)?(?:\/api\/search\s*)?响应.{0,20}覆盖.{0,12}(?:当前查询结果|新结果)/i
       .test(text);
   const hasCausalFlow =
     /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|overwrote|overwrite|reused|reuse|retried|retries|cancel|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|left|no longer existed|deleting notes?|note deletion|cleanup|filter|prune|remounts?|unmount|duplicate|deduplicate|dedupe|enqueued|enqueue|pending job|appended twice|spawn handshake|exit event|exit code|nonzero|non-zero|dead server|backfill|not null|default|constraint|violat(?:e|ed|es|ing)|migration|fell through|spa fallback|fallback handler|index\.html)\b/i
-      .test(text);
+      .test(text) ||
+    /(?:因为|所以|导致|避免|防止|覆盖|校验|没有|未)/i.test(text);
   return hasStrictStructuralEngineeringEvidence(text) && hasNamedConsequence && hasCausalFlow;
 }
 
@@ -1919,7 +1930,7 @@ function isVisibleWorkLogClaim(value: string) {
 
 function isExplicitEnglishStatusShell(value: string) {
   return hasTechnicalPrefixStatusShell(value) ||
-    /^\s*(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task|progress|verification)\s+(?:record|report|note|summary|update|log|entry|check)|(?:implementation|task|fix|execution|run|work|status)\s+results?|run\s+results?|work\s*log(?:\s+entry)?|worklog(?:\s+entry)?|status|record|update|implementation|result|outcome|progress|verification|check|completion(?:\s+(?:note|record))?|completed|done|this\s+fix|this\s+run)\s*(?:[:\-\u2013\u2014])/i
+    /^\s*(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task|progress|verification|diagnostics?|(?:smoke\s+)?test)\s+(?:record|report|note|summary|update|log|entry|check)|(?:implementation|task|fix|execution|run|work|status)\s+results?|run\s+results?|work\s*log(?:\s+entry)?|worklog(?:\s+entry)?|status|record|update|implementation|result|outcome|progress|verification|check|diagnostics?|(?:smoke\s+)?test|completion(?:\s+(?:note|record))?|completed|done|this\s+fix|this\s+run)\s*(?:[:\-\u2013\u2014])/i
       .test(value.trim()) ||
     isCurrentRunImplementationShell(value) ||
     isCurrentRunStatusObservationClaim(value);
@@ -1932,8 +1943,8 @@ function hasTechnicalPrefixStatusShell(value: string) {
   const englishDescriptorPrefix = String.raw`(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,3})`;
   const chineseDescriptorPrefix = String.raw`(?:[\u3400-\u9fff]{2,16})`;
   const technicalPrefix = String.raw`(?:\/api\/[\w/-]+|[a-z0-9]+_[a-z0-9_]+|[a-z][a-z0-9_]*\.[a-z_][a-z0-9_]*|activerequestid|setresults|data_dir|node_env|child_process|jsonl|sqlite|sql\.js|websocket|mcp|json-rpc|${descriptorWord}(?:\s+${descriptorWord}){0,2}|${chineseDescriptorWord}(?:\s+${chineseDescriptorWord}){0,2}|${englishDescriptorPrefix}|${chineseDescriptorPrefix})`;
-  const englishShell = String.raw`(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task|progress|verification)\s+(?:record|report|note|summary|update|log|entry|check)|(?:status|record|update|implementation|result|outcome|progress|verification|check|completion(?:\s+(?:note|record))?|completed|done))`;
-  const chineseShell = String.raw`(?:状态记录|记录状态|状态检查|工作日志|日志记录|工作记录|执行记录|完成记录|完成检查|状态更新|运行结果|执行结果|结果记录|结果报告|结果检查|任务结果|实现结果|修复结果|工作结果|状态结果|运行记录|任务记录|实现记录|实现说明|更新记录|变更记录|变更摘要|本次修复|本次执行|本次任务|本次改动|本轮执行|本轮修复|本轮任务|本轮改动|修复记录|状态|结果|进度|验证|完成|已完成|完成说明)`;
+  const englishShell = String.raw`(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task|progress|verification|diagnostics?|(?:smoke\s+)?test)\s+(?:record|report|note|summary|update|log|entry|check)|(?:status|record|update|implementation|result|outcome|progress|verification|check|diagnostics?|(?:smoke\s+)?test|completion(?:\s+(?:note|record))?|completed|done))`;
+  const chineseShell = String.raw`(?:状态记录|记录状态|状态检查|工作日志|日志记录|工作记录|执行记录|完成记录|完成检查|状态更新|运行结果|执行结果|结果记录|结果报告|结果检查|任务结果|实现结果|修复结果|工作结果|状态结果|运行记录|任务记录|实现记录|实现说明|更新记录|变更记录|变更摘要|本次修复|本次执行|本次任务|本次改动|本轮执行|本轮修复|本轮任务|本轮改动|修复记录|测试记录|状态|结果|进度|验证|测试|诊断|完成|已完成|完成说明)`;
   return new RegExp(`^\\s*${technicalPrefix}\\s+${englishShell}\\s*(?:[:\\-\\u2013\\u2014])`, 'i')
     .test(text) ||
     new RegExp(`^\\s*${technicalPrefix}\\s+${englishShell}\\s+(?:for|on|about)\\b`, 'i')
@@ -2003,7 +2014,7 @@ function isChineseVisibleStatusShell(value: string) {
   if (!/[\u3400-\u9fff]/.test(value)) return false;
   const hasStatusRecordShell =
     hasTechnicalPrefixStatusShell(value) ||
-    /^\s*(?:状态记录|记录状态|状态检查|工作日志|日志记录|工作记录|执行记录|完成记录|完成检查|状态更新|运行结果|执行结果|结果记录|结果报告|结果检查|任务结果|实现结果|修复结果|工作结果|状态结果|运行记录|任务记录|实现记录|实现说明|更新记录|变更记录|变更摘要|本次修复|本次执行|本次任务|本次改动|本轮执行|本轮修复|本轮任务|本轮改动|修复记录|结果|进度|验证|完成|已完成|完成说明)\s*(?:[：:\-\u2013\u2014]|$)/i
+    /^\s*(?:状态记录|记录状态|状态检查|工作日志|日志记录|工作记录|执行记录|完成记录|完成检查|状态更新|运行结果|执行结果|结果记录|结果报告|结果检查|任务结果|实现结果|修复结果|工作结果|状态结果|运行记录|任务记录|实现记录|实现说明|更新记录|变更记录|变更摘要|本次修复|本次执行|本次任务|本次改动|本轮执行|本轮修复|本轮任务|本轮改动|修复记录|测试记录|结果|进度|验证|测试|诊断|完成|已完成|完成说明)\s*(?:[：:\-\u2013\u2014]|$)/i
       .test(value) ||
     /(?:^|[\s：:])(?:状态记录|记录状态|工作日志|日志记录|工作记录)(?:[\s：:]|$)|^(?:状态|记录)\s*[：:]/i
       .test(value) ||

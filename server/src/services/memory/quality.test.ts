@@ -3513,6 +3513,27 @@ test('validateMaterializedNoteQuality accepts activeRequestId invariant stale re
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts Chinese activeRequestId stale response fixes', () => {
+  const summary = '在 setResults 前校验 activeRequestId，避免旧的 /api/search 响应覆盖当前查询结果。';
+  const root_cause = '旧的 /api/search 响应覆盖当前查询结果，因为 setResults 前没有校验 activeRequestId。';
+  const resolution = '在 setResults 前校验 activeRequestId，避免旧的 /api/search 响应覆盖当前查询结果。';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'activeRequestId 防止语义搜索旧响应覆盖新结果',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality accepts WebSocket listener cleanup fixes', () => {
   const summary = 'Pair socket.addEventListener with socket.removeEventListener in the React useEffect cleanup so remounts do not duplicate WebSocket messages.';
   const root_cause = 'React remounts called socket.addEventListener without removing the previous message listener, so each incoming WebSocket message was appended twice.';
@@ -4016,6 +4037,61 @@ test('validateMaterializedNoteQuality rejects broad status check shells with con
     assert.equal(result.accepted, false, shell);
     assert.equal(result.reason, 'low-note-quality', shell);
     assert.ok(result.warnings.includes('durable_reusable_lesson'), shell);
+  }
+});
+
+test('validateMaterializedNoteQuality rejects broad test and diagnostic shells with concrete fix payloads', () => {
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.';
+  const resolution = 'Gate setResults with activeRequestId so stale responses cannot overwrite current results.';
+  const shells = [
+    [
+      'Test: activeRequestId gates stale /api/search responses',
+      'Test: activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+    [
+      'Smoke test: activeRequestId gates stale /api/search responses',
+      'Smoke test: activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+    [
+      'Diagnostics: activeRequestId gates stale /api/search responses',
+      'Diagnostics: activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+    [
+      'Search diagnostics: activeRequestId gates stale /api/search responses',
+      'Search diagnostics: activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+    [
+      '测试：activeRequestId gates stale /api/search responses',
+      '测试：activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+    [
+      '测试记录：activeRequestId gates stale /api/search responses',
+      '测试记录：activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+    [
+      '诊断：activeRequestId gates stale /api/search responses',
+      '诊断：activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+  ];
+
+  for (const [title, summary] of shells) {
+    const result = validateMaterializedNoteQuality(note({
+      title,
+      summary,
+      key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary,
+        root_cause,
+        resolution,
+      },
+      tags: [],
+      embedding_text: '',
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, title);
+    assert.equal(result.reason, 'low-note-quality', title);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), title);
   }
 });
 
