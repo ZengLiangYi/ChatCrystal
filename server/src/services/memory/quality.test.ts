@@ -1250,6 +1250,7 @@ test('validateMaterializedNoteQuality rejects first-person implementation decisi
     'I block request setup until Fastify readiness resolves to prevent ECONNREFUSED.',
     'I place /api/notes registration before request setup so API requests do not return HTTP 404.',
     '我把 DATA_DIR set before importing the Electron server entrypoint to prevent default data directory fallback.',
+    '我已将 DATA_DIR set before importing the Electron server entrypoint to prevent fallback to the default data directory.',
   ];
 
   for (const decision of decisions) {
@@ -1976,6 +1977,9 @@ test('validateMaterializedNoteQuality rejects generic fix tags', () => {
   const statusResult = validateMaterializedNoteQuality(note({
     tags: ['bug', 'reliability', '已修复'],
   }), { mode: 'auto' });
+  const chineseStatusResult = validateMaterializedNoteQuality(note({
+    tags: ['已完成', '通过', '状态'],
+  }), { mode: 'auto' });
 
   assert.equal(result.accepted, false);
   assert.equal(result.reason, 'low-note-quality');
@@ -1983,6 +1987,9 @@ test('validateMaterializedNoteQuality rejects generic fix tags', () => {
   assert.equal(statusResult.accepted, false);
   assert.equal(statusResult.reason, 'low-note-quality');
   assert.ok(statusResult.warnings.includes('tags'));
+  assert.equal(chineseStatusResult.accepted, false);
+  assert.equal(chineseStatusResult.reason, 'low-note-quality');
+  assert.ok(chineseStatusResult.warnings.includes('tags'));
 });
 
 test('validateMaterializedNoteQuality rejects identifier-only snippets', () => {
@@ -2225,6 +2232,50 @@ test('validateMaterializedNoteQuality rejects generic import dedupe reliability 
       summary: 'Use import dedupe so imports are reliable.',
       root_cause: 'Import dedupe was unreliable.',
       resolution: 'Use import dedupe so imports are reliable.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts React Query cache invalidation fixes', () => {
+  const summary = 'Invalidate React Query notes and tags cache after deleting a note so the sidebar does not show stale tag filters.';
+  const root_cause = 'The note delete mutation removed the SQL row but did not invalidate the React Query tags cache, so the sidebar kept stale filter chips.';
+  const resolution = 'Invalidate the notes and tags query keys after deleteNote succeeds so the UI reloads the derived tag counts.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'React Query deletion leaves stale note tags',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['react-query', 'tags'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic UI cache reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'UI cache reliability fix',
+    summary: 'Invalidate UI cache for reliability.',
+    key_conclusions: [
+      'Root cause: UI cache was unreliable.',
+      'Resolution: Invalidate UI cache for reliability.',
+    ],
+    tags: ['react-query'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Invalidate UI cache for reliability.',
+      root_cause: 'UI cache was unreliable.',
+      resolution: 'Invalidate UI cache for reliability.',
     },
   }), { mode: 'auto' });
 

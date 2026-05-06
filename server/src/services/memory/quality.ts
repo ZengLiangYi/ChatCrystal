@@ -56,6 +56,7 @@ function hasConcreteTransferableAction(value: string) {
   if (hasPersistenceSerializationAction(text)) return true;
   if (hasElectronResourceAction(text)) return true;
   if (hasCrossPlatformPathAction(text)) return true;
+  if (hasFrontendCacheInvalidationAction(text)) return true;
   const concreteActionWords = [
     'add',
     'block',
@@ -209,6 +210,7 @@ function hasSpecificEvidence(value: string) {
     hasIndexConsistencyEvidence(text) ||
     hasElectronResourceEvidence(text) ||
     hasCrossPlatformPathEvidence(text) ||
+    hasFrontendCacheEvidence(text) ||
     hasHttpFailureSignal(text) ||
     /\b(api requests?|fastify readiness|server readiness|request setup|package metadata|package version|dist output|generated dist output|data directory|electron server|server entrypoint|client calls?)\b/i
       .test(text)
@@ -444,6 +446,46 @@ function hasIndexConsistencyFailureSignal(value: string) {
   return hasIndexConsistencyEvidence(text) && hasStaleReference && hasCausalDeletion;
 }
 
+function hasFrontendCacheEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(react query|query keys?|deletenote|delete mutation|note delete mutation|tags cache|notes cache|sidebar|tag counts?|filter chips?|stale tag filters?|derived tag counts?)\b/i
+    .test(text);
+}
+
+function hasFrontendCacheInvalidationAction(value: string) {
+  const text = value.toLowerCase();
+  const hasCacheAction = /\b(invalidate|invalidated|refetch|reload|refresh|update)\b/i.test(text);
+  const hasCacheTarget = /\b(cache|query keys?|react query|tags?|notes?|tag counts?)\b/i.test(text);
+  return hasFrontendCacheEvidence(text) && hasCacheAction && hasCacheTarget;
+}
+
+function hasFrontendCacheInvalidationMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasInvalidationFlow =
+    /\b(invalidate|invalidated|refetch|reload|refresh|update)\b.+\b(cache|query keys?|react query|tags?|notes?|tag counts?)\b/i
+      .test(text) ||
+    /\b(cache|query keys?|react query|tags?|notes?|tag counts?)\b.+\b(invalidate|invalidated|refetch|reload|refresh|update)\b/i
+      .test(text);
+  const hasMutationOrDeleteContext =
+    /\b(after|when|once|succeeds?|delete|deleted|deletenote|delete mutation|mutation|removed sql row|sql row)\b/i
+      .test(text);
+  return hasFrontendCacheEvidence(text) && hasInvalidationFlow && hasMutationOrDeleteContext;
+}
+
+function hasFrontendCacheFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasStaleUi =
+    /\b(stale|kept stale|does not show stale|cannot show stale|stale tag filters?|stale filter chips?|stale tag counts?|stale note tags?)\b/i
+      .test(text);
+  const hasUiTarget =
+    /\b(sidebar|filter chips?|tag filters?|tag counts?|derived tag counts?|ui|react query|tags cache|notes cache)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(so|because|after|but|did not invalidate|removed|delete|deletion|leaves?)\b/i
+      .test(text);
+  return hasFrontendCacheEvidence(text) && hasStaleUi && hasUiTarget && hasCausalFlow;
+}
+
 function hasElectronResourceEvidence(value: string) {
   const text = value.toLowerCase();
   return /\b(packaged electron|packaged builds?|electron-builder|extraresources|process\.resourcespath|resourcespath|resource path|bundled server code|wasm|sql-wasm\.wasm|sql\.js|enoent|chatcrystal\.db)\b/i
@@ -576,6 +618,7 @@ function hasConcreteMechanism(value: string) {
   const hasIndexConsistencyFlow = hasIndexConsistencyMechanism(text);
   const hasElectronResourceFlow = hasElectronResourceMechanism(text);
   const hasCrossPlatformPathFlow = hasCrossPlatformPathMechanism(text);
+  const hasFrontendCacheFlow = hasFrontendCacheInvalidationMechanism(text);
   return (
     hasTimingOrder ||
     hasRaceReadiness ||
@@ -594,7 +637,8 @@ function hasConcreteMechanism(value: string) {
     hasPersistenceSerializationFlow ||
     hasIndexConsistencyFlow ||
     hasElectronResourceFlow ||
-    hasCrossPlatformPathFlow
+    hasCrossPlatformPathFlow ||
+    hasFrontendCacheFlow
   );
 }
 
@@ -652,7 +696,7 @@ function isFirstPersonDiaryClaim(value: string) {
 function hasChineseFirstPersonDiaryClaim(value: string) {
   const chineseAction = '(?:添加|修复|设置|配置|注册|等待|发现|验证|检查|确认|诊断|切换|更新|实现|改动|修改|处理|解决)';
   const englishAction = '(?:add|added|block|configure|configured|fix|fixed|import|importing|place|placed|register|registered|set|switch|switched|update|updated|validate|validated|verify|verified|wait)';
-  return new RegExp(`(?:我|我们)(?:已经|已)?${chineseAction}|(?:我|我们)(?:把|将).{0,80}(?:${chineseAction}|\\b${englishAction}\\b)`, 'i')
+  return new RegExp(`(?:我|我们)(?:已经|已)?${chineseAction}|(?:我|我们)(?:已经|已)?(?:把|将).{0,80}(?:${chineseAction}|\\b${englishAction}\\b)`, 'i')
     .test(value);
 }
 
@@ -675,6 +719,7 @@ function hasFailureOrConsequenceSignal(value: string) {
     hasIndexConsistencyFailureSignal(value) ||
     hasElectronResourceFailureSignal(value) ||
     hasCrossPlatformPathFailureSignal(value) ||
+    hasFrontendCacheFailureSignal(value) ||
     hasDefaultDataDirectoryConsequence(value) ||
     hasHttpFailureSignal(value)
   );
@@ -1207,7 +1252,7 @@ function hasLowQualityTags(note: MaterializedTaskMemoryNote) {
 function isLowQualityTag(tag: string) {
   const normalized = tag.trim().toLowerCase();
   if (!normalized || isPlaceholderText(normalized)) return true;
-  return /^(fix|bug|issue|bugfix|bug[-_\s]?fix|success|fixed|reliable|reliability|quality|done|verified|test[-_\s]?passed|passed|ok|okay|resolved|working|complete|completed|all[-_\s]?good|status|checked|reviewed|tested|修复|已修复|已验证|测试通过|可靠性|成功|问题|质量)$/i
+  return /^(fix|bug|issue|bugfix|bug[-_\s]?fix|success|fixed|reliable|reliability|quality|done|verified|test[-_\s]?passed|passed|ok|okay|resolved|working|complete|completed|all[-_\s]?good|status|checked|reviewed|tested|修复|已修复|修复完成|已完成|完成|已验证|验证|测试通过|测试|通过|可靠性|成功|状态|检查|问题|质量)$/i
     .test(normalized);
 }
 
