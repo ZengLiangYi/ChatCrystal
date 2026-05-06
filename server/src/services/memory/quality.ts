@@ -878,7 +878,9 @@ function hasChineseFirstPersonDiaryClaim(value: string) {
   ]))
     .map(regexEscape)
     .join('|');
-  return new RegExp(`(?:我|我们)(?:已经|已)?${chineseAction}|(?:我|我们)(?:已经|已)?(?:把|将).{0,80}(?:${chineseAction}|\\b(?:${englishAction})\\b)|(?:已经|已)(?:把|将).{0,80}(?:${chineseAction}|\\b(?:${englishAction})\\b)`, 'i')
+  const subjectElidedAction =
+    `(?:已经|已)(?:${chineseAction}|(?:把|将|在|为).{0,80}(?:${chineseAction}|\\b(?:${englishAction})\\b))`;
+  return new RegExp(`(?:我|我们)(?:已经|已)?${chineseAction}|(?:我|我们)(?:已经|已)?(?:把|将).{0,80}(?:${chineseAction}|\\b(?:${englishAction})\\b)|${subjectElidedAction}`, 'i')
     .test(value);
 }
 
@@ -1466,7 +1468,7 @@ function hasUsefulCodeSnippet(
 }
 
 function isPlaceholderFunctionCallSnippet(code: string) {
-  const normalized = code.trim().replace(/;$/, '').trim();
+  const normalized = normalizeSnippetForPlaceholderCall(code);
   const match = /^([A-Za-z_$][\w$]*)\s*\(([^()]*)\)$/.exec(normalized);
   if (!match) return false;
 
@@ -1479,6 +1481,20 @@ function isPlaceholderFunctionCallSnippet(code: string) {
   return args
     .split(',')
     .every((arg) => isSimplePlaceholderArgument(arg.trim()));
+}
+
+function normalizeSnippetForPlaceholderCall(code: string) {
+  let normalized = code.trim().replace(/;$/, '').trim();
+  for (let i = 0; i < 4; i += 1) {
+    const next = normalized
+      .replace(/^return\s+/i, '')
+      .replace(/^await\s+/i, '')
+      .replace(/^(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*/i, '')
+      .trim();
+    if (next === normalized) break;
+    normalized = next.replace(/;$/, '').trim();
+  }
+  return normalized;
 }
 
 function isSimplePlaceholderArgument(value: string) {
@@ -1495,8 +1511,8 @@ function normalizeTagForQuality(tag: string) {
   for (let i = 0; i < 3; i += 1) {
     normalized = normalized
       .replace(/^#+\s*/, '')
-      .replace(/^[\[\]()（）【】]+/, '')
-      .replace(/[\[\]()（）【】]+$/, '')
+      .replace(/^[`"'“”‘’「」『』《》\[\]()（）【】]+/, '')
+      .replace(/[`"'“”‘’「」『』《》\[\]()（）【】]+$/, '')
       .replace(/[.。!！,，;；:：]+$/, '')
       .trim();
   }

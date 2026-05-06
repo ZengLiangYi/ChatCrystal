@@ -1316,6 +1316,20 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
       resolution: '已将 DATA_DIR set before importing the Electron server entrypoint to prevent fallback to the default data directory.',
     },
   }), { mode: 'auto' });
+  const chineseParsedStatusResult = validateMaterializedNoteQuality(note({
+    title: '已解析 Codex response_item.content arrays。',
+    summary: '已解析 Codex response_item.content arrays。',
+    key_conclusions: [
+      'Root cause: Codex adapter treated response_item.content arrays as plain strings, so imported conversation messages lost assistant text.',
+      'Resolution: Parse response_item.content arrays and join text fragments before saving assistant messages.',
+    ],
+    raw_payload: {
+      summary: '已解析 Codex response_item.content arrays。',
+      outcome_type: 'fix',
+      root_cause: 'Codex adapter treated response_item.content arrays as plain strings, so imported conversation messages lost assistant text.',
+      resolution: 'Parse response_item.content arrays and join text fragments before saving assistant messages.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(foundResult.accepted, false);
   assert.equal(foundResult.reason, 'low-note-quality');
@@ -1347,6 +1361,9 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
   assert.equal(chineseSubjectElidedResult.accepted, false);
   assert.equal(chineseSubjectElidedResult.reason, 'low-note-quality');
   assert.ok(chineseSubjectElidedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseParsedStatusResult.accepted, false);
+  assert.equal(chineseParsedStatusResult.reason, 'low-note-quality');
+  assert.ok(chineseParsedStatusResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects #87-like one-off status records in auto mode', () => {
@@ -2213,6 +2230,9 @@ test('validateMaterializedNoteQuality rejects generic fix tags', () => {
   const decoratedResult = validateMaterializedNoteQuality(note({
     tags: ['#fixed', 'fixed.', '[fixed]', '已修复。', '#测试通过'],
   }), { mode: 'auto' });
+  const quotedDecoratedResult = validateMaterializedNoteQuality(note({
+    tags: ['`fixed`', '「测试通过」'],
+  }), { mode: 'auto' });
 
   assert.equal(result.accepted, false);
   assert.equal(result.reason, 'low-note-quality');
@@ -2226,6 +2246,9 @@ test('validateMaterializedNoteQuality rejects generic fix tags', () => {
   assert.equal(decoratedResult.accepted, false);
   assert.equal(decoratedResult.reason, 'low-note-quality');
   assert.ok(decoratedResult.warnings.includes('tags'));
+  assert.equal(quotedDecoratedResult.accepted, false);
+  assert.equal(quotedDecoratedResult.reason, 'low-note-quality');
+  assert.ok(quotedDecoratedResult.warnings.includes('tags'));
 });
 
 test('validateMaterializedNoteQuality rejects identifier-only snippets', () => {
@@ -2306,6 +2329,44 @@ test('validateMaterializedNoteQuality rejects identifier-only snippets', () => {
       }],
     },
   }), { mode: 'auto' });
+  const returnedGenericParseCallResult = validateMaterializedNoteQuality(note({
+    title: 'Codex response_item content arrays lost assistant text',
+    summary: 'Extract text from response_item.content arrays while parsing Codex JSONL so imported conversations keep assistant messages instead of empty turns.',
+    key_conclusions: [
+      'Root cause: The Codex adapter treated response_item.content as a plain string, so array-shaped assistant content produced empty imported conversation messages.',
+      'Resolution: Parse response_item.content arrays and join text fragments before saving Codex conversation messages.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Extract text from response_item.content arrays while parsing Codex JSONL so imported conversations keep assistant messages instead of empty turns.',
+      root_cause: 'The Codex adapter treated response_item.content as a plain string, so array-shaped assistant content produced empty imported conversation messages.',
+      resolution: 'Parse response_item.content arrays and join text fragments before saving Codex conversation messages.',
+      code_snippets: [{
+        language: 'ts',
+        code: 'return parse(response_item.content);',
+        description: 'Parse response_item.content arrays before saving assistant messages.',
+      }],
+    },
+  }), { mode: 'auto' });
+  const assignedGenericParseCallResult = validateMaterializedNoteQuality(note({
+    title: 'Codex response_item content arrays lost assistant text',
+    summary: 'Extract text from response_item.content arrays while parsing Codex JSONL so imported conversations keep assistant messages instead of empty turns.',
+    key_conclusions: [
+      'Root cause: The Codex adapter treated response_item.content as a plain string, so array-shaped assistant content produced empty imported conversation messages.',
+      'Resolution: Parse response_item.content arrays and join text fragments before saving Codex conversation messages.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Extract text from response_item.content arrays while parsing Codex JSONL so imported conversations keep assistant messages instead of empty turns.',
+      root_cause: 'The Codex adapter treated response_item.content as a plain string, so array-shaped assistant content produced empty imported conversation messages.',
+      resolution: 'Parse response_item.content arrays and join text fragments before saving Codex conversation messages.',
+      code_snippets: [{
+        language: 'ts',
+        code: 'const result = parse(response_item.content);',
+        description: 'Parse response_item.content arrays before saving assistant messages.',
+      }],
+    },
+  }), { mode: 'auto' });
 
   assert.equal(result.accepted, false);
   assert.equal(result.reason, 'low-note-quality');
@@ -2322,6 +2383,12 @@ test('validateMaterializedNoteQuality rejects identifier-only snippets', () => {
   assert.equal(genericParseCallResult.accepted, false);
   assert.equal(genericParseCallResult.reason, 'low-note-quality');
   assert.ok(genericParseCallResult.warnings.includes('code_snippets'));
+  assert.equal(returnedGenericParseCallResult.accepted, false);
+  assert.equal(returnedGenericParseCallResult.reason, 'low-note-quality');
+  assert.ok(returnedGenericParseCallResult.warnings.includes('code_snippets'));
+  assert.equal(assignedGenericParseCallResult.accepted, false);
+  assert.equal(assignedGenericParseCallResult.reason, 'low-note-quality');
+  assert.ok(assignedGenericParseCallResult.warnings.includes('code_snippets'));
 });
 
 test('validateMaterializedNoteQuality accepts imported content sanitization fixes', () => {
