@@ -3236,10 +3236,24 @@ test('validateMaterializedNoteQuality accepts queue conversation_id dedupe fixes
       resolution,
     },
   }), { mode: 'auto' });
+  const naturalTitleResult = validateMaterializedNoteQuality(note({
+    title: 'Summarize retries enqueue duplicate conversation jobs',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
 
   assert.equal(result.accepted, true);
   assert.equal(result.reason, 'note-quality-ok');
   assert.deepEqual(result.warnings, []);
+  assert.equal(naturalTitleResult.accepted, true);
+  assert.equal(naturalTitleResult.reason, 'note-quality-ok');
+  assert.deepEqual(naturalTitleResult.warnings, []);
 });
 
 test('validateMaterializedNoteQuality accepts SQL parameterized tag lookup fixes', () => {
@@ -3996,10 +4010,24 @@ test('validateMaterializedNoteQuality accepts SPA fallback route-ordering fixes'
       resolution,
     },
   }), { mode: 'auto' });
+  const naturalTitleResult = validateMaterializedNoteQuality(note({
+    title: 'SPA fallback route order returns HTML for API JSON',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
 
   assert.equal(result.accepted, true);
   assert.equal(result.reason, 'note-quality-ok');
   assert.deepEqual(result.warnings, []);
+  assert.equal(naturalTitleResult.accepted, true);
+  assert.equal(naturalTitleResult.reason, 'note-quality-ok');
+  assert.deepEqual(naturalTitleResult.warnings, []);
 });
 
 test('validateMaterializedNoteQuality accepts MCP stdio JSON-RPC transport fixes', () => {

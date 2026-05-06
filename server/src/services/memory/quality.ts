@@ -1311,6 +1311,13 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
       .test(text) &&
     /\b(\/api\/[\w/-]+|api route|requests?|route|fallback handler)\b/i
       .test(text);
+  const hasNamedQueueDedupeObject =
+    /\b(summarize(?: --all)?|queue jobs?|conversation jobs?|conversation_id|enqueue(?:d|ing)?|retries|duplicate notes?|duplicate conversation jobs?)\b/i
+      .test(text) &&
+    /\b(duplicate|deduplicate|dedupe|retries|enqueue|enqueued|enqueueing|queue jobs?|conversation jobs?|conversation_id)\b/i
+      .test(text) &&
+    /\b(summarize|queue jobs?|conversation jobs?|conversation_id)\b/i
+      .test(text);
   const hasNamedMigrationObject =
     /\b(sqlite|chatcrystal\.db|migration|migrations?|not null|default|existing rows?|existing \w+ rows?|notes column|column nullable|backfill|constraint)\b/i
       .test(text) &&
@@ -1330,6 +1337,7 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
     hasNamedProcessLifecycleObject ||
     hasNamedProxyRoutingObject ||
     hasNamedSpaFallbackObject ||
+    hasNamedQueueDedupeObject ||
     hasNamedMigrationObject
   ) && hasEngineeringContext;
 }
@@ -1471,6 +1479,10 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
     /\bolder\b.+\b\/api\/search responses?\b.+\b(after a newer query|newer query)\b.+\boverwrite\b.+\bcurrent results\b/i
       .test(text);
   const hasQueueDedupeFlow =
+    /\bsummarize\b.+\bretries\b.+\benqueue\b.+\bduplicate conversation jobs?\b/i
+      .test(text) ||
+    /\benqueue\b.+\bduplicate conversation jobs?\b/i
+      .test(text) ||
     /\b(?:summarize --all|retries|retry)\b.+\benqueued\b.+\bsame conversation_id\b.+\bduplicate notes?\b/i
       .test(text) ||
     /\bqueue jobs?\b.+\bduplicate notes?\b.+\bsame conversation\b/i
@@ -1542,6 +1554,8 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
   const hasSpaFallbackRouteFlow =
     /(?:\/api\/[\w/-]+|\bapi route\b).+\bfell through\b.+\bspa fallback\b.+\bbecause\b.+\bregistered after\b.+\bfallback handler\b/i
       .test(text) ||
+    /\bspa fallback\b.+\broute order\b.+\breturns?\b.+\bhtml\b.+\bapi json\b/i
+      .test(text) ||
     /\bapi route\b.+\bbefore\b.+\bspa fallback\b.+\breturns?\b.+\bjson\b/i
       .test(text) ||
     /\bapi route\b.+\bregistered after\b.+\bfallback handler\b.+\bindex\.html\b.+\bjson\b/i
@@ -1587,7 +1601,7 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
 function hasStrictStructuralEngineeringFailureSignal(value: string) {
   const text = value.toLowerCase();
   const hasNamedConsequence =
-    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|duplicate messages?|duplicate websocket messages?|appended twice|stale responses?|stale results?|overwrote the current query results?|overwrote current results?|overwrite the current query results?|overwrite current results?|replace current results?|orphan note_tags rows?|orphan tags?|unused tags?|count 0|joins? whose note_id no longer existed|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream)|false serve success|dead server|looked like a running server|running server|nonzero exit codes?|non-zero exit codes?|exit code\s*\d+|migration (?:does not )?fail(?:s|ed)?|migration failures?|existing row failures?|constraint violation|violated the constraint|fell through to the spa fallback|clients? received index\.html instead of json|return json instead of index\.html)\b/i
+    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|duplicate conversation jobs?|duplicate messages?|duplicate websocket messages?|appended twice|stale responses?|stale results?|overwrote the current query results?|overwrote current results?|overwrite the current query results?|overwrite current results?|replace current results?|orphan note_tags rows?|orphan tags?|unused tags?|count 0|joins? whose note_id no longer existed|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream)|false serve success|dead server|looked like a running server|running server|nonzero exit codes?|non-zero exit codes?|exit code\s*\d+|migration (?:does not )?fail(?:s|ed)?|migration failures?|existing row failures?|constraint violation|violated the constraint|fell through to the spa fallback|clients? received index\.html instead of json|return json instead of index\.html|returns? html for api json)\b/i
       .test(text);
   const hasCausalFlow =
     /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|overwrote|overwrite|reused|reuse|retried|retries|cancel|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|left|no longer existed|deleting notes?|note deletion|cleanup|filter|prune|remounts?|unmount|duplicate|deduplicate|dedupe|enqueued|enqueue|pending job|appended twice|spawn handshake|exit event|exit code|nonzero|non-zero|dead server|backfill|not null|default|constraint|violat(?:e|ed|es|ing)|migration|fell through|spa fallback|fallback handler|index\.html)\b/i
