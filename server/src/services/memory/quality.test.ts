@@ -2892,6 +2892,48 @@ test('validateMaterializedNoteQuality accepts import transaction atomicity fixes
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts natural import transaction atomicity fixes', () => {
+  const summary = 'Wrap each imported conversation and its messages in a sql.js transaction so a thrown message insert does not leave an incomplete conversation.';
+  const root_cause = 'The import wrote the conversation before its messages, so a thrown message insert left an incomplete conversation in sql.js.';
+  const resolution = 'Begin a sql.js transaction around each conversation and message insert and roll back when any message insert throws.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Import transaction prevents incomplete conversations',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts indexed lookup timeout fixes', () => {
+  const summary = 'Add idx_messages_conversation_id on messages.conversation_id because note detail lookups scanned the full messages table and timed out on large imports.';
+  const root_cause = 'Note detail lookups filtered messages by conversation_id without an index, so large imports caused full table scans and request timeouts.';
+  const resolution = 'Add idx_messages_conversation_id on messages.conversation_id before note detail lookups so SQLite uses an indexed lookup instead of scanning every message row.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Add messages conversation_id index to avoid request timeouts',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality accepts stale Vectra index cleanup fixes', () => {
   const root = 'Semantic search returned stale note_id hits because note deletion removed sql.js rows without removing Vectra index entries.';
   const resolution = 'Remove Vectra index entries after deleting sql.js note rows so semantic search cannot return deleted notes.';
@@ -2947,6 +2989,27 @@ test('validateMaterializedNoteQuality rejects generic transaction reliability fi
       summary: 'Use transactions for database reliability.',
       root_cause: 'Database writes were unreliable.',
       resolution: 'Use transactions for database reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic index performance reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Database index reliability fix',
+    summary: 'Add indexes to improve database performance and reliability.',
+    key_conclusions: [
+      'Root cause: Database performance was unreliable.',
+      'Resolution: Add indexes to improve database performance and reliability.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Add indexes to improve database performance and reliability.',
+      root_cause: 'Database performance was unreliable.',
+      resolution: 'Add indexes to improve database performance and reliability.',
     },
   }), { mode: 'auto' });
 

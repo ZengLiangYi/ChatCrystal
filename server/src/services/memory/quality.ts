@@ -105,6 +105,7 @@ function hasConcreteTransferableAction(value: string) {
   if (hasImportDedupeAction(text)) return true;
   if (hasPersistenceSerializationAction(text)) return true;
   if (hasDbTransactionAtomicityAction(text)) return true;
+  if (hasStrictStructuralEngineeringAction(text)) return true;
   if (hasElectronResourceAction(text)) return true;
   if (hasCrossPlatformPathAction(text)) return true;
   if (hasFrontendCacheInvalidationAction(text)) return true;
@@ -219,6 +220,7 @@ function hasSpecificEvidence(value: string) {
     hasContentSanitizationEvidence(text) ||
     hasPersistenceSnapshotEvidence(text) ||
     hasDbTransactionAtomicityEvidence(text) ||
+    hasStrictStructuralEngineeringEvidence(text) ||
     hasIndexConsistencyEvidence(text) ||
     hasElectronResourceEvidence(text) ||
     hasCrossPlatformPathEvidence(text) ||
@@ -775,6 +777,7 @@ function hasConcreteMechanism(value: string) {
   const hasContentSanitizationFlow = hasContentSanitizationMechanism(text);
   const hasPersistenceSerializationFlow = hasPersistenceSerializationMechanism(text);
   const hasDbTransactionAtomicityFlow = hasDbTransactionAtomicityMechanism(text);
+  const hasStrictStructuralEngineeringFlow = hasStrictStructuralEngineeringMechanism(text);
   const hasIndexConsistencyFlow = hasIndexConsistencyMechanism(text);
   const hasElectronResourceFlow = hasElectronResourceMechanism(text);
   const hasCrossPlatformPathFlow = hasCrossPlatformPathMechanism(text);
@@ -799,6 +802,7 @@ function hasConcreteMechanism(value: string) {
     hasContentSanitizationFlow ||
     hasPersistenceSerializationFlow ||
     hasDbTransactionAtomicityFlow ||
+    hasStrictStructuralEngineeringFlow ||
     hasIndexConsistencyFlow ||
     hasElectronResourceFlow ||
     hasCrossPlatformPathFlow ||
@@ -912,6 +916,7 @@ function hasFailureOrConsequenceSignal(value: string) {
     hasContentSanitizationFailureSignal(value) ||
     hasPersistenceSnapshotFailureSignal(value) ||
     hasDbTransactionAtomicityFailureSignal(value) ||
+    hasStrictStructuralEngineeringFailureSignal(value) ||
     hasIndexConsistencyFailureSignal(value) ||
     hasElectronResourceFailureSignal(value) ||
     hasCrossPlatformPathFailureSignal(value) ||
@@ -948,7 +953,7 @@ function hasDbTransactionAtomicityEvidence(value: string) {
   const hasDbImportContext = /\b(sql\.js|database|db|import|imports?|conversation imports?)\b/i
     .test(text);
   const hasAtomicityTarget =
-    /\b(conversation rows?|message rows?|conversation row|message insert|message inserts?|conversation inserts?|transaction|rollback|roll back|partial conversation rows?|partial rows?)\b/i
+    /\b(conversation rows?|message rows?|conversation row|conversation|message insert|message inserts?|message insert throws?|thrown message insert|conversation inserts?|transaction|rollback|roll back|partial conversation rows?|partial rows?|incomplete conversations?)\b/i
       .test(text);
   return hasDbImportContext && hasAtomicityTarget;
 }
@@ -958,7 +963,7 @@ function hasDbTransactionAtomicityAction(value: string) {
   const hasTransactionAction =
     /\b(wrap|begin|commit|rollback|roll back|use)\b/i.test(text);
   const hasRelatedInsertTarget =
-    /\b(transaction|conversation and message inserts?|conversation rows?|message rows?|message inserts?|failed imports?|whole conversation)\b/i
+    /\b(transaction|conversation and message inserts?|conversation rows?|message rows?|message inserts?|failed imports?|whole conversation|incomplete conversations?)\b/i
       .test(text);
   return hasDbTransactionAtomicityEvidence(text) && hasTransactionAction && hasRelatedInsertTarget;
 }
@@ -971,28 +976,85 @@ function hasDbTransactionAtomicityMechanism(value: string) {
     /\btransaction\b.+\b(conversation|message|insert|imports?)\b/i
       .test(text);
   const hasRollbackFlow =
-    /\b(failed imports?|failed message insert|failure)\b.+\b(rollback|roll back|partial|whole conversation)\b/i
+    /\b(failed imports?|failed message insert|thrown message insert|message insert throws?|any message insert throws?|failure)\b.+\b(rollback|roll back|partial|whole conversation|incomplete conversations?)\b/i
       .test(text) ||
-    /\b(rollback|roll back)\b.+\b(failed imports?|failed message insert|whole conversation)\b/i
+    /\b(rollback|roll back)\b.+\b(failed imports?|failed message insert|message insert throws?|any message insert throws?|whole conversation)\b/i
       .test(text);
   const hasPartialInsertFlow =
     /\binserted\b.+\bconversation row\b.+\bbefore\b.+\bmessage rows?\b/i
       .test(text) ||
-    /\bfailed message insert\b.+\bleft\b.+\bpartial conversation rows?\b/i
+    /\b(thrown|failed) message insert\b.+\bleft\b.+\b(partial conversation rows?|incomplete conversations?)\b/i
+      .test(text) ||
+    /\bwrote\b.+\bconversation\b.+\bbefore\b.+\bmessages\b/i
+      .test(text);
+  const hasPreventionSummaryFlow =
+    /\btransaction\b.+\b(prevents?|avoids?)\b.+\b(partial conversation rows?|partial rows?|incomplete conversations?)\b/i
       .test(text);
   return hasDbTransactionAtomicityEvidence(text) &&
-    ((hasTransactionWrapFlow && hasRollbackFlow) || hasPartialInsertFlow);
+    ((hasTransactionWrapFlow && hasRollbackFlow) || hasPartialInsertFlow || hasPreventionSummaryFlow);
 }
 
 function hasDbTransactionAtomicityFailureSignal(value: string) {
   const text = value.toLowerCase();
   const hasPartialImportConsequence =
-    /\b(partial conversation rows?|partial rows?|failed message insert left|incomplete import|inconsistent data)\b/i
+    /\b(partial conversation rows?|partial rows?|failed message insert left|thrown message insert left|incomplete conversations?|incomplete import|inconsistent data)\b/i
       .test(text);
   const hasCausalFlow =
     /\b(because|so|failed|left|prevents?|rolls? back|rollback|roll back|before)\b/i
       .test(text);
   return hasDbTransactionAtomicityEvidence(text) && hasPartialImportConsequence && hasCausalFlow;
+}
+
+function hasStrictStructuralEngineeringEvidence(value: string) {
+  const text = value.toLowerCase();
+  const hasConcreteToken =
+    /\b[a-z0-9]+_[a-z0-9_]+\b|\b[a-z][a-z0-9_]*\.[a-z_][a-z0-9_]*\b|\/api\/[\w/-]+/i
+      .test(text);
+  const hasEngineeringContext =
+    /\b(sqlite|sql\.js|table|rows?|index|indexed lookup|lookup|lookups?|query|queries|filtered|filtering|request timeouts?|timed out|large imports?|messages?|note detail|cache|schema|parser|jsonl)\b/i
+      .test(text);
+  return hasConcreteToken && hasEngineeringContext;
+}
+
+function hasStrictStructuralEngineeringAction(value: string) {
+  const text = value.toLowerCase();
+  return hasStrictStructuralEngineeringEvidence(text) &&
+    /\b(add|create|remove|wrap|validate|normalize|configure|set|index)\b/i
+      .test(text);
+}
+
+function hasStrictStructuralEngineeringMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasIndexDefinition =
+    /\b(add|create)\b.+\b(index|idx_[a-z0-9_]+)\b.+\b(on|for)\b.+\b[a-z][a-z0-9_]*\.[a-z_][a-z0-9_]*\b/i
+      .test(text);
+  const hasLookupScanFlow =
+    /\b(indexed lookup|uses? an indexed lookup|full table scans?|scanned the full \w+ table|scanning every \w+ row|request timeouts?|timed out)\b/i
+      .test(text);
+  const hasFilterWithoutIndex =
+    /\b(filtered|filtering)\b.+\bby\b.+\b[a-z_][a-z0-9_]*\b.+\bwithout an index\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|caused|without|instead of|before|avoid|avoids|prevent|prevents|timed out)\b/i
+      .test(text);
+  return hasStrictStructuralEngineeringEvidence(text) &&
+    hasCausalFlow &&
+    (
+      (hasIndexDefinition && hasLookupScanFlow) ||
+      hasFilterWithoutIndex ||
+      hasLookupScanFlow
+    );
+}
+
+function hasStrictStructuralEngineeringFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasNamedConsequence =
+    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|caused|without|instead of|before|avoid|avoids|prevent|prevents)\b/i
+      .test(text);
+  return hasStrictStructuralEngineeringEvidence(text) && hasNamedConsequence && hasCausalFlow;
 }
 
 function hasStrongRootCauseSignal(value: string) {
@@ -1083,7 +1145,10 @@ function isWeakRootCauseClaim(value: string) {
   const hasWeakPhrase =
     /\b(not correct before|was not correct|not configured correctly|was wrong|incomplete|not proper|not properly|properly)\b/
       .test(text);
-  return hasWeakPhrase && !hasConcreteRootCauseMechanism(text);
+  return hasWeakPhrase &&
+    !hasConcreteRootCauseMechanism(text) &&
+    !hasDbTransactionAtomicityFailureSignal(text) &&
+    !hasStrictStructuralEngineeringFailureSignal(text);
 }
 
 function hasConcreteRootCauseMechanism(value: string) {
