@@ -55,6 +55,7 @@ function hasConcreteTransferableAction(value: string) {
   if (hasImportDedupeAction(text)) return true;
   if (hasPersistenceSerializationAction(text)) return true;
   if (hasElectronResourceAction(text)) return true;
+  if (hasCrossPlatformPathAction(text)) return true;
   const concreteActionWords = [
     'add',
     'block',
@@ -207,6 +208,7 @@ function hasSpecificEvidence(value: string) {
     hasPersistenceSnapshotEvidence(text) ||
     hasIndexConsistencyEvidence(text) ||
     hasElectronResourceEvidence(text) ||
+    hasCrossPlatformPathEvidence(text) ||
     hasHttpFailureSignal(text) ||
     /\b(api requests?|fastify readiness|server readiness|request setup|package metadata|package version|dist output|generated dist output|data directory|electron server|server entrypoint|client calls?)\b/i
       .test(text)
@@ -484,6 +486,45 @@ function hasElectronResourceFailureSignal(value: string) {
   return hasElectronResourceEvidence(text) && hasResourceFailure && hasCausalFlow;
 }
 
+function hasCrossPlatformPathEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(path\.win32|resolvedatadirfortest|data_dir|posix|ubuntu runners?|windows data_dir|windows fixture|windows paths?|c:\/users|c:\\users|repository path|repo path)\b/i
+    .test(text);
+}
+
+function hasCrossPlatformPathAction(value: string) {
+  const text = value.toLowerCase();
+  const hasPathAction = /\b(normalize|compare|comparing|resolve|treat|treated)\b/i.test(text);
+  const hasPathTarget =
+    /\b(path\.win32|resolvedatadirfortest|data_dir|fixture expectations?|windows paths?|posix runners?|path parsing)\b/i
+      .test(text);
+  return hasCrossPlatformPathEvidence(text) && hasPathAction && hasPathTarget;
+}
+
+function hasCrossPlatformPathMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasNormalizationFlow =
+    /\b(normalize|compare|comparing|resolve)\b.+\b(path\.win32|windows data_dir|windows fixture|c:\/users|posix runners?|resolvedatadirfortest)\b/i
+      .test(text) ||
+    /\b(path\.win32|windows data_dir|windows fixture|c:\/users|posix runners?|resolvedatadirfortest)\b.+\b(normalize|compare|comparing|resolve)\b/i
+      .test(text);
+  const hasRelativePathFlow =
+    /\b(posix|ubuntu runners?|node posix path parsing|path parsing)\b.+\b(prepend(?:ed|s)?|relative|treated)\b/i
+      .test(text) ||
+    /\b(windows data_dir|windows fixture|c:\/users|c:\\users)\b.+\b(relative|prepended|repository path|repo path)\b/i
+      .test(text);
+  return hasCrossPlatformPathEvidence(text) && (hasNormalizationFlow || hasRelativePathFlow);
+}
+
+function hasCrossPlatformPathFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasPathFailure =
+    /\b(prepend(?:ed|s)? the (?:repository|repo) path|treated .+ as relative|as relative|relative path|wrong path|wrong directory)\b/i
+      .test(text);
+  const hasCausalFlow = /\b(because|when|so|before|treated|prepended)\b/i.test(text);
+  return hasCrossPlatformPathEvidence(text) && hasPathFailure && hasCausalFlow;
+}
+
 function hasConcreteMechanism(value: string) {
   const text = value.toLowerCase();
   const hasGenericReleaseValidation = isGenericReleaseValidationClaim(text);
@@ -534,6 +575,7 @@ function hasConcreteMechanism(value: string) {
   const hasPersistenceSerializationFlow = hasPersistenceSerializationMechanism(text);
   const hasIndexConsistencyFlow = hasIndexConsistencyMechanism(text);
   const hasElectronResourceFlow = hasElectronResourceMechanism(text);
+  const hasCrossPlatformPathFlow = hasCrossPlatformPathMechanism(text);
   return (
     hasTimingOrder ||
     hasRaceReadiness ||
@@ -551,7 +593,8 @@ function hasConcreteMechanism(value: string) {
     hasContentSanitizationFlow ||
     hasPersistenceSerializationFlow ||
     hasIndexConsistencyFlow ||
-    hasElectronResourceFlow
+    hasElectronResourceFlow ||
+    hasCrossPlatformPathFlow
   );
 }
 
@@ -575,6 +618,7 @@ function hasConcreteTransferableText(value: string) {
 }
 
 function isFirstPersonDiaryClaim(value: string) {
+  if (hasChineseFirstPersonDiaryClaim(value)) return true;
   const diaryVerbs = [
     'added',
     'changed',
@@ -605,6 +649,11 @@ function isFirstPersonDiaryClaim(value: string) {
     .test(value);
 }
 
+function hasChineseFirstPersonDiaryClaim(value: string) {
+  return /(?:我|我们)(?:已经|已)?(?:添加|修复|设置|配置|注册|等待|发现|验证|检查|确认|诊断|切换|更新|实现|改动|修改|处理|解决)/i
+    .test(value);
+}
+
 function hasPackageItemSignal(value: string) {
   const text = value.toLowerCase();
   if (/\b(current|local|status checks?|checked)\b/i.test(text)) return false;
@@ -623,6 +672,7 @@ function hasFailureOrConsequenceSignal(value: string) {
     hasPersistenceSnapshotFailureSignal(value) ||
     hasIndexConsistencyFailureSignal(value) ||
     hasElectronResourceFailureSignal(value) ||
+    hasCrossPlatformPathFailureSignal(value) ||
     hasDefaultDataDirectoryConsequence(value) ||
     hasHttpFailureSignal(value)
   );
@@ -1127,10 +1177,9 @@ function hasUsefulCodeSnippet(
 
   const combined = `${language}\n${code}\n${description}`;
   const hasConcreteCodeShape =
-    /[{}();=<>]/.test(code) ||
+    /[{}()[\];:=<>]/.test(code) ||
     /\b(pragma|select|insert|update|delete|create table|json\.parse|z\.object|z\.array|const|let|function|return|import|export|class)\b/i
-      .test(code) ||
-    /\/api\/[\w/-]+|\b[a-z0-9]+_[a-z0-9_]+\b/i.test(code);
+      .test(code);
   const hasConcreteEvidence =
     /\b(pragma\s+foreign_keys|foreign_keys|json\.parse|z\.object|z\.array|response_item\.content|data_dir|node_env|source_run_key|note_tags)\b/i
       .test(combined) ||
@@ -1142,8 +1191,7 @@ function hasUsefulCodeSnippet(
     hasImportDedupeEvidence(combined) ||
     hasDurableEngineeringEvidence(combined) ||
     hasSpecificEvidence(combined);
-  const isPlainText = /^(text|txt|plain|plaintext)$/.test(language);
-  return hasConcreteEvidence && (!isPlainText || hasConcreteCodeShape);
+  return hasConcreteEvidence && hasConcreteCodeShape;
 }
 
 function hasLowQualityTags(note: MaterializedTaskMemoryNote) {

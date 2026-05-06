@@ -1169,6 +1169,20 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
       resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
     },
   }), { mode: 'auto' });
+  const chineseDiaryResult = validateMaterializedNoteQuality(note({
+    title: 'Fastify readiness 竞态导致 ECONNREFUSED',
+    summary: '我添加了 Fastify readiness 等待，所以 API requests 不会在 server startup 前触发 ECONNREFUSED。',
+    key_conclusions: [
+      'Root cause: API requests hit ECONNREFUSED because they ran before Fastify readiness during server startup.',
+      'Resolution: 我添加了 Fastify readiness wait before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: '我添加了 Fastify readiness 等待，所以 API requests 不会在 server startup 前触发 ECONNREFUSED。',
+      outcome_type: 'fix',
+      root_cause: 'API requests hit ECONNREFUSED because they ran before Fastify readiness during server startup.',
+      resolution: '我添加了 Fastify readiness wait before issuing API requests.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(foundResult.accepted, false);
   assert.equal(foundResult.reason, 'low-note-quality');
@@ -1188,6 +1202,9 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
   assert.equal(laterSentenceResult.accepted, false);
   assert.equal(laterSentenceResult.reason, 'low-note-quality');
   assert.ok(laterSentenceResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseDiaryResult.accepted, false);
+  assert.equal(chineseDiaryResult.reason, 'low-note-quality');
+  assert.ok(chineseDiaryResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects #87-like one-off status records in auto mode', () => {
@@ -1961,6 +1978,26 @@ test('validateMaterializedNoteQuality rejects generic fix tags', () => {
   assert.ok(result.warnings.includes('tags'));
 });
 
+test('validateMaterializedNoteQuality rejects identifier-only snippets', () => {
+  const result = validateMaterializedNoteQuality(note({
+    raw_payload: {
+      summary: 'Requests must wait for server readiness before client calls.',
+      outcome_type: 'fix',
+      root_cause: 'Client calls raced server startup.',
+      resolution: 'Block request setup until readiness resolves.',
+      code_snippets: [{
+        language: 'ts',
+        code: 'DATA_DIR',
+        description: 'Set DATA_DIR before importing the Electron server entrypoint.',
+      }],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('code_snippets'));
+});
+
 test('validateMaterializedNoteQuality accepts imported content sanitization fixes', () => {
   const root = 'The Claude Code adapter saved raw JSONL message content, so <system-reminder> and <command-name> tags leaked into human-facing notes.';
   const resolution = 'Strip Claude system XML tags in sanitizeContent before saving imported conversation messages.';
@@ -1994,6 +2031,50 @@ test('validateMaterializedNoteQuality rejects generic import sanitization reliab
       summary: 'Sanitize imported content so notes are reliable.',
       root_cause: 'Imported content was unreliable.',
       resolution: 'Sanitize imported content so notes are reliable.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts cross-platform DATA_DIR path normalization fixes', () => {
+  const summary = 'Normalize C:/Users fixture paths with path.win32 before comparing DATA_DIR output because POSIX path parsing prepends the repo path on Ubuntu runners.';
+  const root_cause = 'Ubuntu runner prepended the repository path to C:/Users/Rayner/.chatcrystal/data because Node POSIX path parsing treated the Windows DATA_DIR fixture as relative.';
+  const resolution = 'Normalize Windows DATA_DIR fixture expectations with path.win32 before comparing resolveDataDirForTest output on POSIX runners.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Ubuntu treats Windows DATA_DIR fixture paths as relative',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['data_dir', 'windows'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic path reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Path reliability fix',
+    summary: 'Normalize paths for reliability.',
+    key_conclusions: [
+      'Root cause: Path handling was unreliable.',
+      'Resolution: Normalize paths for reliability.',
+    ],
+    tags: ['data_dir', 'windows'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Normalize paths for reliability.',
+      root_cause: 'Path handling was unreliable.',
+      resolution: 'Normalize paths for reliability.',
     },
   }), { mode: 'auto' });
 
