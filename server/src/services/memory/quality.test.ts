@@ -1819,6 +1819,48 @@ test('validateMaterializedNoteQuality accepts HTTP 429 queue retry fixes', () =>
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts serialized DB persistence fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Serialize sql.js writes to prevent stale DB snapshots',
+    summary: 'Queue sql.js DB writes because auto-save can persist stale chatcrystal.db bytes when imports and note updates mutate the same in-memory connection concurrently.',
+    key_conclusions: [
+      'Root cause: Import and note update tasks mutated the same sql.js Database while the 30s auto-save read chatcrystal.db bytes, so a later save could overwrite newer rows with stale state.',
+      'Resolution: Route import, summarize, and writeback DB mutations through one p-queue and call saveDatabase after the transaction so chatcrystal.db snapshots match committed rows.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Queue sql.js DB writes because auto-save can persist stale chatcrystal.db bytes when imports and note updates mutate the same in-memory connection concurrently.',
+      root_cause: 'Import and note update tasks mutated the same sql.js Database while the 30s auto-save read chatcrystal.db bytes, so a later save could overwrite newer rows with stale state.',
+      resolution: 'Route import, summarize, and writeback DB mutations through one p-queue and call saveDatabase after the transaction so chatcrystal.db snapshots match committed rows.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic DB queue reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'DB queue reliability fix',
+    summary: 'Queue chatcrystal.db writes so database reliability improves.',
+    key_conclusions: [
+      'Root cause: DB writes were unreliable.',
+      'Resolution: Queue chatcrystal.db writes so database reliability improves.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Queue chatcrystal.db writes so database reliability improves.',
+      root_cause: 'DB writes were unreliable.',
+      resolution: 'Queue chatcrystal.db writes so database reliability improves.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality rejects generic HTTP root cause rationales', () => {
   const correctnessResult = validateMaterializedNoteQuality(note({
     title: 'NODE_ENV HTTP 500 fix',

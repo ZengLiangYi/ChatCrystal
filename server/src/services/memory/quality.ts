@@ -51,6 +51,7 @@ function hasConcreteTransferableAction(value: string) {
   const text = value.toLowerCase();
   if (hasNegativeTransferableAction(text)) return true;
   if (hasSchemaDefaultArrayAction(text)) return true;
+  if (hasPersistenceSerializationAction(text)) return true;
   const concreteActionWords = [
     'add',
     'block',
@@ -110,6 +111,14 @@ function hasSchemaDefaultArrayAction(text: string) {
     /\b(schema|z\.array|default\(\[\]\)|empty array|omitted items?)\b.+\b(default|materializ(?:e|ed)|empty array)\b/i
       .test(text)
   );
+}
+
+function hasPersistenceSerializationAction(text: string) {
+  return hasPersistenceSnapshotEvidence(text) &&
+    /\b(queue|queued|serialize|serialized|route|routed|call|called|saveDatabase|p-queue)\b/i
+      .test(text) &&
+    /\b(writes?|mutations?|save|transaction|snapshots?|rows|database|db)\b/i
+      .test(text);
 }
 
 function isVagueGenericLesson(value: string) {
@@ -186,6 +195,7 @@ function hasSpecificEvidence(value: string) {
     /\b(data_dir|node_env|econrefused|typeerror|note_tags|chatcrystal\.db|port|source_run_key|foreign_keys)\b|\/api\/[\w/-]+|\b[a-z0-9]+_[a-z0-9_]+\b|[a-z]:\\|\/[\w.-]+|[\u3400-\u9fff]/i
       .test(text) ||
     hasSchemaArrayEvidence(text) ||
+    hasPersistenceSnapshotEvidence(text) ||
     hasHttpFailureSignal(text) ||
     /\b(api requests?|fastify readiness|server readiness|request setup|package metadata|package version|dist output|generated dist output|data directory|electron server|server entrypoint|client calls?)\b/i
       .test(text)
@@ -210,6 +220,30 @@ function hasSchemaDefaultArrayMechanism(value: string) {
   const hasIterationOrHandler =
     /\b(iterat(?:e|ed|es|ing|ion)|handler|handler logic)\b/i.test(text);
   return hasSchemaArrayEvidence(text) && hasOptionalOrDefaultArray && hasIterationOrHandler;
+}
+
+function hasPersistenceSnapshotEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(sql\.js|chatcrystal\.db|savedatabase|p-queue|db writes?|db mutations?|db snapshots?|database snapshots?|committed rows|in-memory connection|auto-save)\b/i
+    .test(text);
+}
+
+function hasPersistenceSerializationMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasPersistenceFlow =
+    /\b(auto-save|persist|persisted|saveDatabase|snapshots?|db bytes|bytes|committed rows|transaction|stale state|stale snapshots?|stale chatcrystal\.db|overwrite|newer rows)\b/i
+      .test(text);
+  const hasMutationConcurrency =
+    /\b(concurrent|concurrently|same in-memory connection|same sql\.js database|mutat(?:e|ed|es|ing|ion)|later save|overwrite|while)\b/i
+      .test(text);
+  const hasSerialization =
+    /\b(queue|queued|serialize|serialized|p-queue|through one p-queue|after the transaction|route|routed|saveDatabase after)\b/i
+      .test(text);
+  return hasPersistenceSnapshotEvidence(text) &&
+    (
+      (hasSerialization && hasPersistenceFlow) ||
+      (hasPersistenceFlow && hasMutationConcurrency)
+    );
 }
 
 function hasConcreteMechanism(value: string) {
@@ -255,6 +289,7 @@ function hasConcreteMechanism(value: string) {
     /\b(rate[- ]limit|http 429|429|retry-after|backoff|delay)\b.+\b(retry|retried|retries|queue|queued|provider requests?)\b/i
       .test(text);
   const hasSchemaDefaultArrayFlow = hasSchemaDefaultArrayMechanism(text);
+  const hasPersistenceSerializationFlow = hasPersistenceSerializationMechanism(text);
   return (
     hasTimingOrder ||
     hasRaceReadiness ||
@@ -265,7 +300,8 @@ function hasConcreteMechanism(value: string) {
     hasRequestFailureOrdering ||
     hasParserFieldValidation ||
     hasRetryBackoffFlow ||
-    hasSchemaDefaultArrayFlow
+    hasSchemaDefaultArrayFlow ||
+    hasPersistenceSerializationFlow
   );
 }
 
@@ -330,6 +366,7 @@ function hasFailureOrConsequenceSignal(value: string) {
     /\b(race|raced|orphan|dedupe|deduplicate|stale dist|dist diverge|dist diverged|diverge|diverged|econrefused|typeerror|threw|throws?|readiness issue|startup race|invalid note_tags|foreign_keys|cascade|nulling|source_run_key collision)\b/i
       .test(value) ||
     hasSchemaArrayFailureSignal(value) ||
+    hasPersistenceSnapshotFailureSignal(value) ||
     hasDefaultDataDirectoryConsequence(value) ||
     hasHttpFailureSignal(value)
   );
@@ -343,6 +380,17 @@ function hasSchemaArrayFailureSignal(value: string) {
   const hasIterationOrHandler =
     /\b(iterat(?:e|ed|es|ing|ion)|handler|handler logic)\b/i.test(text);
   return hasSchemaArrayEvidence(text) && hasArrayFailure && hasIterationOrHandler;
+}
+
+function hasPersistenceSnapshotFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasSnapshotFailure =
+    /\b(stale|overwrite|newer rows|committed rows|persist stale|stale state|stale snapshots?|snapshot mismatch|snapshots? match)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|while|so|concurrent|concurrently|same in-memory connection|mutat(?:e|ed|es|ing|ion)|auto-save|later save|overwrite|transaction)\b/i
+      .test(text);
+  return hasPersistenceSnapshotEvidence(text) && hasSnapshotFailure && hasCausalFlow;
 }
 
 function hasStrongRootCauseSignal(value: string) {
