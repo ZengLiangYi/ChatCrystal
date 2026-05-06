@@ -1286,8 +1286,13 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
   const hasNamedListenerObject =
     /\b(websocket|web socket|message listener|event listener|useeffect cleanup|useeffect|remounts?|unmount|socket\.addeventlistener|socket\.removeeventlistener|addeventlistener|removeeventlistener)\b/i
       .test(text);
+  const hasNamedProcessLifecycleObject =
+    /\b(child_process|child process|daemon pid|pid|crystal serve -d|crystal status|spawn handshake|spawn|exit code\s*\d+|nonzero exit codes?|non-zero exit codes?|dead server|running server|false serve success)\b/i
+      .test(text) ||
+    /\bdaemon\b.+\bexit code\b|\bexit code\b.+\bdaemon\b/i
+      .test(text);
   const hasEngineeringContext =
-    /\b(sqlite|sql\.js|table|rows?|index|indexed lookup|lookup|lookups?|query|queries|filtered|filtering|request timeouts?|timed out|large imports?|messages?|note detail|cache|schema|parser|jsonl|constraint|unique|duplicate|receipt|receipts|writeback|search|frontend|react|requests?|responses?|initialization|initialized|route|mcp|json-rpc|stdio|stdout|stderr|framing|transport|logs?|diagnostics?|tags?|joins?|deletion|cleanup|filter chips?|webui|websocket|listeners?|useeffect|remounts?|unmount)\b/i
+    /\b(sqlite|sql\.js|table|rows?|index|indexed lookup|lookup|lookups?|query|queries|filtered|filtering|request timeouts?|timed out|large imports?|messages?|note detail|cache|schema|parser|jsonl|constraint|unique|duplicate|receipt|receipts|writeback|search|frontend|react|requests?|responses?|initialization|initialized|route|mcp|json-rpc|stdio|stdout|stderr|framing|transport|logs?|diagnostics?|tags?|joins?|deletion|cleanup|filter chips?|webui|websocket|listeners?|useeffect|remounts?|unmount|child_process|child process|daemon|pid|spawn|exit code|serve|status|dead server)\b/i
       .test(text);
   return (
     hasConcreteToken ||
@@ -1296,7 +1301,8 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
     hasNamedRelationObject ||
     hasNamedTransportObject ||
     hasNamedLifecycleObject ||
-    hasNamedListenerObject
+    hasNamedListenerObject ||
+    hasNamedProcessLifecycleObject
   ) && hasEngineeringContext;
 }
 
@@ -1337,6 +1343,13 @@ function hasStrictStructuralEngineeringAction(value: string) {
       .test(text) ||
     /\b(remove|cleanup|clean up)\b.+\b(message listener|event listener|websocket listener|socket\.removeeventlistener)\b/i
       .test(text);
+  const hasConcreteProcessLifecycleAction =
+    /\b(wait)\b.+\b(child_process|child process|spawn handshake|child)\b.+\b(spawn handshake|ready|exit codes?|pid)\b/i
+      .test(text) ||
+    /\b(reject|treat)\b.+\b(nonzero|non-zero|exit code\s*\d+|exit codes?)\b.+\b(serve failure|failure|before persisting|pid)\b/i
+      .test(text) ||
+    /\b(persist|persisting|write|writing)\b.+\bpid\b.+\b(after|before)\b.+\b(spawn handshake|child|exit event|ready)\b/i
+      .test(text);
   return hasStrictStructuralEngineeringEvidence(text) &&
     (
       hasAction ||
@@ -1345,7 +1358,8 @@ function hasStrictStructuralEngineeringAction(value: string) {
       hasConcreteRelationAction ||
       hasConcreteLifecycleAction ||
       hasConcreteTransportAction ||
-      hasConcreteListenerAction
+      hasConcreteListenerAction ||
+      hasConcreteProcessLifecycleAction
     );
 }
 
@@ -1436,8 +1450,17 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
       .test(text) ||
     /\blistener cleanup\b.+\bprevents?\b.+\bduplicate messages?\b/i
       .test(text);
+  const hasProcessLifecycleFlow =
+    /\b(?:write|writes|wrote|writing|persist|persists|persisted|persisting)\b.+\b(?:daemon\s+)?pid\b.+\bbefore\b.+\b(?:observ(?:e|ed|ing).+exit event|child_process|child process|child is ready|spawn handshake|ready)\b/i
+      .test(text) ||
+    /\bexit code\s*\d+\b.+\b(?:looked like a running server|running server|dead server|serve failure|false serve success)\b/i
+      .test(text) ||
+    /\b(wait)\b.+\b(child_process|child process|spawn handshake)\b.+\b(reject|nonzero|non-zero|exit codes?)\b.+\bbefore\b.+\b(?:persist(?:ing)?|write|writing)\b.+\bpid\b/i
+      .test(text) ||
+    /\b(?:crystal status|status)\b.+\b(?:connect|connects|connecting)\b.+\bdead server\b/i
+      .test(text);
   const hasCausalFlow =
-    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|gat(?:e|es|ed|ing)|ignore|latest query|request id|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|wait|reserve|left|no longer existed|deleting notes?|note deletion|cleanup|prune|filter|duplicate|appended twice|remounts?|unmount)\b/i
+    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|gat(?:e|es|ed|ing)|ignore|latest query|request id|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|wait|reserve|left|no longer existed|deleting notes?|note deletion|cleanup|prune|filter|duplicate|appended twice|remounts?|unmount|spawn handshake|exit event|exit code|dead server|nonzero|non-zero)\b/i
       .test(text);
   return hasStrictStructuralEngineeringEvidence(text) &&
     hasCausalFlow &&
@@ -1450,17 +1473,18 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
       hasRelationCleanupFlow ||
       hasInitializationOrderFlow ||
       hasTransportFramingFlow ||
-      hasListenerCleanupFlow
+      hasListenerCleanupFlow ||
+      hasProcessLifecycleFlow
     );
 }
 
 function hasStrictStructuralEngineeringFailureSignal(value: string) {
   const text = value.toLowerCase();
   const hasNamedConsequence =
-    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|duplicate messages?|duplicate websocket messages?|appended twice|stale responses?|stale results?|overwrote the current query results?|overwrote current results?|overwrite the current query results?|overwrite current results?|replace current results?|orphan note_tags rows?|orphan tags?|unused tags?|count 0|joins? whose note_id no longer existed|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream))\b/i
+    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|duplicate messages?|duplicate websocket messages?|appended twice|stale responses?|stale results?|overwrote the current query results?|overwrote current results?|overwrite the current query results?|overwrite current results?|replace current results?|orphan note_tags rows?|orphan tags?|unused tags?|count 0|joins? whose note_id no longer existed|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream)|false serve success|dead server|looked like a running server|running server|nonzero exit codes?|non-zero exit codes?|exit code\s*\d+)\b/i
       .test(text);
   const hasCausalFlow =
-    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|overwrote|overwrite|reused|reuse|retried|retries|cancel|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|left|no longer existed|deleting notes?|note deletion|cleanup|filter|prune|remounts?|unmount|duplicate|appended twice)\b/i
+    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|overwrote|overwrite|reused|reuse|retried|retries|cancel|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|left|no longer existed|deleting notes?|note deletion|cleanup|filter|prune|remounts?|unmount|duplicate|appended twice|spawn handshake|exit event|exit code|nonzero|non-zero|dead server)\b/i
       .test(text);
   return hasStrictStructuralEngineeringEvidence(text) && hasNamedConsequence && hasCausalFlow;
 }
@@ -1752,10 +1776,13 @@ function isExplicitEnglishStatusShell(value: string) {
 
 function isCurrentRunImplementationShell(value: string) {
   const text = value.trim();
+  const currentRunSubject = '(?:run|execution|fix|task|change)';
+  const currentRunPrefix = `(?:(?:in\\s+(?:this|the\\s+current)\\s+${currentRunSubject})|(?:(?:the\\s+)?current|this)\\s+${currentRunSubject})`;
+  const implementationVerb = '(?:use|uses|used|did|add|adds|added|set|sets|configured?|register(?:s|ed)?|wait(?:s|ed)?|block(?:s|ed)?|gate(?:s|d)?|ignore(?:s|d)?|cancel(?:s|ed|led)?|move(?:s|d)?|place(?:s|d)?|import(?:s|ed)?|update(?:s|d)?|fix(?:es|ed)?|change(?:s|d)?|validat(?:e|es|ed)|normaliz(?:e|es|ed)|parse(?:s|d)?|strip(?:s|ped)?|debounce(?:s|d)?|route(?:s|d)?|return(?:s|ed)?|prune(?:s|d)?|remove(?:s|d)?|wrap(?:s|ped)?)';
   const hasCurrentRunPrefix =
-    /^\s*(?:the\s+)?(?:this|current)\s+(?:run|execution|fix|task|change)\b/i.test(text);
+    new RegExp(`^\\s*${currentRunPrefix}\\b`, 'i').test(text);
   const hasImplementationAction =
-    /^\s*(?:the\s+)?(?:this|current)\s+(?:run|execution|fix|task|change)\b.{0,40}\b(?:use|uses|used|did|add|adds|added|set|sets|configured?|register(?:s|ed)?|wait(?:s|ed)?|block(?:s|ed)?|gate(?:s|d)?|ignore(?:s|d)?|cancel(?:s|ed|led)?|move(?:s|d)?|place(?:s|d)?|import(?:s|ed)?|update(?:s|d)?|fix(?:es|ed)?|change(?:s|d)?|validat(?:e|es|ed)|normaliz(?:e|es|ed)|parse(?:s|d)?|strip(?:s|ped)?|debounce(?:s|d)?|route(?:s|d)?|return(?:s|ed)?|prune(?:s|d)?|remove(?:s|d)?|wrap(?:s|ped)?)\b/i
+    new RegExp(`^\\s*${currentRunPrefix}\\b.{0,80}\\b${implementationVerb}\\b`, 'i')
       .test(text);
   return hasCurrentRunPrefix && hasImplementationAction && hasSpecificEvidence(text);
 }
@@ -1813,9 +1840,9 @@ function isChineseVisibleStatusShell(value: string) {
 
 function isChineseCurrentRunImplementationShell(value: string) {
   const hasCurrentRunPrefix =
-    /^\s*(?:本次运行|本次执行|本次修复|本次任务|本次改动)\b/i.test(value);
+    /^\s*(?:本次运行|本次执行|本次修复|本次任务|本次改动|本轮运行|本轮执行|本轮修复|本轮任务|本轮改动)/i.test(value);
   const hasImplementationAction =
-    /^\s*(?:本次运行|本次执行|本次修复|本次任务|本次改动).{0,40}(?:使用|用了|添加|设置|配置|注册|等待|阻塞|拦截|修复|改动|修改|更新|解析|清理|规范化|去重|剥离|去掉|取消|移动|放置|验证|校验)/i
+    /^\s*(?:本次运行|本次执行|本次修复|本次任务|本次改动|本轮运行|本轮执行|本轮修复|本轮任务|本轮改动).{0,80}(?:使用|用了|添加|设置|配置|注册|等待|阻塞|拦截|修复|改动|修改|更新|解析|清理|规范化|去重|剥离|去掉|取消|移动|放置|验证|校验|\b(?:use|uses|used|gate(?:s|d)?|add|adds|added|set|sets|configured?|register(?:s|ed)?|wait(?:s|ed)?|block(?:s|ed)?|ignore(?:s|d)?|cancel(?:s|ed|led)?|update(?:s|d)?|fix(?:es|ed)?|parse(?:s|d)?|strip(?:s|ped)?|debounce(?:s|d)?|return(?:s|ed)?|prune(?:s|d)?|remove(?:s|d)?)\b)/i
       .test(value);
   return hasCurrentRunPrefix && hasImplementationAction && hasSpecificEvidence(value);
 }

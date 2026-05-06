@@ -3573,6 +3573,42 @@ test('validateMaterializedNoteQuality rejects current run implementation shells'
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects in-this-run implementation shells', () => {
+  const summary = 'In this run, gate setResults by activeRequestId so stale /api/search responses cannot overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects Chinese current-run implementation shells', () => {
+  const summary = '本轮执行 gate setResults by activeRequestId，避免 stale /api/search responses overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality rejects completion shell structured items', () => {
   const summary = 'Completion: use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
   const result = validateMaterializedNoteQuality(note({
@@ -3639,6 +3675,27 @@ test('validateMaterializedNoteQuality accepts non-shell execution order notes', 
     raw_payload: {
       outcome_type: 'fix',
       summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts daemon child process lifecycle fixes', () => {
+  const summary = 'Treat child_process exit code 1 as serve failure because writing the daemon PID before the child is ready makes crystal status connect to a dead server.';
+  const root_cause = 'crystal serve -d wrote the daemon PID before observing the child_process exit event, so an exit code 1 still looked like a running server.';
+  const resolution = 'Wait for the child_process spawn handshake and reject nonzero exit codes before persisting the PID so status does not connect to a dead server.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Daemon exit code prevents false serve success',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
       root_cause,
       resolution,
     },
@@ -3876,6 +3933,27 @@ test('validateMaterializedNoteQuality rejects generic request-id gating reliabil
       summary: 'Gate requests by request id to improve search reliability.',
       root_cause: 'Search requests were unreliable.',
       resolution: 'Gate requests by request id to improve search reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic daemon readiness reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Daemon readiness reliability fix',
+    summary: 'Wait for daemon readiness to improve reliability.',
+    key_conclusions: [
+      'Root cause: Daemon readiness reliability mattered.',
+      'Resolution: Handle exit code properly.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Wait for daemon readiness to improve reliability.',
+      root_cause: 'Daemon readiness reliability mattered.',
+      resolution: 'Handle exit code properly.',
     },
   }), { mode: 'auto' });
 
