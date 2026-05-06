@@ -1754,6 +1754,8 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
   const hasStaleAsyncResponseFlow =
     /\b(overlapping|slower previous|previous|older|stale)\b.+\b(\/api\/search|search requests?|responses?)\b.+\b(overwrote|overwrite|replace|current query results?|current results)\b/i
       .test(text) ||
+    /\b(older|previous|stale)\b.+\b\/api\/search responses?\b.+\boverwrote\b.+\b(?:progress (?:indicator|bar) )?loading state\b/i
+      .test(text) ||
     /\b(overwrote|overwrite|replace)\b.+\b(current query results?|current results)\b/i
       .test(text) ||
     /\b(cancel|abortcontroller)\b.+\b(previous|older|prior|stale)\b.+\b(\/api\/search|requests?|responses?)\b/i
@@ -1765,6 +1767,8 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
     /\bgat(?:e|es|ed|ing)\b.+\b(result updates?|search result updates?|current results)\b.+\b(active|activerequestid|latest|request id|\/api\/search|query)\b/i
       .test(text) ||
     /\b(gate)\b.+\bsetresults\b.+\bactiverequestid\b/i
+      .test(text) ||
+    /\bgat(?:e|es|ed|ing)\b.+\bactiverequestid\b.+\bbefore\b.+\bsetresults\b.+\bstale loading state\b/i
       .test(text) ||
     /\bactiverequestid\b.+\bgat(?:e|es|ed|ing)\b.+\bstale\b.+\b(?:\/api\/search|responses?)\b/i
       .test(text) ||
@@ -1920,7 +1924,7 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
 function hasStrictStructuralEngineeringFailureSignal(value: string) {
   const text = value.toLowerCase();
   const hasNamedConsequence =
-    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|duplicate conversation jobs?|duplicate messages?|duplicate websocket messages?|appended twice|stale responses?|stale results?|overwrote the current query results?|overwrote current results?|overwrite the current query results?|overwrite current results?|replace current results?|invert user and assistant turns?|inverted user and assistant turns?|out-of-order writes?|file-order parsing can invert|orphan note_tags rows?|orphan tags?|unused tags?|count 0|joins? whose note_id no longer existed|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream)|false serve success|dead server|looked like a running server|running server|nonzero exit codes?|non-zero exit codes?|exit code\s*\d+|migration (?:does not )?fail(?:s|ed)?|migration failures?|existing row failures?|constraint violation|violated the constraint|fell through to the spa fallback|clients? received index\.html instead of json|return json instead of index\.html|returns? html for api json)\b/i
+    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|duplicate conversation jobs?|duplicate messages?|duplicate websocket messages?|appended twice|stale responses?|stale results?|stale loading state|overwrote the current query results?|overwrote current results?|overwrite the current query results?|overwrite current results?|overwrote (?:the )?(?:progress (?:indicator|bar) )?loading state|replace current results?|invert user and assistant turns?|inverted user and assistant turns?|out-of-order writes?|file-order parsing can invert|orphan note_tags rows?|orphan tags?|unused tags?|count 0|joins? whose note_id no longer existed|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream)|false serve success|dead server|looked like a running server|running server|nonzero exit codes?|non-zero exit codes?|exit code\s*\d+|migration (?:does not )?fail(?:s|ed)?|migration failures?|existing row failures?|constraint violation|violated the constraint|fell through to the spa fallback|clients? received index\.html instead of json|return json instead of index\.html|returns? html for api json)\b/i
       .test(text) ||
     hasGeneralUniqueConstraintFailureSignal(text) ||
     /(?:旧(?:的)?\s*)?(?:\/api\/search\s*)?响应.{0,20}覆盖.{0,12}(?:当前查询结果|新结果)/i
@@ -2261,7 +2265,7 @@ function isPredicateResultStatusShell(value: string) {
 function isUndelimitedStatusPrefixShell(value: string) {
   const text = value.trim();
   return hasSpecificEvidence(text) &&
-    /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?(?:status check|progress|verification note|completion check|result check)\s+(?:[a-z][a-z0-9-]*\s+){0,4}(?=(?:activeRequestId|setResults|\/api\/|stale\b|http\b|api\b|[a-z0-9_]+\.[a-z_]))/i
+    /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?(?:status check|progress(?!\s+(?:indicator|bar)\b)|verification note|completion check|result check)\s+(?:[a-z][a-z0-9-]*\s+){0,4}(?=(?:activeRequestId|setResults|\/api\/|stale\b|http\b|api\b|[a-z0-9_]+\.[a-z_]))/i
       .test(text);
 }
 

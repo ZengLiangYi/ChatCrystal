@@ -3774,6 +3774,39 @@ test('validateMaterializedNoteQuality accepts activeRequestId invariant stale re
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts progress UI stale loading state fixes', () => {
+  const cases = [
+    {
+      summary: 'Progress indicator API requests avoid stale loading state by gating activeRequestId before setResults.',
+      root_cause: 'Older /api/search responses overwrote the progress indicator loading state because setResults did not check activeRequestId.',
+      resolution: 'Gate progress indicator setResults on activeRequestId before applying /api/search responses.',
+    },
+    {
+      summary: 'Progress bar API requests avoid stale loading state by gating activeRequestId before setResults.',
+      root_cause: 'Older /api/search responses overwrote the progress bar loading state because setResults did not check activeRequestId.',
+      resolution: 'Gate progress bar setResults on activeRequestId before applying /api/search responses.',
+    },
+  ];
+
+  for (const item of cases) {
+    const result = validateMaterializedNoteQuality(note({
+      title: item.summary,
+      summary: item.summary,
+      key_conclusions: [`Root cause: ${item.root_cause}`, `Resolution: ${item.resolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary: item.summary,
+        root_cause: item.root_cause,
+        resolution: item.resolution,
+      },
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, true, item.summary);
+    assert.equal(result.reason, 'note-quality-ok', item.summary);
+    assert.deepEqual(result.warnings, [], item.summary);
+  }
+});
+
 test('validateMaterializedNoteQuality accepts Chinese activeRequestId stale response fixes', () => {
   const summary = '在 setResults 前校验 activeRequestId，避免旧的 /api/search 响应覆盖当前查询结果。';
   const root_cause = '旧的 /api/search 响应覆盖当前查询结果，因为 setResults 前没有校验 activeRequestId。';
