@@ -500,6 +500,21 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
       resolution: 'Parse response_item.content arrays and join text fragments before saving assistant messages.',
     },
   }), { mode: 'auto' });
+  const httpSuccessStatusResult = validateMaterializedNoteQuality(note({
+    title: '/api/notes returns HTTP 200 after registration before request setup',
+    summary: '/api/notes now returns HTTP 200 after route registration runs before request setup.',
+    key_conclusions: [
+      'Root cause: /api/notes returned HTTP 404 because route registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    tags: ['api-route'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: '/api/notes now returns HTTP 200 after route registration runs before request setup.',
+      root_cause: '/api/notes returned HTTP 404 because route registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(summaryResult.accepted, false);
   assert.equal(summaryResult.reason, 'low-note-quality');
@@ -567,6 +582,9 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
   assert.equal(testsPassedMechanismResult.accepted, false);
   assert.equal(testsPassedMechanismResult.reason, 'low-note-quality');
   assert.ok(testsPassedMechanismResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(httpSuccessStatusResult.accepted, false);
+  assert.equal(httpSuccessStatusResult.reason, 'low-note-quality');
+  assert.ok(httpSuccessStatusResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality accepts Chinese summaries with concrete route mechanisms', () => {
@@ -1330,6 +1348,36 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
       resolution: 'Parse response_item.content arrays and join text fragments before saving assistant messages.',
     },
   }), { mode: 'auto' });
+  const madeResult = validateMaterializedNoteQuality(note({
+    title: 'I made /api/notes register before request setup',
+    summary: 'I made /api/notes register before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: /api/notes returned HTTP 404 because route registration ran after request setup.',
+      'Resolution: I made /api/notes register before request setup so API requests do not return HTTP 404.',
+    ],
+    tags: ['api-route'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'I made /api/notes register before request setup so API requests do not return HTTP 404.',
+      root_cause: '/api/notes returned HTTP 404 because route registration ran after request setup.',
+      resolution: 'I made /api/notes register before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const chineseLetResult = validateMaterializedNoteQuality(note({
+    title: '我让 /api/notes register before request setup',
+    summary: '我让 /api/notes register before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: /api/notes returned HTTP 404 because route registration ran after request setup.',
+      'Resolution: 我让 /api/notes register before request setup so API requests do not return HTTP 404.',
+    ],
+    tags: ['api-route'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: '我让 /api/notes register before request setup so API requests do not return HTTP 404.',
+      root_cause: '/api/notes returned HTTP 404 because route registration ran after request setup.',
+      resolution: '我让 /api/notes register before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(foundResult.accepted, false);
   assert.equal(foundResult.reason, 'low-note-quality');
@@ -1364,6 +1412,12 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
   assert.equal(chineseParsedStatusResult.accepted, false);
   assert.equal(chineseParsedStatusResult.reason, 'low-note-quality');
   assert.ok(chineseParsedStatusResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(madeResult.accepted, false);
+  assert.equal(madeResult.reason, 'low-note-quality');
+  assert.ok(madeResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseLetResult.accepted, false);
+  assert.equal(chineseLetResult.reason, 'low-note-quality');
+  assert.ok(chineseLetResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects #87-like one-off status records in auto mode', () => {

@@ -837,7 +837,10 @@ function isFirstPersonDiaryClaim(value: string) {
     'found',
     'implemented',
     'imported',
+    'caused',
+    'let',
     'loaded',
+    'made',
     'moved',
     'normalized',
     'parsed',
@@ -880,7 +883,9 @@ function hasChineseFirstPersonDiaryClaim(value: string) {
     .join('|');
   const subjectElidedAction =
     `(?:已经|已)(?:${chineseAction}|(?:把|将|在|为).{0,80}(?:${chineseAction}|\\b(?:${englishAction})\\b))`;
-  return new RegExp(`(?:我|我们)(?:已经|已)?${chineseAction}|(?:我|我们)(?:已经|已)?(?:把|将).{0,80}(?:${chineseAction}|\\b(?:${englishAction})\\b)|${subjectElidedAction}`, 'i')
+  const causativeAction =
+    `(?:我|我们)(?:已经|已)?(?:让|使).{0,80}(?:${chineseAction}|\\b(?:${englishAction})\\b)`;
+  return new RegExp(`(?:我|我们)(?:已经|已)?${chineseAction}|(?:我|我们)(?:已经|已)?(?:把|将).{0,80}(?:${chineseAction}|\\b(?:${englishAction})\\b)|${subjectElidedAction}|${causativeAction}`, 'i')
     .test(value);
 }
 
@@ -1273,6 +1278,11 @@ function isVisibleStatusSnapshotText(value: string) {
       .test(value) ||
     /\b(typecheck|lint|ci|build|tests?|testing|verification)\b.+\bcompleted successfully\b/i
       .test(value);
+  const hasHttpSuccessStatus =
+    /\b(?:now\s+)?(?:returns?|responds?)(?:\s+with)?\s+(?:http\s*)?2\d\d\b/i
+      .test(value) ||
+    /\bhttp\s*2\d\d\b.+\b(after|now|success|succeeded|passed|ok|works?|working)\b/i
+      .test(value);
   const hasStatusVerb = /\b(checked|noted|observed|reviewed|resolved|tested|testing passed|verified|verification|current|status)\b/i
     .test(value);
   const hasChineseStatus =
@@ -1286,6 +1296,7 @@ function isVisibleStatusSnapshotText(value: string) {
       .test(value);
   return hasPassStatus ||
     hasSuccessStatus ||
+    hasHttpSuccessStatus ||
     hasChineseStatus ||
     ((hasStatusVerb && hasStatusObject) && !hasStrongReusableMechanism(value));
 }
