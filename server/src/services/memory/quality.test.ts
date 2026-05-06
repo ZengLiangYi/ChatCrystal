@@ -3425,6 +3425,27 @@ test('validateMaterializedNoteQuality accepts natural import transaction atomici
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts transaction-scoped advisory lock fixes', () => {
+  const summary = 'Use transaction-scoped pg_advisory_xact_lock so rollback releases the lock; session locks can survive failed jobs and block queue workers.';
+  const root_cause = 'Session-scoped pg_advisory_lock survived failed job rollbacks, so stale locks blocked queue workers after retries.';
+  const resolution = 'Use pg_advisory_xact_lock inside the job transaction so rollback releases the lock before the next retry.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Postgres advisory locks block queue workers after rollback',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality accepts indexed lookup timeout fixes', () => {
   const summary = 'Add idx_messages_conversation_id on messages.conversation_id because note detail lookups scanned the full messages table and timed out on large imports.';
   const root_cause = 'Note detail lookups filtered messages by conversation_id without an index, so large imports caused full table scans and request timeouts.';
@@ -4594,6 +4615,39 @@ test('validateMaterializedNoteQuality rejects shows and is result shells with co
   }
 });
 
+test('validateMaterializedNoteQuality rejects check and acceptance shows result shells', () => {
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId before updating results.';
+  const resolution = 'Gate setResults on activeRequestId before applying /api/search responses so stale responses cannot overwrite current results.';
+  const shells = [
+    [
+      'Check shows activeRequestId gates stale /api/search responses',
+      'Check shows activeRequestId gates stale /api/search responses before setResults so older responses cannot overwrite current results.',
+    ],
+    [
+      'Acceptance shows activeRequestId gates stale /api/search responses',
+      'Acceptance shows activeRequestId gates stale /api/search responses before setResults so older responses cannot overwrite current results.',
+    ],
+  ];
+
+  for (const [title, summary] of shells) {
+    const result = validateMaterializedNoteQuality(note({
+      title,
+      summary,
+      key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary,
+        root_cause,
+        resolution,
+      },
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, title);
+    assert.equal(result.reason, 'low-note-quality', title);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), title);
+  }
+});
+
 test('validateMaterializedNoteQuality rejects English work record structured items', () => {
   const summary = 'Work record - use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
   const result = validateMaterializedNoteQuality(note({
@@ -5014,6 +5068,27 @@ test('validateMaterializedNoteQuality rejects generic transaction reliability fi
       summary: 'Use transactions for database reliability.',
       root_cause: 'Database writes were unreliable.',
       resolution: 'Use transactions for database reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic lock reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Queue lock reliability fix',
+    summary: 'Use transaction locks to improve queue reliability.',
+    key_conclusions: [
+      'Root cause: Queue locks were unreliable.',
+      'Resolution: Use transaction locks to improve queue reliability.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Use transaction locks to improve queue reliability.',
+      root_cause: 'Queue locks were unreliable.',
+      resolution: 'Use transaction locks to improve queue reliability.',
     },
   }), { mode: 'auto' });
 

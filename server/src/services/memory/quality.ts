@@ -119,6 +119,7 @@ function hasConcreteTransferableAction(value: string) {
   if (hasEsmImportExtensionAction(text)) return true;
   if (hasImportContentArrayAction(text)) return true;
   if (hasSignatureRawBodyAction(text)) return true;
+  if (hasAdvisoryLockTransactionAction(text)) return true;
   return concreteActionWords.some((word) => hasWord(text, word));
 }
 
@@ -226,6 +227,7 @@ function hasSpecificEvidence(value: string) {
     hasEsmImportExtensionEvidence(text) ||
     hasImportContentArrayEvidence(text) ||
     hasSignatureRawBodyEvidence(text) ||
+    hasAdvisoryLockTransactionEvidence(text) ||
     hasDurableEngineeringEvidence(text) ||
     hasImportDedupeEvidence(text) ||
     hasContentSanitizationEvidence(text) ||
@@ -577,6 +579,50 @@ function hasSignatureRawBodyFailureSignal(value: string) {
     /\b(because|so|before|after|can|could|changed|normalize|normalized|reconstructed|fail|rejected)\b/i
       .test(text);
   return hasSignatureRawBodyEvidence(text) && hasSignatureFailure && hasCausalFlow;
+}
+
+function hasAdvisoryLockTransactionEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(pg_advisory(?:_xact)?_lock|advisory locks?|session locks?|transaction-scoped|stale locks?|queue workers?|failed job rollbacks?|job transaction)\b/i
+    .test(text) &&
+    /\b(lock|locks?|pg_advisory|rollback|queue workers?|job transaction)\b/i
+      .test(text);
+}
+
+function hasAdvisoryLockTransactionAction(value: string) {
+  const text = value.toLowerCase();
+  const hasScopedLockAction =
+    /\b(use|switch to|acquire)\b.+\b(pg_advisory_xact_lock|transaction-scoped|xact lock|job transaction)\b/i
+      .test(text) ||
+    /\bpg_advisory_xact_lock\b.+\b(transaction|rollback|releases? the lock|next retry)\b/i
+      .test(text);
+  return hasAdvisoryLockTransactionEvidence(text) && hasScopedLockAction;
+}
+
+function hasAdvisoryLockTransactionMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasSessionLockRollbackFlow =
+    /\b(session-scoped|session locks?|pg_advisory_lock)\b.+\b(surviv(?:e|ed|es)|failed jobs?|rollback|rollbacks?|stale locks?|block(?:ed)? queue workers?)\b/i
+      .test(text) ||
+    /\bstale locks?\b.+\b(block(?:ed)?|queue workers?|retries)\b/i
+      .test(text);
+  const hasXactLockReleaseFlow =
+    /\b(pg_advisory_xact_lock|transaction-scoped)\b.+\b(rollback|releases? the lock|job transaction|next retry)\b/i
+      .test(text) ||
+    /\brollback\b.+\breleases? the lock\b.+\b(next retry|queue workers?|failed jobs?)\b/i
+      .test(text);
+  return hasAdvisoryLockTransactionEvidence(text) && (hasSessionLockRollbackFlow || hasXactLockReleaseFlow);
+}
+
+function hasAdvisoryLockTransactionFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasLockFailure =
+    /\b(stale locks?|block(?:ed)? queue workers?|surviv(?:e|ed|es) failed job rollbacks?|failed job rollbacks?|session locks? can survive|rollback releases the lock)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|after|before|rollback|rollbacks?|failed jobs?|surviv(?:e|ed|es)|block(?:ed)?|retries|releases?)\b/i
+      .test(text);
+  return hasAdvisoryLockTransactionEvidence(text) && hasLockFailure && hasCausalFlow;
 }
 
 function hasDurableEngineeringEvidence(value: string) {
@@ -1019,6 +1065,7 @@ function hasConcreteMechanism(value: string) {
   const hasEsmImportExtensionFlow = hasEsmImportExtensionMechanism(text);
   const hasImportContentArrayFlow = hasImportContentArrayMechanism(text);
   const hasSignatureRawBodyFlow = hasSignatureRawBodyMechanism(text);
+  const hasAdvisoryLockTransactionFlow = hasAdvisoryLockTransactionMechanism(text);
   const hasDurableEngineeringFlow = hasDurableEngineeringMechanism(text);
   const hasImportDedupeFlow = hasImportDedupeMechanism(text);
   const hasContentSanitizationFlow = hasContentSanitizationMechanism(text);
@@ -1050,6 +1097,7 @@ function hasConcreteMechanism(value: string) {
     hasEsmImportExtensionFlow ||
     hasImportContentArrayFlow ||
     hasSignatureRawBodyFlow ||
+    hasAdvisoryLockTransactionFlow ||
     hasDurableEngineeringFlow ||
     hasImportDedupeFlow ||
     hasContentSanitizationFlow ||
@@ -1187,6 +1235,7 @@ function hasFailureOrConsequenceSignal(value: string) {
     hasEsmImportExtensionFailureSignal(value) ||
     hasImportContentArrayFailureSignal(value) ||
     hasSignatureRawBodyFailureSignal(value) ||
+    hasAdvisoryLockTransactionFailureSignal(value) ||
     hasDurableEngineeringFailureSignal(value) ||
     hasImportDedupeFailureSignal(value) ||
     hasContentSanitizationFailureSignal(value) ||
@@ -2153,7 +2202,7 @@ function isConfirmationResultStatusShell(value: string) {
 function isPredicateResultStatusShell(value: string) {
   const text = value.trim();
   return hasSpecificEvidence(text) &&
-    /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?(?:(?:smoke\s+)?test|result|progress|validation|qa)\s+(?:shows?|is)\b/i
+    /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?(?:(?:smoke\s+)?test|result|progress|validation|qa|check|acceptance)\s+(?:shows?|is)\b/i
       .test(text);
 }
 
