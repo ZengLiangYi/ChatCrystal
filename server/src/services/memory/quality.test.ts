@@ -1249,6 +1249,7 @@ test('validateMaterializedNoteQuality rejects first-person implementation decisi
     'I wait for Fastify readiness before issuing API requests because ECONNREFUSED happens when requests race startup.',
     'I block request setup until Fastify readiness resolves to prevent ECONNREFUSED.',
     'I place /api/notes registration before request setup so API requests do not return HTTP 404.',
+    '我把 DATA_DIR set before importing the Electron server entrypoint to prevent default data directory fallback.',
   ];
 
   for (const decision of decisions) {
@@ -1972,10 +1973,16 @@ test('validateMaterializedNoteQuality rejects generic fix tags', () => {
   const result = validateMaterializedNoteQuality(note({
     tags: ['fix'],
   }), { mode: 'auto' });
+  const statusResult = validateMaterializedNoteQuality(note({
+    tags: ['bug', 'reliability', '已修复'],
+  }), { mode: 'auto' });
 
   assert.equal(result.accepted, false);
   assert.equal(result.reason, 'low-note-quality');
   assert.ok(result.warnings.includes('tags'));
+  assert.equal(statusResult.accepted, false);
+  assert.equal(statusResult.reason, 'low-note-quality');
+  assert.ok(statusResult.warnings.includes('tags'));
 });
 
 test('validateMaterializedNoteQuality rejects identifier-only snippets', () => {
@@ -1992,10 +1999,26 @@ test('validateMaterializedNoteQuality rejects identifier-only snippets', () => {
       }],
     },
   }), { mode: 'auto' });
+  const wrappedResult = validateMaterializedNoteQuality(note({
+    raw_payload: {
+      summary: 'Requests must wait for server readiness before client calls.',
+      outcome_type: 'fix',
+      root_cause: 'Client calls raced server startup.',
+      resolution: 'Block request setup until readiness resolves.',
+      code_snippets: [{
+        language: 'ts',
+        code: '(DATA_DIR)',
+        description: 'Set DATA_DIR before importing the Electron server entrypoint.',
+      }],
+    },
+  }), { mode: 'auto' });
 
   assert.equal(result.accepted, false);
   assert.equal(result.reason, 'low-note-quality');
   assert.ok(result.warnings.includes('code_snippets'));
+  assert.equal(wrappedResult.accepted, false);
+  assert.equal(wrappedResult.reason, 'low-note-quality');
+  assert.ok(wrappedResult.warnings.includes('code_snippets'));
 });
 
 test('validateMaterializedNoteQuality accepts imported content sanitization fixes', () => {

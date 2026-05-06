@@ -650,7 +650,9 @@ function isFirstPersonDiaryClaim(value: string) {
 }
 
 function hasChineseFirstPersonDiaryClaim(value: string) {
-  return /(?:我|我们)(?:已经|已)?(?:添加|修复|设置|配置|注册|等待|发现|验证|检查|确认|诊断|切换|更新|实现|改动|修改|处理|解决)/i
+  const chineseAction = '(?:添加|修复|设置|配置|注册|等待|发现|验证|检查|确认|诊断|切换|更新|实现|改动|修改|处理|解决)';
+  const englishAction = '(?:add|added|block|configure|configured|fix|fixed|import|importing|place|placed|register|registered|set|switch|switched|update|updated|validate|validated|verify|verified|wait)';
+  return new RegExp(`(?:我|我们)(?:已经|已)?${chineseAction}|(?:我|我们)(?:把|将).{0,80}(?:${chineseAction}|\\b${englishAction}\\b)`, 'i')
     .test(value);
 }
 
@@ -1177,8 +1179,12 @@ function hasUsefulCodeSnippet(
 
   const combined = `${language}\n${code}\n${description}`;
   const hasConcreteCodeShape =
-    /[{}()[\];:=<>]/.test(code) ||
-    /\b(pragma|select|insert|update|delete|create table|json\.parse|z\.object|z\.array|const|let|function|return|import|export|class)\b/i
+    /\b(pragma|select|insert|update|delete|create table)\b/i.test(code) ||
+    /\b(const|let|var|function|return|import|export|class)\b/i.test(code) ||
+    /\b[\w.]+\s*\([^)]*\S[^)]*\)/.test(code) ||
+    /\{[^}]+[:=][^}]+\}/.test(code) ||
+    /"[^"]+"\s*:/.test(code) ||
+    /\b[\w.]+\s*[:=]\s*(?:"[^"]+"|'[^']+'|`[^`]+`|\d+|true|false|\/[\w./-]+|\w+\([^)]*\))/
       .test(code);
   const hasConcreteEvidence =
     /\b(pragma\s+foreign_keys|foreign_keys|json\.parse|z\.object|z\.array|response_item\.content|data_dir|node_env|source_run_key|note_tags)\b/i
@@ -1201,7 +1207,7 @@ function hasLowQualityTags(note: MaterializedTaskMemoryNote) {
 function isLowQualityTag(tag: string) {
   const normalized = tag.trim().toLowerCase();
   if (!normalized || isPlaceholderText(normalized)) return true;
-  return /^(fix|bugfix|bug[-_\s]?fix|success|fixed|reliable|done|verified|test[-_\s]?passed|passed|ok|okay|resolved|working|complete|completed|all[-_\s]?good|status|checked|reviewed|tested)$/i
+  return /^(fix|bug|issue|bugfix|bug[-_\s]?fix|success|fixed|reliable|reliability|quality|done|verified|test[-_\s]?passed|passed|ok|okay|resolved|working|complete|completed|all[-_\s]?good|status|checked|reviewed|tested|修复|已修复|已验证|测试通过|可靠性|成功|问题|质量)$/i
     .test(normalized);
 }
 
