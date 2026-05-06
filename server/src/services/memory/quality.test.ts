@@ -4155,6 +4155,76 @@ test('validateMaterializedNoteQuality rejects validation regression and QA resul
   }
 });
 
+test('validateMaterializedNoteQuality rejects confirmation done and verified result shells', () => {
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId before updating the React search view.';
+  const resolution = 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot replace current results.';
+  const englishShells = [
+    [
+      'Search confirmed activeRequestId gates stale /api/search responses',
+      'Search confirmed activeRequestId gates stale /api/search responses from replacing current results.',
+    ],
+    [
+      'Search check confirmed activeRequestId gates stale /api/search responses',
+      'Search check confirmed activeRequestId gates stale /api/search responses from replacing current results.',
+    ],
+    [
+      'Search done activeRequestId gates stale /api/search responses',
+      'Search done activeRequestId gates stale /api/search responses from replacing current results.',
+    ],
+    [
+      'Search fix verified activeRequestId gates stale /api/search responses',
+      'Search fix verified activeRequestId gates stale /api/search responses from replacing current results.',
+    ],
+  ];
+
+  for (const [title, summary] of englishShells) {
+    const result = validateMaterializedNoteQuality(note({
+      title,
+      summary,
+      key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+      tags: ['react-search', 'api-search'],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary,
+        root_cause,
+        resolution,
+      },
+      embedding_text: '',
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, title);
+    assert.equal(result.reason, 'low-note-quality', title);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), title);
+  }
+
+  const chineseSummary = '在 setResults 前校验 activeRequestId，避免旧的 /api/search 响应覆盖当前查询结果。';
+  const chineseRootCause = '旧的 /api/search 响应覆盖当前查询结果，因为 setResults 前没有校验 activeRequestId。';
+  const chineseResolution = '在 setResults 前校验 activeRequestId，避免旧的 /api/search 响应覆盖当前查询结果。';
+  const chineseTitles = [
+    '语义搜索确认 activeRequestId 防止 /api/search 旧响应覆盖新结果',
+    '回归确认 activeRequestId 防止 /api/search 旧响应覆盖新结果',
+    '语义搜索检查确认 activeRequestId 防止 /api/search 旧响应覆盖新结果',
+  ];
+
+  for (const title of chineseTitles) {
+    const result = validateMaterializedNoteQuality(note({
+      title,
+      summary: chineseSummary,
+      key_conclusions: [`Root cause: ${chineseRootCause}`, `Resolution: ${chineseResolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary: chineseSummary,
+        root_cause: chineseRootCause,
+        resolution: chineseResolution,
+      },
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, title);
+    assert.equal(result.reason, 'low-note-quality', title);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), title);
+  }
+});
+
 test('validateMaterializedNoteQuality rejects English work record structured items', () => {
   const summary = 'Work record - use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
   const result = validateMaterializedNoteQuality(note({

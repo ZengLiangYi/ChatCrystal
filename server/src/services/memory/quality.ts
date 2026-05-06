@@ -1962,6 +1962,7 @@ function isExplicitEnglishStatusShell(value: string) {
     /^\s*(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task|progress|verification|validation|regression|qa|diagnostics?|(?:smoke\s+)?test)\s+(?:record|report|note|summary|update|log|entry|check|result|results?|confirmed)|(?:implementation|task|fix|execution|run|work|status)\s+results?|run\s+results?|work\s*log(?:\s+entry)?|worklog(?:\s+entry)?|status|record|update|implementation|result|outcome|progress|verification|validation|regression|qa|check|diagnostics?|(?:smoke\s+)?test|completion(?:\s+(?:note|record))?|completed|done|this\s+fix|this\s+run)\s*(?:[:\-\u2013\u2014])/i
       .test(value.trim()) ||
     isValidationResultStatusShell(value) ||
+    isConfirmationResultStatusShell(value) ||
     isCurrentRunImplementationShell(value) ||
     isCurrentRunStatusObservationClaim(value);
 }
@@ -1969,6 +1970,21 @@ function isExplicitEnglishStatusShell(value: string) {
 function isValidationResultStatusShell(value: string) {
   return /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?(?:validation|regression|qa)\s+(?:confirmed|passed|succeeded|completed)\b/i
     .test(value.trim());
+}
+
+function isConfirmationResultStatusShell(value: string) {
+  const text = value.trim();
+  return (
+    hasSpecificEvidence(text) &&
+    /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?(?:check\s+)?(?:confirmed|done|verified)\b/i
+      .test(text)
+  ) ||
+    (
+      hasSpecificEvidence(text) &&
+      /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?(?:check\s+)?fix\s+(?:confirmed|done|verified)\b/i
+        .test(text)
+    ) ||
+    isChineseConfirmationResultStatusShell(text);
 }
 
 function hasTechnicalPrefixStatusShell(value: string) {
@@ -2049,6 +2065,7 @@ function isChineseVisibleStatusShell(value: string) {
   if (!/[\u3400-\u9fff]/.test(value)) return false;
   const hasStatusRecordShell =
     hasTechnicalPrefixStatusShell(value) ||
+    isChineseConfirmationResultStatusShell(value) ||
     /^\s*(?:状态记录|记录状态|状态检查|工作日志|日志记录|工作记录|执行记录|完成记录|完成检查|状态更新|运行结果|执行结果|结果记录|结果报告|结果检查|任务结果|实现结果|修复结果|工作结果|状态结果|运行记录|任务记录|实现记录|实现说明|更新记录|变更记录|变更摘要|本次修复|本次执行|本次任务|本次改动|本轮执行|本轮修复|本轮任务|本轮改动|修复记录|测试记录|结果|进度|验证|测试|诊断|完成|已完成|完成说明)\s*(?:[：:\-\u2013\u2014]|$)/i
       .test(value) ||
     /(?:^|[\s：:])(?:状态记录|记录状态|工作日志|日志记录|工作记录)(?:[\s：:]|$)|^(?:状态|记录)\s*[：:]/i
@@ -2065,6 +2082,11 @@ function isChineseVisibleStatusShell(value: string) {
     /这次.{0,20}(?:修复|处理).{0,8}(?:好了|完成|完毕)|(?:接口|问题|路由|请求).{0,12}(?:更稳定|回归正常|恢复正常)/i
       .test(value);
   return (hasCompletionShell || hasWorkLogShell) && !hasChineseVisibleMechanism(value);
+}
+
+function isChineseConfirmationResultStatusShell(value: string) {
+  return hasSpecificEvidence(value) &&
+    /^\s*(?:[\u3400-\u9fff]{2,16})?(?:检查)?确认(?=\s|$|[a-z0-9_\/])/i.test(value.trim());
 }
 
 function isChineseCurrentRunImplementationShell(value: string) {
