@@ -2261,7 +2261,7 @@ function isPredicateResultStatusShell(value: string) {
 function isUndelimitedStatusPrefixShell(value: string) {
   const text = value.trim();
   return hasSpecificEvidence(text) &&
-    /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?(?:status check|progress|verification note|completion check|result check)\s+(?=(?:activeRequestId|setResults|\/api\/|stale\b|http\b|api\b|[a-z0-9_]+\.[a-z_]))/i
+    /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?(?:status check|progress|verification note|completion check|result check)\s+(?:[a-z][a-z0-9-]*\s+){0,4}(?=(?:activeRequestId|setResults|\/api\/|stale\b|http\b|api\b|[a-z0-9_]+\.[a-z_]))/i
       .test(text);
 }
 

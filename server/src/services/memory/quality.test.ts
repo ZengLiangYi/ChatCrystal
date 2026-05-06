@@ -4331,6 +4331,33 @@ test('validateMaterializedNoteQuality rejects no-separator status prefix shells 
     assert.equal(result.reason, 'low-note-quality', text);
     assert.ok(result.warnings.includes('durable_reusable_lesson'), text);
   }
+
+  const descriptorPrefixes = [
+    'Status check',
+    'Progress',
+    'Verification note',
+    'Result check',
+    'Completion check',
+  ];
+
+  for (const prefix of descriptorPrefixes) {
+    const text = `${prefix} search requests gate activeRequestId before setResults so stale /api/search responses cannot overwrite current results.`;
+    const result = validateMaterializedNoteQuality(note({
+      title: text,
+      summary: text,
+      key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary: text,
+        root_cause,
+        resolution,
+      },
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, text);
+    assert.equal(result.reason, 'low-note-quality', text);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), text);
+  }
 });
 
 test('validateMaterializedNoteQuality rejects broad test and diagnostic shells with concrete fix payloads', () => {
