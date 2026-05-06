@@ -1047,6 +1047,7 @@ function hasVisibleTitleQuality(title: string) {
     !isVagueGenericFixClaim(title) &&
     !isMetaReusableClaim(title) &&
     !isGenericVisibleBoilerplateClaim(title) &&
+    !isChineseVisibleStatusShell(title) &&
     !isVisibleStatusSnapshotText(title)
   );
 }
@@ -1061,6 +1062,7 @@ function hasVisibleSummaryQuality(summary: string) {
     !isVagueGenericFixClaim(summary) &&
     !isMetaReusableClaim(summary) &&
     !isGenericVisibleBoilerplateClaim(summary) &&
+    !isChineseVisibleStatusShell(summary) &&
     !isVisibleStatusSnapshotText(summary)
   );
 }
@@ -1068,6 +1070,7 @@ function hasVisibleSummaryQuality(summary: string) {
 function hasVisibleConcreteContent(value: string) {
   const text = value.toLowerCase();
   if (isLowValueOutcomeStatusClaim(text)) return false;
+  if (isChineseVisibleStatusShell(text)) return false;
   if (isGenericReleaseValidationClaim(text)) return false;
   if (hasSpecificEvidence(text) && hasConcreteMechanism(text)) return true;
   if (hasSpecificEvidence(text) && hasFailureOrConsequenceSignal(text)) return true;
@@ -1090,6 +1093,30 @@ function isLowValueOutcomeStatusClaim(value: string) {
     /\b(investigated|investigation)\b.+\b(issue|task|fix|route|request|requests?)\b/i
       .test(text)
   );
+}
+
+function hasChineseVisibleMechanism(value: string) {
+  return (
+    /(?:在|于)?\s*(?:request setup|请求设置|请求初始化).{0,8}前.{0,24}(?:注册|移动|放置|等待|校验|验证|加载|导入|设置|移除|清理|解析|规范化|去重|剥离|去掉)/i
+      .test(value) ||
+    /(?:注册|移动|放置|等待|校验|验证|加载|导入|设置|移除|清理|解析|规范化|去重|剥离|去掉).{0,40}(?:request setup\s*前|请求设置前|请求初始化前|before request setup)/i
+      .test(value) ||
+    /(?:避免|防止).{0,30}(?:http\s*[45]\d\d|econrefused|typeerror|syntaxerror|stale|重复|缺失|泄露|回退|错误)/i
+      .test(value) &&
+    /(?:注册|移动|放置|等待|校验|验证|加载|导入|设置|移除|清理|解析|规范化|去重|剥离|去掉)/i
+      .test(value)
+  );
+}
+
+function isChineseVisibleStatusShell(value: string) {
+  if (!/[\u3400-\u9fff]/.test(value)) return false;
+  const hasCompletionShell =
+    /问题处理完|处理完成|处理完毕|修复好了|修好了|已经处理|已处理|回归正常|恢复正常|更稳定|不再返回|已解决|解决完成|已完成|修复完成|修复已完成/i
+      .test(value);
+  const hasWorkLogShell =
+    /这次.{0,20}(?:修复|处理).{0,8}(?:好了|完成|完毕)|(?:接口|问题|路由|请求).{0,12}(?:更稳定|回归正常|恢复正常)/i
+      .test(value);
+  return (hasCompletionShell || hasWorkLogShell) && !hasChineseVisibleMechanism(value);
 }
 
 function isMetaReusableClaim(value: string) {
@@ -1149,6 +1176,7 @@ function isVisibleStatusSnapshotText(value: string) {
   const hasChineseStatus =
     /已验证|验证通过|测试通过|构建通过|编译通过|类型检查通过|检查通过|已修复|修复已验证|ci\s*通过|持续集成通过/i
       .test(value) ||
+    isChineseVisibleStatusShell(value) ||
     /(?:提高|提升).{0,12}(?:可靠性|正确性)|(?:可靠性|正确性).{0,12}(?:提高|提升)/
       .test(value);
   const hasStatusObject =

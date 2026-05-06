@@ -443,6 +443,49 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
       resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
     },
   }), { mode: 'auto' });
+  const chineseHandledResult = validateMaterializedNoteQuality(note({
+    title: 'API 注册顺序导致 /api/notes HTTP 404',
+    summary: '问题处理完，/api/notes 不再返回 HTTP 404。',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    tags: ['api-route'],
+    raw_payload: {
+      summary: '问题处理完，/api/notes 不再返回 HTTP 404。',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const chineseFixedStableResult = validateMaterializedNoteQuality(note({
+    title: 'API 注册顺序导致 /api/notes HTTP 404',
+    summary: '这次把 /api/notes HTTP 404 修复好了，接口更稳定。',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: '这次把 /api/notes HTTP 404 修复好了，接口更稳定。',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const chineseRecoveredResult = validateMaterializedNoteQuality(note({
+    title: 'API 注册顺序导致 /api/notes HTTP 404',
+    summary: '/api/notes HTTP 404 已经处理，回归正常。',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: '/api/notes HTTP 404 已经处理，回归正常。',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(summaryResult.accepted, false);
   assert.equal(summaryResult.reason, 'low-note-quality');
@@ -498,6 +541,37 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
   assert.equal(chineseBuildPassedResult.accepted, false);
   assert.equal(chineseBuildPassedResult.reason, 'low-note-quality');
   assert.ok(chineseBuildPassedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseHandledResult.accepted, false);
+  assert.equal(chineseHandledResult.reason, 'low-note-quality');
+  assert.ok(chineseHandledResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseFixedStableResult.accepted, false);
+  assert.equal(chineseFixedStableResult.reason, 'low-note-quality');
+  assert.ok(chineseFixedStableResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseRecoveredResult.accepted, false);
+  assert.equal(chineseRecoveredResult.reason, 'low-note-quality');
+  assert.ok(chineseRecoveredResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts Chinese summaries with concrete route mechanisms', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API 注册顺序导致 /api/notes HTTP 404',
+    summary: '在 request setup 前注册 /api/notes 路由，避免 API requests 返回 HTTP 404。',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    tags: ['api-route'],
+    raw_payload: {
+      summary: '在 request setup 前注册 /api/notes 路由，避免 API requests 返回 HTTP 404。',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
 });
 
 test('validateMaterializedNoteQuality rejects low-quality extra key conclusions', () => {
