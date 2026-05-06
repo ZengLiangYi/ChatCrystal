@@ -714,15 +714,21 @@ function hasIndexConsistencyFailureSignal(value: string) {
 
 function hasFrontendCacheEvidence(value: string) {
   const text = value.toLowerCase();
-  return /\b(react query|query keys?|deletenote|delete mutation|note delete mutation|tags cache|notes cache|sidebar|tag counts?|filter chips?|stale tag filters?|derived tag counts?)\b/i
+  return /\b(react query|querykey|query keys?|cache keys?|deletenote|delete mutation|note delete mutation|tags cache|notes cache|cache entry|active tag filter|tag filters?|request url|filtered rows?|sidebar|tag counts?|filter chips?|stale tag filters?|derived tag counts?)\b/i
     .test(text);
 }
 
 function hasFrontendCacheInvalidationAction(value: string) {
   const text = value.toLowerCase();
   const hasCacheAction = /\b(invalidate|invalidated|refetch|reload|refresh|update)\b/i.test(text);
-  const hasCacheTarget = /\b(cache|query keys?|react query|tags?|notes?|tag counts?)\b/i.test(text);
-  return hasFrontendCacheEvidence(text) && hasCacheAction && hasCacheTarget;
+  const hasCacheTarget = /\b(cache|querykey|query keys?|cache keys?|react query|tags?|notes?|tag counts?)\b/i.test(text);
+  const hasCacheKeyAction =
+    /\b(include|add)\b.+\b(active tag filter|tag filter|filter)\b.+\b(querykey|query key|cache key)\b/i
+      .test(text) ||
+    /\b(querykey|query key|cache key)\b.+\b(include|add|active tag filter|tag filter|filter|separate)\b/i
+      .test(text);
+  return hasFrontendCacheEvidence(text) &&
+    ((hasCacheAction && hasCacheTarget) || hasCacheKeyAction);
 }
 
 function hasFrontendCacheInvalidationMechanism(value: string) {
@@ -735,19 +741,31 @@ function hasFrontendCacheInvalidationMechanism(value: string) {
   const hasMutationOrDeleteContext =
     /\b(after|when|once|succeeds?|delete|deleted|deletenote|delete mutation|mutation|removed sql row|sql row)\b/i
       .test(text);
-  return hasFrontendCacheEvidence(text) && hasInvalidationFlow && hasMutationOrDeleteContext;
+  const hasCacheKeyFlow =
+    /\b(querykey|query key|cache key)\b.+\b(omit(?:s|ted)?|missing|without)\b.+\b(active tag filter|tag filter|filter)\b/i
+      .test(text) ||
+    /\b(active tag filter|tag filter|filter)\b.+\b(omit(?:ted)?|missing)\b.+\b(querykey|query key|cache key)\b/i
+      .test(text) ||
+    /\b(querykey|query key|cache key)\b.+\b(omitted|missing|without|include|included|active tag filter|tag filter|filter)\b.+\b(stale filtered rows?|request url|separate notes cache entry|cache entry)\b/i
+      .test(text) ||
+    /\b(notes cache|react query cache|cache)\b.+\b(reused|reuse)\b.+\bstale filtered rows?\b/i
+      .test(text) ||
+    /\b(active tag filter|tag filter|filter)\b.+\b(querykey|query key|cache key)\b.+\b(separate notes cache entry|stale filtered rows?|request url)\b/i
+      .test(text);
+  return hasFrontendCacheEvidence(text) &&
+    ((hasInvalidationFlow && hasMutationOrDeleteContext) || hasCacheKeyFlow);
 }
 
 function hasFrontendCacheFailureSignal(value: string) {
   const text = value.toLowerCase();
   const hasStaleUi =
-    /\b(stale|kept stale|does not show stale|cannot show stale|stale tag filters?|stale filter chips?|stale tag counts?|stale note tags?)\b/i
+    /\b(stale|kept stale|does not show stale|cannot show stale|stale filtered rows?|stale tag filters?|stale filter chips?|stale tag counts?|stale note tags?)\b/i
       .test(text);
   const hasUiTarget =
-    /\b(sidebar|filter chips?|tag filters?|tag counts?|derived tag counts?|ui|react query|tags cache|notes cache)\b/i
+    /\b(sidebar|filter chips?|tag filters?|active tag filter|tag counts?|derived tag counts?|ui|react query|querykey|query key|cache key|request url|filtered rows?|tags cache|notes cache|cache entry)\b/i
       .test(text);
   const hasCausalFlow =
-    /\b(so|because|after|but|did not invalidate|removed|delete|deletion|leaves?)\b/i
+    /\b(so|because|after|but|did not invalidate|removed|delete|deletion|leaves?|omitted|missing|reused|reuse|changed|separate)\b/i
       .test(text);
   return hasFrontendCacheEvidence(text) && hasStaleUi && hasUiTarget && hasCausalFlow;
 }
@@ -2224,7 +2242,7 @@ function isGenericReleaseValidationClaim(value: string) {
 }
 
 function isVisibleStatusSnapshotText(value: string) {
-  const hasPassStatus = /\b(build|npm test|tests?|testing|typecheck|lint|ci|verification)\b.+\bpassed\b/i
+  const hasPassStatus = /\b(build|npm test|tests?|testing|typecheck|lint|ci|verification|checks?)\b.+\bpassed\b/i
     .test(value);
   const hasSuccessStatus =
     /\b(ci green|ci completed successfully|tests? succeeded|testing succeeded|verification succeeded|build succeeded|typecheck succeeded|lint succeeded)\b/i
@@ -2241,7 +2259,7 @@ function isVisibleStatusSnapshotText(value: string) {
   const hasStatusVerb = /\b(checked|noted|observed|reviewed|resolved|tested|testing passed|verified|verification|current|status)\b/i
     .test(value);
   const hasChineseStatus =
-    /已验证|验证通过|测试通过|构建通过|编译通过|类型检查通过|检查通过|已修复|修复已验证|ci\s*通过|持续集成通过/i
+    /已验证|验证通过|测试通过|构建通过|编译通过|类型检查通过|检查通过|检查已通过|已修复|修复已验证|ci\s*通过|持续集成通过/i
       .test(value) ||
     isChineseVisibleStatusShell(value) ||
     /(?:提高|提升).{0,12}(?:可靠性|正确性)|(?:可靠性|正确性).{0,12}(?:提高|提升)/

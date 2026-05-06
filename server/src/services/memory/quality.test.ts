@@ -3127,6 +3127,27 @@ test('validateMaterializedNoteQuality accepts React Query cache invalidation fix
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts React Query queryKey filter fixes', () => {
+  const summary = 'Include the active tag filter in the React Query queryKey so the notes cache cannot reuse stale filtered rows.';
+  const root_cause = 'The React Query notes cache reused stale filtered rows because the queryKey omitted the active tag filter while the request URL changed.';
+  const resolution = 'Include the active tag filter in the React Query queryKey before fetching notes so each filter owns a separate notes cache entry.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'React Query queryKey omits tag filter',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality rejects generic UI cache reliability fixes', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'UI cache reliability fix',
@@ -3141,6 +3162,27 @@ test('validateMaterializedNoteQuality rejects generic UI cache reliability fixes
       summary: 'Invalidate UI cache for reliability.',
       root_cause: 'UI cache was unreliable.',
       resolution: 'Invalidate UI cache for reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic React Query queryKey reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'React Query key reliability fix',
+    summary: 'Include filters in React Query keys to improve cache reliability.',
+    key_conclusions: [
+      'Root cause: React Query cache reliability was wrong.',
+      'Resolution: Include filters in React Query keys to improve cache reliability.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Include filters in React Query keys to improve cache reliability.',
+      root_cause: 'React Query cache reliability was wrong.',
+      resolution: 'Include filters in React Query keys to improve cache reliability.',
     },
   }), { mode: 'auto' });
 
@@ -4314,6 +4356,46 @@ test('validateMaterializedNoteQuality rejects confirmation done and verified res
     assert.equal(result.reason, 'low-note-quality', title);
     assert.ok(result.warnings.includes('durable_reusable_lesson'), title);
   }
+});
+
+test('validateMaterializedNoteQuality rejects check-passed status shells with concrete fix payloads', () => {
+  const englishText = 'Search check passed because activeRequestId gates stale /api/search responses before setResults.';
+  const englishRootCause = 'Older /api/search responses overwrote current results because setResults ran without checking activeRequestId.';
+  const englishResolution = 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.';
+  const englishResult = validateMaterializedNoteQuality(note({
+    title: englishText,
+    summary: englishText,
+    key_conclusions: [`Root cause: ${englishRootCause}`, `Resolution: ${englishResolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: englishText,
+      root_cause: englishRootCause,
+      resolution: englishResolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(englishResult.accepted, false);
+  assert.equal(englishResult.reason, 'low-note-quality');
+  assert.ok(englishResult.warnings.includes('durable_reusable_lesson'));
+
+  const chineseText = '语义搜索检查已通过，因为 setResults 前校验 activeRequestId 防止旧的 /api/search 响应覆盖当前查询结果。';
+  const chineseRootCause = '旧的 /api/search 响应覆盖当前查询结果，因为 setResults 前没有校验 activeRequestId。';
+  const chineseResolution = '在 setResults 前校验 activeRequestId，防止旧的 /api/search 响应覆盖当前查询结果。';
+  const chineseResult = validateMaterializedNoteQuality(note({
+    title: chineseText,
+    summary: chineseText,
+    key_conclusions: [`Root cause: ${chineseRootCause}`, `Resolution: ${chineseResolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: chineseText,
+      root_cause: chineseRootCause,
+      resolution: chineseResolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(chineseResult.accepted, false);
+  assert.equal(chineseResult.reason, 'low-note-quality');
+  assert.ok(chineseResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects shows and is result shells with concrete fix payloads', () => {
