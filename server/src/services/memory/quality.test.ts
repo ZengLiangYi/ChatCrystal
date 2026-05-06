@@ -2240,6 +2240,49 @@ test('validateMaterializedNoteQuality rejects generic import dedupe reliability 
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality accepts SQLite WAL sidecar source adapter fixes', () => {
+  const summary = 'Copy Cursor state.vscdb with its -wal and -shm sidecars before sql.js opens it so composer metadata rows are not missing.';
+  const root_cause = 'Cursor kept recent composer metadata in state.vscdb-wal, so reading only state.vscdb with sql.js returned stale or missing chat rows.';
+  const resolution = 'Copy state.vscdb, state.vscdb-wal, and state.vscdb-shm into a temporary directory before opening the database so sql.js sees the committed WAL pages.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Cursor workspaceStorage WAL hides composer rows',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic database file reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Database file reliability fix',
+    summary: 'Copy database files for reliability.',
+    key_conclusions: [
+      'Root cause: Database files were unreliable.',
+      'Resolution: Copy database files for reliability.',
+    ],
+    tags: ['sqlite'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Copy database files for reliability.',
+      root_cause: 'Database files were unreliable.',
+      resolution: 'Copy database files for reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality accepts React Query cache invalidation fixes', () => {
   const summary = 'Invalidate React Query notes and tags cache after deleting a note so the sidebar does not show stale tag filters.';
   const root_cause = 'The note delete mutation removed the SQL row but did not invalidate the React Query tags cache, so the sidebar kept stale filter chips.';

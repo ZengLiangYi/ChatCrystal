@@ -57,6 +57,7 @@ function hasConcreteTransferableAction(value: string) {
   if (hasElectronResourceAction(text)) return true;
   if (hasCrossPlatformPathAction(text)) return true;
   if (hasFrontendCacheInvalidationAction(text)) return true;
+  if (hasSqliteWalSidecarAction(text)) return true;
   const concreteActionWords = [
     'add',
     'block',
@@ -211,6 +212,7 @@ function hasSpecificEvidence(value: string) {
     hasElectronResourceEvidence(text) ||
     hasCrossPlatformPathEvidence(text) ||
     hasFrontendCacheEvidence(text) ||
+    hasSqliteWalSidecarEvidence(text) ||
     hasHttpFailureSignal(text) ||
     /\b(api requests?|fastify readiness|server readiness|request setup|package metadata|package version|dist output|generated dist output|data directory|electron server|server entrypoint|client calls?)\b/i
       .test(text)
@@ -486,6 +488,62 @@ function hasFrontendCacheFailureSignal(value: string) {
   return hasFrontendCacheEvidence(text) && hasStaleUi && hasUiTarget && hasCausalFlow;
 }
 
+function hasSqliteWalSidecarEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(state\.vscdb(?:-(?:wal|shm))?|workspacestorage|cursor|trae|sql\.js|wal|shm|sidecars?|composer metadata|database rows?|chat rows?|committed wal pages?)\b/i
+    .test(text);
+}
+
+function hasSqliteWalSidecarAction(value: string) {
+  const text = value.toLowerCase();
+  const hasWalAction = /\b(copy|copied|include|open|opening|read|reading)\b/i.test(text);
+  const hasWalTarget =
+    /\b(state\.vscdb|state\.vscdb-wal|state\.vscdb-shm|wal|shm|sidecars?|sql\.js|database)\b/i
+      .test(text);
+  return hasSqliteWalSidecarEvidence(text) && hasWalAction && hasWalTarget;
+}
+
+function hasSqliteWalSidecarMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasCopySidecarFlow =
+    /\bcopy\b.+\bstate\.vscdb\b.+\b(?:state\.vscdb-wal|wal|-wal)\b.+\b(?:state\.vscdb-shm|shm|-shm)\b/i
+      .test(text) ||
+    /\b(?:wal|shm|sidecars?)\b.+\bcopy|copied\b/i.test(text);
+  const hasOpenWithSqlJsFlow =
+    /\b(before|when|so)\b.+\b(open|opening|sql\.js|committed wal pages?)\b/i.test(text) ||
+    /\b(open|opening|sql\.js|committed wal pages?)\b.+\b(before|when|so|sees?)\b/i.test(text);
+  const hasReadOnlyDbFlow =
+    /\b(reading only|read only)\b.+\bstate\.vscdb\b.+\bsql\.js\b/i.test(text) ||
+    /\bstate\.vscdb-wal\b.+\b(recent|composer metadata|committed wal pages?)\b/i.test(text);
+  return hasSqliteWalSidecarEvidence(text) &&
+    (
+      (hasCopySidecarFlow && hasOpenWithSqlJsFlow) ||
+      hasReadOnlyDbFlow
+    );
+}
+
+function hasSqliteWalSidecarFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasMissingOrStaleRows =
+    /\b(stale|missing|not missing|hides?|returned stale|returned missing|missing chat rows?|missing composer metadata|missing rows?)\b/i
+      .test(text);
+  const hasRowTarget =
+    /\b(composer metadata|composer rows?|chat rows?|database rows?|rows?|committed wal pages?|state\.vscdb-wal|wal)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|reading only|only state\.vscdb|before opening|kept recent|returned)\b/i
+      .test(text);
+  const hasDirectWalConsequence =
+    /\b(wal|state\.vscdb-wal|sidecars?)\b.+\b(hides?|stale|missing)\b.+\b(composer metadata|composer rows?|chat rows?|rows?)\b/i
+      .test(text) ||
+    /\b(hides?|stale|missing)\b.+\b(composer metadata|composer rows?|chat rows?|rows?)\b.+\b(wal|state\.vscdb-wal|sidecars?)\b/i
+      .test(text);
+  return hasSqliteWalSidecarEvidence(text) &&
+    hasMissingOrStaleRows &&
+    hasRowTarget &&
+    (hasCausalFlow || hasDirectWalConsequence);
+}
+
 function hasElectronResourceEvidence(value: string) {
   const text = value.toLowerCase();
   return /\b(packaged electron|packaged builds?|electron-builder|extraresources|process\.resourcespath|resourcespath|resource path|bundled server code|wasm|sql-wasm\.wasm|sql\.js|enoent|chatcrystal\.db)\b/i
@@ -619,6 +677,7 @@ function hasConcreteMechanism(value: string) {
   const hasElectronResourceFlow = hasElectronResourceMechanism(text);
   const hasCrossPlatformPathFlow = hasCrossPlatformPathMechanism(text);
   const hasFrontendCacheFlow = hasFrontendCacheInvalidationMechanism(text);
+  const hasSqliteWalSidecarFlow = hasSqliteWalSidecarMechanism(text);
   return (
     hasTimingOrder ||
     hasRaceReadiness ||
@@ -638,7 +697,8 @@ function hasConcreteMechanism(value: string) {
     hasIndexConsistencyFlow ||
     hasElectronResourceFlow ||
     hasCrossPlatformPathFlow ||
-    hasFrontendCacheFlow
+    hasFrontendCacheFlow ||
+    hasSqliteWalSidecarFlow
   );
 }
 
@@ -720,6 +780,7 @@ function hasFailureOrConsequenceSignal(value: string) {
     hasElectronResourceFailureSignal(value) ||
     hasCrossPlatformPathFailureSignal(value) ||
     hasFrontendCacheFailureSignal(value) ||
+    hasSqliteWalSidecarFailureSignal(value) ||
     hasDefaultDataDirectoryConsequence(value) ||
     hasHttpFailureSignal(value)
   );
