@@ -824,6 +824,9 @@ function hasConcreteTransferableText(value: string) {
     hasConcreteConsequence &&
     !isExistenceOnlyClaim(value) &&
     !isFirstPersonDiaryClaim(value) &&
+    !isVisibleWorkLogClaim(value) &&
+    !isLowValueOutcomeStatusClaim(value) &&
+    !isVisibleStatusSnapshotText(value) &&
     !isGenericReleaseValidationClaim(value) &&
     !isGenericStatusAction(value) &&
     !isVagueGenericLesson(value)
@@ -1018,7 +1021,7 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
     /\b(writeback|receipt|source_agent|source_run_key)\b.+\b(unique key|unique constraint)\b/i
       .test(text);
   const hasNamedAsyncObject =
-    /\b(abortcontroller|react search|search view|\/api\/search|stale search requests?|stale responses?|previous responses?|current query results?|current results|overlapping requests?|overlapping \/api\/search requests?)\b/i
+    /\b(abortcontroller|react search|search view|\/api\/search|search request sequence|stale search requests?|stale responses?|stale results?|previous responses?|current query results?|current results|overlapping requests?|overlapping \/api\/search requests?)\b/i
       .test(text);
   const hasNamedTransportObject =
     /\b(mcp|json-rpc|json rpc|stdio|stdout|stderr|process\.stdout|process\.stderr|response frames?|response transport|stdio stream)\b/i
@@ -1050,6 +1053,10 @@ function hasStrictStructuralEngineeringAction(value: string) {
       .test(text);
   const hasConcreteAsyncAction =
     /\b(use\b.+\babortcontroller|abortcontroller\b.+\bcancel|cancel(?: older| previous| prior)?\b.+\b(?:\/api\/search|requests?|responses?))\b/i
+      .test(text) ||
+    /\b(gate)\b.+\b(result updates?|responses?|requests?)\b.+\b(active|latest|request id|query)\b/i
+      .test(text) ||
+    /\b(ignore)\b.+\b(responses?)\b.+\b(not from the latest query|older|previous|stale|latest query)\b/i
       .test(text);
   const hasConcreteLifecycleAction =
     /\b(wait)\b.+\b(db initialization|database initialization|sql\.js initialization|initialized|finished initialization)\b.+\b(before accepting|before handling|requests?)\b/i
@@ -1095,6 +1102,14 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
     /\b(cancel|abortcontroller)\b.+\b(before starting the next query|before updating results|next query)\b/i
       .test(text) ||
     /\bstale responses?\b.+\b(cannot|do not|does not)\b.+\b(replace|overwrite)\b.+\bcurrent results\b/i
+      .test(text) ||
+    /\b(gate)\b.+\b(result updates?|search result updates?|current results)\b.+\b(active|latest|request id|\/api\/search|query)\b/i
+      .test(text) ||
+    /\b(active|latest)\b.+\b(\/api\/search\s+)?request id\b.+\b(older responses?|stale responses?|current results|overwrite)\b/i
+      .test(text) ||
+    /\b(ignore)\b.+\bresponses?\b.+\b(not from the latest query|older|previous|stale|latest query)\b/i
+      .test(text) ||
+    /\bolder\b.+\b\/api\/search responses?\b.+\b(after a newer query|newer query)\b.+\boverwrite\b.+\bcurrent results\b/i
       .test(text);
   const hasInitializationOrderFlow =
     /\b(route|\/api\/[\w/-]+)\b.+\b(handled|handles?|accept(?:ed|ing)?|requests?)\b.+\bbefore\b.+\b(sql\.js|db|database)\b.+\b(finished initialization|initialization|initialized)\b/i
@@ -1115,7 +1130,7 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
     /\b(reserve)\b.+\b(process\.stdout|stdout)\b.+\b(json-rpc|json rpc|response frames?|stdio)\b/i
       .test(text);
   const hasCausalFlow =
-    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|wait|reserve)\b/i
+    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|gate|ignore|latest query|request id|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|wait|reserve)\b/i
       .test(text);
   return hasStrictStructuralEngineeringEvidence(text) &&
     hasCausalFlow &&
@@ -1133,7 +1148,7 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
 function hasStrictStructuralEngineeringFailureSignal(value: string) {
   const text = value.toLowerCase();
   const hasNamedConsequence =
-    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|stale responses?|overwrote the current query results?|overwrote current results?|replace current results?|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream))\b/i
+    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|stale responses?|stale results?|overwrote the current query results?|overwrote current results?|overwrite the current query results?|overwrite current results?|replace current results?|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream))\b/i
       .test(text);
   const hasCausalFlow =
     /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|overwrote|overwrite|reused|reuse|retried|retries|cancel|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?)\b/i
@@ -1397,7 +1412,7 @@ function hasVisibleConcreteContent(value: string) {
 }
 
 function isVisibleWorkLogClaim(value: string) {
-  return /^(added|changed|checked|confirmed|diagnosed|discovered|fixed|found|implemented|noted|observed|reviewed|resolved|switched|tested|testing|updated|verified)\b/i
+  return /^(added|changed|checked|confirmed|diagnosed|discovered|fixed|found|implemented|noted|observed|recorded|reviewed|resolved|switched|tested|testing|updated|verified)\b/i
     .test(value.trim());
 }
 
@@ -1405,6 +1420,11 @@ function isLowValueOutcomeStatusClaim(value: string) {
   const text = value.toLowerCase();
   return (
     /\ball good(?: now)?\b/i.test(text) ||
+    /\brecorded that\b/i.test(text) ||
+    /\bis now fixed\b/i.test(text) ||
+    /\bfix completed\b/i.test(text) ||
+    /\b(?:completed|recovered|fixed)\b.+\b(?:after|for|http|api|route|request|requests?|initialization|issue|fix)\b/i
+      .test(text) ||
     /\b(issue|task|fix|route fix|route|request|requests?)\b.+\b(investigated|investigation)\b/i
       .test(text) ||
     /\b(investigated|investigation)\b.+\b(issue|task|fix|route|request|requests?)\b/i

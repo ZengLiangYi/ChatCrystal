@@ -2978,6 +2978,27 @@ test('validateMaterializedNoteQuality accepts stale async search response fixes'
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts request-id gated stale response fixes', () => {
+  const summary = 'Gate React search result updates by the active /api/search request id so older responses cannot overwrite current results.';
+  const root_cause = 'Older /api/search responses could arrive after a newer query and overwrite current results.';
+  const resolution = 'Gate result updates by the active /api/search request id and ignore responses that are not from the latest query.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request sequence prevents stale results',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality accepts route initialization HTTP failures', () => {
   const summary = 'POST /api/import returned HTTP 500 because the route handled requests before sql.js finished initialization; wait for db initialization before accepting import requests.';
   const root_cause = 'POST /api/import returned HTTP 500 because the route handled requests before sql.js finished initialization.';
@@ -3018,6 +3039,28 @@ test('validateMaterializedNoteQuality accepts MCP stdio JSON-RPC transport fixes
   assert.equal(result.accepted, true);
   assert.equal(result.reason, 'note-quality-ok');
   assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects recorded fix completion patterns', () => {
+  const summary = 'Recorded that /api/import returned HTTP 500 before sql.js initialization and is now fixed.';
+  const result = validateMaterializedNoteQuality(note({
+    title: '/api/import HTTP 500 fix completed',
+    summary,
+    key_conclusions: [
+      `Pattern: ${summary}`,
+    ],
+    raw_payload: {
+      outcome_type: 'pattern',
+      summary,
+      reusable_patterns: [
+        summary,
+      ],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality accepts stale Vectra index cleanup fixes', () => {
@@ -3140,6 +3183,28 @@ test('validateMaterializedNoteQuality rejects generic frontend cancel reliabilit
       summary: 'Cancel requests to improve frontend reliability.',
       root_cause: 'Frontend requests were unreliable.',
       resolution: 'Cancel requests to improve frontend reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic request-id gating reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request gating reliability fix',
+    summary: 'Gate requests by request id to improve search reliability.',
+    key_conclusions: [
+      'Root cause: Search requests were unreliable.',
+      'Resolution: Gate requests by request id to improve search reliability.',
+    ],
+    tags: ['search', 'frontend'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Gate requests by request id to improve search reliability.',
+      root_cause: 'Search requests were unreliable.',
+      resolution: 'Gate requests by request id to improve search reliability.',
     },
   }), { mode: 'auto' });
 
