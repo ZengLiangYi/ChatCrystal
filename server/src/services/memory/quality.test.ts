@@ -2870,6 +2870,28 @@ test('validateMaterializedNoteQuality accepts serialized DB persistence fixes', 
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts import transaction atomicity fixes', () => {
+  const summary = 'Wrap sql.js conversation imports in one transaction so a failed message insert rolls back partial conversation rows.';
+  const root_cause = 'Import inserted the conversation row before message rows, so a failed message insert left partial conversation rows in sql.js.';
+  const resolution = 'Wrap conversation and message inserts in one sql.js transaction so failed imports roll back the whole conversation.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Import batch transaction prevents partial conversation rows',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['import', 'sql-js'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality accepts stale Vectra index cleanup fixes', () => {
   const root = 'Semantic search returned stale note_id hits because note deletion removed sql.js rows without removing Vectra index entries.';
   const resolution = 'Remove Vectra index entries after deleting sql.js note rows so semantic search cannot return deleted notes.';
@@ -2903,6 +2925,28 @@ test('validateMaterializedNoteQuality rejects generic DB queue reliability fixes
       summary: 'Queue chatcrystal.db writes so database reliability improves.',
       root_cause: 'DB writes were unreliable.',
       resolution: 'Queue chatcrystal.db writes so database reliability improves.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic transaction reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Database transaction reliability fix',
+    summary: 'Use transactions for database reliability.',
+    key_conclusions: [
+      'Root cause: Database writes were unreliable.',
+      'Resolution: Use transactions for database reliability.',
+    ],
+    tags: ['import', 'sql-js'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Use transactions for database reliability.',
+      root_cause: 'Database writes were unreliable.',
+      resolution: 'Use transactions for database reliability.',
     },
   }), { mode: 'auto' });
 
