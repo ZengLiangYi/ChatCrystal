@@ -3187,6 +3187,28 @@ test('validateMaterializedNoteQuality accepts SQL parameterized tag lookup fixes
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts SQLite migration backfill constraint fixes', () => {
+  const summary = 'Backfill existing SQLite note rows before enforcing a NOT NULL column so migration does not fail on old chatcrystal.db files.';
+  const root_cause = 'The migration added a NOT NULL notes column without a DEFAULT, so existing chatcrystal.db rows violated the constraint during startup.';
+  const resolution = 'Add the column nullable, backfill existing rows, then enforce NOT NULL after the data satisfies the constraint.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'SQLite migration NOT NULL default prevents existing row failures',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['sqlite', 'migration'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality accepts stale async search response fixes', () => {
   const summary = 'Cancel older /api/search requests because slower previous responses overwrote the current query results in the React search view.';
   const root_cause = 'React search fired overlapping /api/search requests, so a slower previous response overwrote the current query results.';
@@ -3530,6 +3552,48 @@ test('validateMaterializedNoteQuality rejects English status report structured i
     },
     tags: ['search', 'frontend'],
     embedding_text: '',
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects technical-prefix status update shells', () => {
+  const summary = '/api/search status update: activeRequestId gates setResults so stale responses cannot overwrite current results.';
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.';
+  const resolution = 'Gate setResults with activeRequestId so stale responses cannot overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: summary,
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects Chinese technical-prefix status update shells', () => {
+  const summary = '/api/search 状态更新：activeRequestId gates setResults，避免 stale responses overwrite current results.';
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.';
+  const resolution = 'Gate setResults with activeRequestId so stale responses cannot overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: summary,
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
   }), { mode: 'auto' });
 
   assert.equal(result.accepted, false);
@@ -3997,6 +4061,28 @@ test('validateMaterializedNoteQuality rejects generic SQL parameterization relia
       summary: 'Bind SQL parameters for reliability.',
       root_cause: 'SQL query reliability mattered.',
       resolution: 'Use parameterized queries to improve quality.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic migration backfill reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Migration backfill reliability fix',
+    summary: 'Backfill migrations for reliability.',
+    key_conclusions: [
+      'Root cause: Migration reliability mattered.',
+      'Resolution: Add defaults to improve quality.',
+    ],
+    tags: ['sqlite', 'migration'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Backfill migrations for reliability.',
+      root_cause: 'Migration reliability mattered.',
+      resolution: 'Add defaults to improve quality.',
     },
   }), { mode: 'auto' });
 

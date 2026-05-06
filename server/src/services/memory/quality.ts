@@ -1291,8 +1291,13 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
       .test(text) ||
     /\bdaemon\b.+\bexit code\b|\bexit code\b.+\bdaemon\b/i
       .test(text);
+  const hasNamedMigrationObject =
+    /\b(sqlite|chatcrystal\.db|migration|migrations?|not null|default|existing rows?|existing \w+ rows?|notes column|column nullable|backfill|constraint)\b/i
+      .test(text) &&
+    /\b(migration|migrations?|not null|backfill|chatcrystal\.db|constraint)\b/i
+      .test(text);
   const hasEngineeringContext =
-    /\b(sqlite|sql\.js|table|rows?|index|indexed lookup|lookup|lookups?|query|queries|filtered|filtering|request timeouts?|timed out|large imports?|messages?|note detail|cache|schema|parser|jsonl|constraint|unique|duplicate|receipt|receipts|writeback|search|frontend|react|requests?|responses?|initialization|initialized|route|mcp|json-rpc|stdio|stdout|stderr|framing|transport|logs?|diagnostics?|tags?|joins?|deletion|cleanup|filter chips?|webui|websocket|listeners?|useeffect|remounts?|unmount|child_process|child process|daemon|pid|spawn|exit code|serve|status|dead server)\b/i
+    /\b(sqlite|sql\.js|table|rows?|index|indexed lookup|lookup|lookups?|query|queries|filtered|filtering|request timeouts?|timed out|large imports?|messages?|note detail|cache|schema|parser|jsonl|constraint|unique|duplicate|receipt|receipts|writeback|search|frontend|react|requests?|responses?|initialization|initialized|route|mcp|json-rpc|stdio|stdout|stderr|framing|transport|logs?|diagnostics?|tags?|joins?|deletion|cleanup|filter chips?|webui|websocket|listeners?|useeffect|remounts?|unmount|child_process|child process|daemon|pid|spawn|exit code|serve|status|dead server|migration|not null|default|backfill|column|startup)\b/i
       .test(text);
   return (
     hasConcreteToken ||
@@ -1302,7 +1307,8 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
     hasNamedTransportObject ||
     hasNamedLifecycleObject ||
     hasNamedListenerObject ||
-    hasNamedProcessLifecycleObject
+    hasNamedProcessLifecycleObject ||
+    hasNamedMigrationObject
   ) && hasEngineeringContext;
 }
 
@@ -1350,6 +1356,13 @@ function hasStrictStructuralEngineeringAction(value: string) {
       .test(text) ||
     /\b(persist|persisting|write|writing)\b.+\bpid\b.+\b(after|before)\b.+\b(spawn handshake|child|exit event|ready)\b/i
       .test(text);
+  const hasConcreteMigrationAction =
+    /\bbackfill\b.+\b(existing rows?|existing \w+ rows?|rows?)\b/i
+      .test(text) ||
+    /\badd\b.+\bcolumn\b.+\bnullable\b.+\bbackfill\b.+\benforce\b.+\bnot null\b/i
+      .test(text) ||
+    /\benforce\b.+\bnot null\b.+\b(after|then|once)\b.+\b(data|rows?|constraint)\b/i
+      .test(text);
   return hasStrictStructuralEngineeringEvidence(text) &&
     (
       hasAction ||
@@ -1359,7 +1372,8 @@ function hasStrictStructuralEngineeringAction(value: string) {
       hasConcreteLifecycleAction ||
       hasConcreteTransportAction ||
       hasConcreteListenerAction ||
-      hasConcreteProcessLifecycleAction
+      hasConcreteProcessLifecycleAction ||
+      hasConcreteMigrationAction
     );
 }
 
@@ -1459,8 +1473,19 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
       .test(text) ||
     /\b(?:crystal status|status)\b.+\b(?:connect|connects|connecting)\b.+\bdead server\b/i
       .test(text);
+  const hasMigrationConstraintFlow =
+    /\bmigration\b.+\badd(?:ed)?\b.+\bnot null\b.+\bwithout a default\b/i
+      .test(text) ||
+    /\bnot null\b.+\bwithout a default\b.+\b(existing rows?|existing \w+ rows?|chatcrystal\.db rows?|constraint)\b/i
+      .test(text) ||
+    /\b(existing rows?|existing \w+ rows?|chatcrystal\.db rows?)\b.+\bviolat(?:e|ed|es|ing)\b.+\bconstraint\b/i
+      .test(text) ||
+    /\bbackfill\b.+\b(existing rows?|existing \w+ rows?|rows?)\b.+\b(enforce|not null|constraint)\b/i
+      .test(text) ||
+    /\badd\b.+\bcolumn\b.+\bnullable\b.+\bbackfill\b.+\benforce\b.+\bnot null\b/i
+      .test(text);
   const hasCausalFlow =
-    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|gat(?:e|es|ed|ing)|ignore|latest query|request id|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|wait|reserve|left|no longer existed|deleting notes?|note deletion|cleanup|prune|filter|duplicate|appended twice|remounts?|unmount|spawn handshake|exit event|exit code|dead server|nonzero|non-zero)\b/i
+    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|gat(?:e|es|ed|ing)|ignore|latest query|request id|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|wait|reserve|left|no longer existed|deleting notes?|note deletion|cleanup|prune|filter|duplicate|appended twice|remounts?|unmount|spawn handshake|exit event|exit code|dead server|nonzero|non-zero|backfill|not null|default|constraint|violat(?:e|ed|es|ing))\b/i
       .test(text);
   return hasStrictStructuralEngineeringEvidence(text) &&
     hasCausalFlow &&
@@ -1474,17 +1499,18 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
       hasInitializationOrderFlow ||
       hasTransportFramingFlow ||
       hasListenerCleanupFlow ||
-      hasProcessLifecycleFlow
+      hasProcessLifecycleFlow ||
+      hasMigrationConstraintFlow
     );
 }
 
 function hasStrictStructuralEngineeringFailureSignal(value: string) {
   const text = value.toLowerCase();
   const hasNamedConsequence =
-    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|duplicate messages?|duplicate websocket messages?|appended twice|stale responses?|stale results?|overwrote the current query results?|overwrote current results?|overwrite the current query results?|overwrite current results?|replace current results?|orphan note_tags rows?|orphan tags?|unused tags?|count 0|joins? whose note_id no longer existed|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream)|false serve success|dead server|looked like a running server|running server|nonzero exit codes?|non-zero exit codes?|exit code\s*\d+)\b/i
+    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|duplicate messages?|duplicate websocket messages?|appended twice|stale responses?|stale results?|overwrote the current query results?|overwrote current results?|overwrite the current query results?|overwrite current results?|replace current results?|orphan note_tags rows?|orphan tags?|unused tags?|count 0|joins? whose note_id no longer existed|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream)|false serve success|dead server|looked like a running server|running server|nonzero exit codes?|non-zero exit codes?|exit code\s*\d+|migration (?:does not )?fail(?:s|ed)?|migration failures?|existing row failures?|constraint violation|violated the constraint)\b/i
       .test(text);
   const hasCausalFlow =
-    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|overwrote|overwrite|reused|reuse|retried|retries|cancel|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|left|no longer existed|deleting notes?|note deletion|cleanup|filter|prune|remounts?|unmount|duplicate|appended twice|spawn handshake|exit event|exit code|nonzero|non-zero|dead server)\b/i
+    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|overwrote|overwrite|reused|reuse|retried|retries|cancel|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|left|no longer existed|deleting notes?|note deletion|cleanup|filter|prune|remounts?|unmount|duplicate|appended twice|spawn handshake|exit event|exit code|nonzero|non-zero|dead server|backfill|not null|default|constraint|violat(?:e|ed|es|ing)|migration)\b/i
       .test(text);
   return hasStrictStructuralEngineeringEvidence(text) && hasNamedConsequence && hasCausalFlow;
 }
@@ -1769,9 +1795,21 @@ function isVisibleWorkLogClaim(value: string) {
 }
 
 function isExplicitEnglishStatusShell(value: string) {
-  return /^\s*(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task)\s+(?:record|report|note|summary|update|log|entry)|(?:implementation|task|fix|execution|run|work|status)\s+results?|run\s+results?|work\s*log(?:\s+entry)?|worklog(?:\s+entry)?|status|record|update|implementation|result|outcome|completion(?:\s+(?:note|record))?|completed|done|this\s+fix|this\s+run)\s*(?:[:\-\u2013\u2014])/i
+  return hasTechnicalPrefixStatusShell(value) ||
+    /^\s*(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task)\s+(?:record|report|note|summary|update|log|entry)|(?:implementation|task|fix|execution|run|work|status)\s+results?|run\s+results?|work\s*log(?:\s+entry)?|worklog(?:\s+entry)?|status|record|update|implementation|result|outcome|completion(?:\s+(?:note|record))?|completed|done|this\s+fix|this\s+run)\s*(?:[:\-\u2013\u2014])/i
     .test(value.trim()) ||
     isCurrentRunImplementationShell(value);
+}
+
+function hasTechnicalPrefixStatusShell(value: string) {
+  const text = value.trim();
+  const technicalPrefix = String.raw`(?:\/api\/[\w/-]+|[a-z0-9]+_[a-z0-9_]+|[a-z][a-z0-9_]*\.[a-z_][a-z0-9_]*|activerequestid|setresults|data_dir|node_env|child_process|jsonl|sqlite|sql\.js|websocket|mcp|json-rpc)`;
+  const englishShell = String.raw`(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task)\s+(?:record|report|note|summary|update|log|entry)|(?:status|record|update|implementation|result|outcome|completion(?:\s+(?:note|record))?|completed|done))`;
+  const chineseShell = String.raw`(?:状态记录|记录状态|工作日志|日志记录|工作记录|执行记录|完成记录|状态更新|运行结果|执行结果|结果记录|结果报告|任务结果|实现结果|修复结果|工作结果|状态结果|运行记录|任务记录|实现记录|实现说明|更新记录|变更记录|变更摘要|本次修复|本次执行|本次任务|本次改动|本轮执行|本轮修复|本轮任务|本轮改动|修复记录|结果|完成|已完成|完成说明)`;
+  return new RegExp(`^\\s*${technicalPrefix}\\s+${englishShell}\\s*(?:[:\\-\\u2013\\u2014])`, 'i')
+    .test(text) ||
+    new RegExp(`^\\s*${technicalPrefix}\\s*${chineseShell}\\s*(?:[：:\\-\\u2013\\u2014]|$)`, 'i')
+      .test(text);
 }
 
 function isCurrentRunImplementationShell(value: string) {
@@ -1820,6 +1858,7 @@ function hasChineseVisibleMechanism(value: string) {
 function isChineseVisibleStatusShell(value: string) {
   if (!/[\u3400-\u9fff]/.test(value)) return false;
   const hasStatusRecordShell =
+    hasTechnicalPrefixStatusShell(value) ||
     /^\s*(?:状态记录|记录状态|工作日志|日志记录|工作记录|执行记录|完成记录|状态更新|运行结果|执行结果|结果记录|结果报告|任务结果|实现结果|修复结果|工作结果|状态结果|运行记录|任务记录|实现记录|实现说明|更新记录|变更记录|变更摘要|本次修复|本次执行|本次任务|本次改动|本轮执行|本轮修复|本轮任务|本轮改动|修复记录|结果|完成|已完成|完成说明)\s*(?:[：:\-\u2013\u2014]|$)/i
       .test(value) ||
     /(?:^|[\s：:])(?:状态记录|记录状态|工作日志|日志记录|工作记录)(?:[\s：:]|$)|^(?:状态|记录)\s*[：:]/i
