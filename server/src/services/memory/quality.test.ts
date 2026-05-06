@@ -2415,6 +2415,50 @@ test('validateMaterializedNoteQuality rejects generic custom provider reliabilit
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality accepts raw-body HMAC signature verification fixes', () => {
+  const summary = 'Verify Stripe webhook HMAC over rawBody before JSON parsing because parsing can normalize bytes and make valid signatures fail with HTTP 400.';
+  const root_cause = 'Stripe webhook signature verification returned HTTP 400 because JSON.parse reconstructed the request body before HMAC verification and changed the signed bytes.';
+  const resolution = 'Read rawBody and verify the HMAC before JSON.parse so valid Stripe webhook signatures are not rejected.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Stripe webhook HMAC must use raw request body',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['backend'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic webhook signature reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Webhook signature reliability fix',
+    summary: 'Verify webhook signatures properly to improve webhook reliability.',
+    key_conclusions: [
+      'Root cause: Webhook signature verification was unreliable.',
+      'Resolution: Verify webhook signatures properly to improve webhook reliability.',
+    ],
+    tags: ['backend'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Verify webhook signatures properly to improve webhook reliability.',
+      root_cause: 'Webhook signature verification was unreliable.',
+      resolution: 'Verify webhook signatures properly to improve webhook reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality accepts embedding model capability fixes', () => {
   const summary = 'Configure embedding.provider and embedding.model separately from the LLM so semantic search calls a model that supports /v1/embeddings.';
   const root_cause = 'Semantic search returned HTTP 500 because the configured embedding model reused the chat LLM, which did not expose a /v1/embeddings endpoint.';
@@ -4396,6 +4440,82 @@ test('validateMaterializedNoteQuality rejects check-passed status shells with co
   assert.equal(chineseResult.accepted, false);
   assert.equal(chineseResult.reason, 'low-note-quality');
   assert.ok(chineseResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects smoke and acceptance pass status shells', () => {
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.';
+  const resolution = 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.';
+  const englishResult = validateMaterializedNoteQuality(note({
+    title: 'Search smoke passed activeRequestId gates stale /api/search responses',
+    summary: 'Search smoke passed activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['react-search'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Search smoke passed activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(englishResult.accepted, false);
+  assert.equal(englishResult.reason, 'low-note-quality');
+  assert.ok(englishResult.warnings.includes('durable_reusable_lesson'));
+
+  const chineseSummary = '在 setResults 前校验 activeRequestId，避免旧的 /api/search 响应覆盖当前查询结果。';
+  const chineseRootCause = '旧的 /api/search 响应覆盖当前查询结果，因为 setResults 前没有校验 activeRequestId。';
+  const chineseResolution = '在 setResults 前校验 activeRequestId，避免旧的 /api/search 响应覆盖当前查询结果。';
+  const chineseTitles = [
+    '语义搜索冒烟通过 activeRequestId 防止 /api/search 旧响应覆盖新结果',
+    '语义搜索验收通过 activeRequestId 防止 /api/search 旧响应覆盖新结果',
+    '语义搜索验证已通过 activeRequestId 防止 /api/search 旧响应覆盖新结果',
+  ];
+
+  for (const title of chineseTitles) {
+    const result = validateMaterializedNoteQuality(note({
+      title,
+      summary: chineseSummary,
+      key_conclusions: [`Root cause: ${chineseRootCause}`, `Resolution: ${chineseResolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary: chineseSummary,
+        root_cause: chineseRootCause,
+        resolution: chineseResolution,
+      },
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, title);
+    assert.equal(result.reason, 'low-note-quality', title);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), title);
+  }
+});
+
+test('validateMaterializedNoteQuality rejects release validation status shells before release or shipping', () => {
+  const root_cause = '/api/search returned HTTP 500 because route registration ran after request setup.';
+  const resolution = 'Register /api/search before request setup so API requests do not return HTTP 500.';
+  const shells = [
+    'Release validated /api/search before release HTTP 500 after route registration moved before request setup.',
+    '/api/search verified before shipping HTTP 500 after route registration moved before request setup.',
+  ];
+
+  for (const text of shells) {
+    const result = validateMaterializedNoteQuality(note({
+      title: text,
+      summary: text,
+      key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+      tags: ['api-search'],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary: text,
+        root_cause,
+        resolution,
+      },
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, text);
+    assert.equal(result.reason, 'low-note-quality', text);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), text);
+  }
 });
 
 test('validateMaterializedNoteQuality rejects shows and is result shells with concrete fix payloads', () => {

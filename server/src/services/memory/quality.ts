@@ -118,6 +118,7 @@ function hasConcreteTransferableAction(value: string) {
   if (hasEmbeddingModelConfigAction(text)) return true;
   if (hasEsmImportExtensionAction(text)) return true;
   if (hasImportContentArrayAction(text)) return true;
+  if (hasSignatureRawBodyAction(text)) return true;
   return concreteActionWords.some((word) => hasWord(text, word));
 }
 
@@ -224,6 +225,7 @@ function hasSpecificEvidence(value: string) {
     hasEmbeddingModelConfigEvidence(text) ||
     hasEsmImportExtensionEvidence(text) ||
     hasImportContentArrayEvidence(text) ||
+    hasSignatureRawBodyEvidence(text) ||
     hasDurableEngineeringEvidence(text) ||
     hasImportDedupeEvidence(text) ||
     hasContentSanitizationEvidence(text) ||
@@ -527,6 +529,54 @@ function hasImportContentArrayFailureSignal(value: string) {
       .test(text);
   const hasCausalFlow = /\b(so|because|instead of|produced|lost|missing)\b/i.test(text);
   return hasImportContentArrayEvidence(text) && hasContentLoss && hasCausalFlow;
+}
+
+function hasSignatureRawBodyEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(hmac|signature verification|webhook signatures?|webhook signature|rawbody|raw body|raw request body|signed bytes?|json\.parse|request body)\b/i
+    .test(text) &&
+    /\b(hmac|signature|webhook|rawbody|raw body|raw request body|signed bytes?)\b/i
+      .test(text);
+}
+
+function hasSignatureRawBodyAction(value: string) {
+  const text = value.toLowerCase();
+  const hasRawBodyAction =
+    /\b(read|use|preserve|verify)\b.+\b(rawbody|raw body|raw request body|hmac|signature)\b.+\b(before|over|json\.parse|parsing|signed bytes?)\b/i
+      .test(text) ||
+    /\bverify\b.+\b(hmac|signature)\b.+\b(rawbody|raw body|raw request body)\b/i
+      .test(text) ||
+    /\b(rawbody|raw body|raw request body)\b.+\b(before|hmac|signature|json\.parse|parsing)\b/i
+      .test(text);
+  return hasSignatureRawBodyEvidence(text) && hasRawBodyAction;
+}
+
+function hasSignatureRawBodyMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasRawBodySignatureFlow =
+    /\b(hmac|signature)\b.+\b(rawbody|raw body|raw request body|signed bytes?)\b/i
+      .test(text) ||
+    /\b(rawbody|raw body|raw request body)\b.+\b(hmac|signature|json\.parse|parsing)\b/i
+      .test(text);
+  const hasParsingByteChangeFlow =
+    /\bjson\.parse\b.+\b(reconstructed|changed|normalize|normalized|signed bytes?|hmac|signature|request body)\b/i
+      .test(text) ||
+    /\bparsing\b.+\b(normalize|normalized|change|changed)\b.+\b(bytes?|request body|signed bytes?)\b/i
+      .test(text) ||
+    /\brequest body\b.+\bbefore\b.+\b(hmac|signature)\b.+\bchanged\b.+\bsigned bytes?\b/i
+      .test(text);
+  return hasSignatureRawBodyEvidence(text) && (hasRawBodySignatureFlow || hasParsingByteChangeFlow);
+}
+
+function hasSignatureRawBodyFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasSignatureFailure =
+    /\b(http\s*400|returned\s+http\s*400|valid signatures? fail|valid signatures? (?:are )?not rejected|signatures? (?:are )?not rejected|signatures? (?:are )?rejected|signature verification returned)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|before|after|can|could|changed|normalize|normalized|reconstructed|fail|rejected)\b/i
+      .test(text);
+  return hasSignatureRawBodyEvidence(text) && hasSignatureFailure && hasCausalFlow;
 }
 
 function hasDurableEngineeringEvidence(value: string) {
@@ -956,6 +1006,7 @@ function hasConcreteMechanism(value: string) {
   const hasEmbeddingModelConfigFlow = hasEmbeddingModelConfigMechanism(text);
   const hasEsmImportExtensionFlow = hasEsmImportExtensionMechanism(text);
   const hasImportContentArrayFlow = hasImportContentArrayMechanism(text);
+  const hasSignatureRawBodyFlow = hasSignatureRawBodyMechanism(text);
   const hasDurableEngineeringFlow = hasDurableEngineeringMechanism(text);
   const hasImportDedupeFlow = hasImportDedupeMechanism(text);
   const hasContentSanitizationFlow = hasContentSanitizationMechanism(text);
@@ -986,6 +1037,7 @@ function hasConcreteMechanism(value: string) {
     hasEmbeddingModelConfigFlow ||
     hasEsmImportExtensionFlow ||
     hasImportContentArrayFlow ||
+    hasSignatureRawBodyFlow ||
     hasDurableEngineeringFlow ||
     hasImportDedupeFlow ||
     hasContentSanitizationFlow ||
@@ -1122,6 +1174,7 @@ function hasFailureOrConsequenceSignal(value: string) {
     hasEmbeddingModelConfigFailureSignal(value) ||
     hasEsmImportExtensionFailureSignal(value) ||
     hasImportContentArrayFailureSignal(value) ||
+    hasSignatureRawBodyFailureSignal(value) ||
     hasDurableEngineeringFailureSignal(value) ||
     hasImportDedupeFailureSignal(value) ||
     hasContentSanitizationFailureSignal(value) ||
@@ -1773,6 +1826,7 @@ function hasStrongRootCauseSignal(value: string) {
   if (isPackageArtifactObservationClaim(value)) return false;
   if (hasGenericRootCauseRationale(value)) return false;
   if (isWeakRootCauseClaim(value)) return false;
+  if (hasSignatureRawBodyFailureSignal(value)) return true;
   if (hasHttpFailureSignal(value)) return hasConcreteHttpRootCauseSignal(value);
   return (
     hasFailureOrConsequenceSignal(value) ||
@@ -2087,6 +2141,7 @@ function isPredicateResultStatusShell(value: string) {
 
 function hasTechnicalPrefixStatusShell(value: string) {
   const text = value.trim();
+  if (hasSignatureRawBodyFailureSignal(text)) return false;
   const descriptorWord = String.raw`(?:api|search|vite|proxy|fastify|react|sqlite|database|mcp|websocket|codex|claude|import|jsonl|electron|daemon|embedding|llm|route)`;
   const chineseDescriptorWord = String.raw`(?:搜索|接口|代理|路由|导入|数据库|前端|后端)`;
   const englishDescriptorPrefix = String.raw`(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,3})`;
@@ -2235,6 +2290,8 @@ function isGenericVisibleBoilerplateClaim(value: string) {
 function isGenericReleaseValidationClaim(value: string) {
   const text = value.toLowerCase();
   return (
+    /\b(?:release\s+)?(?:validat(?:e|ed|ing|ion)|verified?)\b.+(?:\/api\/[\w/-]+|api requests?|requests?)\b.+\bbefore (?:release|shipping)\b/i.test(text) ||
+    /(?:\/api\/[\w/-]+|api requests?|requests?)\b.+\b(?:validat(?:e|ed|ing|ion)|verified?)\b.+\bbefore (?:release|shipping)\b/i.test(text) ||
     /\bvalidat(?:e|ing|ion)\b.+(?:\/api\/[\w/-]+|api requests?|requests?)\b.+\bbefore release\b/i.test(text) ||
     /\bvalidat(?:e|ing|ion)\b.+\b(api requests?|requests?)\b.+\bbefore release\b/i.test(text) ||
     /\b(api requests?|requests?)\b.+\bvalidat(?:e|ing|ion)\b.+\bbefore release\b/i.test(text)
@@ -2242,7 +2299,7 @@ function isGenericReleaseValidationClaim(value: string) {
 }
 
 function isVisibleStatusSnapshotText(value: string) {
-  const hasPassStatus = /\b(build|npm test|tests?|testing|typecheck|lint|ci|verification|checks?)\b.+\bpassed\b/i
+  const hasPassStatus = /\b(build|npm test|tests?|testing|typecheck|lint|ci|verification|checks?|smoke(?: tests?)?)\b.+\bpassed\b/i
     .test(value);
   const hasSuccessStatus =
     /\b(ci green|ci completed successfully|tests? succeeded|testing succeeded|verification succeeded|build succeeded|typecheck succeeded|lint succeeded)\b/i
@@ -2259,7 +2316,7 @@ function isVisibleStatusSnapshotText(value: string) {
   const hasStatusVerb = /\b(checked|noted|observed|reviewed|resolved|tested|testing passed|verified|verification|current|status)\b/i
     .test(value);
   const hasChineseStatus =
-    /已验证|验证通过|测试通过|构建通过|编译通过|类型检查通过|检查通过|检查已通过|已修复|修复已验证|ci\s*通过|持续集成通过/i
+    /已验证|验证通过|验证已通过|测试通过|构建通过|编译通过|类型检查通过|检查通过|检查已通过|冒烟通过|验收通过|已修复|修复已验证|ci\s*通过|持续集成通过/i
       .test(value) ||
     isChineseVisibleStatusShell(value) ||
     /(?:提高|提升).{0,12}(?:可靠性|正确性)|(?:可靠性|正确性).{0,12}(?:提高|提升)/
