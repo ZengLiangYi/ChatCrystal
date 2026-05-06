@@ -1231,6 +1231,25 @@ test('validateMaterializedNoteQuality rejects visible status fixes with concrete
   assert.equal(verificationResult.accepted, false);
   assert.equal(verificationResult.reason, 'low-note-quality');
   assert.ok(verificationResult.warnings.includes('durable_reusable_lesson'));
+
+  const verificationConfirmedResult = validateMaterializedNoteQuality(note({
+    title: 'Search verification confirmed activeRequestId gates stale /api/search responses',
+    summary: 'The verification confirmed activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.',
+    key_conclusions: [
+      'Root cause: Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      'Resolution: Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'The verification confirmed activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.',
+      root_cause: 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      resolution: 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(verificationConfirmedResult.accepted, false);
+  assert.equal(verificationConfirmedResult.reason, 'low-note-quality');
+  assert.ok(verificationConfirmedResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects first-person implementation diary fixes', () => {
@@ -1436,6 +1455,20 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
       resolution: 'I used activeRequestId to gate setResults so stale /api/search responses do not overwrite current results.',
     },
   }), { mode: 'auto' });
+  const ensuredResult = validateMaterializedNoteQuality(note({
+    title: 'I ensured activeRequestId gates stale /api/search responses',
+    summary: 'I ensured activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.',
+    key_conclusions: [
+      'Root cause: Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      'Resolution: Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'I ensured activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.',
+      root_cause: 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      resolution: 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.',
+    },
+  }), { mode: 'auto' });
   const myFixResult = validateMaterializedNoteQuality(note({
     title: 'My fix uses activeRequestId for search results',
     summary: 'My fix uses activeRequestId to gate setResults so stale /api/search responses cannot overwrite current results.',
@@ -1523,6 +1556,9 @@ test('validateMaterializedNoteQuality rejects first-person implementation diary 
   assert.equal(usedResult.accepted, false);
   assert.equal(usedResult.reason, 'low-note-quality');
   assert.ok(usedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(ensuredResult.accepted, false);
+  assert.equal(ensuredResult.reason, 'low-note-quality');
+  assert.ok(ensuredResult.warnings.includes('durable_reusable_lesson'));
   assert.equal(myFixResult.accepted, false);
   assert.equal(myFixResult.reason, 'low-note-quality');
   assert.ok(myFixResult.warnings.includes('durable_reusable_lesson'));
@@ -3314,6 +3350,25 @@ test('validateMaterializedNoteQuality accepts SQL parameterized tag lookup fixes
   assert.equal(syntaxResult.accepted, true);
   assert.equal(syntaxResult.reason, 'note-quality-ok');
   assert.deepEqual(syntaxResult.warnings, []);
+
+  const payloadSummary = 'Use SQL parameters for tag filters so user-controlled tag text stays data instead of executable SQL.';
+  const payloadRootCause = 'Interpolated tag text let a crafted tag payload change the SQL WHERE clause syntax.';
+  const payloadResolution = 'Bind tag values as sql.js parameters instead of interpolating tag text into WHERE clauses.';
+  const payloadResult = validateMaterializedNoteQuality(note({
+    title: 'Parameterized tag queries prevent SQL syntax injection',
+    summary: payloadSummary,
+    key_conclusions: [`Root cause: ${payloadRootCause}`, `Resolution: ${payloadResolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: payloadSummary,
+      root_cause: payloadRootCause,
+      resolution: payloadResolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(payloadResult.accepted, true);
+  assert.equal(payloadResult.reason, 'note-quality-ok');
+  assert.deepEqual(payloadResult.warnings, []);
 });
 
 test('validateMaterializedNoteQuality accepts SQLite migration backfill constraint fixes', () => {

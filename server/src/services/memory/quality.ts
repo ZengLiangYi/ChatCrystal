@@ -1018,6 +1018,9 @@ function isFirstPersonDiaryClaim(value: string) {
     'configures',
     'diagnosed',
     'discovered',
+    'ensure',
+    'ensured',
+    'ensures',
     'fixed',
     'found',
     'gates',
@@ -1212,10 +1215,10 @@ function hasSqlParameterizationEvidence(value: string) {
   const hasQueryContext =
     /\b(sql|sql\.js|where clauses?|queries?|query|lookups?|lookup)\b/i.test(text);
   const hasParameterOrTagContext =
-    /\b(sql parameters?|parameters?|parameterized|parameterised|tag names?|tags?|interpolated tag strings?|interpolated tag text)\b/i
+    /\b(sql parameters?|parameters?|parameterized|parameterised|tag names?|tag values?|tag filters?|tag payload|user-controlled tag text|tags?|interpolated tag strings?|interpolated tag text)\b/i
       .test(text);
   const hasInterpolationBoundary =
-    /\b(quotes?|quote breakage|sql syntax|where clauses?|interpolat(?:e|ed|ing)|bind(?:ing)?|parameteriz(?:e|ed|ing)|parameteris(?:e|ed|ing))\b/i
+    /\b(quotes?|quote breakage|sql syntax|executable sql|where clauses?|interpolat(?:e|ed|ing)|bind(?:ing)?|parameteriz(?:e|ed|ing)|parameteris(?:e|ed|ing))\b/i
       .test(text);
   return hasQueryContext && hasParameterOrTagContext && hasInterpolationBoundary;
 }
@@ -1225,6 +1228,8 @@ function hasSqlParameterizationAction(value: string) {
   return hasSqlParameterizationEvidence(text) &&
     (
       /\b(bind|binding|parameteriz(?:e|es|ed|ing)|parameteris(?:e|es|ed|ing))\b.+\b(tag names?|tags?|sql parameters?|parameters?|queries?|lookups?)\b/i
+        .test(text) ||
+      /\b(bind|binding)\b.+\b(tag values?|tag filters?|tag payload|tag text)\b.+\b(sql\.js\s+)?parameters?\b/i
         .test(text) ||
       /\b(use)\b.+\b(parameterized queries?|parameterised queries?|sql parameters?)\b/i
         .test(text)
@@ -1242,10 +1247,16 @@ function hasSqlParameterizationMechanism(value: string) {
       .test(text) ||
     /\binterpolat(?:e|ed|ing)\b.+\buser-controlled tag names?\b.+\b(?:sql\s+)?where clauses?\b/i
       .test(text) ||
+    /\binterpolat(?:e|ed|ing)\b.+\btag text\b.+\bcrafted tag payload\b.+\bchang(?:e|ed|es|ing)\b.+\b(?:sql\s+)?where clause syntax\b/i
+      .test(text) ||
     /\bquotes?\b.+\btag\b.+\b(?:alter(?:ed|s|ing)|chang(?:ed|es|ing))\b.+\bsql syntax\b/i
       .test(text);
   const hasParameterizationFix =
     /\bbind\b.+\btag names?\b.+\b(sql\.js\s+)?parameters?\b.+\bquotes?\b.+\bdata\b.+\binstead of sql syntax\b/i
+      .test(text) ||
+    /\bbind\b.+\btag values?\b.+\b(sql\.js\s+)?parameters?\b.+\binstead of\b.+\binterpolat(?:e|ing)\b.+\btag text\b.+\bwhere clauses?\b/i
+      .test(text) ||
+    /\bsql parameters?\b.+\btag filters?\b.+\buser-controlled tag text\b.+\bstays?\b.+\bdata\b.+\binstead of executable sql\b/i
       .test(text) ||
     /\bquotes?\b.+\bstay\b.+\bdata\b.+\binstead of sql syntax\b/i
       .test(text) ||
@@ -1274,6 +1285,8 @@ function hasSqlParameterizationFailureSignal(value: string) {
     /\bsql syntax injection\b/i
       .test(text) ||
     /\bquotes?\b.+\btag\b.+\b(?:alter(?:ed|s|ing)|chang(?:ed|es|ing))\b.+\bsql syntax\b/i
+      .test(text) ||
+    /\bcrafted tag payload\b.+\bchang(?:e|ed|es|ing)\b.+\b(?:sql\s+)?where clause syntax\b/i
       .test(text) ||
     /\balter(?:ed|s|ing)\b.+\bwhere clause syntax\b/i
       .test(text);
@@ -2066,6 +2079,8 @@ function isVisibleStatusSnapshotText(value: string) {
     /\b(ci green|ci completed successfully|tests? succeeded|testing succeeded|verification succeeded|build succeeded|typecheck succeeded|lint succeeded)\b/i
       .test(value) ||
     /\b(typecheck|lint|ci|build|tests?|testing|verification)\b.+\bcompleted successfully\b/i
+      .test(value) ||
+    /\bverification\b.+\bconfirmed\b/i
       .test(value);
   const hasHttpSuccessStatus =
     /\b(?:now\s+)?(?:returns?|responds?)(?:\s+with)?\s+(?:http\s*)?2\d\d\b/i
