@@ -2978,6 +2978,48 @@ test('validateMaterializedNoteQuality accepts stale async search response fixes'
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts route initialization HTTP failures', () => {
+  const summary = 'POST /api/import returned HTTP 500 because the route handled requests before sql.js finished initialization; wait for db initialization before accepting import requests.';
+  const root_cause = 'POST /api/import returned HTTP 500 because the route handled requests before sql.js finished initialization.';
+  const resolution = 'Wait for db initialization before accepting /api/import requests.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Import route returns HTTP 500 before sql.js initialization',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts MCP stdio JSON-RPC transport fixes', () => {
+  const summary = 'Writing logs to process.stdout corrupts MCP JSON-RPC framing because stdout is the response transport; send diagnostics to process.stderr instead.';
+  const root_cause = 'Logs written to process.stdout interleaved with MCP JSON-RPC responses, so the client could not parse the stdio stream.';
+  const resolution = 'Send diagnostics to process.stderr and reserve process.stdout for JSON-RPC response frames.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'MCP stdout logging corrupts JSON-RPC responses',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality accepts stale Vectra index cleanup fixes', () => {
   const root = 'Semantic search returned stale note_id hits because note deletion removed sql.js rows without removing Vectra index entries.';
   const resolution = 'Remove Vectra index entries after deleting sql.js note rows so semantic search cannot return deleted notes.';
@@ -3098,6 +3140,48 @@ test('validateMaterializedNoteQuality rejects generic frontend cancel reliabilit
       summary: 'Cancel requests to improve frontend reliability.',
       root_cause: 'Frontend requests were unreliable.',
       resolution: 'Cancel requests to improve frontend reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic initialization reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API initialization reliability fix',
+    summary: 'Wait for initialization to improve API reliability.',
+    key_conclusions: [
+      'Root cause: API initialization was unreliable.',
+      'Resolution: Wait for initialization to improve API reliability.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Wait for initialization to improve API reliability.',
+      root_cause: 'API initialization was unreliable.',
+      resolution: 'Wait for initialization to improve API reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic logging compatibility fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'MCP logging compatibility fix',
+    summary: 'Send logs elsewhere to improve MCP compatibility.',
+    key_conclusions: [
+      'Root cause: MCP logging compatibility was unreliable.',
+      'Resolution: Send logs elsewhere to improve MCP compatibility.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Send logs elsewhere to improve MCP compatibility.',
+      root_cause: 'MCP logging compatibility was unreliable.',
+      resolution: 'Send logs elsewhere to improve MCP compatibility.',
     },
   }), { mode: 'auto' });
 
