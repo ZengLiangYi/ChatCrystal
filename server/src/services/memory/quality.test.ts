@@ -3148,6 +3148,28 @@ test('validateMaterializedNoteQuality accepts writeback receipt uniqueness fixes
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts SQL parameterized tag lookup fixes', () => {
+  const summary = 'Bind tag names as SQL parameters because interpolated tag strings with quotes broke note tag lookup queries.';
+  const root_cause = 'Tag names containing quotes broke SQL lookup queries because the notes route interpolated tag text directly into WHERE clauses.';
+  const resolution = 'Bind tag names with sql.js parameters before running note tag lookups so quotes stay data instead of SQL syntax.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Parameterized tag queries prevent quote breakage',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['sql-js', 'tags'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality accepts stale async search response fixes', () => {
   const summary = 'Cancel older /api/search requests because slower previous responses overwrote the current query results in the React search view.';
   const root_cause = 'React search fired overlapping /api/search requests, so a slower previous response overwrote the current query results.';
@@ -3289,6 +3311,43 @@ test('validateMaterializedNoteQuality rejects English worklog structured items',
 
 test('validateMaterializedNoteQuality rejects English result report structured items', () => {
   const summary = 'Result report: AbortController cancel older /api/search requests before stale responses overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects English change summary structured items', () => {
+  const summary = 'Change summary: use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+    tags: ['search', 'frontend'],
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects Chinese change summary structured items', () => {
+  const summary = '变更摘要：使用 active request id gate /api/search result updates，避免 stale responses overwrite current results.';
   const result = validateMaterializedNoteQuality(note({
     title: 'Search request id gate prevents stale responses',
     summary,
@@ -3725,6 +3784,28 @@ test('validateMaterializedNoteQuality rejects generic activeRequestId reliabilit
       summary: 'Use activeRequestId to improve reliability.',
       root_cause: 'Search result reliability mattered.',
       resolution: 'Gate setResults for reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic SQL parameterization reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'SQL parameter reliability fix',
+    summary: 'Bind SQL parameters for reliability.',
+    key_conclusions: [
+      'Root cause: SQL query reliability mattered.',
+      'Resolution: Use parameterized queries to improve quality.',
+    ],
+    tags: ['sql-js', 'tags'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Bind SQL parameters for reliability.',
+      root_cause: 'SQL query reliability mattered.',
+      resolution: 'Use parameterized queries to improve quality.',
     },
   }), { mode: 'auto' });
 

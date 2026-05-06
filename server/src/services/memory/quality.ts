@@ -108,6 +108,7 @@ function hasConcreteTransferableAction(value: string) {
   if (hasImportDedupeAction(text)) return true;
   if (hasPersistenceSerializationAction(text)) return true;
   if (hasDbTransactionAtomicityAction(text)) return true;
+  if (hasSqlParameterizationAction(text)) return true;
   if (hasStrictStructuralEngineeringAction(text)) return true;
   if (hasElectronResourceAction(text)) return true;
   if (hasCrossPlatformPathAction(text)) return true;
@@ -228,6 +229,7 @@ function hasSpecificEvidence(value: string) {
     hasContentSanitizationEvidence(text) ||
     hasPersistenceSnapshotEvidence(text) ||
     hasDbTransactionAtomicityEvidence(text) ||
+    hasSqlParameterizationEvidence(text) ||
     hasStrictStructuralEngineeringEvidence(text) ||
     hasIndexConsistencyEvidence(text) ||
     hasElectronResourceEvidence(text) ||
@@ -941,6 +943,7 @@ function hasConcreteMechanism(value: string) {
   const hasContentSanitizationFlow = hasContentSanitizationMechanism(text);
   const hasPersistenceSerializationFlow = hasPersistenceSerializationMechanism(text);
   const hasDbTransactionAtomicityFlow = hasDbTransactionAtomicityMechanism(text);
+  const hasSqlParameterizationFlow = hasSqlParameterizationMechanism(text);
   const hasStrictStructuralEngineeringFlow = hasStrictStructuralEngineeringMechanism(text);
   const hasIndexConsistencyFlow = hasIndexConsistencyMechanism(text);
   const hasElectronResourceFlow = hasElectronResourceMechanism(text);
@@ -970,6 +973,7 @@ function hasConcreteMechanism(value: string) {
     hasContentSanitizationFlow ||
     hasPersistenceSerializationFlow ||
     hasDbTransactionAtomicityFlow ||
+    hasSqlParameterizationFlow ||
     hasStrictStructuralEngineeringFlow ||
     hasIndexConsistencyFlow ||
     hasElectronResourceFlow ||
@@ -1090,6 +1094,7 @@ function hasFailureOrConsequenceSignal(value: string) {
     hasContentSanitizationFailureSignal(value) ||
     hasPersistenceSnapshotFailureSignal(value) ||
     hasDbTransactionAtomicityFailureSignal(value) ||
+    hasSqlParameterizationFailureSignal(value) ||
     hasStrictStructuralEngineeringFailureSignal(value) ||
     hasIndexConsistencyFailureSignal(value) ||
     hasElectronResourceFailureSignal(value) ||
@@ -1188,6 +1193,68 @@ function hasDbTransactionAtomicityFailureSignal(value: string) {
     /\b(because|so|failed|left|prevents?|rolls? back|rollback|roll back|before)\b/i
       .test(text);
   return hasDbTransactionAtomicityEvidence(text) && hasPartialImportConsequence && hasCausalFlow;
+}
+
+function hasSqlParameterizationEvidence(value: string) {
+  const text = value.toLowerCase();
+  const hasQueryContext =
+    /\b(sql|sql\.js|where clauses?|queries?|query|lookups?|lookup)\b/i.test(text);
+  const hasParameterOrTagContext =
+    /\b(sql parameters?|parameters?|parameterized|parameterised|tag names?|tags?|interpolated tag strings?|interpolated tag text)\b/i
+      .test(text);
+  const hasInterpolationBoundary =
+    /\b(quotes?|quote breakage|sql syntax|where clauses?|interpolat(?:e|ed|ing)|bind(?:ing)?|parameteriz(?:e|ed|ing)|parameteris(?:e|ed|ing))\b/i
+      .test(text);
+  return hasQueryContext && hasParameterOrTagContext && hasInterpolationBoundary;
+}
+
+function hasSqlParameterizationAction(value: string) {
+  const text = value.toLowerCase();
+  return hasSqlParameterizationEvidence(text) &&
+    (
+      /\b(bind|binding|parameteriz(?:e|es|ed|ing)|parameteris(?:e|es|ed|ing))\b.+\b(tag names?|tags?|sql parameters?|parameters?|queries?|lookups?)\b/i
+        .test(text) ||
+      /\b(use)\b.+\b(parameterized queries?|parameterised queries?|sql parameters?)\b/i
+        .test(text)
+    );
+}
+
+function hasSqlParameterizationMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasInterpolationFailure =
+    /\btag names?\b.+\bquotes?\b.+\bbroke\b.+\b(sql lookup queries?|lookup queries?|queries?)\b/i
+      .test(text) ||
+    /\binterpolat(?:e|ed|ing)\b.+\b(tag text|tag strings?|tag names?|strings?|text)\b.+\b(where clauses?|sql syntax|queries?|lookups?|quotes?)\b/i
+      .test(text) ||
+    /\b(where clauses?)\b.+\binterpolat(?:e|ed|ing)\b.+\b(tag text|tag strings?|tag names?)\b/i
+      .test(text);
+  const hasParameterizationFix =
+    /\bbind\b.+\btag names?\b.+\b(sql\.js\s+)?parameters?\b.+\bquotes?\b.+\bdata\b.+\binstead of sql syntax\b/i
+      .test(text) ||
+    /\bquotes?\b.+\bstay\b.+\bdata\b.+\binstead of sql syntax\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|before|prevent|prevents|broke|breakage|instead of|interpolat(?:e|ed|ing)|bind|where clauses?|sql syntax)\b/i
+      .test(text);
+  return hasSqlParameterizationEvidence(text) &&
+    hasCausalFlow &&
+    (hasInterpolationFailure || hasParameterizationFix);
+}
+
+function hasSqlParameterizationFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasQueryBreakage =
+    /\bquote breakage\b/i.test(text) ||
+    /\bquotes?\b.+\b(broke|breaks?|breakage|broken)\b.+\b(sql lookup queries?|lookup queries?|queries?|lookups?)\b/i
+      .test(text) ||
+    /\b(broke|breaks?|breakage|broken)\b.+\b(sql lookup queries?|lookup queries?|queries?|lookups?)\b/i
+      .test(text) ||
+    /\bsql syntax\b.+\b(quotes?|tag text|tag strings?|tag names?)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|before|prevent|prevents|broke|breakage|instead of|interpolat(?:e|ed|ing)|where clauses?|sql syntax)\b/i
+      .test(text);
+  return hasSqlParameterizationEvidence(text) && hasQueryBreakage && hasCausalFlow;
 }
 
 function hasStrictStructuralEngineeringEvidence(value: string) {
@@ -1652,7 +1719,7 @@ function isVisibleWorkLogClaim(value: string) {
 }
 
 function isExplicitEnglishStatusShell(value: string) {
-  return /^\s*(?:(?:status|work|implementation|execution|completion|fix|result)\s+(?:record|report|note|summary|update|log)|run\s+results?|work\s*log|worklog|status|record|completion(?:\s+(?:note|record))?|completed|done|this\s+fix|this\s+run)\s*(?:[:\-\u2013\u2014])/i
+  return /^\s*(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task)\s+(?:record|report|note|summary|update|log)|run\s+results?|work\s*log|worklog|status|record|update|implementation|completion(?:\s+(?:note|record))?|completed|done|this\s+fix|this\s+run)\s*(?:[:\-\u2013\u2014])/i
     .test(value.trim()) ||
     isCurrentRunImplementationShell(value);
 }
@@ -1700,7 +1767,7 @@ function hasChineseVisibleMechanism(value: string) {
 function isChineseVisibleStatusShell(value: string) {
   if (!/[\u3400-\u9fff]/.test(value)) return false;
   const hasStatusRecordShell =
-    /^\s*(?:状态记录|记录状态|工作日志|日志记录|工作记录|执行记录|完成记录|状态更新|运行结果|执行结果|结果记录|结果报告|本次修复|本次执行|修复记录|完成|已完成|完成说明)\s*(?:[：:\-\u2013\u2014]|$)/i
+    /^\s*(?:状态记录|记录状态|工作日志|日志记录|工作记录|执行记录|完成记录|状态更新|运行结果|执行结果|结果记录|结果报告|运行记录|任务记录|实现记录|实现说明|更新记录|变更记录|变更摘要|本次修复|本次执行|本次任务|本次改动|本轮执行|本轮修复|本轮任务|本轮改动|修复记录|完成|已完成|完成说明)\s*(?:[：:\-\u2013\u2014]|$)/i
       .test(value) ||
     /(?:^|[\s：:])(?:状态记录|记录状态|工作日志|日志记录|工作记录)(?:[\s：:]|$)|^(?:状态|记录)\s*[：:]/i
       .test(value) ||
