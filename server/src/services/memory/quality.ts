@@ -115,6 +115,7 @@ function hasConcreteTransferableAction(value: string) {
   if (hasSqliteWalSidecarAction(text)) return true;
   if (hasProviderBaseUrlAction(text)) return true;
   if (hasEmbeddingModelConfigAction(text)) return true;
+  if (hasEsmImportExtensionAction(text)) return true;
   if (hasImportContentArrayAction(text)) return true;
   return concreteActionWords.some((word) => hasWord(text, word));
 }
@@ -220,6 +221,7 @@ function hasSpecificEvidence(value: string) {
     hasJsonParsingEvidence(text) ||
     hasProviderBaseUrlEvidence(text) ||
     hasEmbeddingModelConfigEvidence(text) ||
+    hasEsmImportExtensionEvidence(text) ||
     hasImportContentArrayEvidence(text) ||
     hasDurableEngineeringEvidence(text) ||
     hasImportDedupeEvidence(text) ||
@@ -434,6 +436,56 @@ function hasEmbeddingModelConfigFailureSignal(value: string) {
     /\b(because|so|which|caused|returned|reused|missing|did not expose|does not expose|without)\b/i
       .test(text);
   return hasEmbeddingModelConfigEvidence(text) && hasNamedFailure && hasCausalFlow;
+}
+
+function hasEsmImportExtensionEvidence(value: string) {
+  const text = value.toLowerCase();
+  const hasModuleToken =
+    /\b(typescript|tsx|node|esm|compiled esm|compiled dist|dist files?|dist|server typescript)\b/i
+      .test(text);
+  const hasSpecifierToken =
+    /\.js specifiers?|\.ts specifiers?|\.ts\b|\.js\b|import extension|typescript imports?|source imports?|esm modules?|compiled output/i
+      .test(text);
+  return hasModuleToken && hasSpecifierToken;
+}
+
+function hasEsmImportExtensionAction(value: string) {
+  const text = value.toLowerCase();
+  const hasAction = /\b(use|change|replace|import)\b/i.test(text);
+  const hasTarget =
+    /\.js specifiers?|typescript source imports?|server typescript imports?|source imports?/i
+      .test(text);
+  return hasEsmImportExtensionEvidence(text) && hasAction && hasTarget;
+}
+
+function hasEsmImportExtensionMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasEmitSpecifierFlow =
+    /\btypescript\b.+\b(imported|imports?)\b.+\.ts\b.+\b(compiled esm|emitted|emit)\b.+\.ts specifier/i
+      .test(text) ||
+    /\.ts specifier\b.+\b(node|dist|compiled)\b.+\b(resolve|resolves?|could not resolve)\b/i
+      .test(text) ||
+    /\bcompiled esm\b.+\b(emitted|emit)\b.+\.ts specifier/i
+      .test(text);
+  const hasJsSpecifierMappingFlow =
+    /\.js specifiers?\b.+\b(typescript|tsx|node|compiled dist|dist files?|esm modules?)\b/i
+      .test(text) ||
+    /\btsx\b.+\b(maps?|resolves?)\b.+\b(development|\.js specifiers?)\b/i
+      .test(text) ||
+    /\bnode\b.+\b(resolves?|runs?)\b.+\b(compiled dist|dist files?|compiled output|esm modules?)\b/i
+      .test(text);
+  return hasEsmImportExtensionEvidence(text) && (hasEmitSpecifierFlow || hasJsSpecifierMappingFlow);
+}
+
+function hasEsmImportExtensionFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasNamedFailure =
+    /\b(could not resolve|cannot resolve|module not found|breaks? tsx tests?|tests? fail(?:ed)?|build fail(?:ed)?|dist fail(?:ed)?)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|emitted|emit|compiled|directly|resolve|resolves?|mapped?|maps?|breaks?)\b/i
+      .test(text);
+  return hasEsmImportExtensionEvidence(text) && hasNamedFailure && hasCausalFlow;
 }
 
 function hasImportContentArrayEvidence(value: string) {
@@ -882,6 +934,7 @@ function hasConcreteMechanism(value: string) {
   const hasJsonParsingFlow = hasJsonParsingMechanism(text);
   const hasProviderBaseUrlFlow = hasProviderBaseUrlMechanism(text);
   const hasEmbeddingModelConfigFlow = hasEmbeddingModelConfigMechanism(text);
+  const hasEsmImportExtensionFlow = hasEsmImportExtensionMechanism(text);
   const hasImportContentArrayFlow = hasImportContentArrayMechanism(text);
   const hasDurableEngineeringFlow = hasDurableEngineeringMechanism(text);
   const hasImportDedupeFlow = hasImportDedupeMechanism(text);
@@ -910,6 +963,7 @@ function hasConcreteMechanism(value: string) {
     hasJsonParsingFlow ||
     hasProviderBaseUrlFlow ||
     hasEmbeddingModelConfigFlow ||
+    hasEsmImportExtensionFlow ||
     hasImportContentArrayFlow ||
     hasDurableEngineeringFlow ||
     hasImportDedupeFlow ||
@@ -1029,6 +1083,7 @@ function hasFailureOrConsequenceSignal(value: string) {
     hasJsonParsingFailureSignal(value) ||
     hasProviderBaseUrlFailureSignal(value) ||
     hasEmbeddingModelConfigFailureSignal(value) ||
+    hasEsmImportExtensionFailureSignal(value) ||
     hasImportContentArrayFailureSignal(value) ||
     hasDurableEngineeringFailureSignal(value) ||
     hasImportDedupeFailureSignal(value) ||
@@ -1591,7 +1646,7 @@ function isVisibleWorkLogClaim(value: string) {
 }
 
 function isExplicitEnglishStatusShell(value: string) {
-  return /^\s*(?:work\s*log|worklog|status\s+record|status\s+update|status|record|execution\s+record|completion(?:\s+(?:note|record))?|completed|done|fix\s+record|this\s+fix|this\s+run|run\s+log)\s*(?:[:\-\u2013\u2014])/i
+  return /^\s*(?:(?:status|work|implementation|execution|completion|fix|run)\s+(?:record|report|note|summary|update|log)|work\s*log|worklog|status|record|completion(?:\s+(?:note|record))?|completed|done|this\s+fix|this\s+run)\s*(?:[:\-\u2013\u2014])/i
     .test(value.trim());
 }
 

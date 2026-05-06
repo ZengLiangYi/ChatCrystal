@@ -2287,6 +2287,48 @@ test('validateMaterializedNoteQuality rejects generic embedding config reliabili
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality accepts TypeScript ESM import extension fixes', () => {
+  const summary = 'Use .js specifiers in server TypeScript imports so tsx resolves ESM modules the same way Node runs compiled output.';
+  const root_cause = 'Server TypeScript imported ./quality.ts directly, so compiled ESM emitted a .ts specifier that Node could not resolve in dist.';
+  const resolution = 'Use .js specifiers in TypeScript source imports so tsx maps them in development and Node resolves compiled dist files.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'TypeScript ESM import extension breaks tsx tests',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic ESM import reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'ESM import reliability fix',
+    summary: 'Use .js imports to improve reliability.',
+    key_conclusions: [
+      'Root cause: ESM imports needed a proper fix.',
+      'Resolution: Fix ESM imports properly.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Use .js imports to improve reliability.',
+      root_cause: 'ESM imports needed a proper fix.',
+      resolution: 'Fix ESM imports properly.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality accepts concrete schema default array fixes', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Zod optional arrays can throw during iteration',
@@ -3241,6 +3283,44 @@ test('validateMaterializedNoteQuality rejects English execution record structure
     },
     tags: [],
     embedding_text: '',
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects English status report structured items', () => {
+  const summary = 'Status report: use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+    tags: ['search', 'frontend'],
+    embedding_text: '',
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects English work record structured items', () => {
+  const summary = 'Work record - use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
   }), { mode: 'auto' });
 
   assert.equal(result.accepted, false);
