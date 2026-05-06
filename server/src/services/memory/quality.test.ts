@@ -3980,6 +3980,45 @@ test('validateMaterializedNoteQuality rejects descriptor-prefix status update sh
   assert.ok(progressResult.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects broad status check shells with concrete fix payloads', () => {
+  const root_cause = 'Older /api/search responses overwrote current results because activeRequestId was not checked before setResults.';
+  const resolution = 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.';
+  const shells = [
+    'Status check: activeRequestId gates stale /api/search responses',
+    'Progress: activeRequestId gates stale /api/search responses',
+    'Search progress: activeRequestId gates stale /api/search responses',
+    'Verification: activeRequestId gates stale /api/search responses',
+    'Verification note: activeRequestId gates stale /api/search responses',
+    'Search completion check: activeRequestId gates stale /api/search responses',
+    'Result check: activeRequestId gates stale /api/search responses',
+    '状态检查：activeRequestId gates stale /api/search responses',
+    '进度：activeRequestId gates stale /api/search responses',
+    '验证：activeRequestId gates stale /api/search responses',
+    '完成检查：activeRequestId gates stale /api/search responses',
+    '结果检查：activeRequestId gates stale /api/search responses',
+  ];
+
+  for (const shell of shells) {
+    const result = validateMaterializedNoteQuality(note({
+      title: shell,
+      summary: shell,
+      key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary: shell,
+        root_cause,
+        resolution,
+      },
+      tags: [],
+      embedding_text: '',
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, shell);
+    assert.equal(result.reason, 'low-note-quality', shell);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), shell);
+  }
+});
+
 test('validateMaterializedNoteQuality rejects English work record structured items', () => {
   const summary = 'Work record - use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
   const result = validateMaterializedNoteQuality(note({
