@@ -1023,6 +1023,9 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
   const hasNamedAsyncObject =
     /\b(abortcontroller|react search|search view|\/api\/search|search request sequence|stale search requests?|stale responses?|stale results?|previous responses?|current query results?|current results|overlapping requests?|overlapping \/api\/search requests?)\b/i
       .test(text);
+  const hasNamedRelationObject =
+    /\b(note_ids?|note_tags|tag counts?|filter chips?|webui|deletenotewithreview|note deletion|orphan tags?|unused tags?|joins? whose note_id|existing notes?)\b/i
+      .test(text);
   const hasNamedTransportObject =
     /\b(mcp|json-rpc|json rpc|stdio|stdout|stderr|process\.stdout|process\.stderr|response frames?|response transport|stdio stream)\b/i
       .test(text);
@@ -1030,12 +1033,13 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
     /\b(db initialization|database initialization|sql\.js initialization|sql\.js finished initialization|finished initialization|accepting import requests?|accepting \/api\/[\w/-]+ requests?|route handled requests?)\b/i
       .test(text);
   const hasEngineeringContext =
-    /\b(sqlite|sql\.js|table|rows?|index|indexed lookup|lookup|lookups?|query|queries|filtered|filtering|request timeouts?|timed out|large imports?|messages?|note detail|cache|schema|parser|jsonl|constraint|unique|duplicate|receipt|receipts|writeback|search|frontend|react|requests?|responses?|initialization|initialized|route|mcp|json-rpc|stdio|stdout|stderr|framing|transport|logs?|diagnostics?)\b/i
+    /\b(sqlite|sql\.js|table|rows?|index|indexed lookup|lookup|lookups?|query|queries|filtered|filtering|request timeouts?|timed out|large imports?|messages?|note detail|cache|schema|parser|jsonl|constraint|unique|duplicate|receipt|receipts|writeback|search|frontend|react|requests?|responses?|initialization|initialized|route|mcp|json-rpc|stdio|stdout|stderr|framing|transport|logs?|diagnostics?|tags?|joins?|deletion|cleanup|filter chips?|webui)\b/i
       .test(text);
   return (
     hasConcreteToken ||
     hasNamedDbObject ||
     hasNamedAsyncObject ||
+    hasNamedRelationObject ||
     hasNamedTransportObject ||
     hasNamedLifecycleObject
   ) && hasEngineeringContext;
@@ -1044,7 +1048,7 @@ function hasStrictStructuralEngineeringEvidence(value: string) {
 function hasStrictStructuralEngineeringAction(value: string) {
   const text = value.toLowerCase();
   const hasAction =
-    /\b(add|create|remove|wrap|validate|normalize|configure|set|index|return|reuse|cancel|use|wait|send|reserve)\b/i
+    /\b(add|create|remove|wrap|validate|normalize|configure|set|index|return|reuse|cancel|use|wait|send|reserve|filter|prune|clean up|cleanup)\b/i
       .test(text);
   const hasConcreteDbAction =
     /\b(add|create)\b.+\b(unique\s*\([^)]*\)|unique key|unique constraint|constraint|index|idx_[a-z0-9_]+)\b/i
@@ -1058,6 +1062,11 @@ function hasStrictStructuralEngineeringAction(value: string) {
       .test(text) ||
     /\b(ignore)\b.+\b(responses?)\b.+\b(not from the latest query|older|previous|stale|latest query)\b/i
       .test(text);
+  const hasConcreteRelationAction =
+    /\b(filter|filtered)\b.+\b(tag counts?|tags?)\b.+\b(existing notes?|existing note_ids?|note_ids?)\b/i
+      .test(text) ||
+    /\b(prune|remove|clean up|cleanup)\b.+\b(orphan note_tags rows?|orphan tags?|unused tags?|joins?)\b/i
+      .test(text);
   const hasConcreteLifecycleAction =
     /\b(wait)\b.+\b(db initialization|database initialization|sql\.js initialization|initialized|finished initialization)\b.+\b(before accepting|before handling|requests?)\b/i
       .test(text);
@@ -1067,7 +1076,14 @@ function hasStrictStructuralEngineeringAction(value: string) {
     /\b(reserve)\b.+\b(process\.stdout|stdout)\b.+\b(json-rpc|json rpc|response frames?|stdio)\b/i
       .test(text);
   return hasStrictStructuralEngineeringEvidence(text) &&
-    (hasAction || hasConcreteDbAction || hasConcreteAsyncAction || hasConcreteLifecycleAction || hasConcreteTransportAction);
+    (
+      hasAction ||
+      hasConcreteDbAction ||
+      hasConcreteAsyncAction ||
+      hasConcreteRelationAction ||
+      hasConcreteLifecycleAction ||
+      hasConcreteTransportAction
+    );
 }
 
 function hasStrictStructuralEngineeringMechanism(value: string) {
@@ -1111,6 +1127,17 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
       .test(text) ||
     /\bolder\b.+\b\/api\/search responses?\b.+\b(after a newer query|newer query)\b.+\boverwrite\b.+\bcurrent results\b/i
       .test(text);
+  const hasRelationCleanupFlow =
+    /\b(filter|filtered)\b.+\b(tag counts?|tags?)\b.+\b(existing notes?|existing note_ids?|note_ids?)\b/i
+      .test(text) ||
+    /\b(prune|remove|clean up|cleanup)\b.+\b(orphan note_tags rows?|orphan tags?|unused tags?|joins?)\b/i
+      .test(text) ||
+    /\b(deleting notes?|note deletion|deletenotewithreview)\b.+\b(left|leaves?|orphan|unused|cleanup|joins?)\b/i
+      .test(text) ||
+    /\bcleanup\b.+\bdid not remove\b.+\bjoins?\b.+\bnote_id\b.+\bno longer existed\b/i
+      .test(text) ||
+    /\b(filter chips?)\b.+\b(count 0|orphan|unused)\b/i
+      .test(text);
   const hasInitializationOrderFlow =
     /\b(route|\/api\/[\w/-]+)\b.+\b(handled|handles?|accept(?:ed|ing)?|requests?)\b.+\bbefore\b.+\b(sql\.js|db|database)\b.+\b(finished initialization|initialization|initialized)\b/i
       .test(text) ||
@@ -1130,7 +1157,7 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
     /\b(reserve)\b.+\b(process\.stdout|stdout)\b.+\b(json-rpc|json rpc|response frames?|stdio)\b/i
       .test(text);
   const hasCausalFlow =
-    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|gate|ignore|latest query|request id|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|wait|reserve)\b/i
+    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|gate|ignore|latest query|request id|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|wait|reserve|left|no longer existed|deleting notes?|note deletion|cleanup|prune|filter)\b/i
       .test(text);
   return hasStrictStructuralEngineeringEvidence(text) &&
     hasCausalFlow &&
@@ -1140,6 +1167,7 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
       hasLookupScanFlow ||
       hasUniquenessConstraintFlow ||
       hasStaleAsyncResponseFlow ||
+      hasRelationCleanupFlow ||
       hasInitializationOrderFlow ||
       hasTransportFramingFlow
     );
@@ -1148,10 +1176,10 @@ function hasStrictStructuralEngineeringMechanism(value: string) {
 function hasStrictStructuralEngineeringFailureSignal(value: string) {
   const text = value.toLowerCase();
   const hasNamedConsequence =
-    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|stale responses?|stale results?|overwrote the current query results?|overwrote current results?|overwrite the current query results?|overwrite current results?|replace current results?|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream))\b/i
+    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|stale responses?|stale results?|overwrote the current query results?|overwrote current results?|overwrite the current query results?|overwrite current results?|replace current results?|orphan note_tags rows?|orphan tags?|unused tags?|count 0|joins? whose note_id no longer existed|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream))\b/i
       .test(text);
   const hasCausalFlow =
-    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|overwrote|overwrite|reused|reuse|retried|retries|cancel|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?)\b/i
+    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|overwrote|overwrite|reused|reuse|retried|retries|cancel|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|left|no longer existed|deleting notes?|note deletion|cleanup|filter|prune)\b/i
       .test(text);
   return hasStrictStructuralEngineeringEvidence(text) && hasNamedConsequence && hasCausalFlow;
 }
@@ -1220,7 +1248,9 @@ function isExistenceOnlyClaim(value: string) {
   const hasExistencePhrase =
     /\b(existed|exists|was present|were present|present during|is available|was available|on disk|is on disk|was on disk|was there|were there|there was|there were|was found|were found|was included|were included|was located|were located|was listed|was detected|were detected|was observed|were observed|was seen|were seen|was discovered|were discovered|appeared|showed up)\b/
       .test(text);
-  return hasExistencePhrase && !hasDefaultDataDirectoryConsequence(text);
+  return hasExistencePhrase &&
+    !hasDefaultDataDirectoryConsequence(text) &&
+    !hasStrictStructuralEngineeringFailureSignal(text);
 }
 
 function isPackageArtifactObservationClaim(value: string) {
@@ -1447,6 +1477,13 @@ function hasChineseVisibleMechanism(value: string) {
 
 function isChineseVisibleStatusShell(value: string) {
   if (!/[\u3400-\u9fff]/.test(value)) return false;
+  const hasStatusRecordShell =
+    /(?:^|[\s：:])(?:状态记录|记录状态)(?:[\s：:]|$)|^状态\s*[：:]/i
+      .test(value) ||
+    /(?:已记录|记录了).{0,80}(?:已修复|修复完成|已完成|完成|处理完成|解决完成)/i
+      .test(value);
+  if (hasStatusRecordShell) return true;
+
   const hasCompletionShell =
     /问题处理完|处理完成|处理完毕|修复好了|修好了|已经处理|已处理|回归正常|恢复正常|更稳定|不再返回|已解决|解决完成|已完成|修复完成|修复已完成/i
       .test(value);

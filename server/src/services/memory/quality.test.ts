@@ -2999,6 +2999,28 @@ test('validateMaterializedNoteQuality accepts request-id gated stale response fi
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality rejects Chinese status-shell structured items', () => {
+  const summary = '状态记录：使用 active request id gate /api/search result updates，避免 stale responses overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: '状态记录 /api/search active request id stale response',
+    summary,
+    key_conclusions: [
+      `Decision: ${summary}`,
+    ],
+    raw_payload: {
+      summary,
+      outcome_type: 'decision',
+      decisions: [
+        summary,
+      ],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality accepts route initialization HTTP failures', () => {
   const summary = 'POST /api/import returned HTTP 500 because the route handled requests before sql.js finished initialization; wait for db initialization before accepting import requests.';
   const root_cause = 'POST /api/import returned HTTP 500 because the route handled requests before sql.js finished initialization.';
@@ -3061,6 +3083,27 @@ test('validateMaterializedNoteQuality rejects recorded fix completion patterns',
   assert.equal(result.accepted, false);
   assert.equal(result.reason, 'low-note-quality');
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts orphan note tag cleanup fixes', () => {
+  const summary = 'Filter tags through existing note_ids and prune orphan note_tags rows so WebUI filter chips do not show count 0 after note deletion.';
+  const root_cause = 'Deleting notes left orphan note_tags rows and unused tags because cleanup did not remove joins whose note_id no longer existed.';
+  const resolution = 'Filter tag counts through existing notes and prune orphan note_tags rows after deleteNoteWithReview removes a note.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Hide and prune orphan tags after note deletion',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
 });
 
 test('validateMaterializedNoteQuality accepts stale Vectra index cleanup fixes', () => {
@@ -3205,6 +3248,27 @@ test('validateMaterializedNoteQuality rejects generic request-id gating reliabil
       summary: 'Gate requests by request id to improve search reliability.',
       root_cause: 'Search requests were unreliable.',
       resolution: 'Gate requests by request id to improve search reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic orphan tag cleanup reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Tag cleanup reliability fix',
+    summary: 'Prune orphan rows to improve tag cleanup quality.',
+    key_conclusions: [
+      'Root cause: Tag cleanup quality was unreliable.',
+      'Resolution: Prune orphan rows to improve tag cleanup quality.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Prune orphan rows to improve tag cleanup quality.',
+      root_cause: 'Tag cleanup quality was unreliable.',
+      resolution: 'Prune orphan rows to improve tag cleanup quality.',
     },
   }), { mode: 'auto' });
 
