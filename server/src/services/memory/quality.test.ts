@@ -2030,6 +2030,50 @@ test('validateMaterializedNoteQuality accepts fenced LLM JSON parsing fixes', ()
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts custom provider base URL HTTP fixes', () => {
+  const summary = 'Configure the custom provider base URL with /v1 because the OpenAI-compatible client calls /chat/completions relative to that base and otherwise receives HTTP 404.';
+  const root_cause = 'The custom provider returned HTTP 404 because CUSTOM_BASE_URL omitted /v1, so the OpenAI-compatible client called /chat/completions instead of /v1/chat/completions.';
+  const resolution = 'Configure CUSTOM_BASE_URL with the provider /v1 prefix before creating the OpenAI-compatible client.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Custom provider base URL causes LLM HTTP 404',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['llm', 'custom-provider'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic custom provider reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Custom provider URL reliability fix',
+    summary: 'Configure provider URL so LLM is reliable.',
+    key_conclusions: [
+      'Root cause: Provider URL reliability mattered for LLM calls.',
+      'Resolution: Configure provider URL so LLM is reliable.',
+    ],
+    tags: ['llm', 'custom-provider'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Configure provider URL so LLM is reliable.',
+      root_cause: 'Provider URL reliability mattered for LLM calls.',
+      resolution: 'Configure provider URL so LLM is reliable.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality accepts concrete schema default array fixes', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'Zod optional arrays can throw during iteration',
@@ -2133,6 +2177,19 @@ test('validateMaterializedNoteQuality rejects identifier-only snippets', () => {
       }],
     },
   }), { mode: 'auto' });
+  const placeholderCallResult = validateMaterializedNoteQuality(note({
+    raw_payload: {
+      summary: 'Requests must wait for server readiness before client calls.',
+      outcome_type: 'fix',
+      root_cause: 'Client calls raced server startup.',
+      resolution: 'Block request setup until readiness resolves.',
+      code_snippets: [{
+        language: 'ts',
+        code: 'fix(DATA_DIR)',
+        description: 'Set DATA_DIR before importing the Electron server entrypoint.',
+      }],
+    },
+  }), { mode: 'auto' });
 
   assert.equal(result.accepted, false);
   assert.equal(result.reason, 'low-note-quality');
@@ -2140,6 +2197,9 @@ test('validateMaterializedNoteQuality rejects identifier-only snippets', () => {
   assert.equal(wrappedResult.accepted, false);
   assert.equal(wrappedResult.reason, 'low-note-quality');
   assert.ok(wrappedResult.warnings.includes('code_snippets'));
+  assert.equal(placeholderCallResult.accepted, false);
+  assert.equal(placeholderCallResult.reason, 'low-note-quality');
+  assert.ok(placeholderCallResult.warnings.includes('code_snippets'));
 });
 
 test('validateMaterializedNoteQuality accepts imported content sanitization fixes', () => {

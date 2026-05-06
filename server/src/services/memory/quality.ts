@@ -108,6 +108,7 @@ function hasConcreteTransferableAction(value: string) {
   if (hasCrossPlatformPathAction(text)) return true;
   if (hasFrontendCacheInvalidationAction(text)) return true;
   if (hasSqliteWalSidecarAction(text)) return true;
+  if (hasProviderBaseUrlAction(text)) return true;
   return concreteActionWords.some((word) => hasWord(text, word));
 }
 
@@ -209,6 +210,7 @@ function hasSpecificEvidence(value: string) {
     hasChineseTechnicalEvidence(text) ||
     hasSchemaArrayEvidence(text) ||
     hasJsonParsingEvidence(text) ||
+    hasProviderBaseUrlEvidence(text) ||
     hasDurableEngineeringEvidence(text) ||
     hasImportDedupeEvidence(text) ||
     hasContentSanitizationEvidence(text) ||
@@ -278,6 +280,55 @@ function hasJsonParsingFailureSignal(value: string) {
   const hasCausalFlow =
     /\b(because|so|returned|passed|before|can return|persist)\b/i.test(text);
   return hasJsonParsingEvidence(text) && hasParsingFailure && hasCausalFlow;
+}
+
+function hasProviderBaseUrlEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\/v1\/chat\/completions|\/chat\/completions|\/v1\b|\b(custom provider|openai-compatible client|custom_base_url|base url|provider base url|provider url|llm)\b/i
+    .test(text);
+}
+
+function hasProviderBaseUrlAction(value: string) {
+  const text = value.toLowerCase();
+  const hasAction = /\b(configure|configured|set|include|add)\b/i.test(text);
+  const hasTarget =
+    /\/v1\b|\b(custom_base_url|base url|provider base url|provider url|prefix|openai-compatible client)\b/i
+      .test(text);
+  return hasProviderBaseUrlEvidence(text) && hasAction && hasTarget;
+}
+
+function hasProviderBaseUrlMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasRelativeEndpointFlow =
+    /\b(openai-compatible client|client)\b.+\b(calls?|called|appends?|relative to)\b.+\b(\/chat\/completions|base url|base)\b/i
+      .test(text) ||
+    /\/chat\/completions.+\b(relative to|instead of|wrong endpoint)\b|\/chat\/completions.+\/v1\/chat\/completions/i
+      .test(text) ||
+    /\b(custom_base_url|base url|provider base url|provider url)\b.+\b(omitted|missing|without)\b.+\/v1\b/i
+      .test(text);
+  const hasConfiguredPrefixFlow =
+    /\b(configure|configured|set|include|add)\b.+\b(custom_base_url|base url|provider base url|provider url)\b.+(?:\/v1\b|\bprefix\b)/i
+      .test(text) ||
+    /(?:\/v1\b|\bprefix\b).+\b(before creating|creating)\b.+\b(openai-compatible client|client)\b/i
+      .test(text);
+  return hasProviderBaseUrlEvidence(text) &&
+    (hasRelativeEndpointFlow || hasConfiguredPrefixFlow);
+}
+
+function hasProviderBaseUrlFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasHttpNotFound =
+    /\b(http\s*)?404\b|\bnot found\b/i.test(text);
+  const hasWrongEndpointFlow =
+    /\b(omitted|missing|without)\b.+\/v1\b/i.test(text) ||
+    /\b(called|calls?)\b.+\/chat\/completions.+\b(instead of|rather than)\b.+\/v1\/chat\/completions/i
+      .test(text) ||
+    /\b(wrong endpoint|relative endpoint|relative to that base)\b/i.test(text);
+  const hasCausalFlow = /\b(because|so|otherwise|instead of)\b/i.test(text);
+  return hasProviderBaseUrlEvidence(text) &&
+    hasHttpNotFound &&
+    hasWrongEndpointFlow &&
+    hasCausalFlow;
 }
 
 function hasDurableEngineeringEvidence(value: string) {
@@ -674,6 +725,7 @@ function hasConcreteMechanism(value: string) {
       .test(text);
   const hasSchemaDefaultArrayFlow = hasSchemaDefaultArrayMechanism(text);
   const hasJsonParsingFlow = hasJsonParsingMechanism(text);
+  const hasProviderBaseUrlFlow = hasProviderBaseUrlMechanism(text);
   const hasDurableEngineeringFlow = hasDurableEngineeringMechanism(text);
   const hasImportDedupeFlow = hasImportDedupeMechanism(text);
   const hasContentSanitizationFlow = hasContentSanitizationMechanism(text);
@@ -695,6 +747,7 @@ function hasConcreteMechanism(value: string) {
     hasRetryBackoffFlow ||
     hasSchemaDefaultArrayFlow ||
     hasJsonParsingFlow ||
+    hasProviderBaseUrlFlow ||
     hasDurableEngineeringFlow ||
     hasImportDedupeFlow ||
     hasContentSanitizationFlow ||
@@ -798,6 +851,7 @@ function hasFailureOrConsequenceSignal(value: string) {
       .test(value) ||
     hasSchemaArrayFailureSignal(value) ||
     hasJsonParsingFailureSignal(value) ||
+    hasProviderBaseUrlFailureSignal(value) ||
     hasDurableEngineeringFailureSignal(value) ||
     hasImportDedupeFailureSignal(value) ||
     hasContentSanitizationFailureSignal(value) ||
@@ -952,7 +1006,9 @@ function hasGenericRootCauseRationale(value: string) {
 }
 
 function hasConcreteHttpRootCauseSignal(value: string) {
-  return hasConcreteRootCauseMechanism(value) || hasRateLimitRetryRootCauseSignal(value);
+  return hasConcreteRootCauseMechanism(value) ||
+    hasRateLimitRetryRootCauseSignal(value) ||
+    hasProviderBaseUrlFailureSignal(value);
 }
 
 function hasRateLimitRetryRootCauseSignal(value: string) {
@@ -1335,6 +1391,7 @@ function hasUsefulCodeSnippet(
   const code = snippet.code.trim();
   const description = snippet.description?.trim() ?? '';
   if (!hasMeaningfulText(code, 4, 4) || isPlaceholderText(code)) return false;
+  if (isPlaceholderFunctionCallSnippet(code)) return false;
   if (!hasNonPlaceholderMeaningfulText(description, 12, 8)) return false;
 
   const combined = `${language}\n${code}\n${description}`;
@@ -1351,6 +1408,7 @@ function hasUsefulCodeSnippet(
       .test(combined) ||
     hasSchemaArrayEvidence(combined) ||
     hasJsonParsingEvidence(combined) ||
+    hasProviderBaseUrlEvidence(combined) ||
     hasContentSanitizationEvidence(combined) ||
     hasPersistenceSnapshotEvidence(combined) ||
     hasIndexConsistencyEvidence(combined) ||
@@ -1358,6 +1416,22 @@ function hasUsefulCodeSnippet(
     hasDurableEngineeringEvidence(combined) ||
     hasSpecificEvidence(combined);
   return hasConcreteEvidence && hasConcreteCodeShape;
+}
+
+function isPlaceholderFunctionCallSnippet(code: string) {
+  const normalized = code.trim().replace(/;$/, '').trim();
+  const match = /^([A-Za-z_$][\w$]*)\s*\(([^()]*)\)$/.exec(normalized);
+  if (!match) return false;
+
+  const functionName = match[1].toLowerCase();
+  const placeholderNames = /^(fix|handle|dothing|do_thing|process|update|set)$/i;
+  if (!placeholderNames.test(functionName)) return false;
+
+  const args = match[2].trim();
+  if (!args) return true;
+  return args
+    .split(',')
+    .every((arg) => /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?$/.test(arg.trim()));
 }
 
 function hasLowQualityTags(note: MaterializedTaskMemoryNote) {
