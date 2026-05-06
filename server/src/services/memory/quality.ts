@@ -54,6 +54,7 @@ function hasConcreteTransferableAction(value: string) {
   if (hasDurableEngineeringPreventionAction(text)) return true;
   if (hasImportDedupeAction(text)) return true;
   if (hasPersistenceSerializationAction(text)) return true;
+  if (hasElectronResourceAction(text)) return true;
   const concreteActionWords = [
     'add',
     'block',
@@ -205,6 +206,7 @@ function hasSpecificEvidence(value: string) {
     hasContentSanitizationEvidence(text) ||
     hasPersistenceSnapshotEvidence(text) ||
     hasIndexConsistencyEvidence(text) ||
+    hasElectronResourceEvidence(text) ||
     hasHttpFailureSignal(text) ||
     /\b(api requests?|fastify readiness|server readiness|request setup|package metadata|package version|dist output|generated dist output|data directory|electron server|server entrypoint|client calls?)\b/i
       .test(text)
@@ -440,6 +442,48 @@ function hasIndexConsistencyFailureSignal(value: string) {
   return hasIndexConsistencyEvidence(text) && hasStaleReference && hasCausalDeletion;
 }
 
+function hasElectronResourceEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(packaged electron|packaged builds?|electron-builder|extraresources|process\.resourcespath|resourcespath|resource path|bundled server code|wasm|sql-wasm\.wasm|sql\.js|enoent|chatcrystal\.db)\b/i
+    .test(text);
+}
+
+function hasElectronResourceAction(value: string) {
+  const text = value.toLowerCase();
+  const hasResourceAction =
+    /\b(add|include|copy|resolve|load|initialize|open)\b/i.test(text);
+  const hasResourceTarget =
+    /\b(sql-wasm\.wasm|wasm|process\.resourcespath|resourcespath|extraresources|resource path|resources?|sql\.js|chatcrystal\.db)\b/i
+      .test(text);
+  return hasElectronResourceEvidence(text) && hasResourceAction && hasResourceTarget;
+}
+
+function hasElectronResourceMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasResourcePathFlow =
+    /\b(add|include|copy|resolve|load)\b.+\b(sql-wasm\.wasm|wasm|process\.resourcespath|resourcespath|extraresources|resource path|resources?|sql\.js)\b/i
+      .test(text) ||
+    /\b(sql-wasm\.wasm|wasm|process\.resourcespath|resourcespath|extraresources|resource path|resources?|sql\.js)\b.+\b(add|include|copy|resolve|load)\b/i
+      .test(text);
+  const hasPackagedResourceFlow =
+    /\b(packaged electron|packaged builds?|electron-builder|bundled server code)\b.+\b(sql-wasm\.wasm|wasm|resource|resourcespath|extraresources|copy|copied|location)\b/i
+      .test(text) ||
+    /\b(sql-wasm\.wasm|wasm|resource|resourcespath|extraresources|copy|copied|location)\b.+\b(packaged electron|packaged builds?|electron-builder|bundled server code)\b/i
+      .test(text);
+  return hasElectronResourceEvidence(text) && (hasResourcePathFlow || hasPackagedResourceFlow);
+}
+
+function hasElectronResourceFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasResourceFailure =
+    /\b(enoent|initialization throws?|throws? enoent|missing resource|not copied|did not copy|cannot open|cannot init|cannot initialize|failed to open|failed to initialize)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|when|but|relative to|before|without|not copied|did not copy)\b/i
+      .test(text);
+  return hasElectronResourceEvidence(text) && hasResourceFailure && hasCausalFlow;
+}
+
 function hasConcreteMechanism(value: string) {
   const text = value.toLowerCase();
   const hasGenericReleaseValidation = isGenericReleaseValidationClaim(text);
@@ -489,6 +533,7 @@ function hasConcreteMechanism(value: string) {
   const hasContentSanitizationFlow = hasContentSanitizationMechanism(text);
   const hasPersistenceSerializationFlow = hasPersistenceSerializationMechanism(text);
   const hasIndexConsistencyFlow = hasIndexConsistencyMechanism(text);
+  const hasElectronResourceFlow = hasElectronResourceMechanism(text);
   return (
     hasTimingOrder ||
     hasRaceReadiness ||
@@ -505,7 +550,8 @@ function hasConcreteMechanism(value: string) {
     hasImportDedupeFlow ||
     hasContentSanitizationFlow ||
     hasPersistenceSerializationFlow ||
-    hasIndexConsistencyFlow
+    hasIndexConsistencyFlow ||
+    hasElectronResourceFlow
   );
 }
 
@@ -576,6 +622,7 @@ function hasFailureOrConsequenceSignal(value: string) {
     hasContentSanitizationFailureSignal(value) ||
     hasPersistenceSnapshotFailureSignal(value) ||
     hasIndexConsistencyFailureSignal(value) ||
+    hasElectronResourceFailureSignal(value) ||
     hasDefaultDataDirectoryConsequence(value) ||
     hasHttpFailureSignal(value)
   );
@@ -1106,7 +1153,7 @@ function hasLowQualityTags(note: MaterializedTaskMemoryNote) {
 function isLowQualityTag(tag: string) {
   const normalized = tag.trim().toLowerCase();
   if (!normalized || isPlaceholderText(normalized)) return true;
-  return /^(success|fixed|reliable|done|verified|test[-_\s]?passed|passed|ok|okay|resolved|working|complete|completed|all[-_\s]?good)$/i
+  return /^(fix|bugfix|bug[-_\s]?fix|success|fixed|reliable|done|verified|test[-_\s]?passed|passed|ok|okay|resolved|working|complete|completed|all[-_\s]?good|status|checked|reviewed|tested)$/i
     .test(normalized);
 }
 

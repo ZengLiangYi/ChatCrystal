@@ -1951,6 +1951,16 @@ test('validateMaterializedNoteQuality rejects placeholder snippets and generic t
   assert.ok(result.warnings.includes('tags'));
 });
 
+test('validateMaterializedNoteQuality rejects generic fix tags', () => {
+  const result = validateMaterializedNoteQuality(note({
+    tags: ['fix'],
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('tags'));
+});
+
 test('validateMaterializedNoteQuality accepts imported content sanitization fixes', () => {
   const root = 'The Claude Code adapter saved raw JSONL message content, so <system-reminder> and <command-name> tags leaked into human-facing notes.';
   const resolution = 'Strip Claude system XML tags in sanitizeContent before saving imported conversation messages.';
@@ -1984,6 +1994,50 @@ test('validateMaterializedNoteQuality rejects generic import sanitization reliab
       summary: 'Sanitize imported content so notes are reliable.',
       root_cause: 'Imported content was unreliable.',
       resolution: 'Sanitize imported content so notes are reliable.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts Electron packaged WASM resource fixes', () => {
+  const summary = 'Resolve sql-wasm.wasm from process.resourcesPath in packaged Electron builds because sql.js initialization throws ENOENT when the wasm file is not copied beside bundled server code.';
+  const root_cause = 'Packaged Electron builds threw ENOENT because sql.js loaded sql-wasm.wasm relative to bundled server code, but electron-builder did not copy the wasm resource into that location.';
+  const resolution = 'Add sql-wasm.wasm to electron-builder extraResources and resolve the sql.js wasm path from process.resourcesPath before opening chatcrystal.db.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Electron package must include sql-wasm.wasm resource',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['electron', 'sqljs'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic Electron resource reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Electron resource reliability fix',
+    summary: 'Add Electron resources so packaging is reliable.',
+    key_conclusions: [
+      'Root cause: Electron packaging was unreliable.',
+      'Resolution: Add Electron resources so packaging is reliable.',
+    ],
+    tags: ['electron'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Add Electron resources so packaging is reliable.',
+      root_cause: 'Electron packaging was unreliable.',
+      resolution: 'Add Electron resources so packaging is reliable.',
     },
   }), { mode: 'auto' });
 
