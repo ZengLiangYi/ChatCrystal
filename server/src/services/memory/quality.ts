@@ -1220,7 +1220,16 @@ function hasSqlParameterizationEvidence(value: string) {
   const hasInterpolationBoundary =
     /\b(quotes?|quote breakage|sql syntax|executable sql|where clauses?|interpolat(?:e|ed|ing)|bind(?:ing)?|parameteriz(?:e|ed|ing)|parameteris(?:e|ed|ing))\b/i
       .test(text);
-  return hasQueryContext && hasParameterOrTagContext && hasInterpolationBoundary;
+  const hasChineseQueryContext =
+    /(?:sql|sql\.js|where\s*子句|查询)/i.test(text);
+  const hasChineseParameterOrTagContext =
+    /(?:参数化查询|sql\.js\s*参数|参数|tag\s*值|tag\s*文本|标签文本|用户控制的标签文本|标签)/i
+      .test(text);
+  const hasChineseInterpolationBoundary =
+    /(?:引号|sql\s*语法|语法注入|可执行\s*sql|where\s*子句|插入|绑定|参数化)/i
+      .test(text);
+  return (hasQueryContext && hasParameterOrTagContext && hasInterpolationBoundary) ||
+    (hasChineseQueryContext && hasChineseParameterOrTagContext && hasChineseInterpolationBoundary);
 }
 
 function hasSqlParameterizationAction(value: string) {
@@ -1232,6 +1241,10 @@ function hasSqlParameterizationAction(value: string) {
       /\b(bind|binding)\b.+\b(tag values?|tag filters?|tag payload|tag text)\b.+\b(sql\.js\s+)?parameters?\b/i
         .test(text) ||
       /\b(use)\b.+\b(parameterized queries?|parameterised queries?|sql parameters?)\b/i
+        .test(text) ||
+      /(?:绑定|使用).{0,40}(?:sql\.js\s*)?参数/i
+        .test(text) ||
+      /参数化查询.{0,24}绑定.{0,24}(?:tag|标签)/i
         .test(text)
     );
 }
@@ -1250,6 +1263,14 @@ function hasSqlParameterizationMechanism(value: string) {
     /\binterpolat(?:e|ed|ing)\b.+\btag text\b.+\bcrafted tag payloads?\b.+\bchang(?:e|ed|es|ing)\b.+\b(?:sql\s+)?where clause syntax\b/i
       .test(text) ||
     /\bquotes?\b.+\btag\b.+\b(?:alter(?:ed|s|ing)|chang(?:ed|es|ing))\b.+\bsql syntax\b/i
+      .test(text) ||
+    /(?:标签查询|tag\s*文本|标签文本|用户控制的.{0,12}标签).{0,40}(?:插入|插值|拼接).{0,30}where\s*子句/i
+      .test(text) ||
+    /(?:引号|带引号的标签).{0,20}(?:改变|造成).{0,20}sql\s*语法/i
+      .test(text) ||
+    /(?:引号|带引号的标签).{0,20}(?:改变|造成).{0,20}where\s*子句语法/i
+      .test(text) ||
+    /sql\s*语法注入/i
       .test(text);
   const hasParameterizationFix =
     /\bbind\b.+\btag names?\b.+\b(sql\.js\s+)?parameters?\b.+\bquotes?\b.+\bdata\b.+\binstead of sql syntax\b/i
@@ -1265,10 +1286,15 @@ function hasSqlParameterizationMechanism(value: string) {
     /\bquotes?\b.+\bstay\b.+\bdata\b.+\binstead of\b.+\balter(?:ing)?\b.+\bwhere clause syntax\b/i
       .test(text) ||
     /\bbind\b.+\btag names?\b.+\bsql parameters?\b.+\binstead of\b.+\binterpolat(?:e|ing)\b.+\bwhere clauses?\b/i
+      .test(text) ||
+    /(?:绑定|参数化查询).{0,40}(?:tag|标签|用户控制的标签文本).{0,40}(?:数据|可执行\s*sql|where\s*子句|sql\s*语法)/i
+      .test(text) ||
+    /(?:tag\s*文本|标签文本|用户控制的标签文本).{0,40}绑定.{0,30}(?:sql\.js\s*)?参数/i
       .test(text);
   const hasCausalFlow =
     /\b(because|so|before|prevent|prevents|broke|breakage|instead of|interpolat(?:e|ed|ing)|bind|where clauses?|sql syntax)\b/i
-      .test(text);
+      .test(text) ||
+    /(?:避免|防止|改变|插入|绑定|而不是|作为数据|造成)/i.test(text);
   return hasSqlParameterizationEvidence(text) &&
     hasCausalFlow &&
     (hasInterpolationFailure || hasParameterizationFix);
@@ -1291,10 +1317,13 @@ function hasSqlParameterizationFailureSignal(value: string) {
     /\bcrafted tag payloads?\b.+\bchang(?:e|ed|es|ing)\b.+\b(?:sql\s+)?where clause syntax\b/i
       .test(text) ||
     /\balter(?:ed|s|ing)\b.+\bwhere clause syntax\b/i
+      .test(text) ||
+    /(?:sql\s*语法注入|引号.{0,20}(?:改变|造成).{0,20}(?:sql\s*语法|where\s*子句语法)|可执行\s*sql)/i
       .test(text);
   const hasCausalFlow =
     /\b(because|so|before|prevent|prevents|broke|breakage|instead of|interpolat(?:e|ed|ing)|where clauses?|sql syntax)\b/i
-      .test(text);
+      .test(text) ||
+    /(?:避免|防止|改变|插入|造成|而不是|作为数据)/i.test(text);
   return hasSqlParameterizationEvidence(text) && hasQueryBreakage && hasCausalFlow;
 }
 
@@ -1930,10 +1959,16 @@ function isVisibleWorkLogClaim(value: string) {
 
 function isExplicitEnglishStatusShell(value: string) {
   return hasTechnicalPrefixStatusShell(value) ||
-    /^\s*(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task|progress|verification|diagnostics?|(?:smoke\s+)?test)\s+(?:record|report|note|summary|update|log|entry|check)|(?:implementation|task|fix|execution|run|work|status)\s+results?|run\s+results?|work\s*log(?:\s+entry)?|worklog(?:\s+entry)?|status|record|update|implementation|result|outcome|progress|verification|check|diagnostics?|(?:smoke\s+)?test|completion(?:\s+(?:note|record))?|completed|done|this\s+fix|this\s+run)\s*(?:[:\-\u2013\u2014])/i
+    /^\s*(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task|progress|verification|validation|regression|qa|diagnostics?|(?:smoke\s+)?test)\s+(?:record|report|note|summary|update|log|entry|check|result|results?|confirmed)|(?:implementation|task|fix|execution|run|work|status)\s+results?|run\s+results?|work\s*log(?:\s+entry)?|worklog(?:\s+entry)?|status|record|update|implementation|result|outcome|progress|verification|validation|regression|qa|check|diagnostics?|(?:smoke\s+)?test|completion(?:\s+(?:note|record))?|completed|done|this\s+fix|this\s+run)\s*(?:[:\-\u2013\u2014])/i
       .test(value.trim()) ||
+    isValidationResultStatusShell(value) ||
     isCurrentRunImplementationShell(value) ||
     isCurrentRunStatusObservationClaim(value);
+}
+
+function isValidationResultStatusShell(value: string) {
+  return /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?(?:validation|regression|qa)\s+(?:confirmed|passed|succeeded|completed)\b/i
+    .test(value.trim());
 }
 
 function hasTechnicalPrefixStatusShell(value: string) {
@@ -1943,7 +1978,7 @@ function hasTechnicalPrefixStatusShell(value: string) {
   const englishDescriptorPrefix = String.raw`(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,3})`;
   const chineseDescriptorPrefix = String.raw`(?:[\u3400-\u9fff]{2,16})`;
   const technicalPrefix = String.raw`(?:\/api\/[\w/-]+|[a-z0-9]+_[a-z0-9_]+|[a-z][a-z0-9_]*\.[a-z_][a-z0-9_]*|activerequestid|setresults|data_dir|node_env|child_process|jsonl|sqlite|sql\.js|websocket|mcp|json-rpc|${descriptorWord}(?:\s+${descriptorWord}){0,2}|${chineseDescriptorWord}(?:\s+${chineseDescriptorWord}){0,2}|${englishDescriptorPrefix}|${chineseDescriptorPrefix})`;
-  const englishShell = String.raw`(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task|progress|verification|diagnostics?|(?:smoke\s+)?test)\s+(?:record|report|note|summary|update|log|entry|check)|(?:status|record|update|implementation|result|outcome|progress|verification|check|diagnostics?|(?:smoke\s+)?test|completion(?:\s+(?:note|record))?|completed|done))`;
+  const englishShell = String.raw`(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task|progress|verification|validation|regression|qa|diagnostics?|(?:smoke\s+)?test)\s+(?:record|report|note|summary|update|log|entry|check|result|results?|confirmed)|(?:status|record|update|implementation|result|outcome|progress|verification|validation|regression|qa|check|diagnostics?|(?:smoke\s+)?test|completion(?:\s+(?:note|record))?|completed|done))`;
   const chineseShell = String.raw`(?:状态记录|记录状态|状态检查|工作日志|日志记录|工作记录|执行记录|完成记录|完成检查|状态更新|运行结果|执行结果|结果记录|结果报告|结果检查|任务结果|实现结果|修复结果|工作结果|状态结果|运行记录|任务记录|实现记录|实现说明|更新记录|变更记录|变更摘要|本次修复|本次执行|本次任务|本次改动|本轮执行|本轮修复|本轮任务|本轮改动|修复记录|测试记录|状态|结果|进度|验证|测试|诊断|完成|已完成|完成说明)`;
   return new RegExp(`^\\s*${technicalPrefix}\\s+${englishShell}\\s*(?:[:\\-\\u2013\\u2014])`, 'i')
     .test(text) ||

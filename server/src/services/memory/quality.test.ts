@@ -3405,6 +3405,27 @@ test('validateMaterializedNoteQuality accepts SQL parameterized tag lookup fixes
   assert.equal(queryResult.accepted, true);
   assert.equal(queryResult.reason, 'note-quality-ok');
   assert.deepEqual(queryResult.warnings, []);
+
+  const chineseSummary = '将用户控制的标签文本绑定为 sql.js 参数，避免引号改变 WHERE 子句语法。';
+  const chineseRootCause = '标签查询把用户控制的 tag 文本插入 WHERE 子句，带引号的标签会改变 SQL 语法并造成 SQL 语法注入。';
+  const chineseResolution = '使用参数化查询绑定 tag 值，让用户控制的标签文本作为数据而不是可执行 SQL。';
+  const chineseResult = validateMaterializedNoteQuality(note({
+    title: '参数化标签查询防止 SQL 语法注入',
+    summary: chineseSummary,
+    key_conclusions: [`Root cause: ${chineseRootCause}`, `Resolution: ${chineseResolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: chineseSummary,
+      root_cause: chineseRootCause,
+      resolution: chineseResolution,
+    },
+    tags: [],
+    embedding_text: '',
+  }), { mode: 'auto' });
+
+  assert.equal(chineseResult.accepted, true);
+  assert.equal(chineseResult.reason, 'note-quality-ok');
+  assert.deepEqual(chineseResult.warnings, []);
 });
 
 test('validateMaterializedNoteQuality accepts SQLite migration backfill constraint fixes', () => {
@@ -4071,6 +4092,45 @@ test('validateMaterializedNoteQuality rejects broad test and diagnostic shells w
     [
       '诊断：activeRequestId gates stale /api/search responses',
       '诊断：activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+  ];
+
+  for (const [title, summary] of shells) {
+    const result = validateMaterializedNoteQuality(note({
+      title,
+      summary,
+      key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary,
+        root_cause,
+        resolution,
+      },
+      tags: [],
+      embedding_text: '',
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, title);
+    assert.equal(result.reason, 'low-note-quality', title);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), title);
+  }
+});
+
+test('validateMaterializedNoteQuality rejects validation regression and QA result shells with concrete fix payloads', () => {
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId before updating the search view.';
+  const resolution = 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current query results.';
+  const shells = [
+    [
+      'Search validation confirmed activeRequestId gates stale /api/search responses',
+      'Search validation confirmed activeRequestId gates stale /api/search responses',
+    ],
+    [
+      'Regression confirmed: activeRequestId gates stale /api/search responses',
+      'Regression confirmed: activeRequestId gates stale /api/search responses',
+    ],
+    [
+      'QA confirmed: activeRequestId gates stale /api/search responses',
+      'QA confirmed: activeRequestId gates stale /api/search responses',
     ],
   ];
 
