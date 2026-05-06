@@ -3328,6 +3328,24 @@ test('validateMaterializedNoteQuality rejects English work record structured ite
   assert.ok(result.warnings.includes('durable_reusable_lesson'));
 });
 
+test('validateMaterializedNoteQuality rejects current run implementation shells', () => {
+  const summary = 'This run uses active request id gate on /api/search result updates, avoiding stale responses that overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
 test('validateMaterializedNoteQuality rejects completion shell structured items', () => {
   const summary = 'Completion: use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
   const result = validateMaterializedNoteQuality(note({

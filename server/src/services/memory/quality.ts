@@ -1647,7 +1647,18 @@ function isVisibleWorkLogClaim(value: string) {
 
 function isExplicitEnglishStatusShell(value: string) {
   return /^\s*(?:(?:status|work|implementation|execution|completion|fix|run)\s+(?:record|report|note|summary|update|log)|work\s*log|worklog|status|record|completion(?:\s+(?:note|record))?|completed|done|this\s+fix|this\s+run)\s*(?:[:\-\u2013\u2014])/i
-    .test(value.trim());
+    .test(value.trim()) ||
+    isCurrentRunImplementationShell(value);
+}
+
+function isCurrentRunImplementationShell(value: string) {
+  const text = value.trim();
+  const hasCurrentRunPrefix =
+    /^\s*(?:this|current)\s+(?:run|execution|fix|task|change)\b/i.test(text);
+  const hasImplementationAction =
+    /^\s*(?:this|current)\s+(?:run|execution|fix|task|change)\b.{0,40}\b(?:use|uses|used|did|add|adds|added|set|sets|configured?|register(?:s|ed)?|wait(?:s|ed)?|block(?:s|ed)?|gate(?:s|d)?|ignore(?:s|d)?|cancel(?:s|ed|led)?|move(?:s|d)?|place(?:s|d)?|import(?:s|ed)?|update(?:s|d)?|fix(?:es|ed)?|change(?:s|d)?|validat(?:e|es|ed)|normaliz(?:e|es|ed)|parse(?:s|d)?|strip(?:s|ped)?|debounce(?:s|d)?|route(?:s|d)?|return(?:s|ed)?|prune(?:s|d)?|remove(?:s|d)?|wrap(?:s|ped)?)\b/i
+      .test(text);
+  return hasCurrentRunPrefix && hasImplementationAction && hasSpecificEvidence(text);
 }
 
 function isLowValueOutcomeStatusClaim(value: string) {
@@ -1690,6 +1701,7 @@ function isChineseVisibleStatusShell(value: string) {
     /(?:已记录|记录了).{0,80}(?:已修复|修复完成|已完成|完成|处理完成|解决完成)/i
       .test(value);
   if (hasStatusRecordShell) return true;
+  if (isChineseCurrentRunImplementationShell(value)) return true;
 
   const hasCompletionShell =
     /问题处理完|处理完成|处理完毕|修复好了|修好了|已经处理|已处理|回归正常|恢复正常|更稳定|不再返回|已解决|解决完成|已完成|修复完成|修复已完成/i
@@ -1698,6 +1710,15 @@ function isChineseVisibleStatusShell(value: string) {
     /这次.{0,20}(?:修复|处理).{0,8}(?:好了|完成|完毕)|(?:接口|问题|路由|请求).{0,12}(?:更稳定|回归正常|恢复正常)/i
       .test(value);
   return (hasCompletionShell || hasWorkLogShell) && !hasChineseVisibleMechanism(value);
+}
+
+function isChineseCurrentRunImplementationShell(value: string) {
+  const hasCurrentRunPrefix =
+    /^\s*(?:本次运行|本次执行|本次修复|本次任务|本次改动)\b/i.test(value);
+  const hasImplementationAction =
+    /^\s*(?:本次运行|本次执行|本次修复|本次任务|本次改动).{0,40}(?:使用|用了|添加|设置|配置|注册|等待|阻塞|拦截|修复|改动|修改|更新|解析|清理|规范化|去重|剥离|去掉|取消|移动|放置|验证|校验)/i
+      .test(value);
+  return hasCurrentRunPrefix && hasImplementationAction && hasSpecificEvidence(value);
 }
 
 function isMetaReusableClaim(value: string) {
