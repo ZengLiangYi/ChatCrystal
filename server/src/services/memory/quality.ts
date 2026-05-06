@@ -878,7 +878,7 @@ function hasChineseFirstPersonDiaryClaim(value: string) {
   ]))
     .map(regexEscape)
     .join('|');
-  return new RegExp(`(?:我|我们)(?:已经|已)?${chineseAction}|(?:我|我们)(?:已经|已)?(?:把|将).{0,80}(?:${chineseAction}|\\b(?:${englishAction})\\b)`, 'i')
+  return new RegExp(`(?:我|我们)(?:已经|已)?${chineseAction}|(?:我|我们)(?:已经|已)?(?:把|将).{0,80}(?:${chineseAction}|\\b(?:${englishAction})\\b)|(?:已经|已)(?:把|将).{0,80}(?:${chineseAction}|\\b(?:${englishAction})\\b)`, 'i')
     .test(value);
 }
 
@@ -1282,8 +1282,10 @@ function isVisibleStatusSnapshotText(value: string) {
   const hasStatusObject =
     /\b(node_env|env|environment|production|local|testing|server readiness|fastify readiness|api requests?|package version|version|generated dist output|dist output)\b/i
       .test(value);
-  return (hasPassStatus || hasSuccessStatus || hasChineseStatus || (hasStatusVerb && hasStatusObject)) &&
-    !hasStrongReusableMechanism(value);
+  return hasPassStatus ||
+    hasSuccessStatus ||
+    hasChineseStatus ||
+    ((hasStatusVerb && hasStatusObject) && !hasStrongReusableMechanism(value));
 }
 
 function conclusionText(
@@ -1469,7 +1471,7 @@ function isPlaceholderFunctionCallSnippet(code: string) {
   if (!match) return false;
 
   const functionName = match[1].toLowerCase();
-  const placeholderNames = /^(fix|handle|dothing|do_thing|process|update|set)$/i;
+  const placeholderNames = /^(fix|handle|dothing|do_thing|process|update|set|parse|normalize|prune|strip|sanitize)$/i;
   if (!placeholderNames.test(functionName)) return false;
 
   const args = match[2].trim();
