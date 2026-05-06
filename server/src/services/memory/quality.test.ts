@@ -413,6 +413,7 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
     ],
     raw_payload: {
       outcome_type: 'fix',
+      summary: '已验证 /api/notes HTTP 404 修复，测试通过。',
       root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
       resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
     },
@@ -426,6 +427,7 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
     ],
     raw_payload: {
       outcome_type: 'fix',
+      summary: '已修复 /api/notes HTTP 404，接口可靠性提高。',
       root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
       resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
     },
@@ -439,6 +441,7 @@ test('validateMaterializedNoteQuality rejects generic reliability visible fields
     ],
     raw_payload: {
       outcome_type: 'fix',
+      summary: '构建通过，/api/notes HTTP 404 修复已验证。',
       root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
       resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
     },
@@ -3743,6 +3746,7 @@ test('validateMaterializedNoteQuality accepts activeRequestId setResults stale r
     key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
     raw_payload: {
       outcome_type: 'fix',
+      summary,
       root_cause,
       resolution,
     },
@@ -3879,6 +3883,7 @@ test('validateMaterializedNoteQuality rejects Chinese result-shell structured it
     key_conclusions: [`Decision: ${summary}`],
     raw_payload: {
       outcome_type: 'decision',
+      summary,
       decisions: [summary],
     },
   }), { mode: 'auto' });
