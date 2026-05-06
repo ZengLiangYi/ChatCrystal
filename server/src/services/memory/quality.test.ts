@@ -3717,6 +3717,8 @@ test('validateMaterializedNoteQuality rejects descriptor-prefix status update sh
   const summary = 'API search status update: activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.';
   const semanticSummary = 'Semantic search status update: activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.';
   const chineseSummary = '语义搜索状态更新：activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.';
+  const statusForSummary = 'Search status update for /api/search returned HTTP 500 because route registration ran after request setup.';
+  const chineseStatusSummary = '语义搜索状态：/api/search 因为路由在 request setup 之后注册而返回 HTTP 500。';
   const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.';
   const resolution = 'Gate setResults with activeRequestId so stale responses cannot overwrite current results.';
   const result = validateMaterializedNoteQuality(note({
@@ -3752,6 +3754,34 @@ test('validateMaterializedNoteQuality rejects descriptor-prefix status update sh
       resolution,
     },
   }), { mode: 'auto' });
+  const statusForResult = validateMaterializedNoteQuality(note({
+    title: 'Search status update for /api/search HTTP 500',
+    summary: statusForSummary,
+    key_conclusions: [
+      'Root cause: /api/search returned HTTP 500 because route registration ran after request setup.',
+      'Resolution: Register /api/search before request setup so API requests do not return HTTP 500.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: statusForSummary,
+      root_cause: '/api/search returned HTTP 500 because route registration ran after request setup.',
+      resolution: 'Register /api/search before request setup so API requests do not return HTTP 500.',
+    },
+  }), { mode: 'auto' });
+  const chineseStatusResult = validateMaterializedNoteQuality(note({
+    title: '语义搜索状态：/api/search 返回 HTTP 500',
+    summary: chineseStatusSummary,
+    key_conclusions: [
+      'Root cause: /api/search 路由在 request setup 之后注册，导致 API 请求返回 HTTP 500。',
+      'Resolution: 在 request setup 前注册 /api/search 路由，避免 API 请求返回 HTTP 500。',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: chineseStatusSummary,
+      root_cause: '/api/search 路由在 request setup 之后注册，导致 API 请求返回 HTTP 500。',
+      resolution: '在 request setup 前注册 /api/search 路由，避免 API 请求返回 HTTP 500。',
+    },
+  }), { mode: 'auto' });
 
   assert.equal(result.accepted, false);
   assert.equal(result.reason, 'low-note-quality');
@@ -3762,6 +3792,12 @@ test('validateMaterializedNoteQuality rejects descriptor-prefix status update sh
   assert.equal(chineseResult.accepted, false);
   assert.equal(chineseResult.reason, 'low-note-quality');
   assert.ok(chineseResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(statusForResult.accepted, false);
+  assert.equal(statusForResult.reason, 'low-note-quality');
+  assert.ok(statusForResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseStatusResult.accepted, false);
+  assert.equal(chineseStatusResult.reason, 'low-note-quality');
+  assert.ok(chineseStatusResult.warnings.includes('durable_reusable_lesson'));
 });
 
 test('validateMaterializedNoteQuality rejects English work record structured items', () => {
