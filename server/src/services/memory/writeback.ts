@@ -359,35 +359,41 @@ export async function writeTaskMemory(
 
     if (decision.decision === 'merged' && decision.target_note_id) {
       const existingPayloadRows = db.exec(
-        `SELECT code_snippets, raw_llm_response, error_signatures, files_touched
+        `SELECT key_conclusions, code_snippets, raw_llm_response, error_signatures, files_touched
            FROM notes
           WHERE id = ?`,
         [decision.target_note_id],
       );
-      const existingCodeSnippets = safeParseArray<Record<string, unknown>>(
+      const existingKeyConclusions = safeParseStringArray(
         existingPayloadRows[0]?.values[0]?.[0],
       );
+      const existingCodeSnippets = safeParseArray<Record<string, unknown>>(
+        existingPayloadRows[0]?.values[0]?.[1],
+      );
       const mergedPayload = mergeMemoryPayload(
-        safeParseObject(existingPayloadRows[0]?.values[0]?.[1]),
+        safeParseObject(existingPayloadRows[0]?.values[0]?.[2]),
         request.memory as Record<string, unknown>,
       );
       const mergedMaterialized = materializeTaskMemory(
         request,
         mergedPayload as unknown as WriteTaskMemoryPayload,
       );
-      const mergedKeyConclusions = mergedMaterialized.key_conclusions;
+      const mergedKeyConclusions = mergeStringArrays(
+        existingKeyConclusions,
+        mergedMaterialized.key_conclusions,
+      );
       const mergedCodeSnippets =
         mergeCodeSnippets(existingCodeSnippets, request.memory.code_snippets) ??
         [];
       const mergedErrorSignatures = [
         ...new Set([
-          ...safeParseStringArray(existingPayloadRows[0]?.values[0]?.[2]),
+          ...safeParseStringArray(existingPayloadRows[0]?.values[0]?.[3]),
           ...(request.memory.error_signatures ?? []),
         ]),
       ];
       const mergedFilesTouched = [
         ...new Set([
-          ...safeParseStringArray(existingPayloadRows[0]?.values[0]?.[3]),
+          ...safeParseStringArray(existingPayloadRows[0]?.values[0]?.[4]),
           ...(request.memory.files_touched ?? []),
         ]),
       ];

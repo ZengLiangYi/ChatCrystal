@@ -537,6 +537,7 @@ test('writeTaskMemory merge preserves existing structured payload fields while a
 
   assert.equal(rows[0].values[0][5], 'agent-writeback');
   assert.deepEqual(JSON.parse(String(rows[0].values[0][0])), [
+    'Existing conclusion',
     `Root cause: ${READINESS_ROOT_CAUSE}`,
     `Resolution: ${READINESS_RESOLUTION}`,
     `Pitfall: ${READINESS_EXISTING_PITFALL}`,

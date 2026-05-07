@@ -2853,7 +2853,7 @@ test('validateMaterializedNoteQuality rejects generic import sanitization reliab
 
 test('validateMaterializedNoteQuality accepts cross-platform DATA_DIR path normalization fixes', () => {
   const summary = 'Normalize C:/Users fixture paths with path.win32 before comparing DATA_DIR output because POSIX path parsing prepends the repo path on Ubuntu runners.';
-  const root_cause = 'Ubuntu runner prepended the repository path to C:/Users/Rayner/.chatcrystal/data because Node POSIX path parsing treated the Windows DATA_DIR fixture as relative.';
+  const root_cause = 'Ubuntu runner prepended the repository path to C:/Users/FixtureUser/.chatcrystal/data because Node POSIX path parsing treated the Windows DATA_DIR fixture as relative.';
   const resolution = 'Normalize Windows DATA_DIR fixture expectations with path.win32 before comparing resolveDataDirForTest output on POSIX runners.';
   const result = validateMaterializedNoteQuality(note({
     title: 'Ubuntu treats Windows DATA_DIR fixture paths as relative',
