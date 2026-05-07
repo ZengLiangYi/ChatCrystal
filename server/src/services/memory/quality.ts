@@ -110,6 +110,7 @@ function hasConcreteTransferableAction(value: string) {
   if (hasDbTransactionAtomicityAction(text)) return true;
   if (hasSqlParameterizationAction(text)) return true;
   if (hasStrictStructuralEngineeringAction(text)) return true;
+  if (hasIndexConsistencyAction(text)) return true;
   if (hasElectronResourceAction(text)) return true;
   if (hasCrossPlatformPathAction(text)) return true;
   if (hasFrontendCacheInvalidationAction(text)) return true;
@@ -823,6 +824,15 @@ function hasIndexConsistencyEvidence(value: string) {
     .test(text);
 }
 
+function hasIndexConsistencyAction(value: string) {
+  const text = value.toLowerCase();
+  const hasAction = /\b(assert|verify|verified|check|test|testing|keep|remove|prune|clean(?:up| up))\b/i
+    .test(text);
+  return hasIndexConsistencyEvidence(text) &&
+    hasAction &&
+    (hasSqlVectorCleanupRelation(text) || hasSqlVectorCommitDivergence(text));
+}
+
 function hasIndexConsistencyMechanism(value: string) {
   const text = value.toLowerCase();
   const hasIndexReference =
@@ -842,7 +852,12 @@ function hasIndexConsistencyMechanism(value: string) {
   return hasIndexConsistencyEvidence(text) &&
     hasIndexReference &&
     hasDeletionOrCleanup &&
-    (hasStaleOrDeletedReference || hasRowIndexRelation);
+    (
+      hasStaleOrDeletedReference ||
+      hasRowIndexRelation ||
+      hasSqlVectorCleanupRelation(text) ||
+      hasSqlVectorCommitDivergence(text)
+    );
 }
 
 function hasIndexConsistencyFailureSignal(value: string) {
@@ -853,7 +868,34 @@ function hasIndexConsistencyFailureSignal(value: string) {
   const hasCausalDeletion =
     /\b(because|without|after delet(?:e|ing)|after removing|removed|deletion|delet(?:e|ed|es|ing)|cannot return|leaves?)\b/i
       .test(text);
-  return hasIndexConsistencyEvidence(text) && hasStaleReference && hasCausalDeletion;
+  const hasSameRunCleanupAssertion =
+    hasSqlVectorCleanupRelation(text) &&
+    /\b(same e2e run|one e2e run|same test|together)\b/i.test(text);
+  return hasIndexConsistencyEvidence(text) &&
+    (
+      (hasStaleReference && hasCausalDeletion) ||
+      hasSqlVectorCommitDivergence(text) ||
+      hasSameRunCleanupAssertion
+    );
+}
+
+function hasSqlVectorCleanupRelation(value: string) {
+  const text = value.toLowerCase();
+  const hasSqlStore = /\b(sql|sqlite|sql\.js|database|db|rows?)\b/i.test(text);
+  const hasVectorStore = /\b(vectra|vector|semantic search|search index|index entries?)\b/i.test(text);
+  const hasCleanupOrDeletion = /\b(delet(?:e|ed|es|ing|ion)|remov(?:e|ed|es|ing)|clean(?:up| up)|prun(?:e|ed|es|ing))\b/i
+    .test(text);
+  return hasSqlStore && hasVectorStore && hasCleanupOrDeletion;
+}
+
+function hasSqlVectorCommitDivergence(value: string) {
+  const text = value.toLowerCase();
+  const hasSqlCommit = /\b(sqlite|sql\.js|sql|database|db)\b.+\bcommits?\b/i.test(text);
+  const hasVectorCommit = /\b(vectra|vector)\b.+\bcommits?\b/i.test(text);
+  const hasDivergence = /\bdiverge|diverged|diverges|diverging|out of sync\b/i.test(text);
+  const hasCleanupContext = /\b(clean(?:up| up)|idempotent|delet(?:e|ed|es|ing|ion)|remov(?:e|ed|es|ing))\b/i
+    .test(text);
+  return hasSqlCommit && hasVectorCommit && hasDivergence && hasCleanupContext;
 }
 
 function hasFrontendCacheEvidence(value: string) {

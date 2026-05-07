@@ -5175,6 +5175,30 @@ test('validateMaterializedNoteQuality accepts stale Vectra index cleanup fixes',
   assert.deepEqual(result.warnings, []);
 });
 
+test('validateMaterializedNoteQuality accepts structured SQL and Vectra deletion consistency patterns', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Note deletion E2E must verify SQL and Vectra together',
+    summary: 'Deleting a note must be verified across SQLite rows, writeback receipts, review links, and Vectra items in one E2E run.',
+    key_conclusions: [
+      'Pattern: When testing note deletion, assert SQL cleanup and Vectra cleanup in the same E2E run.',
+      'Decision: Keep vector cleanup idempotent because SQLite commits and Vectra commits can diverge.',
+      'Error signature: foreign_key_check reports orphan rows.',
+    ],
+    tags: ['deletion', 'vectra', 'sqlite'],
+    raw_payload: {
+      outcome_type: 'pattern',
+      summary: 'Deleting a note must be verified across SQLite rows, writeback receipts, review links, and Vectra items in one E2E run.',
+      reusable_patterns: ['When testing note deletion, assert SQL cleanup and Vectra cleanup in the same E2E run.'],
+      decisions: ['Keep vector cleanup idempotent because SQLite commits and Vectra commits can diverge.'],
+      error_signatures: ['foreign_key_check reports orphan rows'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
 test('validateMaterializedNoteQuality rejects generic DB queue reliability fixes', () => {
   const result = validateMaterializedNoteQuality(note({
     title: 'DB queue reliability fix',
