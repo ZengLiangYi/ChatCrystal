@@ -28,7 +28,7 @@ test('buildNoteEmbeddingText includes structured agent writeback memory signals'
     ]),
     codeSnippetsJson: JSON.stringify([
       { description: 'Readiness helper wraps Fastify startup.' },
-      { code: 'console.log("ignored because no description")' },
+      { code: 'console.log("code-only body remains searchable")' },
     ]),
     tagsText: 'readiness testing',
     sourceType: 'agent-writeback',
@@ -56,6 +56,35 @@ test('buildNoteEmbeddingText includes structured agent writeback memory signals'
   assert.match(text, /Decision: Keep readiness helper in test utilities\./);
   assert.match(text, /Error signature: ECONNREFUSED 127\.0\.0\.1:3721/);
   assert.match(text, /File: server\/src\/test\/readiness\.ts/);
+});
+
+test('buildNoteEmbeddingText includes bounded code snippet bodies for memory notes', () => {
+  const longBody = 'x'.repeat(1005);
+  const text = buildNoteEmbeddingText({
+    title: 'Readiness helper memory',
+    summary: 'Code evidence should match the validation preview.',
+    keyConclusionsJson: '[]',
+    codeSnippetsJson: JSON.stringify([
+      {
+        language: 'ts',
+        code: "await fastify.ready();\nawait client.get('/api/status');",
+      },
+      {
+        code: longBody,
+      },
+    ]),
+    tagsText: null,
+    sourceType: 'agent-writeback',
+    rawPayloadJson: '{}',
+    errorSignaturesJson: '[]',
+    filesTouchedJson: '[]',
+  });
+
+  assert.match(
+    text,
+    /Code snippet \(ts\): await fastify\.ready\(\); await client\.get\('\/api\/status'\);/,
+  );
+  assert.match(text, new RegExp(`Code snippet \\(text\\): ${'x'.repeat(1000)}(?!x)`));
 });
 
 test('buildNoteEmbeddingText ignores malformed JSON defensively', () => {

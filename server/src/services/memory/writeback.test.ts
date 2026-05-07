@@ -525,7 +525,7 @@ test('writeTaskMemory merge preserves existing structured payload fields while a
   );
 
   const rows = db.exec(
-    'SELECT key_conclusions, code_snippets, error_signatures, files_touched, raw_llm_response FROM notes WHERE id = ?',
+    'SELECT key_conclusions, code_snippets, error_signatures, files_touched, raw_llm_response, source_type FROM notes WHERE id = ?',
     [existingId],
   );
   const mergedPayload = JSON.parse(String(rows[0].values[0][4])) as {
@@ -535,6 +535,7 @@ test('writeTaskMemory merge preserves existing structured payload fields while a
     decisions?: string[];
   };
 
+  assert.equal(rows[0].values[0][5], 'agent-writeback');
   assert.deepEqual(JSON.parse(String(rows[0].values[0][0])), [
     `Root cause: ${READINESS_ROOT_CAUSE}`,
     `Resolution: ${READINESS_RESOLUTION}`,

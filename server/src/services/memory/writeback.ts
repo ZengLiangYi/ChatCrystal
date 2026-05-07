@@ -400,6 +400,10 @@ export async function writeTaskMemory(
                 raw_llm_response = ?,
                 error_signatures = ?,
                 files_touched = ?,
+                source_type = CASE
+                  WHEN source_type = 'imported-conversation' THEN 'agent-writeback'
+                  ELSE source_type
+                END,
                 updated_at = datetime('now')
           WHERE id = ?`,
         [

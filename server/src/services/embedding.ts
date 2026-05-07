@@ -37,6 +37,7 @@ function getEmbeddingModel() {
 // =============================================
 
 const CHUNK_SIZE = 500; // characters per chunk
+const MAX_EMBEDDED_CODE_SNIPPET_CHARS = 1000;
 
 function chunkText(text: string): string[] {
   if (text.length <= CHUNK_SIZE) return [text];
@@ -88,6 +89,13 @@ function cleanEmbeddingText(value: unknown): string | undefined {
   return trimmed || undefined;
 }
 
+function cleanCodeEvidenceText(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+
+  const trimmed = value.replace(/\s+/g, ' ').trim();
+  return trimmed || undefined;
+}
+
 function stringArrayFromJson(value: string | null): string[] {
   const parsed = safeParseJson(value);
   if (!Array.isArray(parsed)) return [];
@@ -113,6 +121,16 @@ function appendLabeledArray(target: string[], label: string, value: unknown) {
   for (const item of value) {
     appendLabeledText(target, label, item);
   }
+}
+
+function appendCodeSnippetEvidence(target: string[], snippet: unknown) {
+  if (!isRecord(snippet)) return;
+
+  const code = cleanCodeEvidenceText(snippet.code);
+  if (!code) return;
+
+  const language = cleanCodeEvidenceText(snippet.language) ?? 'text';
+  target.push(`Code snippet (${language}): ${code.slice(0, MAX_EMBEDDED_CODE_SNIPPET_CHARS)}`);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -158,6 +176,12 @@ export function buildNoteEmbeddingText(input: BuildNoteEmbeddingTextInput): stri
   }
 
   if (isMemoryNoteSource(input.sourceType)) {
+    if (Array.isArray(codeSnippets)) {
+      for (const snippet of codeSnippets) {
+        appendCodeSnippetEvidence(parts, snippet);
+      }
+    }
+
     const rawPayload = safeParseJson(input.rawPayloadJson);
     if (isRecord(rawPayload)) {
       appendLabeledText(parts, 'Root cause', rawPayload.root_cause);
