@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { CrystalClient } from '../client.js';
 import {
   RecallForTaskRequestShape,
+  ValidateTaskMemoryRequestShape,
   WriteTaskMemoryRequestShape,
 } from '../../services/memory/schemas.js';
 
@@ -107,8 +108,23 @@ export async function startMcpServer(baseUrl: string) {
   );
 
   server.tool(
+    'validate_task_memory',
+    'Preflight a task memory candidate without side effects. Use this before write_task_memory when available. Returns materialized ChatCrystal note fields, acceptance, reason, and warnings.',
+    ValidateTaskMemoryRequestShape,
+    async (input) => {
+      const data = await client.validateTaskMemory(input);
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify(data, null, 2),
+        }],
+      };
+    },
+  );
+
+  server.tool(
     'write_task_memory',
-    'Persist a task memory with idempotent auto-writeback semantics.',
+    'Persist a task memory only when it can become a high-quality ChatCrystal note: specific title, concrete summary, meaningful key conclusions, and a durable reusable lesson such as a pitfall, fix, decision, pattern, or symptom-to-resolution mapping. Do not write one-time environment checks, version/status reports, ordinary progress logs, or vague robustness claims. Weak auto writebacks are skipped by core validation and recorded only as receipts.',
     WriteTaskMemoryRequestShape,
     async (input) => {
       const data = await client.writeTaskMemory(input);

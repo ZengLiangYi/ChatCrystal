@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { LocalIndex } from 'vectra';
 import {
+  buildNoteEmbeddingText,
   committedVectraIdsForNote,
   currentVectraIdsCommitted,
   deleteVectraItemsForNote,
@@ -16,6 +17,117 @@ import {
 function createTempDir() {
   return mkdtempSync(join(tmpdir(), 'chatcrystal-embedding-'));
 }
+
+test('buildNoteEmbeddingText includes structured agent writeback memory signals', () => {
+  const text = buildNoteEmbeddingText({
+    title: 'Server readiness race causes ECONNREFUSED',
+    summary: 'Requests must wait for server readiness before client calls.',
+    keyConclusionsJson: JSON.stringify([
+      'Await readiness before issuing HTTP requests.',
+      'Visible key conclusions stay searchable.',
+    ]),
+    codeSnippetsJson: JSON.stringify([
+      { description: 'Readiness helper wraps Fastify startup.' },
+      { code: 'console.log("code-only body remains searchable")' },
+    ]),
+    tagsText: 'readiness testing',
+    sourceType: 'agent-writeback',
+    rawPayloadJson: JSON.stringify({
+      root_cause: 'Client calls raced server startup.',
+      resolution: 'Block request setup until server readiness resolves.',
+      pitfalls: ['Do not fire API requests before Fastify ready.'],
+      reusable_patterns: ['Share a readiness helper across HTTP tests.'],
+      decisions: ['Keep readiness helper in test utilities.'],
+    }),
+    errorSignaturesJson: JSON.stringify(['ECONNREFUSED 127.0.0.1:3721']),
+    filesTouchedJson: JSON.stringify(['server/src/test/readiness.ts']),
+  });
+
+  assert.match(text, /Server readiness race causes ECONNREFUSED/);
+  assert.match(text, /Requests must wait for server readiness/);
+  assert.match(text, /Await readiness before issuing HTTP requests/);
+  assert.match(text, /Visible key conclusions stay searchable/);
+  assert.match(text, /readiness testing/);
+  assert.match(text, /Readiness helper wraps Fastify startup/);
+  assert.match(text, /Root cause: Client calls raced server startup\./);
+  assert.match(text, /Resolution: Block request setup until server readiness resolves\./);
+  assert.match(text, /Pitfall: Do not fire API requests before Fastify ready\./);
+  assert.match(text, /Pattern: Share a readiness helper across HTTP tests\./);
+  assert.match(text, /Decision: Keep readiness helper in test utilities\./);
+  assert.match(text, /Error signature: ECONNREFUSED 127\.0\.0\.1:3721/);
+  assert.match(text, /File: server\/src\/test\/readiness\.ts/);
+});
+
+test('buildNoteEmbeddingText includes bounded code snippet bodies for memory notes', () => {
+  const longBody = 'x'.repeat(1005);
+  const text = buildNoteEmbeddingText({
+    title: 'Readiness helper memory',
+    summary: 'Code evidence should match the validation preview.',
+    keyConclusionsJson: '[]',
+    codeSnippetsJson: JSON.stringify([
+      {
+        language: 'ts',
+        code: "await fastify.ready();\nawait client.get('/api/status');",
+      },
+      {
+        code: longBody,
+      },
+    ]),
+    tagsText: null,
+    sourceType: 'agent-writeback',
+    rawPayloadJson: '{}',
+    errorSignaturesJson: '[]',
+    filesTouchedJson: '[]',
+  });
+
+  assert.match(
+    text,
+    /Code snippet \(ts\): await fastify\.ready\(\); await client\.get\('\/api\/status'\);/,
+  );
+  assert.match(text, new RegExp(`Code snippet \\(text\\): ${'x'.repeat(1000)}(?!x)`));
+});
+
+test('buildNoteEmbeddingText ignores malformed JSON defensively', () => {
+  assert.doesNotThrow(() => {
+    buildNoteEmbeddingText({
+      title: 'Malformed memory payload',
+      summary: 'Embedding text still includes stable fields.',
+      keyConclusionsJson: '{not-json',
+      codeSnippetsJson: 'also-not-json',
+      tagsText: null,
+      sourceType: 'agent-writeback',
+      rawPayloadJson: '{"root_cause"',
+      errorSignaturesJson: '[broken',
+      filesTouchedJson: '{broken',
+    });
+  });
+});
+
+test('buildNoteEmbeddingText skips raw memory payload details for imported conversations', () => {
+  const text = buildNoteEmbeddingText({
+    title: 'Imported conversation note',
+    summary: 'Imported summaries still embed visible note fields.',
+    keyConclusionsJson: JSON.stringify(['Visible imported conclusion.']),
+    codeSnippetsJson: '[]',
+    tagsText: null,
+    sourceType: 'imported-conversation',
+    rawPayloadJson: JSON.stringify({
+      root_cause: 'SHOULD_NOT_EMBED_ROOT_CAUSE',
+      reusable_patterns: ['SHOULD_NOT_EMBED_PATTERN'],
+      decisions: ['SHOULD_NOT_EMBED_DECISION'],
+    }),
+    errorSignaturesJson: JSON.stringify(['SHOULD_NOT_EMBED_SIGNATURE']),
+    filesTouchedJson: JSON.stringify(['SHOULD_NOT_EMBED_FILE']),
+  });
+
+  assert.match(text, /Imported conversation note/);
+  assert.match(text, /Visible imported conclusion/);
+  assert.equal(text.includes('SHOULD_NOT_EMBED_ROOT_CAUSE'), false);
+  assert.equal(text.includes('SHOULD_NOT_EMBED_PATTERN'), false);
+  assert.equal(text.includes('SHOULD_NOT_EMBED_DECISION'), false);
+  assert.equal(text.includes('SHOULD_NOT_EMBED_SIGNATURE'), false);
+  assert.equal(text.includes('SHOULD_NOT_EMBED_FILE'), false);
+});
 
 test('committed vectra ids come from persisted index state, not staged updates', async () => {
   const dir = createTempDir();

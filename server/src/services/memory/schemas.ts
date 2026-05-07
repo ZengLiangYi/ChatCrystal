@@ -104,8 +104,15 @@ export const WriteTaskMemoryRequestSchema = z
     }
   });
 
+export const ValidateTaskMemoryRequestShape = WriteTaskMemoryRequestShape;
+export const ValidateTaskMemoryRequestSchema = WriteTaskMemoryRequestSchema;
+
 export function parseWriteTaskMemoryRequest(input: unknown) {
   return WriteTaskMemoryRequestSchema.parse(input);
+}
+
+export function parseValidateTaskMemoryRequest(input: unknown) {
+  return ValidateTaskMemoryRequestSchema.parse(input);
 }
 
 export function parseRecallForTaskRequest(input: unknown) {

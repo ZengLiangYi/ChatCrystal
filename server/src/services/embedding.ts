@@ -37,6 +37,7 @@ function getEmbeddingModel() {
 // =============================================
 
 const CHUNK_SIZE = 500; // characters per chunk
+const MAX_EMBEDDED_CODE_SNIPPET_CHARS = 1000;
 
 function chunkText(text: string): string[] {
   if (text.length <= CHUNK_SIZE) return [text];
@@ -57,6 +58,144 @@ function chunkText(text: string): string[] {
   if (current.trim()) chunks.push(current.trim());
 
   return chunks;
+}
+
+export type BuildNoteEmbeddingTextInput = {
+  title: string;
+  summary: string;
+  keyConclusionsJson: string;
+  codeSnippetsJson: string;
+  tagsText: string | null;
+  sourceType: string | null;
+  rawPayloadJson: string | null;
+  errorSignaturesJson: string | null;
+  filesTouchedJson: string | null;
+};
+
+function safeParseJson(value: string | null): unknown {
+  if (!value) return undefined;
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function cleanEmbeddingText(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
+function cleanCodeEvidenceText(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+
+  const trimmed = value.replace(/\s+/g, ' ').trim();
+  return trimmed || undefined;
+}
+
+function stringArrayFromJson(value: string | null): string[] {
+  const parsed = safeParseJson(value);
+  if (!Array.isArray(parsed)) return [];
+
+  return parsed
+    .map(cleanEmbeddingText)
+    .filter((item): item is string => Boolean(item));
+}
+
+function appendText(target: string[], value: unknown) {
+  const text = cleanEmbeddingText(value);
+  if (text) target.push(text);
+}
+
+function appendLabeledText(target: string[], label: string, value: unknown) {
+  const text = cleanEmbeddingText(value);
+  if (text) target.push(`${label}: ${text}`);
+}
+
+function appendLabeledArray(target: string[], label: string, value: unknown) {
+  if (!Array.isArray(value)) return;
+
+  for (const item of value) {
+    appendLabeledText(target, label, item);
+  }
+}
+
+function appendCodeSnippetEvidence(target: string[], snippet: unknown) {
+  if (!isRecord(snippet)) return;
+
+  const code = cleanCodeEvidenceText(snippet.code);
+  if (!code) return;
+
+  const language = cleanCodeEvidenceText(snippet.language) ?? 'text';
+  target.push(`Code snippet (${language}): ${code.slice(0, MAX_EMBEDDED_CODE_SNIPPET_CHARS)}`);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isMemoryNoteSource(sourceType: string | null): boolean {
+  return sourceType === 'agent-writeback' || sourceType === 'manual-note';
+}
+
+function dedupeExact(values: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const value of values) {
+    if (seen.has(value)) continue;
+    seen.add(value);
+    result.push(value);
+  }
+
+  return result;
+}
+
+export function buildNoteEmbeddingText(input: BuildNoteEmbeddingTextInput): string {
+  const parts: string[] = [];
+
+  appendText(parts, input.title);
+  appendText(parts, input.summary);
+
+  for (const conclusion of stringArrayFromJson(input.keyConclusionsJson)) {
+    appendText(parts, conclusion);
+  }
+
+  appendText(parts, input.tagsText);
+
+  const codeSnippets = safeParseJson(input.codeSnippetsJson);
+  if (Array.isArray(codeSnippets)) {
+    for (const snippet of codeSnippets) {
+      if (isRecord(snippet)) {
+        appendText(parts, snippet.description);
+      }
+    }
+  }
+
+  if (isMemoryNoteSource(input.sourceType)) {
+    if (Array.isArray(codeSnippets)) {
+      for (const snippet of codeSnippets) {
+        appendCodeSnippetEvidence(parts, snippet);
+      }
+    }
+
+    const rawPayload = safeParseJson(input.rawPayloadJson);
+    if (isRecord(rawPayload)) {
+      appendLabeledText(parts, 'Root cause', rawPayload.root_cause);
+      appendLabeledText(parts, 'Resolution', rawPayload.resolution);
+      appendLabeledArray(parts, 'Pitfall', rawPayload.pitfalls);
+      appendLabeledArray(parts, 'Pattern', rawPayload.reusable_patterns);
+      appendLabeledArray(parts, 'Decision', rawPayload.decisions);
+    }
+
+    appendLabeledArray(parts, 'Error signature', safeParseJson(input.errorSignaturesJson));
+    appendLabeledArray(parts, 'File', safeParseJson(input.filesTouchedJson));
+  }
+
+  return dedupeExact(parts).join('\n\n');
 }
 
 // =============================================
@@ -194,7 +333,8 @@ export async function generateEmbeddings(noteId: number): Promise<number> {
 
   // Get note data
   const noteResult = db.exec(
-    `SELECT n.id, n.conversation_id, n.title, n.summary, n.key_conclusions, n.code_snippets, c.project_name
+    `SELECT n.id, n.conversation_id, n.title, n.summary, n.key_conclusions, n.code_snippets, c.project_name,
+            n.source_type, n.raw_llm_response, n.error_signatures, n.files_touched
      FROM notes n JOIN conversations c ON c.id = n.conversation_id
      WHERE n.id = ?`,
     [noteId],
@@ -203,42 +343,50 @@ export async function generateEmbeddings(noteId: number): Promise<number> {
     throw new Error('Note not found');
   }
 
-  const [id, conversationId, title, summary, keyConclusions, codeSnippets, projectName] = noteResult[0].values[0] as [
-    number, string, string, string, string, string, string,
+  const [
+    id,
+    conversationId,
+    title,
+    summary,
+    keyConclusions,
+    codeSnippets,
+    projectName,
+    sourceType,
+    rawPayload,
+    errorSignatures,
+    filesTouched,
+  ] = noteResult[0].values[0] as [
+    number,
+    string,
+    string,
+    string,
+    string | null,
+    string | null,
+    string,
+    string | null,
+    string | null,
+    string | null,
+    string | null,
   ];
 
-  // Build text to embed: title + summary + conclusions
-  let fullText = `${title}\n\n${summary}`;
-  try {
-    const conclusions = JSON.parse(keyConclusions || '[]') as string[];
-    if (conclusions.length > 0) {
-      fullText += '\n\n' + conclusions.join('\n');
-    }
-  } catch {
-    // ignore parse errors
-  }
-
-  // Append tags for keyword matching
   const tagsResult = db.exec(
     `SELECT GROUP_CONCAT(t.name, ' ') FROM note_tags nt
      JOIN tags t ON t.id = nt.tag_id WHERE nt.note_id = ?`,
     [noteId],
   );
   const tagsText = tagsResult[0]?.values[0]?.[0] as string | null;
-  if (tagsText) {
-    fullText += '\n\n' + tagsText;
-  }
 
-  // Append code snippet descriptions
-  try {
-    const snippets = JSON.parse(codeSnippets || '[]') as { description?: string }[];
-    const descriptions = snippets.map((s) => s.description).filter(Boolean);
-    if (descriptions.length > 0) {
-      fullText += '\n\n' + descriptions.join('\n');
-    }
-  } catch {
-    // ignore parse errors
-  }
+  const fullText = buildNoteEmbeddingText({
+    title,
+    summary,
+    keyConclusionsJson: keyConclusions ?? '[]',
+    codeSnippetsJson: codeSnippets ?? '[]',
+    tagsText,
+    sourceType,
+    rawPayloadJson: rawPayload,
+    errorSignaturesJson: errorSignatures,
+    filesTouchedJson: filesTouched,
+  });
 
   // Chunk the text
   const chunks = chunkText(fullText);

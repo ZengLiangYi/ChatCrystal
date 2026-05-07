@@ -6,6 +6,8 @@ import type {
   DeleteNoteReviewResponse,
   RecallForTaskRequest,
   RecallForTaskResponse,
+  ValidateTaskMemoryRequest,
+  ValidateTaskMemoryResponse,
   WriteTaskMemoryRequest,
   WriteTaskMemoryResponse,
 } from '@chatcrystal/shared';
@@ -350,6 +352,14 @@ export class CrystalClient {
 
   async recallForTask(body: RecallForTaskRequest) {
     return this.request<RecallForTaskResponse>('POST', '/api/memory/recall', body);
+  }
+
+  async validateTaskMemory(body: ValidateTaskMemoryRequest) {
+    return this.request<ValidateTaskMemoryResponse>(
+      'POST',
+      '/api/memory/validate',
+      body,
+    );
   }
 
   async writeTaskMemory(body: WriteTaskMemoryRequest) {

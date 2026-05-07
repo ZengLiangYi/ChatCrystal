@@ -1,0 +1,6457 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import type { MaterializedTaskMemoryNote } from '@chatcrystal/shared';
+import { validateMaterializedNoteQuality } from './quality.js';
+
+function note(overrides: Partial<MaterializedTaskMemoryNote>): MaterializedTaskMemoryNote {
+  return {
+    title: 'Server readiness race causes ECONNREFUSED',
+    summary: 'Requests must wait for server readiness before client calls.',
+    key_conclusions: [
+      'Root cause: Client calls raced server startup.',
+      'Resolution: Block request setup until readiness resolves.',
+    ],
+    embedding_text: '',
+    tags: [],
+    raw_payload: {
+      summary: 'Requests must wait for server readiness before client calls.',
+      outcome_type: 'fix',
+      root_cause: 'Client calls raced server startup.',
+      resolution: 'Block request setup until readiness resolves.',
+    },
+    ...overrides,
+  };
+}
+
+test('validateMaterializedNoteQuality accepts a readable reusable fix', () => {
+  const result = validateMaterializedNoteQuality(note({}), { mode: 'auto' });
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts natural readiness race fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client calls hit ECONNREFUSED because they ran before the local server was ready.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client calls hit ECONNREFUSED because they ran before the local server was ready.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts readiness fixes with reliable outcome wording', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests so startup calls are reliable.',
+    key_conclusions: [
+      'Root cause: Client calls hit ECONNREFUSED because they ran before the local server was ready.',
+      'Resolution: Wait for Fastify readiness before issuing API requests so startup calls are reliable.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests so startup calls are reliable.',
+      outcome_type: 'fix',
+      root_cause: 'Client calls hit ECONNREFUSED because they ran before the local server was ready.',
+      resolution: 'Wait for Fastify readiness before issuing API requests so startup calls are reliable.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic resolutions with concrete root causes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Server readiness generic validation',
+    summary: 'Add validation to prevent future failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Add validation to prevent future failures.',
+    ],
+    raw_payload: {
+      summary: 'Add validation to prevent future failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Add validation to prevent future failures.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+
+  const validateResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness validation prevents ECONNREFUSED',
+    summary: 'Validate server readiness to prevent future failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Validate server readiness to prevent future failures.',
+    ],
+    raw_payload: {
+      summary: 'Validate server readiness to prevent future failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Validate server readiness to prevent future failures.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(validateResult.accepted, false);
+  assert.equal(validateResult.reason, 'low-note-quality');
+  assert.ok(validateResult.warnings.includes('durable_reusable_lesson'));
+
+  const guardResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness guard prevents ECONNREFUSED',
+    summary: 'Add a server readiness guard before API requests to prevent future failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Add a server readiness guard before API requests to prevent future failures.',
+    ],
+    raw_payload: {
+      summary: 'Add a server readiness guard before API requests to prevent future failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Add a server readiness guard before API requests to prevent future failures.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(guardResult.accepted, false);
+  assert.equal(guardResult.reason, 'low-note-quality');
+  assert.ok(guardResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic visible fixes with concrete raw payloads', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Server readiness issue resolved',
+    summary: 'The task now works correctly after the expected behavior was fixed.',
+    key_conclusions: [
+      'Root cause: The issue was fixed successfully.',
+      'Resolution: The correct behavior now works.',
+    ],
+    raw_payload: {
+      summary: 'The task now works correctly after the expected behavior was fixed.',
+      outcome_type: 'fix',
+      root_cause: 'Client calls raced server startup and produced ECONNREFUSED.',
+      resolution: 'Add request setup wait for Fastify readiness before client calls.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+
+  const reusableResult = validateMaterializedNoteQuality(note({
+    title: 'Reusable lesson for future tasks',
+    summary: 'This note captures a reusable API request fix for future tasks.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'This note captures a reusable API request fix for future tasks.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(reusableResult.accepted, false);
+  assert.equal(reusableResult.reason, 'low-note-quality');
+  assert.ok(reusableResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic title and summary with concrete conclusions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Task works correctly after fix',
+    summary: 'Unknown expected behavior was fixed and task works correctly.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Unknown expected behavior was fixed and task works correctly.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic reliability visible fields with concrete conclusions', () => {
+  const summaryResult = validateMaterializedNoteQuality(note({
+    title: 'Backend reliability fix',
+    summary: 'This backend reliability fix prevents request failures in future work.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'This backend reliability fix prevents request failures in future work.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const conclusionResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Takeaway: This note captures a reusable fix for future tasks.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const futureFailureResult = validateMaterializedNoteQuality(note({
+    title: 'Server request future failure prevention',
+    summary: 'Server requests now avoid future failures in the expected workflow.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Server requests now avoid future failures in the expected workflow.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const routeBoilerplateResult = validateMaterializedNoteQuality(note({
+    title: 'API reliability fix for /api/notes',
+    summary: 'This /api/notes reliability fix prevents future failures in the expected workflow.',
+    key_conclusions: [
+      'Root cause: /api/notes returned HTTP 404 because the route was not registered before request setup.',
+      'Resolution: Register /api/notes before request setup so API requests use the notes route.',
+    ],
+    raw_payload: {
+      summary: 'This /api/notes reliability fix prevents future failures in the expected workflow.',
+      outcome_type: 'fix',
+      root_cause: '/api/notes returned HTTP 404 because the route was not registered before request setup.',
+      resolution: 'Register /api/notes before request setup so API requests use the notes route.',
+    },
+  }), { mode: 'auto' });
+  const resolvedInvestigationResult = validateMaterializedNoteQuality(note({
+    title: 'Server request issue resolved after investigation',
+    summary: 'The server request issue was resolved after investigation and testing.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'The server request issue was resolved after investigation and testing.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const reliabilityImprovementResult = validateMaterializedNoteQuality(note({
+    title: 'Server reliability improvement',
+    summary: 'Improve server reliability and correctness for future requests.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Improve server reliability and correctness for future requests.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const genericTitleResult = validateMaterializedNoteQuality(note({
+    title: 'Backend request fix',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const genericSummaryResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'The request setup reliability was improved.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'The request setup reliability was improved.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const allGoodRouteResult = validateMaterializedNoteQuality(note({
+    title: 'All good now for /api/notes HTTP 404',
+    summary: 'All good now for /api/notes HTTP 404 after the route fix.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'All good now for /api/notes HTTP 404 after the route fix.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const localTestsSucceededResult = validateMaterializedNoteQuality(note({
+    title: 'Local tests succeeded for /api/notes HTTP 404',
+    summary: 'Local tests succeeded for the /api/notes HTTP 404 fix.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Local tests succeeded for the /api/notes HTTP 404 fix.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const typecheckPassedResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Typecheck passed for /api/notes HTTP 404 after the route registration ran before request setup.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Typecheck passed for /api/notes HTTP 404 after the route registration ran before request setup.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const lintPassedResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Lint passed for /api/notes HTTP 404 after the route registration ran before request setup.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Lint passed for /api/notes HTTP 404 after the route registration ran before request setup.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const ciCompletedResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'CI completed successfully for /api/notes HTTP 404 after the route registration ran before request setup.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'CI completed successfully for /api/notes HTTP 404 after the route registration ran before request setup.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const typecheckCompletedResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Typecheck completed successfully for /api/notes HTTP 404 after the route registration ran before request setup.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Typecheck completed successfully for /api/notes HTTP 404 after the route registration ran before request setup.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const lintCompletedResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Lint completed successfully for /api/notes HTTP 404 after the route registration ran before request setup.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Lint completed successfully for /api/notes HTTP 404 after the route registration ran before request setup.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const chineseVerifiedResult = validateMaterializedNoteQuality(note({
+    title: 'API 注册顺序导致 /api/notes HTTP 404',
+    summary: '已验证 /api/notes HTTP 404 修复，测试通过。',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: '已验证 /api/notes HTTP 404 修复，测试通过。',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const chineseFixedReliabilityResult = validateMaterializedNoteQuality(note({
+    title: 'API 注册顺序导致 /api/notes HTTP 404',
+    summary: '已修复 /api/notes HTTP 404，接口可靠性提高。',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: '已修复 /api/notes HTTP 404，接口可靠性提高。',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const chineseBuildPassedResult = validateMaterializedNoteQuality(note({
+    title: 'API 注册顺序导致 /api/notes HTTP 404',
+    summary: '构建通过，/api/notes HTTP 404 修复已验证。',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: '构建通过，/api/notes HTTP 404 修复已验证。',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const chineseHandledResult = validateMaterializedNoteQuality(note({
+    title: 'API 注册顺序导致 /api/notes HTTP 404',
+    summary: '问题处理完，/api/notes 不再返回 HTTP 404。',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    tags: ['api-route'],
+    raw_payload: {
+      summary: '问题处理完，/api/notes 不再返回 HTTP 404。',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const chineseFixedStableResult = validateMaterializedNoteQuality(note({
+    title: 'API 注册顺序导致 /api/notes HTTP 404',
+    summary: '这次把 /api/notes HTTP 404 修复好了，接口更稳定。',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: '这次把 /api/notes HTTP 404 修复好了，接口更稳定。',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const chineseRecoveredResult = validateMaterializedNoteQuality(note({
+    title: 'API 注册顺序导致 /api/notes HTTP 404',
+    summary: '/api/notes HTTP 404 已经处理，回归正常。',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: '/api/notes HTTP 404 已经处理，回归正常。',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const testsPassedMechanismResult = validateMaterializedNoteQuality(note({
+    title: 'Tests passed for Codex response_item.content array parsing',
+    summary: 'Tests passed after parsing response_item.content arrays before saving assistant messages.',
+    key_conclusions: [
+      'Root cause: Codex adapter treated response_item.content arrays as plain strings, so imported conversation messages lost assistant text.',
+      'Resolution: Parse response_item.content arrays and join text fragments before saving assistant messages.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Tests passed after parsing response_item.content arrays before saving assistant messages.',
+      root_cause: 'Codex adapter treated response_item.content arrays as plain strings, so imported conversation messages lost assistant text.',
+      resolution: 'Parse response_item.content arrays and join text fragments before saving assistant messages.',
+    },
+  }), { mode: 'auto' });
+  const httpSuccessStatusResult = validateMaterializedNoteQuality(note({
+    title: '/api/notes returns HTTP 200 after registration before request setup',
+    summary: '/api/notes now returns HTTP 200 after route registration runs before request setup.',
+    key_conclusions: [
+      'Root cause: /api/notes returned HTTP 404 because route registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    tags: ['api-route'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: '/api/notes now returns HTTP 200 after route registration runs before request setup.',
+      root_cause: '/api/notes returned HTTP 404 because route registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(summaryResult.accepted, false);
+  assert.equal(summaryResult.reason, 'low-note-quality');
+  assert.ok(summaryResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(conclusionResult.accepted, false);
+  assert.equal(conclusionResult.reason, 'low-note-quality');
+  assert.ok(conclusionResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(futureFailureResult.accepted, false);
+  assert.equal(futureFailureResult.reason, 'low-note-quality');
+  assert.ok(futureFailureResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(routeBoilerplateResult.accepted, false);
+  assert.equal(routeBoilerplateResult.reason, 'low-note-quality');
+  assert.ok(routeBoilerplateResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(resolvedInvestigationResult.accepted, false);
+  assert.equal(resolvedInvestigationResult.reason, 'low-note-quality');
+  assert.ok(resolvedInvestigationResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(reliabilityImprovementResult.accepted, false);
+  assert.equal(reliabilityImprovementResult.reason, 'low-note-quality');
+  assert.ok(reliabilityImprovementResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(genericTitleResult.accepted, false);
+  assert.equal(genericTitleResult.reason, 'low-note-quality');
+  assert.ok(genericTitleResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(genericSummaryResult.accepted, false);
+  assert.equal(genericSummaryResult.reason, 'low-note-quality');
+  assert.ok(genericSummaryResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(allGoodRouteResult.accepted, false);
+  assert.equal(allGoodRouteResult.reason, 'low-note-quality');
+  assert.ok(allGoodRouteResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(localTestsSucceededResult.accepted, false);
+  assert.equal(localTestsSucceededResult.reason, 'low-note-quality');
+  assert.ok(localTestsSucceededResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(typecheckPassedResult.accepted, false);
+  assert.equal(typecheckPassedResult.reason, 'low-note-quality');
+  assert.ok(typecheckPassedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(lintPassedResult.accepted, false);
+  assert.equal(lintPassedResult.reason, 'low-note-quality');
+  assert.ok(lintPassedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(ciCompletedResult.accepted, false);
+  assert.equal(ciCompletedResult.reason, 'low-note-quality');
+  assert.ok(ciCompletedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(typecheckCompletedResult.accepted, false);
+  assert.equal(typecheckCompletedResult.reason, 'low-note-quality');
+  assert.ok(typecheckCompletedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(lintCompletedResult.accepted, false);
+  assert.equal(lintCompletedResult.reason, 'low-note-quality');
+  assert.ok(lintCompletedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseVerifiedResult.accepted, false);
+  assert.equal(chineseVerifiedResult.reason, 'low-note-quality');
+  assert.ok(chineseVerifiedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseFixedReliabilityResult.accepted, false);
+  assert.equal(chineseFixedReliabilityResult.reason, 'low-note-quality');
+  assert.ok(chineseFixedReliabilityResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseBuildPassedResult.accepted, false);
+  assert.equal(chineseBuildPassedResult.reason, 'low-note-quality');
+  assert.ok(chineseBuildPassedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseHandledResult.accepted, false);
+  assert.equal(chineseHandledResult.reason, 'low-note-quality');
+  assert.ok(chineseHandledResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseFixedStableResult.accepted, false);
+  assert.equal(chineseFixedStableResult.reason, 'low-note-quality');
+  assert.ok(chineseFixedStableResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseRecoveredResult.accepted, false);
+  assert.equal(chineseRecoveredResult.reason, 'low-note-quality');
+  assert.ok(chineseRecoveredResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(testsPassedMechanismResult.accepted, false);
+  assert.equal(testsPassedMechanismResult.reason, 'low-note-quality');
+  assert.ok(testsPassedMechanismResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(httpSuccessStatusResult.accepted, false);
+  assert.equal(httpSuccessStatusResult.reason, 'low-note-quality');
+  assert.ok(httpSuccessStatusResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts Chinese summaries with concrete route mechanisms', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API 注册顺序导致 /api/notes HTTP 404',
+    summary: '在 request setup 前注册 /api/notes 路由，避免 API requests 返回 HTTP 404。',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+    ],
+    tags: ['api-route'],
+    raw_payload: {
+      summary: '在 request setup 前注册 /api/notes 路由，避免 API requests 返回 HTTP 404。',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts Chinese route ordering fixes', () => {
+  const summary = '在 request setup 前注册 /api/notes 路由，避免 API requests 返回 HTTP 404。';
+  const root_cause = '/api/notes 路由在 request setup 之后才注册，导致 API requests 返回 HTTP 404。';
+  const resolution = '在 request setup 前注册 /api/notes 路由，避免 API requests 返回 HTTP 404。';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API 注册顺序导致 /api/notes HTTP 404',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['api-route'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects low-quality extra key conclusions', () => {
+  const genericTakeawayResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Takeaway: The task now works correctly.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const diaryTakeawayResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Takeaway: I verified the fix during local testing.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const releaseValidationResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Takeaway: Always validate behavior before release.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const routeBoilerplateResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup to prevent HTTP 404.',
+    key_conclusions: [
+      'Root cause: /api/notes returned HTTP 404 because the route was not registered before request setup.',
+      'Resolution: Register /api/notes before request setup so API requests use the notes route.',
+      'Takeaway: This /api/notes reliability fix prevents future failures in the expected workflow.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup to prevent HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: '/api/notes returned HTTP 404 because the route was not registered before request setup.',
+      resolution: 'Register /api/notes before request setup so API requests use the notes route.',
+    },
+  }), { mode: 'auto' });
+  const validateBehaviorResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Takeaway: Validate behavior.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const localTestingResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Takeaway: Local testing passed.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const buildPassedResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Build: npm test passed.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const correctPatternResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Takeaway: Use the correct pattern.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const maintenanceReliabilityResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Takeaway: Reliability matters for future maintenance.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const investigationObservationResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Observation: The issue was investigated.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const allGoodResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'All good now.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const genericResolutionResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+      'Resolution: Use the correct pattern.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const genericRootCauseResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+      'Root cause: Server configuration issue.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const genericRouteFixResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+      'Root cause: API route misconfiguration.',
+      'Resolution: Update the API route configuration.',
+      'Resolution: Apply the route fix.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const routeInvestigationObservationResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+      'Observation: The issue was investigated for /api/notes HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const routeAllGoodTakeawayResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+      'Takeaway: All good now for /api/notes HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const routeCiGreenResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+      'Build: CI green for /api/notes HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const routeTestsSucceededResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+      'Test: Local tests succeeded for /api/notes HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const routeTypecheckPassedResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+      'Build: Typecheck passed for /api/notes HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const routeLintPassedResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+      'Build: Lint passed for /api/notes HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const routeCiCompletedResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before request setup so API requests do not return HTTP 404.',
+      'Build: CI completed successfully for /api/notes HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const currentRunObservationResult = validateMaterializedNoteQuality(note({
+    title: 'API search activeRequestId gate prevents stale responses',
+    summary: 'Gate setResults with activeRequestId so stale /api/search responses cannot overwrite current results.',
+    key_conclusions: [
+      'Root cause: Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      'Resolution: Gate setResults with activeRequestId so stale responses cannot overwrite current results.',
+      'Observation: /api/search returned HTTP 500 during this run.',
+    ],
+    raw_payload: {
+      summary: 'Gate setResults with activeRequestId so stale /api/search responses cannot overwrite current results.',
+      outcome_type: 'fix',
+      root_cause: 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      resolution: 'Gate setResults with activeRequestId so stale responses cannot overwrite current results.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(genericTakeawayResult.accepted, false);
+  assert.equal(genericTakeawayResult.reason, 'low-note-quality');
+  assert.ok(genericTakeawayResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(diaryTakeawayResult.accepted, false);
+  assert.equal(diaryTakeawayResult.reason, 'low-note-quality');
+  assert.ok(diaryTakeawayResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(releaseValidationResult.accepted, false);
+  assert.equal(releaseValidationResult.reason, 'low-note-quality');
+  assert.ok(releaseValidationResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(routeBoilerplateResult.accepted, false);
+  assert.equal(routeBoilerplateResult.reason, 'low-note-quality');
+  assert.ok(routeBoilerplateResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(validateBehaviorResult.accepted, false);
+  assert.equal(validateBehaviorResult.reason, 'low-note-quality');
+  assert.ok(validateBehaviorResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(localTestingResult.accepted, false);
+  assert.equal(localTestingResult.reason, 'low-note-quality');
+  assert.ok(localTestingResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(buildPassedResult.accepted, false);
+  assert.equal(buildPassedResult.reason, 'low-note-quality');
+  assert.ok(buildPassedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(correctPatternResult.accepted, false);
+  assert.equal(correctPatternResult.reason, 'low-note-quality');
+  assert.ok(correctPatternResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(maintenanceReliabilityResult.accepted, false);
+  assert.equal(maintenanceReliabilityResult.reason, 'low-note-quality');
+  assert.ok(maintenanceReliabilityResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(investigationObservationResult.accepted, false);
+  assert.equal(investigationObservationResult.reason, 'low-note-quality');
+  assert.ok(investigationObservationResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(allGoodResult.accepted, false);
+  assert.equal(allGoodResult.reason, 'low-note-quality');
+  assert.ok(allGoodResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(genericResolutionResult.accepted, false);
+  assert.equal(genericResolutionResult.reason, 'low-note-quality');
+  assert.ok(genericResolutionResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(genericRootCauseResult.accepted, false);
+  assert.equal(genericRootCauseResult.reason, 'low-note-quality');
+  assert.ok(genericRootCauseResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(genericRouteFixResult.accepted, false);
+  assert.equal(genericRouteFixResult.reason, 'low-note-quality');
+  assert.ok(genericRouteFixResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(routeInvestigationObservationResult.accepted, false);
+  assert.equal(routeInvestigationObservationResult.reason, 'low-note-quality');
+  assert.ok(routeInvestigationObservationResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(routeAllGoodTakeawayResult.accepted, false);
+  assert.equal(routeAllGoodTakeawayResult.reason, 'low-note-quality');
+  assert.ok(routeAllGoodTakeawayResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(routeCiGreenResult.accepted, false);
+  assert.equal(routeCiGreenResult.reason, 'low-note-quality');
+  assert.ok(routeCiGreenResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(routeTestsSucceededResult.accepted, false);
+  assert.equal(routeTestsSucceededResult.reason, 'low-note-quality');
+  assert.ok(routeTestsSucceededResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(routeTypecheckPassedResult.accepted, false);
+  assert.equal(routeTypecheckPassedResult.reason, 'low-note-quality');
+  assert.ok(routeTypecheckPassedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(routeLintPassedResult.accepted, false);
+  assert.equal(routeLintPassedResult.reason, 'low-note-quality');
+  assert.ok(routeLintPassedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(routeCiCompletedResult.accepted, false);
+  assert.equal(routeCiCompletedResult.reason, 'low-note-quality');
+  assert.ok(routeCiCompletedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(currentRunObservationResult.accepted, false);
+  assert.equal(currentRunObservationResult.reason, 'low-note-quality');
+  assert.ok(currentRunObservationResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects fix outcomes without visible fix conclusions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Fastify readiness prevents ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests because ECONNREFUSED happens when client calls race server startup.',
+    key_conclusions: [
+      'Pattern: Wait for Fastify readiness before issuing API requests because ECONNREFUSED happens when client calls race server startup.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests because ECONNREFUSED happens when client calls race server startup.',
+      outcome_type: 'fix',
+      reusable_patterns: ['Wait for Fastify readiness before issuing API requests because ECONNREFUSED happens when client calls race server startup.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects bare observation conclusions appended to concrete fixes', () => {
+  const summary = 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.';
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.';
+  const resolution = 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Stale search responses overwrite current results',
+    summary,
+    key_conclusions: [
+      `Root cause: ${root_cause}`,
+      `Resolution: ${resolution}`,
+      'Observation: /api/search returned HTTP 500.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects diary or status summaries with concrete conclusions', () => {
+  const diaryResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'I checked API requests and added the readiness wait.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'I checked API requests and added the readiness wait.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const statusResult = validateMaterializedNoteQuality(note({
+    title: 'Package version status check',
+    summary: 'Checked current local package version status and generated dist output.',
+    key_conclusions: [
+      'Root cause: Generated dist output kept stale package metadata because the version bump ran after dist generation.',
+      'Resolution: Regenerate generated dist output after bumping package metadata so release artifacts carry the new package version.',
+    ],
+    raw_payload: {
+      summary: 'Checked current local package version status and generated dist output.',
+      outcome_type: 'fix',
+      root_cause: 'Generated dist output kept stale package metadata because the version bump ran after dist generation.',
+      resolution: 'Regenerate generated dist output after bumping package metadata so release artifacts carry the new package version.',
+    },
+  }), { mode: 'auto' });
+  const addedResult = validateMaterializedNoteQuality(note({
+    title: 'Added server readiness wait after ECONNREFUSED',
+    summary: 'Added Fastify readiness wait after checking API request setup.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Added Fastify readiness wait after checking API request setup.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const foundResult = validateMaterializedNoteQuality(note({
+    title: 'Found readiness race before Fastify startup',
+    summary: 'Found client API requests hit ECONNREFUSED before Fastify readiness.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Found client API requests hit ECONNREFUSED before Fastify readiness.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  const observedResult = validateMaterializedNoteQuality(note({
+    title: 'Observed Fastify readiness during API checks',
+    summary: 'Observed Fastify readiness behavior during API request checks.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Observed Fastify readiness behavior during API request checks.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const testedResult = validateMaterializedNoteQuality(note({
+    title: 'Tested server readiness ECONNREFUSED fix',
+    summary: 'Tested server readiness fix locally after waiting for Fastify readiness before issuing API requests.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Tested server readiness fix locally after waiting for Fastify readiness before issuing API requests.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const embeddedDiaryResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Requests hit ECONNREFUSED before Fastify readiness, and I added a wait before API requests.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Requests hit ECONNREFUSED before Fastify readiness, and I added a wait before API requests.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(diaryResult.accepted, false);
+  assert.equal(diaryResult.reason, 'low-note-quality');
+  assert.ok(diaryResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(statusResult.accepted, false);
+  assert.equal(statusResult.reason, 'low-note-quality');
+  assert.ok(statusResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(addedResult.accepted, false);
+  assert.equal(addedResult.reason, 'low-note-quality');
+  assert.ok(addedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(foundResult.accepted, false);
+  assert.equal(foundResult.reason, 'low-note-quality');
+  assert.ok(foundResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(observedResult.accepted, false);
+  assert.equal(observedResult.reason, 'low-note-quality');
+  assert.ok(observedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(testedResult.accepted, false);
+  assert.equal(testedResult.reason, 'low-note-quality');
+  assert.ok(testedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(embeddedDiaryResult.accepted, false);
+  assert.equal(embeddedDiaryResult.reason, 'low-note-quality');
+  assert.ok(embeddedDiaryResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic visible patterns with concrete raw payloads', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Reusable API request pattern',
+    summary: 'Use the correct pattern so API behavior works reliably across future tasks.',
+    key_conclusions: ['Pattern: Use the correct pattern for API behavior.'],
+    raw_payload: {
+      summary: 'Use the correct pattern so API behavior works reliably across future tasks.',
+      outcome_type: 'pattern',
+      reusable_patterns: ['Wait for Fastify readiness before issuing API requests because ECONNREFUSED happens when client calls race server startup.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects visible status fixes with concrete raw payloads', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Local package version status check',
+    summary: 'Checked current local package version status and generated dist output.',
+    key_conclusions: [
+      'Root cause: Current local package status was checked.',
+      'Resolution: Generated dist output was present.',
+    ],
+    raw_payload: {
+      summary: 'Checked current local package version status and generated dist output.',
+      outcome_type: 'fix',
+      root_cause: 'Generated dist output kept stale package metadata because the version bump ran after dist generation.',
+      resolution: 'Regenerate generated dist output after bumping package metadata so release artifacts carry the new package version.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+
+  const verificationResult = validateMaterializedNoteQuality(note({
+    title: 'Search verification passed activeRequestId gates stale /api/search responses',
+    summary: 'Search verification passed activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+    key_conclusions: [
+      'Root cause: Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      'Resolution: Gate setResults with activeRequestId so stale responses cannot overwrite current results.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Search verification passed activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+      root_cause: 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      resolution: 'Gate setResults with activeRequestId so stale responses cannot overwrite current results.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(verificationResult.accepted, false);
+  assert.equal(verificationResult.reason, 'low-note-quality');
+  assert.ok(verificationResult.warnings.includes('durable_reusable_lesson'));
+
+  const verificationConfirmedResult = validateMaterializedNoteQuality(note({
+    title: 'Search verification confirmed activeRequestId gates stale /api/search responses',
+    summary: 'The verification confirmed activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.',
+    key_conclusions: [
+      'Root cause: Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      'Resolution: Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'The verification confirmed activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.',
+      root_cause: 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      resolution: 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(verificationConfirmedResult.accepted, false);
+  assert.equal(verificationConfirmedResult.reason, 'low-note-quality');
+  assert.ok(verificationConfirmedResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects first-person implementation diary fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Readiness implementation diary fix',
+    summary: 'I checked API requests and added the readiness wait.',
+    key_conclusions: [
+      'Root cause: I checked API requests and they hit ECONNREFUSED because client calls raced server startup.',
+      'Resolution: I added Fastify readiness wait before issuing API requests so startup calls are reliable.',
+    ],
+    raw_payload: {
+      summary: 'I checked API requests and added the readiness wait.',
+      outcome_type: 'fix',
+      root_cause: 'I checked API requests and they hit ECONNREFUSED because client calls raced server startup.',
+      resolution: 'I added Fastify readiness wait before issuing API requests so startup calls are reliable.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+
+  const foundResult = validateMaterializedNoteQuality(note({
+    title: 'Readiness implementation diary fix',
+    summary: 'Found readiness race and kept the wait.',
+    key_conclusions: [
+      'Root cause: I found client calls hit ECONNREFUSED because they ran before the local server was ready.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Found readiness race and kept the wait.',
+      outcome_type: 'fix',
+      root_cause: 'I found client calls hit ECONNREFUSED because they ran before the local server was ready.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const diagnosedResult = validateMaterializedNoteQuality(note({
+    title: 'Readiness implementation diary fix',
+    summary: 'Diagnosed readiness race and kept the wait.',
+    key_conclusions: [
+      'Root cause: We diagnosed client calls hit ECONNREFUSED because they ran before the local server was ready.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Diagnosed readiness race and kept the wait.',
+      outcome_type: 'fix',
+      root_cause: 'We diagnosed client calls hit ECONNREFUSED because they ran before the local server was ready.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const switchedResult = validateMaterializedNoteQuality(note({
+    title: 'Readiness implementation diary fix',
+    summary: 'Switched readiness handling and kept the wait.',
+    key_conclusions: [
+      'Root cause: Client calls hit ECONNREFUSED because they ran before the local server was ready.',
+      'Resolution: We switched request setup to wait for the Fastify readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Switched readiness handling and kept the wait.',
+      outcome_type: 'fix',
+      root_cause: 'Client calls hit ECONNREFUSED because they ran before the local server was ready.',
+      resolution: 'We switched request setup to wait for the Fastify readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const discoveredResult = validateMaterializedNoteQuality(note({
+    title: 'Readiness implementation diary fix',
+    summary: 'We discovered API requests hit ECONNREFUSED before Fastify readiness.',
+    key_conclusions: [
+      'Root cause: We discovered API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'We discovered API requests hit ECONNREFUSED before Fastify readiness.',
+      outcome_type: 'fix',
+      root_cause: 'We discovered API requests hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const confirmedResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'I confirmed API requests hit ECONNREFUSED before Fastify readiness.',
+    key_conclusions: [
+      'Root cause: I confirmed client calls hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'I confirmed API requests hit ECONNREFUSED before Fastify readiness.',
+      outcome_type: 'fix',
+      root_cause: 'I confirmed client calls hit ECONNREFUSED because request setup ran before Fastify readiness.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const laterSentenceResult = validateMaterializedNoteQuality(note({
+    title: 'Server readiness race returns ECONNREFUSED',
+    summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+    key_conclusions: [
+      'Root cause: Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness. I checked the request setup during implementation.',
+      'Resolution: Wait for the Fastify server readiness promise before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+      outcome_type: 'fix',
+      root_cause: 'Client API requests hit ECONNREFUSED because request setup ran before Fastify readiness. I checked the request setup during implementation.',
+      resolution: 'Wait for the Fastify server readiness promise before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const stripResult = validateMaterializedNoteQuality(note({
+    title: 'I strip fenced JSON before JSON.parse',
+    summary: 'I strip markdown fences before JSON.parse so fenced LLM summaries persist parsed title, summary, and conclusions.',
+    key_conclusions: [
+      'Root cause: LLM summaries can return fenced JSON, so passing the markdown fence text directly into JSON.parse threw SyntaxError before note fields were persisted.',
+      'Resolution: I strip markdown fences before JSON.parse so fenced LLM summaries persist parsed title, summary, and conclusions.',
+    ],
+    raw_payload: {
+      summary: 'I strip markdown fences before JSON.parse so fenced LLM summaries persist parsed title, summary, and conclusions.',
+      outcome_type: 'fix',
+      root_cause: 'LLM summaries can return fenced JSON, so passing the markdown fence text directly into JSON.parse threw SyntaxError before note fields were persisted.',
+      resolution: 'I strip markdown fences before JSON.parse so fenced LLM summaries persist parsed title, summary, and conclusions.',
+    },
+  }), { mode: 'auto' });
+  const chineseDiaryResult = validateMaterializedNoteQuality(note({
+    title: 'Fastify readiness 竞态导致 ECONNREFUSED',
+    summary: '我添加了 Fastify readiness 等待，所以 API requests 不会在 server startup 前触发 ECONNREFUSED。',
+    key_conclusions: [
+      'Root cause: API requests hit ECONNREFUSED because they ran before Fastify readiness during server startup.',
+      'Resolution: 我添加了 Fastify readiness wait before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: '我添加了 Fastify readiness 等待，所以 API requests 不会在 server startup 前触发 ECONNREFUSED。',
+      outcome_type: 'fix',
+      root_cause: 'API requests hit ECONNREFUSED because they ran before Fastify readiness during server startup.',
+      resolution: '我添加了 Fastify readiness wait before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+  const chineseStripResult = validateMaterializedNoteQuality(note({
+    title: 'extractJSON must strip fenced LLM JSON',
+    summary: '我将 markdown fences 去掉 before JSON.parse so fenced LLM summaries persist parsed title, summary, and conclusions.',
+    key_conclusions: [
+      'Root cause: LLM summaries can return fenced JSON, so passing the markdown fence text directly into JSON.parse threw SyntaxError before note fields were persisted.',
+      'Resolution: 我将 markdown fences 去掉 before JSON.parse so fenced LLM summaries persist parsed title, summary, and conclusions.',
+    ],
+    raw_payload: {
+      summary: '我将 markdown fences 去掉 before JSON.parse so fenced LLM summaries persist parsed title, summary, and conclusions.',
+      outcome_type: 'fix',
+      root_cause: 'LLM summaries can return fenced JSON, so passing the markdown fence text directly into JSON.parse threw SyntaxError before note fields were persisted.',
+      resolution: '我将 markdown fences 去掉 before JSON.parse so fenced LLM summaries persist parsed title, summary, and conclusions.',
+    },
+  }), { mode: 'auto' });
+  const chineseSubjectElidedResult = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR import ordering prevents default fallback',
+    summary: '已将 DATA_DIR set before importing the Electron server entrypoint to prevent fallback to the default data directory.',
+    key_conclusions: [
+      'Root cause: The Electron main process imported the server before DATA_DIR was configured, so startup used the default data directory.',
+      'Resolution: 已将 DATA_DIR set before importing the Electron server entrypoint to prevent fallback to the default data directory.',
+    ],
+    raw_payload: {
+      summary: '已将 DATA_DIR set before importing the Electron server entrypoint to prevent fallback to the default data directory.',
+      outcome_type: 'fix',
+      root_cause: 'The Electron main process imported the server before DATA_DIR was configured, so startup used the default data directory.',
+      resolution: '已将 DATA_DIR set before importing the Electron server entrypoint to prevent fallback to the default data directory.',
+    },
+  }), { mode: 'auto' });
+  const chineseParsedStatusResult = validateMaterializedNoteQuality(note({
+    title: '已解析 Codex response_item.content arrays。',
+    summary: '已解析 Codex response_item.content arrays。',
+    key_conclusions: [
+      'Root cause: Codex adapter treated response_item.content arrays as plain strings, so imported conversation messages lost assistant text.',
+      'Resolution: Parse response_item.content arrays and join text fragments before saving assistant messages.',
+    ],
+    raw_payload: {
+      summary: '已解析 Codex response_item.content arrays。',
+      outcome_type: 'fix',
+      root_cause: 'Codex adapter treated response_item.content arrays as plain strings, so imported conversation messages lost assistant text.',
+      resolution: 'Parse response_item.content arrays and join text fragments before saving assistant messages.',
+    },
+  }), { mode: 'auto' });
+  const madeResult = validateMaterializedNoteQuality(note({
+    title: 'I made /api/notes register before request setup',
+    summary: 'I made /api/notes register before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: /api/notes returned HTTP 404 because route registration ran after request setup.',
+      'Resolution: I made /api/notes register before request setup so API requests do not return HTTP 404.',
+    ],
+    tags: ['api-route'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'I made /api/notes register before request setup so API requests do not return HTTP 404.',
+      root_cause: '/api/notes returned HTTP 404 because route registration ran after request setup.',
+      resolution: 'I made /api/notes register before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const usedResult = validateMaterializedNoteQuality(note({
+    title: 'API search activeRequestId gate prevents stale responses',
+    summary: 'I used activeRequestId to gate setResults so stale /api/search responses do not overwrite current results.',
+    key_conclusions: [
+      'Root cause: Older /api/search responses overwrote current results because setResults was not gated by the latest activeRequestId.',
+      'Resolution: I used activeRequestId to gate setResults so stale /api/search responses do not overwrite current results.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'I used activeRequestId to gate setResults so stale /api/search responses do not overwrite current results.',
+      root_cause: 'Older /api/search responses overwrote current results because setResults was not gated by the latest activeRequestId.',
+      resolution: 'I used activeRequestId to gate setResults so stale /api/search responses do not overwrite current results.',
+    },
+  }), { mode: 'auto' });
+  const ensuredResult = validateMaterializedNoteQuality(note({
+    title: 'I ensured activeRequestId gates stale /api/search responses',
+    summary: 'I ensured activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.',
+    key_conclusions: [
+      'Root cause: Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      'Resolution: Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'I ensured activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.',
+      root_cause: 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      resolution: 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.',
+    },
+  }), { mode: 'auto' });
+  const adverbResult = validateMaterializedNoteQuality(note({
+    title: 'I now gate setResults by activeRequestId so stale /api/search responses cannot overwrite current results.',
+    summary: 'I now gate setResults by activeRequestId so stale /api/search responses cannot overwrite current results.',
+    key_conclusions: [
+      'Root cause: Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      'Resolution: I now gate setResults by activeRequestId so stale /api/search responses cannot overwrite current results.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'I now gate setResults by activeRequestId so stale /api/search responses cannot overwrite current results.',
+      root_cause: 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      resolution: 'I now gate setResults by activeRequestId so stale /api/search responses cannot overwrite current results.',
+    },
+  }), { mode: 'auto' });
+  const myFixResult = validateMaterializedNoteQuality(note({
+    title: 'My fix uses activeRequestId for search results',
+    summary: 'My fix uses activeRequestId to gate setResults so stale /api/search responses cannot overwrite current results.',
+    key_conclusions: [
+      'Root cause: Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      'Resolution: My fix uses activeRequestId to gate setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'My fix uses activeRequestId to gate setResults so stale /api/search responses cannot overwrite current results.',
+      root_cause: 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.',
+      resolution: 'My fix uses activeRequestId to gate setResults so stale /api/search responses cannot overwrite current results.',
+    },
+  }), { mode: 'auto' });
+  const exactMyFix = 'My fix uses activeRequestId to gate setResults so stale /api/search responses cannot overwrite current results.';
+  const exactMyFixRoot = 'Older /api/search responses overwrote current results because setResults ran without checking activeRequestId.';
+  const exactMyFixResult = validateMaterializedNoteQuality(note({
+    title: exactMyFix,
+    summary: exactMyFix,
+    key_conclusions: [
+      `Root cause: ${exactMyFixRoot}`,
+      `Resolution: ${exactMyFix}`,
+    ],
+    embedding_text: '',
+    tags: [],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: exactMyFix,
+      root_cause: exactMyFixRoot,
+      resolution: exactMyFix,
+    },
+  }), { mode: 'auto' });
+  const chineseLetResult = validateMaterializedNoteQuality(note({
+    title: '我让 /api/notes register before request setup',
+    summary: '我让 /api/notes register before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: /api/notes returned HTTP 404 because route registration ran after request setup.',
+      'Resolution: 我让 /api/notes register before request setup so API requests do not return HTTP 404.',
+    ],
+    tags: ['api-route'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: '我让 /api/notes register before request setup so API requests do not return HTTP 404.',
+      root_cause: '/api/notes returned HTTP 404 because route registration ran after request setup.',
+      resolution: '我让 /api/notes register before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(foundResult.accepted, false);
+  assert.equal(foundResult.reason, 'low-note-quality');
+  assert.ok(foundResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(diagnosedResult.accepted, false);
+  assert.equal(diagnosedResult.reason, 'low-note-quality');
+  assert.ok(diagnosedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(switchedResult.accepted, false);
+  assert.equal(switchedResult.reason, 'low-note-quality');
+  assert.ok(switchedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(discoveredResult.accepted, false);
+  assert.equal(discoveredResult.reason, 'low-note-quality');
+  assert.ok(discoveredResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(confirmedResult.accepted, false);
+  assert.equal(confirmedResult.reason, 'low-note-quality');
+  assert.ok(confirmedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(laterSentenceResult.accepted, false);
+  assert.equal(laterSentenceResult.reason, 'low-note-quality');
+  assert.ok(laterSentenceResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(stripResult.accepted, false);
+  assert.equal(stripResult.reason, 'low-note-quality');
+  assert.ok(stripResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseDiaryResult.accepted, false);
+  assert.equal(chineseDiaryResult.reason, 'low-note-quality');
+  assert.ok(chineseDiaryResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseStripResult.accepted, false);
+  assert.equal(chineseStripResult.reason, 'low-note-quality');
+  assert.ok(chineseStripResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseSubjectElidedResult.accepted, false);
+  assert.equal(chineseSubjectElidedResult.reason, 'low-note-quality');
+  assert.ok(chineseSubjectElidedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseParsedStatusResult.accepted, false);
+  assert.equal(chineseParsedStatusResult.reason, 'low-note-quality');
+  assert.ok(chineseParsedStatusResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(madeResult.accepted, false);
+  assert.equal(madeResult.reason, 'low-note-quality');
+  assert.ok(madeResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(usedResult.accepted, false);
+  assert.equal(usedResult.reason, 'low-note-quality');
+  assert.ok(usedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(ensuredResult.accepted, false);
+  assert.equal(ensuredResult.reason, 'low-note-quality');
+  assert.ok(ensuredResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(adverbResult.accepted, false);
+  assert.equal(adverbResult.reason, 'low-note-quality');
+  assert.ok(adverbResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(myFixResult.accepted, false);
+  assert.equal(myFixResult.reason, 'low-note-quality');
+  assert.ok(myFixResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(exactMyFixResult.accepted, false);
+  assert.equal(exactMyFixResult.reason, 'low-note-quality');
+  assert.ok(exactMyFixResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseLetResult.accepted, false);
+  assert.equal(chineseLetResult.reason, 'low-note-quality');
+  assert.ok(chineseLetResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects #87-like one-off status records in auto mode', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Check local dist and linked core',
+    summary: 'Checked npm link, current package version, and local dist output.',
+    key_conclusions: ['Version check: local dist was behind package 0.4.9.'],
+    raw_payload: {
+      summary: 'Checked npm link, current package version, and local dist output.',
+      outcome_type: 'pattern',
+      reusable_patterns: ['Version check: local dist was behind package 0.4.9.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects first-person implementation diary patterns', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Readiness implementation diary',
+    summary: 'I added the readiness wait and then the API request passed after ECONNREFUSED.',
+    key_conclusions: ['Pattern: I added Fastify readiness wait before issuing API requests because ECONNREFUSED happens when requests race startup.'],
+    raw_payload: {
+      summary: 'I added the readiness wait and then the API request passed after ECONNREFUSED.',
+      outcome_type: 'pattern',
+      reusable_patterns: ['I added Fastify readiness wait before issuing API requests because ECONNREFUSED happens when requests race startup.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects first-person implementation decisions with action verbs', () => {
+  const decisions = [
+    'I set DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory.',
+    'I configure DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory.',
+    'I register /api/notes before request setup so API requests do not return HTTP 404.',
+    'I wait for Fastify readiness before issuing API requests because ECONNREFUSED happens when requests race startup.',
+    'I block request setup until Fastify readiness resolves to prevent ECONNREFUSED.',
+    'I place /api/notes registration before request setup so API requests do not return HTTP 404.',
+    '我把 DATA_DIR set before importing the Electron server entrypoint to prevent default data directory fallback.',
+    '我已将 DATA_DIR set before importing the Electron server entrypoint to prevent fallback to the default data directory.',
+  ];
+
+  for (const decision of decisions) {
+    const result = validateMaterializedNoteQuality(note({
+      title: decision,
+      summary: decision,
+      key_conclusions: [`Decision: ${decision}`],
+      raw_payload: {
+        summary: decision,
+        outcome_type: 'decision',
+        decisions: [decision],
+      },
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, decision);
+    assert.equal(result.reason, 'low-note-quality', decision);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), decision);
+  }
+});
+
+test('validateMaterializedNoteQuality rejects one-off status records disguised as decisions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Local package version matched dist output',
+    summary: 'Current local package version should match the generated dist output.',
+    key_conclusions: ['Decision: Current local package version should match generated dist output.'],
+    raw_payload: {
+      summary: 'Current local package version should match the generated dist output.',
+      outcome_type: 'decision',
+      decisions: ['Current local package version should match the generated dist output.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('one_off_status'));
+});
+
+test('validateMaterializedNoteQuality rejects package version status comparisons disguised as prevention', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Package version status prevents dist mismatch',
+    summary: 'Compare current package version before generated dist output to prevent mismatch in local status checks.',
+    key_conclusions: ['Decision: Compare current package version before generated dist output to prevent mismatch in local status checks.'],
+    raw_payload: {
+      summary: 'Compare current package version before generated dist output to prevent mismatch in local status checks.',
+      outcome_type: 'decision',
+      decisions: ['Compare current package version before generated dist output to prevent mismatch in local status checks.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(
+    result.warnings.includes('one_off_status') ||
+    result.warnings.includes('durable_reusable_lesson'),
+  );
+});
+
+test('validateMaterializedNoteQuality rejects package version status comparisons with divergence wording', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Package version status comparison',
+    summary: 'Compare current package version before generated dist output because generated dist output diverged during local status checks.',
+    key_conclusions: ['Decision: Compare current package version before generated dist output because generated dist output diverged during local status checks.'],
+    raw_payload: {
+      summary: 'Compare current package version before generated dist output because generated dist output diverged during local status checks.',
+      outcome_type: 'decision',
+      decisions: ['Compare current package version before generated dist output because generated dist output diverged during local status checks.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(
+    result.warnings.includes('one_off_status') ||
+    result.warnings.includes('durable_reusable_lesson'),
+  );
+});
+
+test('validateMaterializedNoteQuality accepts reusable package version fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Normalize package version parsing before dist comparison',
+    summary: 'Normalize package version parsing before comparing generated dist output during local release checks.',
+    key_conclusions: [
+      'Root cause: Inconsistent package version parsing made local release dist comparisons unreliable.',
+      'Resolution: Normalize package version parsing before comparing generated dist output during local release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package version parsing before comparing generated dist output during local release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Inconsistent package version parsing made local release dist comparisons unreliable.',
+      resolution: 'Normalize package version parsing before comparing generated dist output during local release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts natural package metadata and dist fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Normalize package metadata before dist comparison',
+    summary: 'Normalize package metadata before comparing generated dist output so release checks use the same version source.',
+    key_conclusions: [
+      'Root cause: Package metadata and generated dist output diverged because version parsing used different formats.',
+      'Resolution: Normalize package metadata before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before comparing generated dist output so release checks use the same version source.',
+      outcome_type: 'fix',
+      root_cause: 'Package metadata and generated dist output diverged because version parsing used different formats.',
+      resolution: 'Normalize package metadata before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts package metadata dist comparison patterns', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Normalize package metadata before dist comparison',
+    summary: 'Normalize package metadata before comparing generated dist output when version formats make dist comparisons unreliable.',
+    key_conclusions: [
+      'Pattern: Normalize package metadata before comparing generated dist output because inconsistent version formats made dist comparisons unreliable.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before comparing generated dist output when version formats make dist comparisons unreliable.',
+      outcome_type: 'pattern',
+      reusable_patterns: [
+        'Normalize package metadata before comparing generated dist output because inconsistent version formats made dist comparisons unreliable.',
+      ],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts caused package dist differences', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Normalize prerelease metadata before dist output',
+    summary: 'Normalize package version metadata before generating dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Version normalization stripped prerelease tags and caused generated dist output to differ from package metadata.',
+      'Resolution: Normalize package version metadata before generating dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package version metadata before generating dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Version normalization stripped prerelease tags and caused generated dist output to differ from package metadata.',
+      resolution: 'Normalize package version metadata before generating dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts causal package metadata inclusion fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Normalize package metadata before dist generation',
+    summary: 'Normalize package metadata before generating dist output so release checks compare the same version format.',
+    key_conclusions: [
+      'Root cause: Generated dist output included stale package metadata and diverged from package version because version normalization used different formats.',
+      'Resolution: Normalize package metadata before generating dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before generating dist output so release checks compare the same version format.',
+      outcome_type: 'fix',
+      root_cause: 'Generated dist output included stale package metadata and diverged from package version because version normalization used different formats.',
+      resolution: 'Normalize package metadata before generating dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts package version bump dist regeneration fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Regenerate dist after package version bump',
+    summary: 'Regenerate generated dist output after bumping package metadata so release artifacts carry the new package version.',
+    key_conclusions: [
+      'Root cause: Generated dist output kept stale package metadata because the version bump ran after dist generation.',
+      'Resolution: Regenerate generated dist output after bumping package metadata so release artifacts carry the new package version.',
+    ],
+    raw_payload: {
+      summary: 'Regenerate generated dist output after bumping package metadata so release artifacts carry the new package version.',
+      outcome_type: 'fix',
+      root_cause: 'Generated dist output kept stale package metadata because the version bump ran after dist generation.',
+      resolution: 'Regenerate generated dist output after bumping package metadata so release artifacts carry the new package version.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+
+  const inverseResult = validateMaterializedNoteQuality(note({
+    title: 'Regenerate dist after package version bump',
+    summary: 'Regenerate generated dist output after bumping package metadata so release artifacts carry the new package version.',
+    key_conclusions: [
+      'Root cause: Generated dist output stayed stale because dist generation ran before the package metadata version bump.',
+      'Resolution: Regenerate generated dist output after bumping package metadata so release artifacts carry the new package version.',
+    ],
+    raw_payload: {
+      summary: 'Regenerate generated dist output after bumping package metadata so release artifacts carry the new package version.',
+      outcome_type: 'fix',
+      root_cause: 'Generated dist output stayed stale because dist generation ran before the package metadata version bump.',
+      resolution: 'Regenerate generated dist output after bumping package metadata so release artifacts carry the new package version.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(inverseResult.accepted, true);
+  assert.equal(inverseResult.reason, 'note-quality-ok');
+  assert.deepEqual(inverseResult.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects package parsing causes without dist consequence', () => {
+  const wrongResult = validateMaterializedNoteQuality(note({
+    title: 'Normalize package version parsing before dist output',
+    summary: 'Normalize package version parsing before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Wrong package version parsing was used during generated dist output checks.',
+      'Resolution: Normalize package version parsing before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package version parsing before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Wrong package version parsing was used during generated dist output checks.',
+      resolution: 'Normalize package version parsing before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+  const inconsistentResult = validateMaterializedNoteQuality(note({
+    title: 'Normalize package version parsing before dist output',
+    summary: 'Normalize package version parsing before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Inconsistent package version parsing was used during generated dist output checks.',
+      'Resolution: Normalize package version parsing before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package version parsing before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Inconsistent package version parsing was used during generated dist output checks.',
+      resolution: 'Normalize package version parsing before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(wrongResult.accepted, false);
+  assert.equal(wrongResult.reason, 'low-note-quality');
+  assert.ok(wrongResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(inconsistentResult.accepted, false);
+  assert.equal(inconsistentResult.reason, 'low-note-quality');
+  assert.ok(inconsistentResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects package observation status causes with outcome words', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Package version release checks',
+    summary: 'Normalize package version parsing before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Inconsistent package version parsing and generated dist output mismatch were present during release checks.',
+      'Resolution: Normalize package version parsing before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package version parsing before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Inconsistent package version parsing and generated dist output mismatch were present during release checks.',
+      resolution: 'Normalize package version parsing before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects package and dist co-occurrence without causal signal', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Package version release checks',
+    summary: 'Normalize package version parsing before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Package version and generated dist output existed during release checks.',
+      'Resolution: Normalize package version parsing before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package version parsing before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Package version and generated dist output existed during release checks.',
+      resolution: 'Normalize package version parsing before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects package and dist existence under because clauses', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Package version release checks',
+    summary: 'Normalize package version parsing before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Package version existed because generated dist output was present during release checks.',
+      'Resolution: Normalize package version parsing before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package version parsing before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Package version existed because generated dist output was present during release checks.',
+      resolution: 'Normalize package version parsing before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects package metadata existence even with dist divergence words', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Package metadata release checks',
+    summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Package metadata existed because generated dist output diverged during release checks.',
+      'Resolution: Normalize package metadata before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Package metadata existed because generated dist output diverged during release checks.',
+      resolution: 'Normalize package metadata before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects package metadata was-there existence claims', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Package metadata release checks',
+    summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Package metadata was there because generated dist output diverged during release checks.',
+      'Resolution: Normalize package metadata before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Package metadata was there because generated dist output diverged during release checks.',
+      resolution: 'Normalize package metadata before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects package metadata found or included existence claims', () => {
+  const foundResult = validateMaterializedNoteQuality(note({
+    title: 'Package metadata release checks',
+    summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Package metadata was found because generated dist output diverged during release checks.',
+      'Resolution: Normalize package metadata before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Package metadata was found because generated dist output diverged during release checks.',
+      resolution: 'Normalize package metadata before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+  const includedResult = validateMaterializedNoteQuality(note({
+    title: 'Package metadata release checks',
+    summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Package metadata was included because generated dist output diverged during release checks.',
+      'Resolution: Normalize package metadata before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Package metadata was included because generated dist output diverged during release checks.',
+      resolution: 'Normalize package metadata before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(foundResult.accepted, false);
+  assert.equal(foundResult.reason, 'low-note-quality');
+  assert.ok(foundResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(includedResult.accepted, false);
+  assert.equal(includedResult.reason, 'low-note-quality');
+  assert.ok(includedResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects package metadata detected or observed existence claims', () => {
+  const detectedResult = validateMaterializedNoteQuality(note({
+    title: 'Package metadata release checks',
+    summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Package metadata was detected because generated dist output diverged during release checks.',
+      'Resolution: Normalize package metadata before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Package metadata was detected because generated dist output diverged during release checks.',
+      resolution: 'Normalize package metadata before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+  const observedResult = validateMaterializedNoteQuality(note({
+    title: 'Package metadata release checks',
+    summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Package metadata was observed because generated dist output diverged during release checks.',
+      'Resolution: Normalize package metadata before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Package metadata was observed because generated dist output diverged during release checks.',
+      resolution: 'Normalize package metadata before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(detectedResult.accepted, false);
+  assert.equal(detectedResult.reason, 'low-note-quality');
+  assert.ok(detectedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(observedResult.accepted, false);
+  assert.equal(observedResult.reason, 'low-note-quality');
+  assert.ok(observedResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects active package artifact observation causes', () => {
+  const observedResult = validateMaterializedNoteQuality(note({
+    title: 'Package metadata release checks',
+    summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Observed package metadata because generated dist output diverged during release checks.',
+      'Resolution: Normalize package metadata before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Observed package metadata because generated dist output diverged during release checks.',
+      resolution: 'Normalize package metadata before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+  const foundResult = validateMaterializedNoteQuality(note({
+    title: 'Package version release checks',
+    summary: 'Normalize package version parsing before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Found package version because generated dist output diverged during release checks.',
+      'Resolution: Normalize package version parsing before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package version parsing before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Found package version because generated dist output diverged during release checks.',
+      resolution: 'Normalize package version parsing before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(observedResult.accepted, false);
+  assert.equal(observedResult.reason, 'low-note-quality');
+  assert.ok(observedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(foundResult.accepted, false);
+  assert.equal(foundResult.reason, 'low-note-quality');
+  assert.ok(foundResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects package metadata visible existence causes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Package metadata release checks',
+    summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+    key_conclusions: [
+      'Root cause: Package metadata was visible because generated dist output diverged during release checks.',
+      'Resolution: Normalize package metadata before comparing generated dist output during release checks.',
+    ],
+    raw_payload: {
+      summary: 'Normalize package metadata before comparing generated dist output during release checks.',
+      outcome_type: 'fix',
+      root_cause: 'Package metadata was visible because generated dist output diverged during release checks.',
+      resolution: 'Normalize package metadata before comparing generated dist output during release checks.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts API registration ordering HTTP failures', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Add /api/notes before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Add /api/notes before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts register-based HTTP failure fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Register /api/notes before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Register /api/notes before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts natural HTTP registration ordering fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before issuing API requests to prevent HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes was registered after request setup.',
+      'Resolution: Register /api/notes before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before issuing API requests to prevent HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes was registered after request setup.',
+      resolution: 'Register /api/notes before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts moved or placed HTTP registration ordering fixes', () => {
+  const moveResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Move /api/notes registration before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Move /api/notes registration before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Move /api/notes registration before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Move /api/notes registration before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+  const placeResult = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Place /api/notes registration before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      'Resolution: Place /api/notes registration before request setup so API requests do not return HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Place /api/notes registration before request setup so API requests do not return HTTP 404.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes registration ran after request setup.',
+      resolution: 'Place /api/notes registration before request setup so API requests do not return HTTP 404.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(moveResult.accepted, true);
+  assert.equal(moveResult.reason, 'note-quality-ok');
+  assert.deepEqual(moveResult.warnings, []);
+  assert.equal(placeResult.accepted, true);
+  assert.equal(placeResult.reason, 'note-quality-ok');
+  assert.deepEqual(placeResult.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts not-registered HTTP route fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API registration ordering caused HTTP 404',
+    summary: 'Register /api/notes before issuing API requests.',
+    key_conclusions: [
+      'Root cause: API requests returned HTTP 404 because /api/notes route was not registered before request setup.',
+      'Resolution: Register /api/notes before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before issuing API requests.',
+      outcome_type: 'fix',
+      root_cause: 'API requests returned HTTP 404 because /api/notes route was not registered before request setup.',
+      resolution: 'Register /api/notes before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts concrete parser TypeError fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Codex JSONL parser skips partial response_item events',
+    summary: 'Validate response_item.content before reading Codex parser fields so partial JSONL events do not throw TypeError.',
+    key_conclusions: [
+      'Root cause: Codex JSONL parsing threw TypeError because response_item.content was read before validating the partial event shape.',
+      'Resolution: Validate response_item.content before reading parser fields and skip partial Codex events without content.',
+    ],
+    raw_payload: {
+      summary: 'Validate response_item.content before reading Codex parser fields so partial JSONL events do not throw TypeError.',
+      outcome_type: 'fix',
+      root_cause: 'Codex JSONL parsing threw TypeError because response_item.content was read before validating the partial event shape.',
+      resolution: 'Validate response_item.content before reading parser fields and skip partial Codex events without content.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts Codex content array import fixes', () => {
+  const summary = 'Extract text from response_item.content arrays while parsing Codex JSONL so imported conversations keep assistant messages instead of empty turns.';
+  const root_cause = 'The Codex adapter treated response_item.content as a plain string, so array-shaped assistant content produced empty imported conversation messages.';
+  const resolution = 'Parse response_item.content arrays and join text fragments before saving Codex conversation messages.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Codex response_item content arrays lost assistant text',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['codex', 'import'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic imported content reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Imported content reliability fix',
+    summary: 'Parse imported content so messages are reliable.',
+    key_conclusions: [
+      'Root cause: Imported content reliability mattered for messages.',
+      'Resolution: Parse imported content so messages are reliable.',
+    ],
+    tags: ['import'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Parse imported content so messages are reliable.',
+      root_cause: 'Imported content reliability mattered for messages.',
+      resolution: 'Parse imported content so messages are reliable.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts fenced LLM JSON parsing fixes', () => {
+  const fence = '```';
+  const summary = `Strip ${fence}json markdown fences in extractJSON before JSON.parse because LLM summaries can return fenced objects that throw SyntaxError.`;
+  const root_cause = `generateText returned ${fence}json fenced output, and extractJSON passed the fence text to JSON.parse, so parsing threw SyntaxError before note fields were persisted.`;
+  const resolution = `Strip optional ${fence}json fences in extractJSON before calling JSON.parse so summarized notes persist parsed title, summary, and conclusions.`;
+  const result = validateMaterializedNoteQuality(note({
+    title: 'extractJSON must strip fenced LLM JSON',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['llm', 'json'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+      code_snippets: [{
+        language: 'ts',
+        code: 'const parsed = JSON.parse(stripOptionalJsonFence(output));',
+        description: 'Strip optional fenced JSON before calling JSON.parse.',
+      }],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts custom provider base URL HTTP fixes', () => {
+  const summary = 'Configure the custom provider base URL with /v1 because the OpenAI-compatible client calls /chat/completions relative to that base and otherwise receives HTTP 404.';
+  const root_cause = 'The custom provider returned HTTP 404 because CUSTOM_BASE_URL omitted /v1, so the OpenAI-compatible client called /chat/completions instead of /v1/chat/completions.';
+  const resolution = 'Configure CUSTOM_BASE_URL with the provider /v1 prefix before creating the OpenAI-compatible client.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Custom provider base URL causes LLM HTTP 404',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['llm', 'custom-provider'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic custom provider reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Custom provider URL reliability fix',
+    summary: 'Configure provider URL so LLM is reliable.',
+    key_conclusions: [
+      'Root cause: Provider URL reliability mattered for LLM calls.',
+      'Resolution: Configure provider URL so LLM is reliable.',
+    ],
+    tags: ['llm', 'custom-provider'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Configure provider URL so LLM is reliable.',
+      root_cause: 'Provider URL reliability mattered for LLM calls.',
+      resolution: 'Configure provider URL so LLM is reliable.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts raw-body HMAC signature verification fixes', () => {
+  const summary = 'Verify Stripe webhook HMAC over rawBody before JSON parsing because parsing can normalize bytes and make valid signatures fail with HTTP 400.';
+  const root_cause = 'Stripe webhook signature verification returned HTTP 400 because JSON.parse reconstructed the request body before HMAC verification and changed the signed bytes.';
+  const resolution = 'Read rawBody and verify the HMAC before JSON.parse so valid Stripe webhook signatures are not rejected.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Stripe webhook HMAC must use raw request body',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['backend'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic webhook signature reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Webhook signature reliability fix',
+    summary: 'Verify webhook signatures properly to improve webhook reliability.',
+    key_conclusions: [
+      'Root cause: Webhook signature verification was unreliable.',
+      'Resolution: Verify webhook signatures properly to improve webhook reliability.',
+    ],
+    tags: ['backend'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Verify webhook signatures properly to improve webhook reliability.',
+      root_cause: 'Webhook signature verification was unreliable.',
+      resolution: 'Verify webhook signatures properly to improve webhook reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts embedding model capability fixes', () => {
+  const summary = 'Configure embedding.provider and embedding.model separately from the LLM so semantic search calls a model that supports /v1/embeddings.';
+  const root_cause = 'Semantic search returned HTTP 500 because the configured embedding model reused the chat LLM, which did not expose a /v1/embeddings endpoint.';
+  const resolution = 'Set embedding.model to a real embedding model such as text-embedding-3-small before running semantic search.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Embedding model mismatch caused semantic search 500',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic embedding config reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Embedding search reliability fix',
+    summary: 'Configure embeddings for reliability.',
+    key_conclusions: [
+      'Root cause: Embedding configuration reliability mattered.',
+      'Resolution: Set embedding model to improve search.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Configure embeddings for reliability.',
+      root_cause: 'Embedding configuration reliability mattered.',
+      resolution: 'Set embedding model to improve search.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts TypeScript ESM import extension fixes', () => {
+  const summary = 'Use .js specifiers in server TypeScript imports so tsx resolves ESM modules the same way Node runs compiled output.';
+  const root_cause = 'Server TypeScript imported ./quality.ts directly, so compiled ESM emitted a .ts specifier that Node could not resolve in dist.';
+  const resolution = 'Use .js specifiers in TypeScript source imports so tsx maps them in development and Node resolves compiled dist files.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'TypeScript ESM import extension breaks tsx tests',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic ESM import reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'ESM import reliability fix',
+    summary: 'Use .js imports to improve reliability.',
+    key_conclusions: [
+      'Root cause: ESM imports needed a proper fix.',
+      'Resolution: Fix ESM imports properly.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Use .js imports to improve reliability.',
+      root_cause: 'ESM imports needed a proper fix.',
+      resolution: 'Fix ESM imports properly.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts concrete schema default array fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Zod optional arrays can throw during iteration',
+    summary: 'Use z.array(ItemSchema).default([]) when handlers iterate request.items so omitted arrays do not become undefined.',
+    key_conclusions: [
+      'Root cause: z.array(ItemSchema).optional() allowed request.items to be undefined, and the handler iterated it as an array.',
+      'Resolution: Change the schema to z.array(ItemSchema).default([]) so omitted items are materialized as an empty array before handler logic runs.',
+    ],
+    raw_payload: {
+      summary: 'Use z.array(ItemSchema).default([]) when handlers iterate request.items so omitted arrays do not become undefined.',
+      outcome_type: 'fix',
+      root_cause: 'z.array(ItemSchema).optional() allowed request.items to be undefined, and the handler iterated it as an array.',
+      resolution: 'Change the schema to z.array(ItemSchema).default([]) so omitted items are materialized as an empty array before handler logic runs.',
+      code_snippets: [{
+        language: 'ts',
+        code: 'const RequestSchema = z.object({ items: z.array(ItemSchema).default([]) });',
+        description: 'Default omitted items to an empty array before iteration.',
+      }],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts Zod date coercion boundary fixes', () => {
+  const summary = 'Use z.coerce.date() at HTTP boundaries because JSON request bodies carry dates as strings and z.date() rejects them before handler logic runs.';
+  const root_cause = 'The route returned HTTP 400 because z.date() expected a Date instance while JSON request bodies supplied ISO date strings.';
+  const resolution = 'Use z.coerce.date() in the request schema so ISO strings convert before validation reaches handler logic.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Zod date schemas need coercion for JSON payloads',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic Zod validation reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Zod validation reliability fix',
+    summary: 'Use Zod validation to improve reliability.',
+    key_conclusions: [
+      'Root cause: Zod validation reliability mattered.',
+      'Resolution: Coerce inputs to avoid future issues.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Use Zod validation to improve reliability.',
+      root_cause: 'Zod validation reliability mattered.',
+      resolution: 'Coerce inputs to avoid future issues.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects placeholder snippets and generic tags', () => {
+  const result = validateMaterializedNoteQuality(note({
+    tags: ['success', 'fixed', 'reliable'],
+    raw_payload: {
+      summary: 'Requests must wait for server readiness before client calls.',
+      outcome_type: 'fix',
+      root_cause: 'Client calls raced server startup.',
+      resolution: 'Block request setup until readiness resolves.',
+      code_snippets: [{
+        language: 'text',
+        code: 'TODO',
+        description: 'fix the issue',
+      }],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('code_snippets'));
+  assert.ok(result.warnings.includes('tags'));
+});
+
+test('validateMaterializedNoteQuality rejects generic fix tags', () => {
+  const result = validateMaterializedNoteQuality(note({
+    tags: ['fix'],
+  }), { mode: 'auto' });
+  const statusResult = validateMaterializedNoteQuality(note({
+    tags: ['bug', 'reliability', '已修复'],
+  }), { mode: 'auto' });
+  const chineseStatusResult = validateMaterializedNoteQuality(note({
+    tags: ['已完成', '通过', '状态'],
+  }), { mode: 'auto' });
+  const decoratedResult = validateMaterializedNoteQuality(note({
+    tags: ['#fixed', 'fixed.', '[fixed]', '已修复。', '#测试通过'],
+  }), { mode: 'auto' });
+  const quotedDecoratedResult = validateMaterializedNoteQuality(note({
+    tags: ['`fixed`', '「测试通过」'],
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('tags'));
+  assert.equal(statusResult.accepted, false);
+  assert.equal(statusResult.reason, 'low-note-quality');
+  assert.ok(statusResult.warnings.includes('tags'));
+  assert.equal(chineseStatusResult.accepted, false);
+  assert.equal(chineseStatusResult.reason, 'low-note-quality');
+  assert.ok(chineseStatusResult.warnings.includes('tags'));
+  assert.equal(decoratedResult.accepted, false);
+  assert.equal(decoratedResult.reason, 'low-note-quality');
+  assert.ok(decoratedResult.warnings.includes('tags'));
+  assert.equal(quotedDecoratedResult.accepted, false);
+  assert.equal(quotedDecoratedResult.reason, 'low-note-quality');
+  assert.ok(quotedDecoratedResult.warnings.includes('tags'));
+});
+
+test('validateMaterializedNoteQuality rejects identifier-only snippets', () => {
+  const result = validateMaterializedNoteQuality(note({
+    raw_payload: {
+      summary: 'Requests must wait for server readiness before client calls.',
+      outcome_type: 'fix',
+      root_cause: 'Client calls raced server startup.',
+      resolution: 'Block request setup until readiness resolves.',
+      code_snippets: [{
+        language: 'ts',
+        code: 'DATA_DIR',
+        description: 'Set DATA_DIR before importing the Electron server entrypoint.',
+      }],
+    },
+  }), { mode: 'auto' });
+  const wrappedResult = validateMaterializedNoteQuality(note({
+    raw_payload: {
+      summary: 'Requests must wait for server readiness before client calls.',
+      outcome_type: 'fix',
+      root_cause: 'Client calls raced server startup.',
+      resolution: 'Block request setup until readiness resolves.',
+      code_snippets: [{
+        language: 'ts',
+        code: '(DATA_DIR)',
+        description: 'Set DATA_DIR before importing the Electron server entrypoint.',
+      }],
+    },
+  }), { mode: 'auto' });
+  const placeholderCallResult = validateMaterializedNoteQuality(note({
+    raw_payload: {
+      summary: 'Requests must wait for server readiness before client calls.',
+      outcome_type: 'fix',
+      root_cause: 'Client calls raced server startup.',
+      resolution: 'Block request setup until readiness resolves.',
+      code_snippets: [{
+        language: 'ts',
+        code: 'fix(DATA_DIR)',
+        description: 'Set DATA_DIR before importing the Electron server entrypoint.',
+      }],
+    },
+  }), { mode: 'auto' });
+  const quotedPlaceholderCallResult = validateMaterializedNoteQuality(note({
+    title: 'Set DATA_DIR before importing Electron server',
+    summary: 'Set DATA_DIR before importing the Electron server so embedded startup uses the intended ChatCrystal data directory.',
+    key_conclusions: [
+      'Root cause: The Electron main process imported the server before DATA_DIR was configured, so startup used the default data directory.',
+      'Resolution: Set DATA_DIR before importing the Electron server entrypoint.',
+    ],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server so embedded startup uses the intended ChatCrystal data directory.',
+      outcome_type: 'fix',
+      root_cause: 'The Electron main process imported the server before DATA_DIR was configured, so startup used the default data directory.',
+      resolution: 'Set DATA_DIR before importing the Electron server entrypoint.',
+      code_snippets: [{
+        language: 'ts',
+        code: 'handle("DATA_DIR")',
+        description: 'Set DATA_DIR before importing the Electron server entrypoint.',
+      }],
+    },
+  }), { mode: 'auto' });
+  const genericParseCallResult = validateMaterializedNoteQuality(note({
+    title: 'Codex response_item content arrays lost assistant text',
+    summary: 'Extract text from response_item.content arrays while parsing Codex JSONL so imported conversations keep assistant messages instead of empty turns.',
+    key_conclusions: [
+      'Root cause: The Codex adapter treated response_item.content as a plain string, so array-shaped assistant content produced empty imported conversation messages.',
+      'Resolution: Parse response_item.content arrays and join text fragments before saving Codex conversation messages.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Extract text from response_item.content arrays while parsing Codex JSONL so imported conversations keep assistant messages instead of empty turns.',
+      root_cause: 'The Codex adapter treated response_item.content as a plain string, so array-shaped assistant content produced empty imported conversation messages.',
+      resolution: 'Parse response_item.content arrays and join text fragments before saving Codex conversation messages.',
+      code_snippets: [{
+        language: 'ts',
+        code: 'parse(response_item.content)',
+        description: 'Parse response_item.content arrays before saving assistant messages.',
+      }],
+    },
+  }), { mode: 'auto' });
+  const returnedGenericParseCallResult = validateMaterializedNoteQuality(note({
+    title: 'Codex response_item content arrays lost assistant text',
+    summary: 'Extract text from response_item.content arrays while parsing Codex JSONL so imported conversations keep assistant messages instead of empty turns.',
+    key_conclusions: [
+      'Root cause: The Codex adapter treated response_item.content as a plain string, so array-shaped assistant content produced empty imported conversation messages.',
+      'Resolution: Parse response_item.content arrays and join text fragments before saving Codex conversation messages.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Extract text from response_item.content arrays while parsing Codex JSONL so imported conversations keep assistant messages instead of empty turns.',
+      root_cause: 'The Codex adapter treated response_item.content as a plain string, so array-shaped assistant content produced empty imported conversation messages.',
+      resolution: 'Parse response_item.content arrays and join text fragments before saving Codex conversation messages.',
+      code_snippets: [{
+        language: 'ts',
+        code: 'return parse(response_item.content);',
+        description: 'Parse response_item.content arrays before saving assistant messages.',
+      }],
+    },
+  }), { mode: 'auto' });
+  const assignedGenericParseCallResult = validateMaterializedNoteQuality(note({
+    title: 'Codex response_item content arrays lost assistant text',
+    summary: 'Extract text from response_item.content arrays while parsing Codex JSONL so imported conversations keep assistant messages instead of empty turns.',
+    key_conclusions: [
+      'Root cause: The Codex adapter treated response_item.content as a plain string, so array-shaped assistant content produced empty imported conversation messages.',
+      'Resolution: Parse response_item.content arrays and join text fragments before saving Codex conversation messages.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Extract text from response_item.content arrays while parsing Codex JSONL so imported conversations keep assistant messages instead of empty turns.',
+      root_cause: 'The Codex adapter treated response_item.content as a plain string, so array-shaped assistant content produced empty imported conversation messages.',
+      resolution: 'Parse response_item.content arrays and join text fragments before saving Codex conversation messages.',
+      code_snippets: [{
+        language: 'ts',
+        code: 'const result = parse(response_item.content);',
+        description: 'Parse response_item.content arrays before saving assistant messages.',
+      }],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('code_snippets'));
+  assert.equal(wrappedResult.accepted, false);
+  assert.equal(wrappedResult.reason, 'low-note-quality');
+  assert.ok(wrappedResult.warnings.includes('code_snippets'));
+  assert.equal(placeholderCallResult.accepted, false);
+  assert.equal(placeholderCallResult.reason, 'low-note-quality');
+  assert.ok(placeholderCallResult.warnings.includes('code_snippets'));
+  assert.equal(quotedPlaceholderCallResult.accepted, false);
+  assert.equal(quotedPlaceholderCallResult.reason, 'low-note-quality');
+  assert.ok(quotedPlaceholderCallResult.warnings.includes('code_snippets'));
+  assert.equal(genericParseCallResult.accepted, false);
+  assert.equal(genericParseCallResult.reason, 'low-note-quality');
+  assert.ok(genericParseCallResult.warnings.includes('code_snippets'));
+  assert.equal(returnedGenericParseCallResult.accepted, false);
+  assert.equal(returnedGenericParseCallResult.reason, 'low-note-quality');
+  assert.ok(returnedGenericParseCallResult.warnings.includes('code_snippets'));
+  assert.equal(assignedGenericParseCallResult.accepted, false);
+  assert.equal(assignedGenericParseCallResult.reason, 'low-note-quality');
+  assert.ok(assignedGenericParseCallResult.warnings.includes('code_snippets'));
+});
+
+test('validateMaterializedNoteQuality accepts imported content sanitization fixes', () => {
+  const root = 'The Claude Code adapter saved raw JSONL message content, so <system-reminder> and <command-name> tags leaked into human-facing notes.';
+  const resolution = 'Strip Claude system XML tags in sanitizeContent before saving imported conversation messages.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Claude system-reminder tags leak into notes',
+    summary: 'Sanitize <system-reminder> and <command-name> tags while parsing Claude Code JSONL so system noise does not become note content.',
+    key_conclusions: [`Root cause: ${root}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Sanitize <system-reminder> and <command-name> tags while parsing Claude Code JSONL so system noise does not become note content.',
+      root_cause: root,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic import sanitization reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Imported content sanitization reliability fix',
+    summary: 'Sanitize imported content so notes are reliable.',
+    key_conclusions: [
+      'Root cause: Imported content was unreliable.',
+      'Resolution: Sanitize imported content so notes are reliable.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Sanitize imported content so notes are reliable.',
+      root_cause: 'Imported content was unreliable.',
+      resolution: 'Sanitize imported content so notes are reliable.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts cross-platform DATA_DIR path normalization fixes', () => {
+  const summary = 'Normalize C:/Users fixture paths with path.win32 before comparing DATA_DIR output because POSIX path parsing prepends the repo path on Ubuntu runners.';
+  const root_cause = 'Ubuntu runner prepended the repository path to C:/Users/FixtureUser/.chatcrystal/data because Node POSIX path parsing treated the Windows DATA_DIR fixture as relative.';
+  const resolution = 'Normalize Windows DATA_DIR fixture expectations with path.win32 before comparing resolveDataDirForTest output on POSIX runners.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Ubuntu treats Windows DATA_DIR fixture paths as relative',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['data_dir', 'windows'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic path reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Path reliability fix',
+    summary: 'Normalize paths for reliability.',
+    key_conclusions: [
+      'Root cause: Path handling was unreliable.',
+      'Resolution: Normalize paths for reliability.',
+    ],
+    tags: ['data_dir', 'windows'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Normalize paths for reliability.',
+      root_cause: 'Path handling was unreliable.',
+      resolution: 'Normalize paths for reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts Electron packaged WASM resource fixes', () => {
+  const summary = 'Resolve sql-wasm.wasm from process.resourcesPath in packaged Electron builds because sql.js initialization throws ENOENT when the wasm file is not copied beside bundled server code.';
+  const root_cause = 'Packaged Electron builds threw ENOENT because sql.js loaded sql-wasm.wasm relative to bundled server code, but electron-builder did not copy the wasm resource into that location.';
+  const resolution = 'Add sql-wasm.wasm to electron-builder extraResources and resolve the sql.js wasm path from process.resourcesPath before opening chatcrystal.db.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Electron package must include sql-wasm.wasm resource',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['electron', 'sqljs'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic Electron resource reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Electron resource reliability fix',
+    summary: 'Add Electron resources so packaging is reliable.',
+    key_conclusions: [
+      'Root cause: Electron packaging was unreliable.',
+      'Resolution: Add Electron resources so packaging is reliable.',
+    ],
+    tags: ['electron'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Add Electron resources so packaging is reliable.',
+      root_cause: 'Electron packaging was unreliable.',
+      resolution: 'Add Electron resources so packaging is reliable.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts fixture provenance privacy governance fixes', () => {
+  const summary = 'Wrap experience-gate calibration samples in a dataset object with provenance and privacy assertions so fixture corpora cannot silently include raw user paths or secrets.';
+  const root_cause = 'Anonymous JSON sample arrays hid whether the experience-gate calibration corpus came from synthetic data, so future updates could commit raw local paths, private IPs, or secret-like tokens without review context.';
+  const resolution = 'Store samples under a fixture object with provenance, contains_real_user_data=false, sanitization rules, and tests that reject user paths, private IPs, credentials, and private-key text before committing calibration changes.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Calibration fixtures need synthetic provenance metadata',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic fixture privacy reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Fixture privacy reliability fix',
+    summary: 'Add privacy checks to fixtures so data is safer and reliable.',
+    key_conclusions: [
+      'Root cause: Fixture data was unreliable.',
+      'Resolution: Add privacy checks to fixtures so data is safer and reliable.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Add privacy checks to fixtures so data is safer and reliable.',
+      root_cause: 'Fixture data was unreliable.',
+      resolution: 'Add privacy checks to fixtures so data is safer and reliable.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts watcher import dedupe fixes', () => {
+  const root_cause = 'Chokidar emitted repeated events for unchanged Claude JSONL files, so the import scan reparsed the same conversation and attempted duplicate inserts.';
+  const resolution = 'Use source file size and mtime as the import dedupe key and skip parsing when the adapter sees the same file revision again.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Watcher import dedupe prevents repeated JSONL parsing',
+    summary: 'Use source file size and mtime as the import dedupe key because unchanged Claude JSONL files can otherwise be reparsed on every chokidar event.',
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Use source file size and mtime as the import dedupe key because unchanged Claude JSONL files can otherwise be reparsed on every chokidar event.',
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts JSONL partial-write debounce fixes', () => {
+  const summary = 'Debounce chokidar JSONL imports until file size and mtime stop changing because parsing while Claude Code is appending can read truncated lines and drop the latest messages.';
+  const root_cause = 'Chokidar fired while Claude Code was still appending JSONL, so the adapter parsed a truncated line and dropped the latest imported conversation messages.';
+  const resolution = 'Debounce imports until file size and mtime stay stable before parsing the JSONL file so partial writes are skipped.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Debounce JSONL imports until appends stabilize',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['import', 'jsonl'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts JSONL event order normalization fixes', () => {
+  const summary = 'Normalize JSONL event order by timestamp before building the transcript so out-of-order writes do not invert user and assistant turns.';
+  const root_cause = 'JSONL sessions can flush events out of order, so file-order parsing can invert user and assistant turns.';
+  const resolution = 'Normalize parsed event order by timestamp before building the transcript so summarization receives the real conversation sequence.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'JSONL event order normalization preserves conversation order',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic import dedupe reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Import dedupe reliability fix',
+    summary: 'Use import dedupe so imports are reliable.',
+    key_conclusions: [
+      'Root cause: Import dedupe was unreliable.',
+      'Resolution: Use import dedupe so imports are reliable.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Use import dedupe so imports are reliable.',
+      root_cause: 'Import dedupe was unreliable.',
+      resolution: 'Use import dedupe so imports are reliable.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic JSONL order reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'JSONL event order reliability fix',
+    summary: 'Normalize JSONL event order to improve transcript reliability.',
+    key_conclusions: [
+      'Root cause: JSONL event order was unreliable.',
+      'Resolution: Normalize JSONL event order to improve transcript reliability.',
+    ],
+    tags: ['jsonl', 'import'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Normalize JSONL event order to improve transcript reliability.',
+      root_cause: 'JSONL event order was unreliable.',
+      resolution: 'Normalize JSONL event order to improve transcript reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic JSONL import debounce reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'JSONL import reliability fix',
+    summary: 'Debounce imports to improve reliability.',
+    key_conclusions: [
+      'Root cause: JSONL imports were unreliable.',
+      'Resolution: Debounce imports to improve reliability.',
+    ],
+    tags: ['import', 'jsonl'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Debounce imports to improve reliability.',
+      root_cause: 'JSONL imports were unreliable.',
+      resolution: 'Debounce imports to improve reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts SQLite WAL sidecar source adapter fixes', () => {
+  const summary = 'Copy Cursor state.vscdb with its -wal and -shm sidecars before sql.js opens it so composer metadata rows are not missing.';
+  const root_cause = 'Cursor kept recent composer metadata in state.vscdb-wal, so reading only state.vscdb with sql.js returned stale or missing chat rows.';
+  const resolution = 'Copy state.vscdb, state.vscdb-wal, and state.vscdb-shm into a temporary directory before opening the database so sql.js sees the committed WAL pages.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Cursor workspaceStorage WAL hides composer rows',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic database file reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Database file reliability fix',
+    summary: 'Copy database files for reliability.',
+    key_conclusions: [
+      'Root cause: Database files were unreliable.',
+      'Resolution: Copy database files for reliability.',
+    ],
+    tags: ['sqlite'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Copy database files for reliability.',
+      root_cause: 'Database files were unreliable.',
+      resolution: 'Copy database files for reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts React Query cache invalidation fixes', () => {
+  const summary = 'Invalidate React Query notes and tags cache after deleting a note so the sidebar does not show stale tag filters.';
+  const root_cause = 'The note delete mutation removed the SQL row but did not invalidate the React Query tags cache, so the sidebar kept stale filter chips.';
+  const resolution = 'Invalidate the notes and tags query keys after deleteNote succeeds so the UI reloads the derived tag counts.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'React Query deletion leaves stale note tags',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['react-query', 'tags'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts React Query queryKey filter fixes', () => {
+  const summary = 'Include the active tag filter in the React Query queryKey so the notes cache cannot reuse stale filtered rows.';
+  const root_cause = 'The React Query notes cache reused stale filtered rows because the queryKey omitted the active tag filter while the request URL changed.';
+  const resolution = 'Include the active tag filter in the React Query queryKey before fetching notes so each filter owns a separate notes cache entry.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'React Query queryKey omits tag filter',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts Redis cache key dimension fixes', () => {
+  const summary = 'Include tenant_id and locale in i18n cache keys because caching translations only by phrase_id reused English strings for zh-CN users.';
+  const root_cause = 'The i18n Redis cache key used phrase_id without locale, so zh-CN requests reused the cached English translation.';
+  const resolution = 'Build the cache key from tenant_id, locale, and phrase_id, and invalidate that key when translation rows change.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Redis cache key omits locale causing stale translations',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic UI cache reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'UI cache reliability fix',
+    summary: 'Invalidate UI cache for reliability.',
+    key_conclusions: [
+      'Root cause: UI cache was unreliable.',
+      'Resolution: Invalidate UI cache for reliability.',
+    ],
+    tags: ['react-query'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Invalidate UI cache for reliability.',
+      root_cause: 'UI cache was unreliable.',
+      resolution: 'Invalidate UI cache for reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic React Query queryKey reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'React Query key reliability fix',
+    summary: 'Include filters in React Query keys to improve cache reliability.',
+    key_conclusions: [
+      'Root cause: React Query cache reliability was wrong.',
+      'Resolution: Include filters in React Query keys to improve cache reliability.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Include filters in React Query keys to improve cache reliability.',
+      root_cause: 'React Query cache reliability was wrong.',
+      resolution: 'Include filters in React Query keys to improve cache reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts concrete negative parser pitfalls', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Codex parser partial events throw TypeError',
+    summary: 'Validate response_item.content before reading parser fields so partial Codex events do not throw TypeError.',
+    key_conclusions: [
+      'Pitfall: Do not read response_item.content before validating parser fields because partial Codex events throw TypeError.',
+    ],
+    raw_payload: {
+      summary: 'Validate response_item.content before reading parser fields so partial Codex events do not throw TypeError.',
+      outcome_type: 'pitfall',
+      pitfalls: [
+        'Do not read response_item.content before validating parser fields because partial Codex events throw TypeError.',
+      ],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts concrete NODE_ENV HTTP failure fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Production API config import ordering caused HTTP 500',
+    summary: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    key_conclusions: [
+      'Root cause: Production API requests returned HTTP 500 because config imported NODE_ENV after request setup.',
+      'Resolution: Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    ],
+    raw_payload: {
+      summary: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+      outcome_type: 'fix',
+      root_cause: 'Production API requests returned HTTP 500 because config imported NODE_ENV after request setup.',
+      resolution: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts natural NODE_ENV HTTP import ordering fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Production API config import ordering caused HTTP 500',
+    summary: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    key_conclusions: [
+      'Root cause: Production API requests returned HTTP 500 because NODE_ENV config was imported after request setup.',
+      'Resolution: Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    ],
+    raw_payload: {
+      summary: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+      outcome_type: 'fix',
+      root_cause: 'Production API requests returned HTTP 500 because NODE_ENV config was imported after request setup.',
+      resolution: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts NODE_ENV import resolutions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Production API config import ordering caused HTTP 500',
+    summary: 'Import NODE_ENV config before request setup to prevent HTTP 500 in production API requests.',
+    key_conclusions: [
+      'Root cause: Production API requests returned HTTP 500 because NODE_ENV config was imported after request setup.',
+      'Resolution: Import NODE_ENV config before request setup to prevent HTTP 500 in production API requests.',
+    ],
+    raw_payload: {
+      summary: 'Import NODE_ENV config before request setup to prevent HTTP 500 in production API requests.',
+      outcome_type: 'fix',
+      root_cause: 'Production API requests returned HTTP 500 because NODE_ENV config was imported after request setup.',
+      resolution: 'Import NODE_ENV config before request setup to prevent HTTP 500 in production API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts HTTP 429 queue retry fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Queue rate-limit retries prevent HTTP 429 failures',
+    summary: 'Retry queued provider requests after HTTP 429 rate-limit responses so batch summarization continues.',
+    key_conclusions: [
+      'Root cause: Provider API requests returned HTTP 429 because the queue retried immediately without rate-limit backoff.',
+      'Resolution: Retry queued provider requests after the Retry-After delay before resuming batch summarization.',
+    ],
+    raw_payload: {
+      summary: 'Retry queued provider requests after HTTP 429 rate-limit responses so batch summarization continues.',
+      outcome_type: 'fix',
+      root_cause: 'Provider API requests returned HTTP 429 because the queue retried immediately without rate-limit backoff.',
+      resolution: 'Retry queued provider requests after the Retry-After delay before resuming batch summarization.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts serialized DB persistence fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Serialize sql.js writes to prevent stale DB snapshots',
+    summary: 'Queue sql.js DB writes because auto-save can persist stale chatcrystal.db bytes when imports and note updates mutate the same in-memory connection concurrently.',
+    key_conclusions: [
+      'Root cause: Import and note update tasks mutated the same sql.js Database while the 30s auto-save read chatcrystal.db bytes, so a later save could overwrite newer rows with stale state.',
+      'Resolution: Route import, summarize, and writeback DB mutations through one p-queue and call saveDatabase after the transaction so chatcrystal.db snapshots match committed rows.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Queue sql.js DB writes because auto-save can persist stale chatcrystal.db bytes when imports and note updates mutate the same in-memory connection concurrently.',
+      root_cause: 'Import and note update tasks mutated the same sql.js Database while the 30s auto-save read chatcrystal.db bytes, so a later save could overwrite newer rows with stale state.',
+      resolution: 'Route import, summarize, and writeback DB mutations through one p-queue and call saveDatabase after the transaction so chatcrystal.db snapshots match committed rows.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts import transaction atomicity fixes', () => {
+  const summary = 'Wrap sql.js conversation imports in one transaction so a failed message insert rolls back partial conversation rows.';
+  const root_cause = 'Import inserted the conversation row before message rows, so a failed message insert left partial conversation rows in sql.js.';
+  const resolution = 'Wrap conversation and message inserts in one sql.js transaction so failed imports roll back the whole conversation.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Import batch transaction prevents partial conversation rows',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['import', 'sql-js'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts natural import transaction atomicity fixes', () => {
+  const summary = 'Wrap each imported conversation and its messages in a sql.js transaction so a thrown message insert does not leave an incomplete conversation.';
+  const root_cause = 'The import wrote the conversation before its messages, so a thrown message insert left an incomplete conversation in sql.js.';
+  const resolution = 'Begin a sql.js transaction around each conversation and message insert and roll back when any message insert throws.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Import transaction prevents incomplete conversations',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts transaction-scoped advisory lock fixes', () => {
+  const summary = 'Use transaction-scoped pg_advisory_xact_lock so rollback releases the lock; session locks can survive failed jobs and block queue workers.';
+  const root_cause = 'Session-scoped pg_advisory_lock survived failed job rollbacks, so stale locks blocked queue workers after retries.';
+  const resolution = 'Use pg_advisory_xact_lock inside the job transaction so rollback releases the lock before the next retry.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Postgres advisory locks block queue workers after rollback',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts offset commits after durable processing', () => {
+  const summary = 'Commit Kafka consumer offsets only after the database transaction commits so a crash cannot acknowledge unprocessed messages.';
+  const root_cause = 'The consumer committed offsets before the database transaction committed, so a crash acknowledged messages whose rows were never persisted.';
+  const resolution = 'Commit offsets after the database transaction commits and retry the same partition offset when persistence fails.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Kafka offset commit after processing prevents message loss',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts indexed lookup timeout fixes', () => {
+  const summary = 'Add idx_messages_conversation_id on messages.conversation_id because note detail lookups scanned the full messages table and timed out on large imports.';
+  const root_cause = 'Note detail lookups filtered messages by conversation_id without an index, so large imports caused full table scans and request timeouts.';
+  const resolution = 'Add idx_messages_conversation_id on messages.conversation_id before note detail lookups so SQLite uses an indexed lookup instead of scanning every message row.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Add messages conversation_id index to avoid request timeouts',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts writeback receipt uniqueness fixes', () => {
+  const summary = 'Add UNIQUE(source_agent, source_run_key) on the writeback_receipts table because retried write_task_memory calls inserted duplicate receipt rows and duplicate notes for the same run.';
+  const root_cause = 'Retried write_task_memory calls reused the same source_run_key, but the writeback_receipts table had no UNIQUE(source_agent, source_run_key) constraint, so duplicate receipt rows created duplicate notes for one agent run.';
+  const resolution = 'Add UNIQUE(source_agent, source_run_key) on writeback_receipts and return the existing receipt row so retries reuse the first note instead of inserting duplicate rows.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Writeback receipt unique key prevents duplicate notes',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['writeback', 'database'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts unique note tag pair constraint fixes', () => {
+  const summary = 'Add a UNIQUE(note_id, tag_id) constraint so repeated summarization cannot create duplicate tag chips for one note.';
+  const root_cause = 'note_tags allowed duplicate note_id and tag_id pairs, so repeated summarization could show duplicate tag chips for one note.';
+  const resolution = 'Add a UNIQUE(note_id, tag_id) constraint and reuse the existing note_tags row when a tag is already attached.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'note_tags needs unique note-tag pairs',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+    tags: [],
+    embedding_text: '',
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts queue conversation_id dedupe fixes', () => {
+  const summary = 'Deduplicate queue jobs by conversation_id before enqueueing summarize work so retries reuse the pending job instead of writing duplicate notes.';
+  const root_cause = 'summarize --all retries enqueued the same conversation_id more than once, so two queue jobs wrote duplicate notes for the same conversation.';
+  const resolution = 'Deduplicate queue jobs by conversation_id before enqueueing summarize work so retries reuse the pending job instead of writing duplicate notes.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Queue conversation_id dedupe prevents duplicate notes',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+  const naturalTitleResult = validateMaterializedNoteQuality(note({
+    title: 'Summarize retries enqueue duplicate conversation jobs',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+  assert.equal(naturalTitleResult.accepted, true);
+  assert.equal(naturalTitleResult.reason, 'note-quality-ok');
+  assert.deepEqual(naturalTitleResult.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts SQL parameterized tag lookup fixes', () => {
+  const summary = 'Bind tag names as SQL parameters because interpolated tag strings with quotes broke note tag lookup queries.';
+  const root_cause = 'Tag names containing quotes broke SQL lookup queries because the notes route interpolated tag text directly into WHERE clauses.';
+  const resolution = 'Bind tag names with sql.js parameters before running note tag lookups so quotes stay data instead of SQL syntax.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Parameterized tag queries prevent quote breakage',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['sql-js', 'tags'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+
+  const syntaxSummary = 'Bind tag names as SQL parameters so quotes stay data instead of altering WHERE clause syntax.';
+  const syntaxRootCause = 'Tag lookup interpolated user-controlled tag names into SQL WHERE clauses, so quotes in a tag altered SQL syntax.';
+  const syntaxResolution = 'Bind tag names as SQL parameters instead of interpolating them into WHERE clauses.';
+  const syntaxResult = validateMaterializedNoteQuality(note({
+    title: 'Parameterized tag queries prevent SQL syntax injection',
+    summary: syntaxSummary,
+    key_conclusions: [`Root cause: ${syntaxRootCause}`, `Resolution: ${syntaxResolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: syntaxSummary,
+      root_cause: syntaxRootCause,
+      resolution: syntaxResolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(syntaxResult.accepted, true);
+  assert.equal(syntaxResult.reason, 'note-quality-ok');
+  assert.deepEqual(syntaxResult.warnings, []);
+
+  const payloadSummary = 'Use SQL parameters for tag filters so user-controlled tag text stays data instead of executable SQL.';
+  const payloadRootCause = 'Interpolated tag text let a crafted tag payload change the SQL WHERE clause syntax.';
+  const payloadResolution = 'Bind tag values as sql.js parameters instead of interpolating tag text into WHERE clauses.';
+  const payloadResult = validateMaterializedNoteQuality(note({
+    title: 'Parameterized tag queries prevent SQL syntax injection',
+    summary: payloadSummary,
+    key_conclusions: [`Root cause: ${payloadRootCause}`, `Resolution: ${payloadResolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: payloadSummary,
+      root_cause: payloadRootCause,
+      resolution: payloadResolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(payloadResult.accepted, true);
+  assert.equal(payloadResult.reason, 'note-quality-ok');
+  assert.deepEqual(payloadResult.warnings, []);
+
+  const querySummary = 'Use parameterized queries for tag lookups so user-controlled tag text stays data instead of executable SQL.';
+  const queryRootCause = 'Interpolating user-controlled tag text into SQL lookup queries let crafted tag payloads change WHERE clause syntax.';
+  const queryResolution = 'Use parameterized queries for tag lookups so user-controlled tag text stays data instead of executable SQL.';
+  const queryResult = validateMaterializedNoteQuality(note({
+    title: 'Parameterized tag queries prevent SQL syntax injection',
+    summary: querySummary,
+    key_conclusions: [`Root cause: ${queryRootCause}`, `Resolution: ${queryResolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: querySummary,
+      root_cause: queryRootCause,
+      resolution: queryResolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(queryResult.accepted, true);
+  assert.equal(queryResult.reason, 'note-quality-ok');
+  assert.deepEqual(queryResult.warnings, []);
+
+  const chineseSummary = '将用户控制的标签文本绑定为 sql.js 参数，避免引号改变 WHERE 子句语法。';
+  const chineseRootCause = '标签查询把用户控制的 tag 文本插入 WHERE 子句，带引号的标签会改变 SQL 语法并造成 SQL 语法注入。';
+  const chineseResolution = '使用参数化查询绑定 tag 值，让用户控制的标签文本作为数据而不是可执行 SQL。';
+  const chineseResult = validateMaterializedNoteQuality(note({
+    title: '参数化标签查询防止 SQL 语法注入',
+    summary: chineseSummary,
+    key_conclusions: [`Root cause: ${chineseRootCause}`, `Resolution: ${chineseResolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: chineseSummary,
+      root_cause: chineseRootCause,
+      resolution: chineseResolution,
+    },
+    tags: [],
+    embedding_text: '',
+  }), { mode: 'auto' });
+
+  assert.equal(chineseResult.accepted, true);
+  assert.equal(chineseResult.reason, 'note-quality-ok');
+  assert.deepEqual(chineseResult.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts SQLite migration backfill constraint fixes', () => {
+  const summary = 'Backfill existing SQLite note rows before enforcing a NOT NULL column so migration does not fail on old chatcrystal.db files.';
+  const root_cause = 'The migration added a NOT NULL notes column without a DEFAULT, so existing chatcrystal.db rows violated the constraint during startup.';
+  const resolution = 'Add the column nullable, backfill existing rows, then enforce NOT NULL after the data satisfies the constraint.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'SQLite migration NOT NULL default prevents existing row failures',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['sqlite', 'migration'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts stale async search response fixes', () => {
+  const summary = 'Cancel older /api/search requests because slower previous responses overwrote the current query results in the React search view.';
+  const root_cause = 'React search fired overlapping /api/search requests, so a slower previous response overwrote the current query results.';
+  const resolution = 'Use AbortController to cancel the previous /api/search request before starting the next query so stale responses cannot replace current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Cancel stale search requests before updating results',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['search', 'frontend'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts request-id gated stale response fixes', () => {
+  const summary = 'Gate React search result updates by the active /api/search request id so older responses cannot overwrite current results.';
+  const root_cause = 'Older /api/search responses could arrive after a newer query and overwrite current results.';
+  const resolution = 'Gate result updates by the active /api/search request id and ignore responses that are not from the latest query.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request sequence prevents stale results',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts activeRequestId setResults stale response fixes', () => {
+  const summary = 'Gate setResults by activeRequestId so stale /api/search responses cannot overwrite current results.';
+  const root_cause = 'Older /api/search responses overwrote current results because activeRequestId was not checked before setResults.';
+  const resolution = 'Gate setResults by activeRequestId so stale /api/search responses cannot overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'activeRequestId gates stale /api/search responses',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts activeRequestId invariant stale response fixes', () => {
+  const summary = 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.';
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.';
+  const resolution = 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Stale search responses overwrite current results',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts progress UI stale loading state fixes', () => {
+  const cases = [
+    {
+      summary: 'Progress indicator API requests avoid stale loading state by gating activeRequestId before setResults.',
+      root_cause: 'Older /api/search responses overwrote the progress indicator loading state because setResults did not check activeRequestId.',
+      resolution: 'Gate progress indicator setResults on activeRequestId before applying /api/search responses.',
+    },
+    {
+      summary: 'Progress bar API requests avoid stale loading state by gating activeRequestId before setResults.',
+      root_cause: 'Older /api/search responses overwrote the progress bar loading state because setResults did not check activeRequestId.',
+      resolution: 'Gate progress bar setResults on activeRequestId before applying /api/search responses.',
+    },
+  ];
+
+  for (const item of cases) {
+    const result = validateMaterializedNoteQuality(note({
+      title: item.summary,
+      summary: item.summary,
+      key_conclusions: [`Root cause: ${item.root_cause}`, `Resolution: ${item.resolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary: item.summary,
+        root_cause: item.root_cause,
+        resolution: item.resolution,
+      },
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, true, item.summary);
+    assert.equal(result.reason, 'note-quality-ok', item.summary);
+    assert.deepEqual(result.warnings, [], item.summary);
+  }
+});
+
+test('validateMaterializedNoteQuality accepts Chinese activeRequestId stale response fixes', () => {
+  const summary = '在 setResults 前校验 activeRequestId，避免旧的 /api/search 响应覆盖当前查询结果。';
+  const root_cause = '旧的 /api/search 响应覆盖当前查询结果，因为 setResults 前没有校验 activeRequestId。';
+  const resolution = '在 setResults 前校验 activeRequestId，避免旧的 /api/search 响应覆盖当前查询结果。';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'activeRequestId 防止语义搜索旧响应覆盖新结果',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts WebSocket listener cleanup fixes', () => {
+  const summary = 'Pair socket.addEventListener with socket.removeEventListener in the React useEffect cleanup so remounts do not duplicate WebSocket messages.';
+  const root_cause = 'React remounts called socket.addEventListener without removing the previous message listener, so each incoming WebSocket message was appended twice.';
+  const resolution = 'Return a useEffect cleanup that calls socket.removeEventListener before unmount so remounts keep one message listener.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'WebSocket listener cleanup prevents duplicate messages',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects Chinese status-shell structured items', () => {
+  const summary = '状态记录：使用 active request id gate /api/search result updates，避免 stale responses overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: '状态记录 /api/search active request id stale response',
+    summary,
+    key_conclusions: [
+      `Decision: ${summary}`,
+    ],
+    raw_payload: {
+      summary,
+      outcome_type: 'decision',
+      decisions: [
+        summary,
+      ],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects Chinese result-shell structured items', () => {
+  const summary = '运行结果：AbortController cancel older /api/search requests before stale responses overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: '运行结果：AbortController cancel older /api/search responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects Chinese worklog structured items', () => {
+  const summary = '工作日志：使用 active request id gate /api/search result updates，避免 stale responses overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      summary,
+      outcome_type: 'decision',
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects English worklog structured items', () => {
+  const summary = 'Worklog: use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    tags: ['search', 'frontend'],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects English status entry fixes', () => {
+  const summary = 'Status entry: wait for db initialization before accepting /api/import requests so imports do not return HTTP 500.';
+  const root_cause = 'POST /api/import returned HTTP 500 because the route handled requests before sql.js finished initialization.';
+  const resolution = 'Wait for db initialization before accepting /api/import requests.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Import route returns HTTP 500 before sql.js initialization',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects English result report structured items', () => {
+  const summary = 'Result report: AbortController cancel older /api/search requests before stale responses overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects bare English result structured items', () => {
+  const summary = 'Result: use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects implementation result structured items', () => {
+  const summary = 'Implementation result: use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects bare Chinese result structured items', () => {
+  const summary = '结果：使用 active request id gate /api/search result updates，避免 stale responses overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects English change summary structured items', () => {
+  const summary = 'Change summary: use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+    tags: ['search', 'frontend'],
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects Chinese change summary structured items', () => {
+  const summary = '变更摘要：使用 active request id gate /api/search result updates，避免 stale responses overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects English worklog dash structured items', () => {
+  const summary = 'Work log - use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+    tags: [],
+    embedding_text: '',
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects English execution record structured items', () => {
+  const summary = 'Execution record: use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+    tags: [],
+    embedding_text: '',
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects English status report structured items', () => {
+  const summary = 'Status report: use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+    tags: ['search', 'frontend'],
+    embedding_text: '',
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects technical-prefix status update shells', () => {
+  const summary = '/api/search status update: activeRequestId gates setResults so stale responses cannot overwrite current results.';
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.';
+  const resolution = 'Gate setResults with activeRequestId so stale responses cannot overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: summary,
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects Chinese technical-prefix status update shells', () => {
+  const summary = '/api/search 状态更新：activeRequestId gates setResults，避免 stale responses overwrite current results.';
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.';
+  const resolution = 'Gate setResults with activeRequestId so stale responses cannot overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: summary,
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects descriptor-prefix status update shells', () => {
+  const summary = 'API search status update: activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.';
+  const semanticSummary = 'Semantic search status update: activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.';
+  const chineseSummary = '语义搜索状态更新：activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.';
+  const statusForSummary = 'Search status update for /api/search returned HTTP 500 because route registration ran after request setup.';
+  const chineseStatusSummary = '语义搜索状态：/api/search 因为路由在 request setup 之后注册而返回 HTTP 500。';
+  const statusNoSeparatorSummary = 'Search status /api/search returned HTTP 500 because route registration ran after request setup.';
+  const chineseStatusNoSeparatorSummary = '语义搜索状态 /api/search 因为路由在 request setup 之后注册而返回 HTTP 500。';
+  const progressSummary = '/api/search progress update: activeRequestId gates setResults so stale responses cannot overwrite current results.';
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.';
+  const resolution = 'Gate setResults with activeRequestId so stale responses cannot overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: summary,
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+  const semanticResult = validateMaterializedNoteQuality(note({
+    title: semanticSummary,
+    summary: semanticSummary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: semanticSummary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+  const chineseResult = validateMaterializedNoteQuality(note({
+    title: chineseSummary,
+    summary: chineseSummary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: chineseSummary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+  const statusForResult = validateMaterializedNoteQuality(note({
+    title: 'Search status update for /api/search HTTP 500',
+    summary: statusForSummary,
+    key_conclusions: [
+      'Root cause: /api/search returned HTTP 500 because route registration ran after request setup.',
+      'Resolution: Register /api/search before request setup so API requests do not return HTTP 500.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: statusForSummary,
+      root_cause: '/api/search returned HTTP 500 because route registration ran after request setup.',
+      resolution: 'Register /api/search before request setup so API requests do not return HTTP 500.',
+    },
+  }), { mode: 'auto' });
+  const chineseStatusResult = validateMaterializedNoteQuality(note({
+    title: '语义搜索状态：/api/search 返回 HTTP 500',
+    summary: chineseStatusSummary,
+    key_conclusions: [
+      'Root cause: /api/search 路由在 request setup 之后注册，导致 API 请求返回 HTTP 500。',
+      'Resolution: 在 request setup 前注册 /api/search 路由，避免 API 请求返回 HTTP 500。',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: chineseStatusSummary,
+      root_cause: '/api/search 路由在 request setup 之后注册，导致 API 请求返回 HTTP 500。',
+      resolution: '在 request setup 前注册 /api/search 路由，避免 API 请求返回 HTTP 500。',
+    },
+  }), { mode: 'auto' });
+  const statusNoSeparatorResult = validateMaterializedNoteQuality(note({
+    title: 'Search status /api/search returned HTTP 500',
+    summary: statusNoSeparatorSummary,
+    key_conclusions: [
+      'Root cause: /api/search returned HTTP 500 because route registration ran after request setup.',
+      'Resolution: Register /api/search before request setup so API requests do not return HTTP 500.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: statusNoSeparatorSummary,
+      root_cause: '/api/search returned HTTP 500 because route registration ran after request setup.',
+      resolution: 'Register /api/search before request setup so API requests do not return HTTP 500.',
+    },
+  }), { mode: 'auto' });
+  const chineseStatusNoSeparatorResult = validateMaterializedNoteQuality(note({
+    title: '语义搜索状态 /api/search 返回 HTTP 500',
+    summary: chineseStatusNoSeparatorSummary,
+    key_conclusions: [
+      'Root cause: /api/search 路由在 request setup 之后注册，导致 API 请求返回 HTTP 500。',
+      'Resolution: 在 request setup 前注册 /api/search 路由，避免 API 请求返回 HTTP 500。',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: chineseStatusNoSeparatorSummary,
+      root_cause: '/api/search 路由在 request setup 之后注册，导致 API 请求返回 HTTP 500。',
+      resolution: '在 request setup 前注册 /api/search 路由，避免 API 请求返回 HTTP 500。',
+    },
+  }), { mode: 'auto' });
+  const progressResult = validateMaterializedNoteQuality(note({
+    title: '/api/search progress update: activeRequestId gates stale responses',
+    summary: progressSummary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: progressSummary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+  assert.equal(semanticResult.accepted, false);
+  assert.equal(semanticResult.reason, 'low-note-quality');
+  assert.ok(semanticResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseResult.accepted, false);
+  assert.equal(chineseResult.reason, 'low-note-quality');
+  assert.ok(chineseResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(statusForResult.accepted, false);
+  assert.equal(statusForResult.reason, 'low-note-quality');
+  assert.ok(statusForResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseStatusResult.accepted, false);
+  assert.equal(chineseStatusResult.reason, 'low-note-quality');
+  assert.ok(chineseStatusResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(statusNoSeparatorResult.accepted, false);
+  assert.equal(statusNoSeparatorResult.reason, 'low-note-quality');
+  assert.ok(statusNoSeparatorResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(chineseStatusNoSeparatorResult.accepted, false);
+  assert.equal(chineseStatusNoSeparatorResult.reason, 'low-note-quality');
+  assert.ok(chineseStatusNoSeparatorResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(progressResult.accepted, false);
+  assert.equal(progressResult.reason, 'low-note-quality');
+  assert.ok(progressResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects broad status check shells with concrete fix payloads', () => {
+  const root_cause = 'Older /api/search responses overwrote current results because activeRequestId was not checked before setResults.';
+  const resolution = 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.';
+  const shells = [
+    'Status check: activeRequestId gates stale /api/search responses',
+    'Progress: activeRequestId gates stale /api/search responses',
+    'Search progress: activeRequestId gates stale /api/search responses',
+    'Verification: activeRequestId gates stale /api/search responses',
+    'Verification note: activeRequestId gates stale /api/search responses',
+    'Search completion check: activeRequestId gates stale /api/search responses',
+    'Result check: activeRequestId gates stale /api/search responses',
+    '状态检查：activeRequestId gates stale /api/search responses',
+    '进度：activeRequestId gates stale /api/search responses',
+    '验证：activeRequestId gates stale /api/search responses',
+    '完成检查：activeRequestId gates stale /api/search responses',
+    '结果检查：activeRequestId gates stale /api/search responses',
+  ];
+
+  for (const shell of shells) {
+    const result = validateMaterializedNoteQuality(note({
+      title: shell,
+      summary: shell,
+      key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary: shell,
+        root_cause,
+        resolution,
+      },
+      tags: [],
+      embedding_text: '',
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, shell);
+    assert.equal(result.reason, 'low-note-quality', shell);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), shell);
+  }
+});
+
+test('validateMaterializedNoteQuality rejects no-separator status prefix shells with concrete fix payloads', () => {
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.';
+  const resolution = 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.';
+  const prefixes = [
+    'Status check',
+    'Progress',
+    'Search progress',
+    'Verification note',
+    'Search completion check',
+    'Result check',
+  ];
+
+  for (const prefix of prefixes) {
+    const text = `${prefix} activeRequestId gates stale /api/search responses before setResults so older responses cannot overwrite current results.`;
+    const result = validateMaterializedNoteQuality(note({
+      title: text,
+      summary: text,
+      key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary: text,
+        root_cause,
+        resolution,
+      },
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, text);
+    assert.equal(result.reason, 'low-note-quality', text);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), text);
+  }
+
+  const descriptorPrefixes = [
+    'Status check',
+    'Progress',
+    'Verification note',
+    'Result check',
+    'Completion check',
+  ];
+
+  for (const prefix of descriptorPrefixes) {
+    const text = `${prefix} search requests gate activeRequestId before setResults so stale /api/search responses cannot overwrite current results.`;
+    const result = validateMaterializedNoteQuality(note({
+      title: text,
+      summary: text,
+      key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary: text,
+        root_cause,
+        resolution,
+      },
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, text);
+    assert.equal(result.reason, 'low-note-quality', text);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), text);
+  }
+});
+
+test('validateMaterializedNoteQuality rejects broad test and diagnostic shells with concrete fix payloads', () => {
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.';
+  const resolution = 'Gate setResults with activeRequestId so stale responses cannot overwrite current results.';
+  const shells = [
+    [
+      'Test: activeRequestId gates stale /api/search responses',
+      'Test: activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+    [
+      'Smoke test: activeRequestId gates stale /api/search responses',
+      'Smoke test: activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+    [
+      'Diagnostics: activeRequestId gates stale /api/search responses',
+      'Diagnostics: activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+    [
+      'Search diagnostics: activeRequestId gates stale /api/search responses',
+      'Search diagnostics: activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+    [
+      '测试：activeRequestId gates stale /api/search responses',
+      '测试：activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+    [
+      '测试记录：activeRequestId gates stale /api/search responses',
+      '测试记录：activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+    [
+      '诊断：activeRequestId gates stale /api/search responses',
+      '诊断：activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+    ],
+  ];
+
+  for (const [title, summary] of shells) {
+    const result = validateMaterializedNoteQuality(note({
+      title,
+      summary,
+      key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary,
+        root_cause,
+        resolution,
+      },
+      tags: [],
+      embedding_text: '',
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, title);
+    assert.equal(result.reason, 'low-note-quality', title);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), title);
+  }
+});
+
+test('validateMaterializedNoteQuality rejects diagnostic evidence status wrappers with concrete fix payloads', () => {
+  const summary = 'Diagnostic evidence found /api/search returned HTTP 404 because route registration ran after request setup.';
+  const root_cause = 'API requests returned HTTP 404 because /api/search registration ran after request setup.';
+  const resolution = 'Register /api/search before request setup so API requests do not return HTTP 404.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Diagnostic evidence found /api/search route ordering caused HTTP 404',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+    tags: [],
+    embedding_text: '',
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects validation regression and QA result shells with concrete fix payloads', () => {
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId before updating the search view.';
+  const resolution = 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current query results.';
+  const shells = [
+    [
+      'Search validation confirmed activeRequestId gates stale /api/search responses',
+      'Search validation confirmed activeRequestId gates stale /api/search responses',
+    ],
+    [
+      'Regression confirmed: activeRequestId gates stale /api/search responses',
+      'Regression confirmed: activeRequestId gates stale /api/search responses',
+    ],
+    [
+      'QA confirmed: activeRequestId gates stale /api/search responses',
+      'QA confirmed: activeRequestId gates stale /api/search responses',
+    ],
+  ];
+
+  for (const [title, summary] of shells) {
+    const result = validateMaterializedNoteQuality(note({
+      title,
+      summary,
+      key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary,
+        root_cause,
+        resolution,
+      },
+      tags: [],
+      embedding_text: '',
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, title);
+    assert.equal(result.reason, 'low-note-quality', title);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), title);
+  }
+});
+
+test('validateMaterializedNoteQuality rejects confirmation done and verified result shells', () => {
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId before updating the React search view.';
+  const resolution = 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot replace current results.';
+  const englishShells = [
+    [
+      'Search confirmed activeRequestId gates stale /api/search responses',
+      'Search confirmed activeRequestId gates stale /api/search responses from replacing current results.',
+    ],
+    [
+      'Search check confirmed activeRequestId gates stale /api/search responses',
+      'Search check confirmed activeRequestId gates stale /api/search responses from replacing current results.',
+    ],
+    [
+      'Search done activeRequestId gates stale /api/search responses',
+      'Search done activeRequestId gates stale /api/search responses from replacing current results.',
+    ],
+    [
+      'Search fix verified activeRequestId gates stale /api/search responses',
+      'Search fix verified activeRequestId gates stale /api/search responses from replacing current results.',
+    ],
+  ];
+
+  for (const [title, summary] of englishShells) {
+    const result = validateMaterializedNoteQuality(note({
+      title,
+      summary,
+      key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+      tags: ['react-search', 'api-search'],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary,
+        root_cause,
+        resolution,
+      },
+      embedding_text: '',
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, title);
+    assert.equal(result.reason, 'low-note-quality', title);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), title);
+  }
+
+  const chineseSummary = '在 setResults 前校验 activeRequestId，避免旧的 /api/search 响应覆盖当前查询结果。';
+  const chineseRootCause = '旧的 /api/search 响应覆盖当前查询结果，因为 setResults 前没有校验 activeRequestId。';
+  const chineseResolution = '在 setResults 前校验 activeRequestId，避免旧的 /api/search 响应覆盖当前查询结果。';
+  const chineseTitles = [
+    '语义搜索确认 activeRequestId 防止 /api/search 旧响应覆盖新结果',
+    '回归确认 activeRequestId 防止 /api/search 旧响应覆盖新结果',
+    '语义搜索检查确认 activeRequestId 防止 /api/search 旧响应覆盖新结果',
+  ];
+
+  for (const title of chineseTitles) {
+    const result = validateMaterializedNoteQuality(note({
+      title,
+      summary: chineseSummary,
+      key_conclusions: [`Root cause: ${chineseRootCause}`, `Resolution: ${chineseResolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary: chineseSummary,
+        root_cause: chineseRootCause,
+        resolution: chineseResolution,
+      },
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, title);
+    assert.equal(result.reason, 'low-note-quality', title);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), title);
+  }
+});
+
+test('validateMaterializedNoteQuality rejects check-passed status shells with concrete fix payloads', () => {
+  const englishText = 'Search check passed because activeRequestId gates stale /api/search responses before setResults.';
+  const englishRootCause = 'Older /api/search responses overwrote current results because setResults ran without checking activeRequestId.';
+  const englishResolution = 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.';
+  const englishResult = validateMaterializedNoteQuality(note({
+    title: englishText,
+    summary: englishText,
+    key_conclusions: [`Root cause: ${englishRootCause}`, `Resolution: ${englishResolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: englishText,
+      root_cause: englishRootCause,
+      resolution: englishResolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(englishResult.accepted, false);
+  assert.equal(englishResult.reason, 'low-note-quality');
+  assert.ok(englishResult.warnings.includes('durable_reusable_lesson'));
+
+  const chineseText = '语义搜索检查已通过，因为 setResults 前校验 activeRequestId 防止旧的 /api/search 响应覆盖当前查询结果。';
+  const chineseRootCause = '旧的 /api/search 响应覆盖当前查询结果，因为 setResults 前没有校验 activeRequestId。';
+  const chineseResolution = '在 setResults 前校验 activeRequestId，防止旧的 /api/search 响应覆盖当前查询结果。';
+  const chineseResult = validateMaterializedNoteQuality(note({
+    title: chineseText,
+    summary: chineseText,
+    key_conclusions: [`Root cause: ${chineseRootCause}`, `Resolution: ${chineseResolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: chineseText,
+      root_cause: chineseRootCause,
+      resolution: chineseResolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(chineseResult.accepted, false);
+  assert.equal(chineseResult.reason, 'low-note-quality');
+  assert.ok(chineseResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects smoke and acceptance pass status shells', () => {
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.';
+  const resolution = 'Ensure activeRequestId matches before setResults so stale /api/search responses cannot overwrite current results.';
+  const englishResult = validateMaterializedNoteQuality(note({
+    title: 'Search smoke passed activeRequestId gates stale /api/search responses',
+    summary: 'Search smoke passed activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    tags: ['react-search'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Search smoke passed activeRequestId gates setResults so stale /api/search responses cannot overwrite current results.',
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(englishResult.accepted, false);
+  assert.equal(englishResult.reason, 'low-note-quality');
+  assert.ok(englishResult.warnings.includes('durable_reusable_lesson'));
+
+  const englishShells = [
+    'Acceptance passed activeRequestId gates stale /api/search responses before setResults so older responses cannot overwrite current results.',
+    'E2E passed activeRequestId gates stale /api/search responses before setResults so older responses cannot overwrite current results.',
+    'Scenario passed activeRequestId gates stale /api/search responses before setResults so older responses cannot overwrite current results.',
+  ];
+
+  for (const text of englishShells) {
+    const result = validateMaterializedNoteQuality(note({
+      title: text,
+      summary: text,
+      key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary: text,
+        root_cause,
+        resolution,
+      },
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, text);
+    assert.equal(result.reason, 'low-note-quality', text);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), text);
+  }
+
+  const chineseSummary = '在 setResults 前校验 activeRequestId，避免旧的 /api/search 响应覆盖当前查询结果。';
+  const chineseRootCause = '旧的 /api/search 响应覆盖当前查询结果，因为 setResults 前没有校验 activeRequestId。';
+  const chineseResolution = '在 setResults 前校验 activeRequestId，避免旧的 /api/search 响应覆盖当前查询结果。';
+  const chineseTitles = [
+    '语义搜索冒烟通过 activeRequestId 防止 /api/search 旧响应覆盖新结果',
+    '语义搜索验收通过 activeRequestId 防止 /api/search 旧响应覆盖新结果',
+    '语义搜索验证已通过 activeRequestId 防止 /api/search 旧响应覆盖新结果',
+  ];
+
+  for (const title of chineseTitles) {
+    const result = validateMaterializedNoteQuality(note({
+      title,
+      summary: chineseSummary,
+      key_conclusions: [`Root cause: ${chineseRootCause}`, `Resolution: ${chineseResolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary: chineseSummary,
+        root_cause: chineseRootCause,
+        resolution: chineseResolution,
+      },
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, title);
+    assert.equal(result.reason, 'low-note-quality', title);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), title);
+  }
+});
+
+test('validateMaterializedNoteQuality rejects release validation status shells before release or shipping', () => {
+  const root_cause = '/api/search returned HTTP 500 because route registration ran after request setup.';
+  const resolution = 'Register /api/search before request setup so API requests do not return HTTP 500.';
+  const shells = [
+    'Release validated /api/search before release HTTP 500 after route registration moved before request setup.',
+    '/api/search verified before shipping HTTP 500 after route registration moved before request setup.',
+  ];
+
+  for (const text of shells) {
+    const result = validateMaterializedNoteQuality(note({
+      title: text,
+      summary: text,
+      key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+      tags: ['api-search'],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary: text,
+        root_cause,
+        resolution,
+      },
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, text);
+    assert.equal(result.reason, 'low-note-quality', text);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), text);
+  }
+});
+
+test('validateMaterializedNoteQuality rejects shows and is result shells with concrete fix payloads', () => {
+  const root_cause = '/api/search returned HTTP 500 because route registration ran after request setup.';
+  const resolution = 'Register /api/search before request setup so API requests return JSON instead of HTTP 500.';
+  const shells = [
+    'Test shows /api/search registers before request setup so API requests do not return HTTP 500',
+    'Result is /api/search registers before request setup so API requests do not return HTTP 500',
+    'Progress is /api/search registers before request setup so API requests do not return HTTP 500',
+    'Validation shows /api/search registers before request setup so API requests do not return HTTP 500',
+    'QA shows /api/search registers before request setup so API requests do not return HTTP 500',
+  ];
+
+  for (const text of shells) {
+    const result = validateMaterializedNoteQuality(note({
+      title: text,
+      summary: text,
+      key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary: text,
+        root_cause,
+        resolution,
+      },
+      tags: [],
+      embedding_text: '',
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, text);
+    assert.equal(result.reason, 'low-note-quality', text);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), text);
+  }
+});
+
+test('validateMaterializedNoteQuality rejects check and acceptance shows result shells', () => {
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId before updating results.';
+  const resolution = 'Gate setResults on activeRequestId before applying /api/search responses so stale responses cannot overwrite current results.';
+  const shells = [
+    [
+      'Check shows activeRequestId gates stale /api/search responses',
+      'Check shows activeRequestId gates stale /api/search responses before setResults so older responses cannot overwrite current results.',
+    ],
+    [
+      'Acceptance shows activeRequestId gates stale /api/search responses',
+      'Acceptance shows activeRequestId gates stale /api/search responses before setResults so older responses cannot overwrite current results.',
+    ],
+  ];
+
+  for (const [title, summary] of shells) {
+    const result = validateMaterializedNoteQuality(note({
+      title,
+      summary,
+      key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+      raw_payload: {
+        outcome_type: 'fix',
+        summary,
+        root_cause,
+        resolution,
+      },
+    }), { mode: 'auto' });
+
+    assert.equal(result.accepted, false, title);
+    assert.equal(result.reason, 'low-note-quality', title);
+    assert.ok(result.warnings.includes('durable_reusable_lesson'), title);
+  }
+});
+
+test('validateMaterializedNoteQuality rejects English work record structured items', () => {
+  const summary = 'Work record - use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects current run implementation shells', () => {
+  const summary = 'This run uses active request id gate on /api/search result updates, avoiding stale responses that overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects in-this-run implementation shells', () => {
+  const summary = 'In this run, gate setResults by activeRequestId so stale /api/search responses cannot overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects during-this-run implementation shells', () => {
+  const summary = 'During this run, gate setResults by activeRequestId so stale /api/search responses cannot overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    tags: [],
+    embedding_text: '',
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects for-this-run implementation fix shells', () => {
+  const summary = 'For this run, gate setResults by activeRequestId so stale /api/search responses cannot overwrite current results.';
+  const taskSummary = 'For this task, gate setResults by activeRequestId so stale /api/search responses cannot overwrite current results.';
+  const root_cause = 'Older /api/search responses overwrote current results because setResults did not check activeRequestId.';
+  const resolution = 'Gate setResults by activeRequestId so stale /api/search responses cannot overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+  const taskResult = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary: taskSummary,
+    key_conclusions: [`Decision: ${taskSummary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary: taskSummary,
+      decisions: [taskSummary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+  assert.equal(taskResult.accepted, false);
+  assert.equal(taskResult.reason, 'low-note-quality');
+  assert.ok(taskResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects Chinese current-run implementation shells', () => {
+  const summary = '本轮执行 gate setResults by activeRequestId，避免 stale /api/search responses overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects completion shell structured items', () => {
+  const summary = 'Completion: use active request id gate for /api/search result updates, avoiding stale responses that overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects Chinese completion shell structured items', () => {
+  const summary = '已完成：使用 active request id gate /api/search result updates，避免 stale responses overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects Chinese execution record structured items', () => {
+  const summary = '执行记录：使用 active request id gate /api/search result updates，避免 stale responses overwrite current results.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request id gate prevents stale responses',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+    tags: [],
+    embedding_text: '',
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts non-shell execution order notes', () => {
+  const root_cause = 'API requests returned HTTP 404 because /api/notes registration ran after request setup.';
+  const resolution = 'Register /api/notes before request setup so API requests do not return HTTP 404.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API registration execution order caused HTTP 404',
+    summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Register /api/notes before request setup so API requests do not return HTTP 404.',
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts daemon child process lifecycle fixes', () => {
+  const summary = 'Treat child_process exit code 1 as serve failure because writing the daemon PID before the child is ready makes crystal status connect to a dead server.';
+  const root_cause = 'crystal serve -d wrote the daemon PID before observing the child_process exit event, so an exit code 1 still looked like a running server.';
+  const resolution = 'Wait for the child_process spawn handshake and reject nonzero exit codes before persisting the PID so status does not connect to a dead server.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Daemon exit code prevents false serve success',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts route initialization HTTP failures', () => {
+  const summary = 'POST /api/import returned HTTP 500 because the route handled requests before sql.js finished initialization; wait for db initialization before accepting import requests.';
+  const root_cause = 'POST /api/import returned HTTP 500 because the route handled requests before sql.js finished initialization.';
+  const resolution = 'Wait for db initialization before accepting /api/import requests.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Import route returns HTTP 500 before sql.js initialization',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts Vite proxy path rewrite fixes', () => {
+  const summary = 'Preserve the /api/search path in the Vite proxy so Fastify sees the registered route.';
+  const root_cause = 'The Vite dev proxy rewrote /api/search to /search, so Fastify returned HTTP 404 for search requests.';
+  const resolution = 'Disable proxy path rewrite for /api/search so search requests reach the registered Fastify route.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Vite proxy preserves /api/search path',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts SPA fallback route-ordering fixes', () => {
+  const summary = 'Register /api/notes before the SPA fallback handler so API requests return JSON instead of index.html.';
+  const root_cause = '/api/notes fell through to the SPA fallback because the API route was registered after the fallback handler, so clients received index.html instead of JSON.';
+  const resolution = 'Register /api/notes before the SPA fallback handler so API requests return JSON instead of index.html.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API route before SPA fallback returns JSON',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+  const naturalTitleResult = validateMaterializedNoteQuality(note({
+    title: 'SPA fallback route order returns HTML for API JSON',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+  assert.equal(naturalTitleResult.accepted, true);
+  assert.equal(naturalTitleResult.reason, 'note-quality-ok');
+  assert.deepEqual(naturalTitleResult.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts MCP stdio JSON-RPC transport fixes', () => {
+  const summary = 'Writing logs to process.stdout corrupts MCP JSON-RPC framing because stdout is the response transport; send diagnostics to process.stderr instead.';
+  const root_cause = 'Logs written to process.stdout interleaved with MCP JSON-RPC responses, so the client could not parse the stdio stream.';
+  const resolution = 'Send diagnostics to process.stderr and reserve process.stdout for JSON-RPC response frames.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'MCP stdout logging corrupts JSON-RPC responses',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects recorded fix completion patterns', () => {
+  const summary = 'Recorded that /api/import returned HTTP 500 before sql.js initialization and is now fixed.';
+  const result = validateMaterializedNoteQuality(note({
+    title: '/api/import HTTP 500 fix completed',
+    summary,
+    key_conclusions: [
+      `Pattern: ${summary}`,
+    ],
+    raw_payload: {
+      outcome_type: 'pattern',
+      summary,
+      reusable_patterns: [
+        summary,
+      ],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts orphan note tag cleanup fixes', () => {
+  const summary = 'Filter tags through existing note_ids and prune orphan note_tags rows so WebUI filter chips do not show count 0 after note deletion.';
+  const root_cause = 'Deleting notes left orphan note_tags rows and unused tags because cleanup did not remove joins whose note_id no longer existed.';
+  const resolution = 'Filter tag counts through existing notes and prune orphan note_tags rows after deleteNoteWithReview removes a note.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Hide and prune orphan tags after note deletion',
+    summary,
+    key_conclusions: [`Root cause: ${root_cause}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary,
+      root_cause,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts stale Vectra index cleanup fixes', () => {
+  const root = 'Semantic search returned stale note_id hits because note deletion removed sql.js rows without removing Vectra index entries.';
+  const resolution = 'Remove Vectra index entries after deleting sql.js note rows so semantic search cannot return deleted notes.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Note deletion leaves Vectra index entries stale',
+    summary: 'Remove Vectra index entries after deleting notes from sql.js so semantic search does not return stale note_id hits.',
+    key_conclusions: [`Root cause: ${root}`, `Resolution: ${resolution}`],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Remove Vectra index entries after deleting notes from sql.js so semantic search does not return stale note_id hits.',
+      root_cause: root,
+      resolution,
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts structured SQL and Vectra deletion consistency patterns', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Note deletion E2E must verify SQL and Vectra together',
+    summary: 'Deleting a note must be verified across SQLite rows, writeback receipts, review links, and Vectra items in one E2E run.',
+    key_conclusions: [
+      'Pattern: When testing note deletion, assert SQL cleanup and Vectra cleanup in the same E2E run.',
+      'Decision: Keep vector cleanup idempotent because SQLite commits and Vectra commits can diverge.',
+      'Error signature: foreign_key_check reports orphan rows.',
+    ],
+    tags: ['deletion', 'vectra', 'sqlite'],
+    raw_payload: {
+      outcome_type: 'pattern',
+      summary: 'Deleting a note must be verified across SQLite rows, writeback receipts, review links, and Vectra items in one E2E run.',
+      reusable_patterns: ['When testing note deletion, assert SQL cleanup and Vectra cleanup in the same E2E run.'],
+      decisions: ['Keep vector cleanup idempotent because SQLite commits and Vectra commits can diverge.'],
+      error_signatures: ['foreign_key_check reports orphan rows'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic DB queue reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'DB queue reliability fix',
+    summary: 'Queue chatcrystal.db writes so database reliability improves.',
+    key_conclusions: [
+      'Root cause: DB writes were unreliable.',
+      'Resolution: Queue chatcrystal.db writes so database reliability improves.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Queue chatcrystal.db writes so database reliability improves.',
+      root_cause: 'DB writes were unreliable.',
+      resolution: 'Queue chatcrystal.db writes so database reliability improves.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic transaction reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Database transaction reliability fix',
+    summary: 'Use transactions for database reliability.',
+    key_conclusions: [
+      'Root cause: Database writes were unreliable.',
+      'Resolution: Use transactions for database reliability.',
+    ],
+    tags: ['import', 'sql-js'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Use transactions for database reliability.',
+      root_cause: 'Database writes were unreliable.',
+      resolution: 'Use transactions for database reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic lock reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Queue lock reliability fix',
+    summary: 'Use transaction locks to improve queue reliability.',
+    key_conclusions: [
+      'Root cause: Queue locks were unreliable.',
+      'Resolution: Use transaction locks to improve queue reliability.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Use transaction locks to improve queue reliability.',
+      root_cause: 'Queue locks were unreliable.',
+      resolution: 'Use transaction locks to improve queue reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic offset commit reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Kafka offset reliability fix',
+    summary: 'Commit offsets properly to improve message reliability.',
+    key_conclusions: [
+      'Root cause: Offset commits were unreliable.',
+      'Resolution: Commit offsets properly to improve message reliability.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Commit offsets properly to improve message reliability.',
+      root_cause: 'Offset commits were unreliable.',
+      resolution: 'Commit offsets properly to improve message reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic index performance reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Database index reliability fix',
+    summary: 'Add indexes to improve database performance and reliability.',
+    key_conclusions: [
+      'Root cause: Database performance was unreliable.',
+      'Resolution: Add indexes to improve database performance and reliability.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Add indexes to improve database performance and reliability.',
+      root_cause: 'Database performance was unreliable.',
+      resolution: 'Add indexes to improve database performance and reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic duplicate constraint reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Database duplicate prevention fix',
+    summary: 'Add constraints to prevent duplicates and improve database reliability.',
+    key_conclusions: [
+      'Root cause: Duplicate records were unreliable.',
+      'Resolution: Add constraints to prevent duplicates and improve database reliability.',
+    ],
+    tags: ['writeback', 'database'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Add constraints to prevent duplicates and improve database reliability.',
+      root_cause: 'Duplicate records were unreliable.',
+      resolution: 'Add constraints to prevent duplicates and improve database reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic tag constraint reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Tag duplicate prevention fix',
+    summary: 'Add unique tag constraints to prevent duplicates and improve tag reliability.',
+    key_conclusions: [
+      'Root cause: Duplicate tag chips reduced reliability.',
+      'Resolution: Add unique tag constraints to prevent duplicates and improve tag reliability.',
+    ],
+    tags: ['tags', 'database'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Add unique tag constraints to prevent duplicates and improve tag reliability.',
+      root_cause: 'Duplicate tag chips reduced reliability.',
+      resolution: 'Add unique tag constraints to prevent duplicates and improve tag reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic frontend cancel reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Frontend request reliability fix',
+    summary: 'Cancel requests to improve frontend reliability.',
+    key_conclusions: [
+      'Root cause: Frontend requests were unreliable.',
+      'Resolution: Cancel requests to improve frontend reliability.',
+    ],
+    tags: ['search', 'frontend'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Cancel requests to improve frontend reliability.',
+      root_cause: 'Frontend requests were unreliable.',
+      resolution: 'Cancel requests to improve frontend reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic request-id gating reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search request gating reliability fix',
+    summary: 'Gate requests by request id to improve search reliability.',
+    key_conclusions: [
+      'Root cause: Search requests were unreliable.',
+      'Resolution: Gate requests by request id to improve search reliability.',
+    ],
+    tags: ['search', 'frontend'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Gate requests by request id to improve search reliability.',
+      root_cause: 'Search requests were unreliable.',
+      resolution: 'Gate requests by request id to improve search reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic daemon readiness reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Daemon readiness reliability fix',
+    summary: 'Wait for daemon readiness to improve reliability.',
+    key_conclusions: [
+      'Root cause: Daemon readiness reliability mattered.',
+      'Resolution: Handle exit code properly.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Wait for daemon readiness to improve reliability.',
+      root_cause: 'Daemon readiness reliability mattered.',
+      resolution: 'Handle exit code properly.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic activeRequestId reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search result reliability fix',
+    summary: 'Use activeRequestId to improve reliability.',
+    key_conclusions: [
+      'Root cause: Search result reliability mattered.',
+      'Resolution: Gate setResults for reliability.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Use activeRequestId to improve reliability.',
+      root_cause: 'Search result reliability mattered.',
+      resolution: 'Gate setResults for reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic SQL parameterization reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'SQL parameter reliability fix',
+    summary: 'Bind SQL parameters for reliability.',
+    key_conclusions: [
+      'Root cause: SQL query reliability mattered.',
+      'Resolution: Use parameterized queries to improve quality.',
+    ],
+    tags: ['sql-js', 'tags'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Bind SQL parameters for reliability.',
+      root_cause: 'SQL query reliability mattered.',
+      resolution: 'Use parameterized queries to improve quality.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic migration backfill reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Migration backfill reliability fix',
+    summary: 'Backfill migrations for reliability.',
+    key_conclusions: [
+      'Root cause: Migration reliability mattered.',
+      'Resolution: Add defaults to improve quality.',
+    ],
+    tags: ['sqlite', 'migration'],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Backfill migrations for reliability.',
+      root_cause: 'Migration reliability mattered.',
+      resolution: 'Add defaults to improve quality.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic listener cleanup reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Listener cleanup reliability fix',
+    summary: 'Clean up listeners for reliability.',
+    key_conclusions: [
+      'Root cause: Listener reliability mattered.',
+      'Resolution: Use cleanup to improve quality.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Clean up listeners for reliability.',
+      root_cause: 'Listener reliability mattered.',
+      resolution: 'Use cleanup to improve quality.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic orphan tag cleanup reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Tag cleanup reliability fix',
+    summary: 'Prune orphan rows to improve tag cleanup quality.',
+    key_conclusions: [
+      'Root cause: Tag cleanup quality was unreliable.',
+      'Resolution: Prune orphan rows to improve tag cleanup quality.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Prune orphan rows to improve tag cleanup quality.',
+      root_cause: 'Tag cleanup quality was unreliable.',
+      resolution: 'Prune orphan rows to improve tag cleanup quality.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic Chinese route and worklog boilerplate', () => {
+  const routeResult = validateMaterializedNoteQuality(note({
+    title: '路由可靠性修复',
+    summary: '注册路由以提高可靠性。',
+    key_conclusions: [
+      'Root cause: 路由可靠性不稳定。',
+      'Resolution: 注册路由以提高可靠性。',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: '注册路由以提高可靠性。',
+      root_cause: '路由可靠性不稳定。',
+      resolution: '注册路由以提高可靠性。',
+    },
+  }), { mode: 'auto' });
+
+  const worklogResult = validateMaterializedNoteQuality(note({
+    title: '路由问题工作日志',
+    summary: '工作日志：已修复路由问题。',
+    key_conclusions: ['Decision: 工作日志：已修复路由问题。'],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary: '工作日志：已修复路由问题。',
+      decisions: ['工作日志：已修复路由问题。'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(routeResult.accepted, false);
+  assert.equal(routeResult.reason, 'low-note-quality');
+  assert.ok(routeResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(worklogResult.accepted, false);
+  assert.equal(worklogResult.reason, 'low-note-quality');
+  assert.ok(worklogResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic initialization reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API initialization reliability fix',
+    summary: 'Wait for initialization to improve API reliability.',
+    key_conclusions: [
+      'Root cause: API initialization was unreliable.',
+      'Resolution: Wait for initialization to improve API reliability.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Wait for initialization to improve API reliability.',
+      root_cause: 'API initialization was unreliable.',
+      resolution: 'Wait for initialization to improve API reliability.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic proxy rewrite reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Proxy routing reliability fix',
+    summary: 'Fix proxy routing for reliability.',
+    key_conclusions: [
+      'Root cause: Proxy routing reliability mattered.',
+      'Resolution: Disable proxy rewrite to improve quality.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Fix proxy routing for reliability.',
+      root_cause: 'Proxy routing reliability mattered.',
+      resolution: 'Disable proxy rewrite to improve quality.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic logging compatibility fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'MCP logging compatibility fix',
+    summary: 'Send logs elsewhere to improve MCP compatibility.',
+    key_conclusions: [
+      'Root cause: MCP logging compatibility was unreliable.',
+      'Resolution: Send logs elsewhere to improve MCP compatibility.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Send logs elsewhere to improve MCP compatibility.',
+      root_cause: 'MCP logging compatibility was unreliable.',
+      resolution: 'Send logs elsewhere to improve MCP compatibility.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic search index cleanup reliability fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Search index cleanup reliability fix',
+    summary: 'Clean up semantic search index entries so search reliability improves.',
+    key_conclusions: [
+      'Root cause: Search index entries were unreliable.',
+      'Resolution: Clean up semantic search index entries so search reliability improves.',
+    ],
+    raw_payload: {
+      outcome_type: 'fix',
+      summary: 'Clean up semantic search index entries so search reliability improves.',
+      root_cause: 'Search index entries were unreliable.',
+      resolution: 'Clean up semantic search index entries so search reliability improves.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic HTTP root cause rationales', () => {
+  const correctnessResult = validateMaterializedNoteQuality(note({
+    title: 'NODE_ENV HTTP 500 fix',
+    summary: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    key_conclusions: [
+      'Root cause: API returned HTTP 500 because correctness mattered.',
+      'Resolution: Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    ],
+    raw_payload: {
+      summary: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+      outcome_type: 'fix',
+      root_cause: 'API returned HTTP 500 because correctness mattered.',
+      resolution: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    },
+  }), { mode: 'auto' });
+  const reliabilityResult = validateMaterializedNoteQuality(note({
+    title: 'NODE_ENV HTTP 500 fix',
+    summary: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    key_conclusions: [
+      'Root cause: API returned HTTP 500 because reliability mattered.',
+      'Resolution: Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    ],
+    raw_payload: {
+      summary: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+      outcome_type: 'fix',
+      root_cause: 'API returned HTTP 500 because reliability mattered.',
+      resolution: 'Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(correctnessResult.accepted, false);
+  assert.equal(correctnessResult.reason, 'low-note-quality');
+  assert.ok(correctnessResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(reliabilityResult.accepted, false);
+  assert.equal(reliabilityResult.reason, 'low-note-quality');
+  assert.ok(reliabilityResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic HTTP rationales with route tokens', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API HTTP 404 generic route fix',
+    summary: 'Register /api/notes before issuing API requests.',
+    key_conclusions: [
+      'Root cause: API returned HTTP 404 because correctness mattered; missing route.',
+      'Resolution: Register /api/notes before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before issuing API requests.',
+      outcome_type: 'fix',
+      root_cause: 'API returned HTTP 404 because correctness mattered; missing route.',
+      resolution: 'Register /api/notes before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects weak not-correct HTTP root causes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API route weak HTTP fix',
+    summary: 'Register /api/notes before issuing API requests.',
+    key_conclusions: [
+      'Root cause: API route was not correct before request setup, so API requests returned HTTP 404.',
+      'Resolution: Register /api/notes before issuing API requests.',
+    ],
+    raw_payload: {
+      summary: 'Register /api/notes before issuing API requests.',
+      outcome_type: 'fix',
+      root_cause: 'API route was not correct before request setup, so API requests returned HTTP 404.',
+      resolution: 'Register /api/notes before issuing API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic environment decisions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Checked NODE_ENV value because deployment should use production',
+    summary: 'Checked NODE_ENV value because deployment should use production.',
+    key_conclusions: ['Decision: NODE_ENV should use production pattern.'],
+    raw_payload: {
+      summary: 'Checked NODE_ENV value because deployment should use production.',
+      outcome_type: 'decision',
+      decisions: ['NODE_ENV should use production pattern.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+  assert.ok(result.warnings.includes('one_off_status'));
+});
+
+test('validateMaterializedNoteQuality rejects environment verification snapshots', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'NODE_ENV production verification',
+    summary: 'Verified NODE_ENV production before request setup.',
+    key_conclusions: ['Decision: Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.'],
+    raw_payload: {
+      summary: 'Verified NODE_ENV production before request setup.',
+      outcome_type: 'decision',
+      decisions: ['Validate NODE_ENV before request setup to prevent HTTP 500 in production API requests.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic environment status decisions with action words', () => {
+  const validateResult = validateMaterializedNoteQuality(note({
+    title: 'Validate NODE_ENV deployment status',
+    summary: 'Validate NODE_ENV deployment status because production environment is expected.',
+    key_conclusions: ['Decision: Validate NODE_ENV deployment status because production environment is expected.'],
+    raw_payload: {
+      summary: 'Validate NODE_ENV deployment status because production environment is expected.',
+      outcome_type: 'decision',
+      decisions: ['Validate NODE_ENV deployment status because production environment is expected.'],
+    },
+  }), { mode: 'auto' });
+  const investigateResult = validateMaterializedNoteQuality(note({
+    title: 'Investigate local package version status',
+    summary: 'Investigate local package version status because deployment should use production.',
+    key_conclusions: ['Decision: Investigate local package version status because deployment should use production.'],
+    raw_payload: {
+      summary: 'Investigate local package version status because deployment should use production.',
+      outcome_type: 'decision',
+      decisions: ['Investigate local package version status because deployment should use production.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(validateResult.accepted, false);
+  assert.equal(validateResult.reason, 'low-note-quality');
+  assert.ok(validateResult.warnings.includes('durable_reusable_lesson'));
+  assert.ok(validateResult.warnings.includes('one_off_status'));
+  assert.equal(investigateResult.accepted, false);
+  assert.equal(investigateResult.reason, 'low-note-quality');
+  assert.ok(investigateResult.warnings.includes('durable_reusable_lesson'));
+  assert.ok(investigateResult.warnings.includes('one_off_status'));
+});
+
+test('validateMaterializedNoteQuality rejects placeholder root cause and resolution fields', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Server readiness note with placeholder diagnosis',
+    summary: 'Requests must wait for server readiness before client calls.',
+    key_conclusions: [
+      'Root cause: n/a.',
+      'Resolution: ok.',
+    ],
+    raw_payload: {
+      summary: 'Requests must wait for server readiness before client calls.',
+      outcome_type: 'fix',
+      root_cause: 'n/a',
+      resolution: 'ok',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects long placeholder root cause and resolution fields', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Generic fix note with vague diagnosis',
+    summary: 'The task needed investigation and an appropriate change was applied.',
+    key_conclusions: [
+      'Root cause: The root cause was unknown because the task needed investigation.',
+      'Resolution: The resolution was to fix the issue with the appropriate change.',
+    ],
+    raw_payload: {
+      summary: 'The task needed investigation and an appropriate change was applied.',
+      outcome_type: 'fix',
+      root_cause: 'The root cause was unknown because the task needed investigation',
+      resolution: 'The resolution was to fix the issue with the appropriate change',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects vague behavior root cause and resolution claims', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Generic implementation behavior fix',
+    summary: 'Fix implementation behavior so the task works correctly going forward.',
+    key_conclusions: [
+      'Root cause: The implementation did not handle the expected behavior correctly in this task.',
+      'Resolution: Fix implementation behavior so the task works correctly going forward.',
+    ],
+    raw_payload: {
+      summary: 'Fix implementation behavior so the task works correctly going forward.',
+      outcome_type: 'fix',
+      root_cause: 'The implementation did not handle the expected behavior correctly in this task.',
+      resolution: 'Fix implementation behavior so the task works correctly going forward.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic compare and validate lessons', () => {
+  const compareResult = validateMaterializedNoteQuality(note({
+    title: 'Generic comparison decision',
+    summary: 'The task should compare values because that is the expected pattern.',
+    key_conclusions: ['Decision: The task should compare values because that is the expected pattern.'],
+    raw_payload: {
+      summary: 'The task should compare values because that is the expected pattern.',
+      outcome_type: 'decision',
+      decisions: ['The task should compare values because that is the expected pattern.'],
+    },
+  }), { mode: 'auto' });
+  const validateResult = validateMaterializedNoteQuality(note({
+    title: 'Generic validation pattern',
+    summary: 'The pattern should validate input because validation is important for correctness.',
+    key_conclusions: ['Pattern: The pattern should validate input because validation is important for correctness.'],
+    raw_payload: {
+      summary: 'The pattern should validate input because validation is important for correctness.',
+      outcome_type: 'pattern',
+      reusable_patterns: ['The pattern should validate input because validation is important for correctness.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(compareResult.accepted, false);
+  assert.equal(compareResult.reason, 'low-note-quality');
+  assert.ok(compareResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(validateResult.accepted, false);
+  assert.equal(validateResult.reason, 'low-note-quality');
+  assert.ok(validateResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects boilerplate API validation patterns', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Generic API validation pattern',
+    summary: 'The pattern should validate API input because validation is important for correctness.',
+    key_conclusions: ['Pattern: The pattern should validate API input because validation is important for correctness.'],
+    raw_payload: {
+      summary: 'The pattern should validate API input because validation is important for correctness.',
+      outcome_type: 'pattern',
+      reusable_patterns: ['The pattern should validate API input because validation is important for correctness.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic API request validation before release', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API request validation before release prevents HTTP 404',
+    summary: 'Validate API requests before release to prevent /api/notes HTTP 404.',
+    key_conclusions: [
+      'Pattern: Validate API requests before release to prevent /api/notes HTTP 404.',
+    ],
+    raw_payload: {
+      summary: 'Validate API requests before release to prevent /api/notes HTTP 404.',
+      outcome_type: 'pattern',
+      reusable_patterns: [
+        'Validate API requests before release to prevent /api/notes HTTP 404.',
+      ],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects endpoint validation before release boilerplate', () => {
+  const summary = 'Validate /api/search before release because HTTP 500 request failures can happen.';
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Validate /api/search before release HTTP 500',
+    summary,
+    key_conclusions: [`Decision: ${summary}`],
+    raw_payload: {
+      outcome_type: 'decision',
+      summary,
+      decisions: [summary],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects boilerplate config pattern claims', () => {
+  const apiResult = validateMaterializedNoteQuality(note({
+    title: 'Generic API config indexing decision',
+    summary: 'API config should index the correct pattern because correctness matters.',
+    key_conclusions: ['Decision: API config should index the correct pattern because correctness matters.'],
+    raw_payload: {
+      summary: 'API config should index the correct pattern because correctness matters.',
+      outcome_type: 'decision',
+      decisions: ['API config should index the correct pattern because correctness matters.'],
+    },
+  }), { mode: 'auto' });
+  const serverResult = validateMaterializedNoteQuality(note({
+    title: 'Generic server config cache pattern',
+    summary: 'Server config should cache the correct pattern because correctness matters.',
+    key_conclusions: ['Pattern: Server config should cache the correct pattern because correctness matters.'],
+    raw_payload: {
+      summary: 'Server config should cache the correct pattern because correctness matters.',
+      outcome_type: 'pattern',
+      reusable_patterns: ['Server config should cache the correct pattern because correctness matters.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(apiResult.accepted, false);
+  assert.equal(apiResult.reason, 'low-note-quality');
+  assert.ok(apiResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(serverResult.accepted, false);
+  assert.equal(serverResult.reason, 'low-note-quality');
+  assert.ok(serverResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality accepts concrete DATA_DIR Electron config fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Set DATA_DIR before importing Electron server',
+    summary: 'Set DATA_DIR before importing the Electron server so embedded startup uses the intended ChatCrystal data directory.',
+    key_conclusions: [
+      'Root cause: The Electron main process imported the server before DATA_DIR was configured, so startup used the default data directory.',
+      'Resolution: Set DATA_DIR before importing the Electron server entrypoint.',
+    ],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server so embedded startup uses the intended ChatCrystal data directory.',
+      outcome_type: 'fix',
+      root_cause: 'The Electron main process imported the server before DATA_DIR was configured, so startup used the default data directory.',
+      resolution: 'Set DATA_DIR before importing the Electron server entrypoint.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts natural DATA_DIR import-ordering fixes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Configure DATA_DIR before Electron server import',
+    summary: 'Set DATA_DIR before importing the Electron server entrypoint so embedded startup uses the intended data directory.',
+    key_conclusions: [
+      'Root cause: The Electron main process imported the server before DATA_DIR was set, so startup fell back to the default data directory.',
+      'Resolution: Set DATA_DIR before importing the Electron server entrypoint.',
+    ],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server entrypoint so embedded startup uses the intended data directory.',
+      outcome_type: 'fix',
+      root_cause: 'The Electron main process imported the server before DATA_DIR was set, so startup fell back to the default data directory.',
+      resolution: 'Set DATA_DIR before importing the Electron server entrypoint.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts causal self-contained DATA_DIR decisions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR Electron import ordering decision',
+    summary: 'Set DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory.',
+    key_conclusions: ['Decision: Set DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts fallback decisions with existence context', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR prevents default fallback',
+    summary: 'Set DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory when it exists.',
+    key_conclusions: ['Decision: Set DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory when it exists.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory when it exists.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before importing the Electron server entrypoint to prevent fallback to the default data directory when it exists.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality accepts default data directory fallback wording', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR prevents default fallback',
+    summary: 'Set DATA_DIR before importing the Electron server entrypoint to prevent default data directory fallback when it exists.',
+    key_conclusions: ['Decision: Set DATA_DIR before importing the Electron server entrypoint to prevent default data directory fallback when it exists.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server entrypoint to prevent default data directory fallback when it exists.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before importing the Electron server entrypoint to prevent default data directory fallback when it exists.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'note-quality-ok');
+  assert.deepEqual(result.warnings, []);
+});
+
+test('validateMaterializedNoteQuality rejects generic unreliable behavior consequences', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR import ordering prevents unreliable behavior',
+    summary: 'Set DATA_DIR before importing the Electron server entrypoint to prevent unreliable behavior.',
+    key_conclusions: ['Decision: Set DATA_DIR before importing the Electron server entrypoint to prevent unreliable behavior.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server entrypoint to prevent unreliable behavior.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before importing the Electron server entrypoint to prevent unreliable behavior.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects bare fallback consequences', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'API fallback decision',
+    summary: 'Index /api/notes before request setup to prevent fallback.',
+    key_conclusions: ['Decision: Index /api/notes before request setup to prevent fallback.'],
+    raw_payload: {
+      summary: 'Index /api/notes before request setup to prevent fallback.',
+      outcome_type: 'decision',
+      decisions: ['Index /api/notes before request setup to prevent fallback.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects default data directory existence decisions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR default directory existence decision',
+    summary: 'Set DATA_DIR before importing the Electron server entrypoint because the default data directory exists.',
+    key_conclusions: ['Decision: Set DATA_DIR before importing the Electron server entrypoint because the default data directory exists.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server entrypoint because the default data directory exists.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before importing the Electron server entrypoint because the default data directory exists.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects default data directory on-disk decisions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR default directory ordering decision',
+    summary: 'Set DATA_DIR before importing the Electron server entrypoint because the default data directory is on disk.',
+    key_conclusions: ['Decision: Set DATA_DIR before importing the Electron server entrypoint because the default data directory is on disk.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server entrypoint because the default data directory is on disk.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before importing the Electron server entrypoint because the default data directory is on disk.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects default data directory fallback existence decisions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR fallback existence decision',
+    summary: 'Set DATA_DIR before importing the Electron server entrypoint because default data directory fallback existed.',
+    key_conclusions: ['Decision: Set DATA_DIR before importing the Electron server entrypoint because default data directory fallback existed.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server entrypoint because default data directory fallback existed.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before importing the Electron server entrypoint because default data directory fallback existed.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects fallback-to-default-directory existence decisions', () => {
+  const existedResult = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR fallback existence decision',
+    summary: 'Set DATA_DIR before importing the Electron server entrypoint because fallback to the default data directory existed.',
+    key_conclusions: ['Decision: Set DATA_DIR before importing the Electron server entrypoint because fallback to the default data directory existed.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server entrypoint because fallback to the default data directory existed.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before importing the Electron server entrypoint because fallback to the default data directory existed.'],
+    },
+  }), { mode: 'auto' });
+  const onDiskResult = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR fallback existence decision',
+    summary: 'Set DATA_DIR before importing the Electron server entrypoint because fallback to the default data directory was on disk.',
+    key_conclusions: ['Decision: Set DATA_DIR before importing the Electron server entrypoint because fallback to the default data directory was on disk.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before importing the Electron server entrypoint because fallback to the default data directory was on disk.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before importing the Electron server entrypoint because fallback to the default data directory was on disk.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(existedResult.accepted, false);
+  assert.equal(existedResult.reason, 'low-note-quality');
+  assert.ok(existedResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(onDiskResult.accepted, false);
+  assert.equal(onDiskResult.reason, 'low-note-quality');
+  assert.ok(onDiskResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic object-only mechanisms', () => {
+  const addResult = validateMaterializedNoteQuality(note({
+    title: 'Generic API config addition',
+    summary: 'Add API config because it should work.',
+    key_conclusions: ['Decision: Add API config because it should work.'],
+    raw_payload: {
+      summary: 'Add API config because it should work.',
+      outcome_type: 'decision',
+      decisions: ['Add API config because it should work.'],
+    },
+  }), { mode: 'auto' });
+  const cacheResult = validateMaterializedNoteQuality(note({
+    title: 'Generic server config cache pattern',
+    summary: 'Cache server config because it should work.',
+    key_conclusions: ['Pattern: Cache server config because it should work.'],
+    raw_payload: {
+      summary: 'Cache server config because it should work.',
+      outcome_type: 'pattern',
+      reusable_patterns: ['Cache server config because it should work.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(addResult.accepted, false);
+  assert.equal(addResult.reason, 'low-note-quality');
+  assert.ok(addResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(cacheResult.accepted, false);
+  assert.equal(cacheResult.reason, 'low-note-quality');
+  assert.ok(cacheResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic object-only root cause and resolution', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Generic API config fix',
+    summary: 'Add API config so the server works.',
+    key_conclusions: [
+      'Root cause: API config was wrong.',
+      'Resolution: Add API config so the server works.',
+    ],
+    raw_payload: {
+      summary: 'Add API config so the server works.',
+      outcome_type: 'fix',
+      root_cause: 'API config was wrong.',
+      resolution: 'Add API config so the server works.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects concrete identifiers with vague work rationales', () => {
+  const dataDirResult = validateMaterializedNoteQuality(note({
+    title: 'API config DATA_DIR decision',
+    summary: 'Set API config to DATA_DIR so API config should work.',
+    key_conclusions: ['Decision: Set API config to DATA_DIR so API config should work.'],
+    raw_payload: {
+      summary: 'Set API config to DATA_DIR so API config should work.',
+      outcome_type: 'decision',
+      decisions: ['Set API config to DATA_DIR so API config should work.'],
+    },
+  }), { mode: 'auto' });
+  const reliabilityResult = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR reliability decision',
+    summary: 'Set DATA_DIR to the right value for reliability.',
+    key_conclusions: ['Decision: Set DATA_DIR to the right value for reliability.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR to the right value for reliability.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR to the right value for reliability.'],
+    },
+  }), { mode: 'auto' });
+  const portResult = validateMaterializedNoteQuality(note({
+    title: 'PORT config correctness decision',
+    summary: 'Set server config to PORT because it should work correctly.',
+    key_conclusions: ['Decision: Set server config to PORT because it should work correctly.'],
+    raw_payload: {
+      summary: 'Set server config to PORT because it should work correctly.',
+      outcome_type: 'decision',
+      decisions: ['Set server config to PORT because it should work correctly.'],
+    },
+  }), { mode: 'auto' });
+  const apiResult = validateMaterializedNoteQuality(note({
+    title: 'API route reliability pattern',
+    summary: 'Add /api/notes config for reliability and correctness.',
+    key_conclusions: ['Pattern: Add /api/notes config for reliability and correctness.'],
+    raw_payload: {
+      summary: 'Add /api/notes config for reliability and correctness.',
+      outcome_type: 'pattern',
+      reusable_patterns: ['Add /api/notes config for reliability and correctness.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(dataDirResult.accepted, false);
+  assert.equal(dataDirResult.reason, 'low-note-quality');
+  assert.ok(dataDirResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(reliabilityResult.accepted, false);
+  assert.equal(reliabilityResult.reason, 'low-note-quality');
+  assert.ok(reliabilityResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(portResult.accepted, false);
+  assert.equal(portResult.reason, 'low-note-quality');
+  assert.ok(portResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(apiResult.accepted, false);
+  assert.equal(apiResult.reason, 'low-note-quality');
+  assert.ok(apiResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects reliability rationales with concrete identifiers', () => {
+  const routeResult = validateMaterializedNoteQuality(note({
+    title: 'API notes route reliability decision',
+    summary: 'Index /api/notes before request setup timing so the route is reliable.',
+    key_conclusions: ['Decision: Index /api/notes before request setup timing so the route is reliable.'],
+    raw_payload: {
+      summary: 'Index /api/notes before request setup timing so the route is reliable.',
+      outcome_type: 'decision',
+      decisions: ['Index /api/notes before request setup timing so the route is reliable.'],
+    },
+  }), { mode: 'auto' });
+  const portResult = validateMaterializedNoteQuality(note({
+    title: 'PORT configuration reliability decision',
+    summary: 'Set PORT before importing the default data directory so configuration is reliable.',
+    key_conclusions: ['Decision: Set PORT before importing the default data directory so configuration is reliable.'],
+    raw_payload: {
+      summary: 'Set PORT before importing the default data directory so configuration is reliable.',
+      outcome_type: 'decision',
+      decisions: ['Set PORT before importing the default data directory so configuration is reliable.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(routeResult.accepted, false);
+  assert.equal(routeResult.reason, 'low-note-quality');
+  assert.ok(routeResult.warnings.includes('durable_reusable_lesson'));
+  assert.equal(portResult.accepted, false);
+  assert.equal(portResult.reason, 'low-note-quality');
+  assert.ok(portResult.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects identifier order decisions without consequences', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR PORT API ordering decision',
+    summary: 'Set DATA_DIR before PORT when configuring /api/notes request setup.',
+    key_conclusions: ['Decision: Set DATA_DIR before PORT when configuring /api/notes request setup.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before PORT when configuring /api/notes request setup.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before PORT when configuring /api/notes request setup.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic prevention wording without named consequences', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'DATA_DIR ordering prevents generic failure',
+    summary: 'Set DATA_DIR before server request setup to prevent failure in future runs.',
+    key_conclusions: ['Decision: Set DATA_DIR before server request setup to prevent failure in future runs.'],
+    raw_payload: {
+      summary: 'Set DATA_DIR before server request setup to prevent failure in future runs.',
+      outcome_type: 'decision',
+      decisions: ['Set DATA_DIR before server request setup to prevent failure in future runs.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects generic readiness root cause and resolution', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Server readiness generic fix',
+    summary: 'Use a better approach to handle server readiness properly.',
+    key_conclusions: [
+      'Root cause: Server readiness handling was incomplete during startup.',
+      'Resolution: Use a better approach to handle server readiness properly.',
+    ],
+    raw_payload: {
+      summary: 'Use a better approach to handle server readiness properly.',
+      outcome_type: 'fix',
+      root_cause: 'Server readiness handling was incomplete during startup.',
+      resolution: 'Use a better approach to handle server readiness properly.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects readiness fixes with weak root causes', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Server readiness generic fix',
+    summary: 'Wait for server readiness before API requests.',
+    key_conclusions: [
+      'Root cause: Server readiness was not correct before API requests.',
+      'Resolution: Wait for server readiness before API requests.',
+    ],
+    raw_payload: {
+      summary: 'Wait for server readiness before API requests.',
+      outcome_type: 'fix',
+      root_cause: 'Server readiness was not correct before API requests.',
+      resolution: 'Wait for server readiness before API requests.',
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects error signatures with weak resolutions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Server readiness weak ECONNREFUSED fix',
+    summary: 'Use a better approach to handle server readiness properly.',
+    key_conclusions: [
+      'Root cause: Client calls raced server startup and produced ECONNREFUSED.',
+      'Resolution: Use a better approach to handle server readiness properly.',
+      'Error signature: ECONNREFUSED.',
+    ],
+    raw_payload: {
+      summary: 'Use a better approach to handle server readiness properly.',
+      outcome_type: 'fix',
+      root_cause: 'Client calls raced server startup and produced ECONNREFUSED.',
+      resolution: 'Use a better approach to handle server readiness properly.',
+      error_signatures: ['ECONNREFUSED'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});
+
+test('validateMaterializedNoteQuality rejects persisted status/version decisions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Persist local package version status',
+    summary: 'Persist checked current local package version status and generated dist output.',
+    key_conclusions: ['Decision: Persist checked current local package version status and generated dist output.'],
+    raw_payload: {
+      summary: 'Persist checked current local package version status and generated dist output.',
+      outcome_type: 'decision',
+      decisions: ['Persist checked current local package version status and generated dist output.'],
+    },
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(
+    result.warnings.includes('one_off_status') ||
+    result.warnings.includes('durable_reusable_lesson'),
+  );
+});
+
+test('validateMaterializedNoteQuality requires visible key conclusions', () => {
+  const result = validateMaterializedNoteQuality(note({
+    key_conclusions: [],
+  }), { mode: 'auto' });
+
+  assert.equal(result.accepted, false);
+  assert.ok(result.warnings.includes('key_conclusions'));
+});
+
+test('validateMaterializedNoteQuality allows manual readable notes with reuse warning', () => {
+  const result = validateMaterializedNoteQuality(note({
+    title: 'Manual note about release check',
+    summary: 'The release check confirmed the current local package state.',
+    key_conclusions: ['The local package state was checked before release.'],
+    raw_payload: {
+      summary: 'The release check confirmed the current local package state.',
+      outcome_type: 'decision',
+      decisions: ['The local package state was checked before release.'],
+    },
+  }), { mode: 'manual' });
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'manual-note-quality-warning');
+  assert.ok(result.warnings.includes('durable_reusable_lesson'));
+});

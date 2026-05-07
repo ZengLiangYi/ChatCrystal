@@ -1,9 +1,14 @@
-import type { WriteTaskMemoryResponse } from '@chatcrystal/shared';
+import type {
+  WriteTaskMemoryPayload,
+  WriteTaskMemoryResponse,
+} from '@chatcrystal/shared';
 import { getDatabase, saveDatabase } from '../../db/index.js';
 import { withTransaction } from '../../db/transaction.js';
 import { generateEmbeddings, semanticSearch } from '../embedding.js';
 import { decideWritebackAction } from './decision.js';
+import { materializeTaskMemory } from './materialize.js';
 import { ensureSyntheticOriginConversation } from './origin.js';
+import { validateTaskMemory } from './preflight.js';
 import { deriveProjectKey, resolveCanonicalProjectKey, resolveProjectIdentity } from './projectKey.js';
 import { parseWriteTaskMemoryRequest } from './schemas.js';
 import { validateStructuredMemoryCandidate } from '../experience/gate.js';
@@ -244,19 +249,19 @@ export async function writeTaskMemory(
     }
   }
 
-  const validateMemory =
-    deps.validateStructuredMemoryCandidate ??
-    validateStructuredMemoryCandidate;
-  const qualityDecision = validateMemory(request.memory);
-  if (qualityDecision) {
-    const reason = qualityDecision.reasons[0] ?? 'low-signal';
+  const preflight = validateTaskMemory(request, {
+    validateStructuredMemoryCandidate:
+      deps.validateStructuredMemoryCandidate ?? validateStructuredMemoryCandidate,
+  });
+  const materialized = preflight.materialized_note;
+  if (!preflight.accepted) {
     if (request.mode === 'auto') {
       withTransaction(db, () => {
         db.run(
           `INSERT INTO writeback_receipts (
              source_agent, source_run_key, decision, note_id, merged_into_note_id, reason, index_status
            ) VALUES (?, ?, 'skipped', NULL, NULL, ?, 'completed')`,
-          [normalizedAgent, request.source_run_key ?? null, reason],
+          [normalizedAgent, request.source_run_key ?? null, preflight.reason],
         );
       });
       save();
@@ -267,8 +272,8 @@ export async function writeTaskMemory(
       decision: 'skipped',
       note_id: null,
       merged_into_note_id: null,
-      reason,
-      warnings: qualityDecision.missing_signals,
+      reason: preflight.reason,
+      warnings: preflight.warnings,
     };
   }
 
@@ -369,12 +374,14 @@ export async function writeTaskMemory(
         safeParseObject(existingPayloadRows[0]?.values[0]?.[2]),
         request.memory as Record<string, unknown>,
       );
-      const mergedKeyConclusions = [
-        ...new Set([
-          ...existingKeyConclusions,
-          ...(request.memory.key_conclusions ?? []),
-        ]),
-      ];
+      const mergedMaterialized = materializeTaskMemory(
+        request,
+        mergedPayload as unknown as WriteTaskMemoryPayload,
+      );
+      const mergedKeyConclusions = mergeStringArrays(
+        existingKeyConclusions,
+        mergedMaterialized.key_conclusions,
+      );
       const mergedCodeSnippets =
         mergeCodeSnippets(existingCodeSnippets, request.memory.code_snippets) ??
         [];
@@ -399,6 +406,10 @@ export async function writeTaskMemory(
                 raw_llm_response = ?,
                 error_signatures = ?,
                 files_touched = ?,
+                source_type = CASE
+                  WHEN source_type = 'imported-conversation' THEN 'agent-writeback'
+                  ELSE source_type
+                END,
                 updated_at = datetime('now')
           WHERE id = ?`,
         [
@@ -431,7 +442,7 @@ export async function writeTaskMemory(
         note_id: null,
         merged_into_note_id: decision.target_note_id,
         related_note_ids: [] as number[],
-        tags: normalizeTags(mergedPayload.tags as string[] | undefined),
+        tags: mergedMaterialized.tags,
       };
     }
 
@@ -452,9 +463,9 @@ export async function writeTaskMemory(
       ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         originConversationId,
-        request.memory.title ?? request.task.goal,
-        request.memory.summary,
-        JSON.stringify(request.memory.key_conclusions ?? []),
+        materialized.title,
+        materialized.summary,
+        JSON.stringify(materialized.key_conclusions),
         JSON.stringify(request.memory.code_snippets ?? []),
         JSON.stringify(request.memory),
         resolvedProjectKey ?? null,
@@ -492,7 +503,7 @@ export async function writeTaskMemory(
       decision: 'created' as const,
       note_id: createdNoteId,
       merged_into_note_id: null,
-      tags: normalizeTags(request.memory.tags),
+      tags: materialized.tags,
       related_note_ids: candidates
         .filter((hit) => hit.score >= 0.75)
         .map((hit) => hit.noteId)

@@ -1,0 +1,2809 @@
+import type { MaterializedTaskMemoryNote } from '@chatcrystal/shared';
+
+type ValidationMode = 'auto' | 'manual';
+
+export type NoteQualityDecision = {
+  accepted: boolean;
+  reason: 'note-quality-ok' | 'manual-note-quality-warning' | 'low-note-quality';
+  warnings: string[];
+};
+
+const concreteActionWords = [
+  'add',
+  'block',
+  'cache',
+  'collapse',
+  'configure',
+  'compare',
+  'comparing',
+  'debounce',
+  'deduplicate',
+  'defer',
+  'enqueue',
+  'extract',
+  'filter',
+  'gate',
+  'group',
+  'import',
+  'index',
+  'initialize',
+  'load',
+  'migrate',
+  'move',
+  'normalize',
+  'parse',
+  'place',
+  'pin',
+  'prune',
+  'rebuild',
+  'regenerate',
+  'register',
+  'remove',
+  'replace',
+  'retry',
+  'sanitize',
+  'set',
+  'strip',
+  'truncate',
+  'validate',
+  'wait',
+  'wait for',
+  'wrap',
+  '注册',
+  '避免',
+  '防止',
+  '复用',
+] as const;
+
+function compactLength(value: string) {
+  return value.replace(/\s+/g, '').length;
+}
+
+function hasMeaningfulText(value: string, minLatin = 24, minCjk = 18) {
+  const text = value.trim();
+  if (!text) return false;
+  const hasCjk = /[\u3400-\u9fff]/.test(text);
+  return compactLength(text) >= (hasCjk ? minCjk : minLatin);
+}
+
+function isPlaceholderText(value: string) {
+  return /\b(unknown|n\/a|not sure|todo|tbd|appropriate change|fix the issue|task needed investigation|expected behavior|task (?:now )?works correctly|now works correctly|expected pattern|was wrong)\b/i
+    .test(value);
+}
+
+function hasNonPlaceholderMeaningfulText(value: string, minLatin = 24, minCjk = 18) {
+  return hasMeaningfulText(value, minLatin, minCjk) && !isPlaceholderText(value);
+}
+
+function isGenericTitle(title: string) {
+  return /^(task|memory|note|update|summary|investigate|check|fix)$/i.test(title.trim());
+}
+
+function joined(note: MaterializedTaskMemoryNote) {
+  return [
+    note.title,
+    note.summary,
+    ...note.key_conclusions,
+  ].join('\n').toLowerCase();
+}
+
+function regexEscape(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function hasWord(text: string, word: string) {
+  if (/[\u3400-\u9fff]/.test(word)) {
+    return text.includes(word);
+  }
+  return new RegExp(`\\b${regexEscape(word)}\\b`, 'i').test(text);
+}
+
+function hasConcreteTransferableAction(value: string) {
+  const text = value.toLowerCase();
+  if (hasChineseRouteOrderingSignal(text)) return true;
+  if (hasNegativeTransferableAction(text)) return true;
+  if (hasSchemaDefaultArrayAction(text)) return true;
+  if (hasSchemaBoundaryAction(text)) return true;
+  if (hasDurableEngineeringPreventionAction(text)) return true;
+  if (hasImportDedupeAction(text)) return true;
+  if (hasPersistenceSerializationAction(text)) return true;
+  if (hasDbTransactionAtomicityAction(text)) return true;
+  if (hasSqlParameterizationAction(text)) return true;
+  if (hasStrictStructuralEngineeringAction(text)) return true;
+  if (hasIndexConsistencyAction(text)) return true;
+  if (hasElectronResourceAction(text)) return true;
+  if (hasCrossPlatformPathAction(text)) return true;
+  if (hasFrontendCacheInvalidationAction(text)) return true;
+  if (hasSqliteWalSidecarAction(text)) return true;
+  if (hasProviderBaseUrlAction(text)) return true;
+  if (hasEmbeddingModelConfigAction(text)) return true;
+  if (hasEsmImportExtensionAction(text)) return true;
+  if (hasImportContentArrayAction(text)) return true;
+  if (hasSignatureRawBodyAction(text)) return true;
+  if (hasAdvisoryLockTransactionAction(text)) return true;
+  if (hasOffsetCommitAfterProcessingAction(text)) return true;
+  return concreteActionWords.some((word) => hasWord(text, word));
+}
+
+function hasNegativeTransferableAction(text: string) {
+  return /\bdo not\b.+\b(read|write|call|use|access|parse)\b.+\bbefore\b.+\b(validat(?:e|ing)|check(?:ing)?|parse|parsing)\b/i
+    .test(text);
+}
+
+function hasSchemaDefaultArrayAction(text: string) {
+  return (
+    /\b(use|change|set|default|materializ(?:e|ed)|configure)\b.+\b(schema|z\.array|default\(\[\]\)|empty array|omitted items?)\b/i
+      .test(text) ||
+    /\b(schema|z\.array|default\(\[\]\)|empty array|omitted items?)\b.+\b(default|materializ(?:e|ed)|empty array)\b/i
+      .test(text)
+  );
+}
+
+function hasPersistenceSerializationAction(text: string) {
+  return hasPersistenceSnapshotEvidence(text) &&
+    /\b(queue|queued|serialize|serialized|route|routed|call|called|saveDatabase|p-queue)\b/i
+      .test(text) &&
+    /\b(writes?|mutations?|save|transaction|snapshots?|rows|database|db)\b/i
+      .test(text);
+}
+
+function isVagueGenericLesson(value: string) {
+  const text = value.toLowerCase();
+  const hasBoilerplateClaim =
+    /\bvalidation is important for correctness\b/.test(text) ||
+    /\bcorrectness matters\b/.test(text) ||
+    /\bcorrect pattern\b/.test(text) ||
+    /\bright value for reliability\b/.test(text) ||
+    /\b(for|so|because)\b.+\b(reliable|reliability|correctness)\b/.test(text) ||
+    /\bbecause\b.+\bis important for correctness\b/.test(text) ||
+    /\bshould\b.+\bbecause correctness\b/.test(text) ||
+    /\bshould\b.+\bcorrect pattern\b/.test(text) ||
+    /\bthe (pattern|task) should\b/.test(text) ||
+    /\bshould validate\b.+\bbecause\b/.test(text) ||
+    /\bbecause it should work\b/.test(text) ||
+    /\bit should work correctly\b/.test(text) ||
+    /\bshould work\b/.test(text) ||
+    /\bshould work correctly\b/.test(text) ||
+    /\bso\b.+\bworks?\b/.test(text) ||
+    /\bso the server works\b/.test(text) ||
+    /\badd api config\b/.test(text) ||
+    /\bcache server config\b/.test(text) ||
+    /\bbetter approach\b/.test(text) ||
+    /\bhandle\b.+\bproperly\b/.test(text) ||
+    /\bexpected pattern\b/.test(text);
+  const hasGenericTerms =
+    /\b(the task|this task|the pattern|the implementation|implementation behavior|expected behavior|expected pattern|values?|input|correctness|reliability|maintenance|going forward)\b/.test(text);
+  return hasBoilerplateClaim || (hasGenericTerms && !hasSpecificObject(text));
+}
+
+function isVagueGenericFixClaim(value: string) {
+  const text = value.toLowerCase();
+  return (
+    /\b(unknown|n\/a|not sure|todo|tbd|appropriate change|fix the issue|task needed investigation|expected behavior|task works correctly|expected pattern|was wrong)\b/i
+      .test(text) ||
+    /\bvalidation is important for correctness\b/.test(text) ||
+    /\bcorrectness matters\b/.test(text) ||
+    /\bcorrect pattern\b/.test(text) ||
+    /\bright value for reliability\b/.test(text) ||
+    /\bbecause\b.+\bis important for correctness\b/.test(text) ||
+    /\bshould\b.+\bbecause correctness\b/.test(text) ||
+    /\bshould\b.+\bcorrect pattern\b/.test(text) ||
+    /\bbecause it should work\b/.test(text) ||
+    /\bit should work correctly\b/.test(text) ||
+    /\bshould work\b/.test(text) ||
+    /\bshould work correctly\b/.test(text) ||
+    /\bso\b.+\bworks?\b/.test(text) ||
+    /\badd api config\b/.test(text) ||
+    /\bcache server config\b/.test(text) ||
+    /\bbetter approach\b/.test(text) ||
+    /\bhandle\b.+\bproperly\b/.test(text)
+  );
+}
+
+function isGenericStatusAction(value: string) {
+  const text = value.toLowerCase();
+  const hasGenericAction = ['validate', 'investigate', 'check', 'checked', 'persist', 'record', 'recorded']
+    .some((word) => hasWord(text, word));
+  const hasStatusSubject =
+    /\b(node_env|env|environment|deployment|production|status|local|package version|version)\b/i
+      .test(text);
+  const hasGenericRationale = /\b(expected|should|because|pattern)\b/i.test(text);
+  return hasGenericAction && hasStatusSubject && hasGenericRationale;
+}
+
+function hasSpecificObject(value: string) {
+  return hasSpecificEvidence(value) || hasConcreteMechanism(value);
+}
+
+function hasSpecificEvidence(value: string) {
+  const text = value.toLowerCase();
+  return (
+    /\b(data_dir|node_env|econrefused|typeerror|note_tags|chatcrystal\.db|port|source_run_key|foreign_keys)\b|\/api\/[\w/-]+|\b[a-z0-9]+_[a-z0-9_]+\b|[a-z]:\\|\/[\w.-]+/i
+      .test(text) ||
+    hasChineseTechnicalEvidence(text) ||
+    hasSchemaArrayEvidence(text) ||
+    hasSchemaBoundaryEvidence(text) ||
+    hasJsonParsingEvidence(text) ||
+    hasProviderBaseUrlEvidence(text) ||
+    hasEmbeddingModelConfigEvidence(text) ||
+    hasEsmImportExtensionEvidence(text) ||
+    hasImportContentArrayEvidence(text) ||
+    hasSignatureRawBodyEvidence(text) ||
+    hasAdvisoryLockTransactionEvidence(text) ||
+    hasOffsetCommitAfterProcessingEvidence(text) ||
+    hasDurableEngineeringEvidence(text) ||
+    hasImportDedupeEvidence(text) ||
+    hasContentSanitizationEvidence(text) ||
+    hasPersistenceSnapshotEvidence(text) ||
+    hasDbTransactionAtomicityEvidence(text) ||
+    hasSqlParameterizationEvidence(text) ||
+    hasStrictStructuralEngineeringEvidence(text) ||
+    hasIndexConsistencyEvidence(text) ||
+    hasElectronResourceEvidence(text) ||
+    hasCrossPlatformPathEvidence(text) ||
+    hasFrontendCacheEvidence(text) ||
+    hasSqliteWalSidecarEvidence(text) ||
+    hasHttpFailureSignal(text) ||
+    /\b(api requests?|fastify readiness|server readiness|request setup|package metadata|package version|dist output|generated dist output|data directory|electron server|server entrypoint|client calls?)\b/i
+      .test(text)
+  );
+}
+
+function hasChineseTechnicalEvidence(value: string) {
+  return /接口|请求|路由|注册|配置|数据库|索引|语义搜索|向量|笔记|导入|解析|去重|文件|目录|环境变量|凭据|私钥|内网|脱敏|校准|样本|夹具|数据集|元数据|来源|隐私|构建|编译/
+    .test(value);
+}
+
+function hasSchemaArrayEvidence(value: string) {
+  const text = value.toLowerCase();
+  return (
+    /\b(zod|z\.array|z\.object|request\.\w+|\w+schema)\b/i.test(text) ||
+    /\.(?:optional|default)\(/i.test(text) ||
+    /\bdefault\(\[\]\)\b/i.test(text)
+  );
+}
+
+function hasSchemaDefaultArrayMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasOptionalOrDefaultArray =
+    /\b(optional arrays?|omitted arrays?|omitted items?|undefined|empty array)\b/i.test(text) ||
+    /\.(?:optional|default)\(/i.test(text) ||
+    /\bdefault\(\[\]\)\b/i.test(text);
+  const hasIterationOrHandler =
+    /\b(iterat(?:e|ed|es|ing|ion)|handler|handler logic)\b/i.test(text);
+  return hasSchemaArrayEvidence(text) && hasOptionalOrDefaultArray && hasIterationOrHandler;
+}
+
+function hasSchemaBoundaryEvidence(value: string) {
+  const text = value.toLowerCase();
+  const hasSchemaToken =
+    /(?:\bzod\b|z\.coerce\.[a-z]+\(\)|z\.[a-z]+\(\)|\brequest schema\b|\bdate schemas?\b|\bschema\b)/i
+      .test(text);
+  const hasBoundaryToken =
+    /\b(http boundaries?|json request bodies?|json payloads?|request bodies?|iso date strings?|date instance|handler logic|validation|payloads?)\b/i
+      .test(text);
+  return hasSchemaToken && hasBoundaryToken;
+}
+
+function hasSchemaBoundaryAction(value: string) {
+  const text = value.toLowerCase();
+  const hasCoercionAction =
+    /\b(use|change|set|configure)\b.+\bz\.coerce\.[a-z]+\(\)/i.test(text) ||
+    /\b(coerce|convert|transform)\b.+\b(iso strings?|json request bodies?|request schema|before validation|handler logic)\b/i
+      .test(text) ||
+    /\bz\.coerce\.[a-z]+\(\)\b.+\b(request schema|validation|handler logic)\b/i
+      .test(text);
+  return hasSchemaBoundaryEvidence(text) && hasCoercionAction;
+}
+
+function hasSchemaBoundaryMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasBoundaryConversion =
+    /\b(coercion|coerce|coerce\.[a-z]+|convert|converts?|transform)\b/i.test(text) &&
+    /\b(json|payloads?|request schema|date schemas?|iso strings?|validation|handler logic)\b/i
+      .test(text);
+  const hasJsonTypeMismatch =
+    /\b(json request bodies?|json payloads?|request bodies?)\b.+\b(carry|supplied|supply|strings?|iso date strings?)\b/i
+      .test(text) ||
+    /z\.date\(\).+\b(expected|expects?)\b.+\bdate instance\b.+\b(iso date strings?|json request bodies?|supplied|supply)\b/i
+      .test(text) ||
+    /\bdate instance\b.+\bwhile\b.+\b(json request bodies?|request bodies?|iso date strings?)\b.+\b(supplied|supply|carry)\b/i
+      .test(text);
+  const hasValidationBoundary =
+    /\b(before validation|before handler logic|validation reaches handler logic|handler logic runs?|rejects? them before handler logic)\b/i
+      .test(text);
+  return hasSchemaBoundaryEvidence(text) &&
+    (hasBoundaryConversion || hasJsonTypeMismatch || hasValidationBoundary);
+}
+
+function hasJsonParsingEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /```json|\b(generatetext|extractjson|json\.parse|syntaxerror|llm summaries?|llm summary|fenced output|fenced objects?|markdown fences?|json fences?|fence text|note fields?|parsed title|parsed summary|parsed conclusions)\b/i
+    .test(text);
+}
+
+function hasJsonParsingMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasFenceOrParser =
+    /```json|\b(extractjson|json\.parse|fences?|fenced|markdown fences?|parse|parsing|parsed)\b/i
+      .test(text);
+  const hasStripBeforeParse =
+    /\b(strip|stripped|remove|removed|trim)\b.+\b(fences?|fenced|markdown|json\.parse|parse|parsing)\b/i
+      .test(text) ||
+    /\b(fences?|fenced|markdown)\b.+\b(strip|stripped|remove|removed|trim)\b/i
+      .test(text) ||
+    /\bbefore\b.+\b(json\.parse|parse|parsing|calling json\.parse)\b/i
+      .test(text);
+  return hasJsonParsingEvidence(text) && hasFenceOrParser && hasStripBeforeParse;
+}
+
+function hasJsonParsingFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasParsingFailure =
+    /\b(syntaxerror|throw|threw|throws?|parsing threw|not persisted|before note fields were persisted|fenced output|fenced objects?)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|returned|passed|before|can return|persist)\b/i.test(text);
+  return hasJsonParsingEvidence(text) && hasParsingFailure && hasCausalFlow;
+}
+
+function hasProviderBaseUrlEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\/v1\/chat\/completions|\/chat\/completions|\/v1\b|\b(custom provider|openai-compatible client|custom_base_url|base url|provider base url|provider url|llm)\b/i
+    .test(text);
+}
+
+function hasProviderBaseUrlAction(value: string) {
+  const text = value.toLowerCase();
+  const hasAction = /\b(configure|configured|set|include|add)\b/i.test(text);
+  const hasTarget =
+    /\/v1\b|\b(custom_base_url|base url|provider base url|provider url|prefix|openai-compatible client)\b/i
+      .test(text);
+  return hasProviderBaseUrlEvidence(text) && hasAction && hasTarget;
+}
+
+function hasProviderBaseUrlMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasRelativeEndpointFlow =
+    /\b(openai-compatible client|client)\b.+\b(calls?|called|appends?|relative to)\b.+\b(\/chat\/completions|base url|base)\b/i
+      .test(text) ||
+    /\/chat\/completions.+\b(relative to|instead of|wrong endpoint)\b|\/chat\/completions.+\/v1\/chat\/completions/i
+      .test(text) ||
+    /\b(custom_base_url|base url|provider base url|provider url)\b.+\b(omitted|missing|without)\b.+\/v1\b/i
+      .test(text);
+  const hasConfiguredPrefixFlow =
+    /\b(configure|configured|set|include|add)\b.+\b(custom_base_url|base url|provider base url|provider url)\b.+(?:\/v1\b|\bprefix\b)/i
+      .test(text) ||
+    /(?:\/v1\b|\bprefix\b).+\b(before creating|creating)\b.+\b(openai-compatible client|client)\b/i
+      .test(text);
+  return hasProviderBaseUrlEvidence(text) &&
+    (hasRelativeEndpointFlow || hasConfiguredPrefixFlow);
+}
+
+function hasProviderBaseUrlFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasHttpNotFound =
+    /\b(http\s*)?404\b|\bnot found\b/i.test(text);
+  const hasWrongEndpointFlow =
+    /\b(omitted|missing|without)\b.+\/v1\b/i.test(text) ||
+    /\b(called|calls?)\b.+\/chat\/completions.+\b(instead of|rather than)\b.+\/v1\/chat\/completions/i
+      .test(text) ||
+    /\b(wrong endpoint|relative endpoint|relative to that base)\b/i.test(text);
+  const hasCausalFlow = /\b(because|so|otherwise|instead of)\b/i.test(text);
+  return hasProviderBaseUrlEvidence(text) &&
+    hasHttpNotFound &&
+    hasWrongEndpointFlow &&
+    hasCausalFlow;
+}
+
+function hasEmbeddingModelConfigEvidence(value: string) {
+  const text = value.toLowerCase();
+  const hasConcreteConfig =
+    /\bembedding\.(?:provider|model)\b|\/v1\/embeddings\b|\btext-embedding-[\w-]+\b/i
+      .test(text);
+  const hasSemanticEmbeddingBoundary =
+    /\bsemantic search\b/i.test(text) &&
+    /\b(embedding model|embeddings? endpoint|chat llm|llm|\/v1\/embeddings)\b/i
+      .test(text);
+  return hasConcreteConfig || hasSemanticEmbeddingBoundary;
+}
+
+function hasEmbeddingModelConfigAction(value: string) {
+  const text = value.toLowerCase();
+  const hasAction = /\b(configure|configured|set|separate|use)\b/i.test(text);
+  const hasTarget =
+    /\bembedding\.(?:provider|model)\b|\/v1\/embeddings\b|\btext-embedding-[\w-]+\b|\breal embedding model\b/i
+      .test(text);
+  return hasEmbeddingModelConfigEvidence(text) && hasAction && hasTarget;
+}
+
+function hasEmbeddingModelConfigMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasCapabilityBoundary =
+    /\b(embedding model|embedding\.(?:provider|model)|semantic search)\b.+\b(supports?|calls?|expose[sd]?|endpoint|\/v1\/embeddings)\b/i
+      .test(text) ||
+    /\b(chat llm|llm)\b.+\b(did not expose|does not expose|lacked|missing|without|reused)\b.+\/v1\/embeddings\b/i
+      .test(text) ||
+    /\/v1\/embeddings\b.+\b(supports?|endpoint|embedding model|semantic search)\b/i
+      .test(text);
+  const hasSeparatedModelFlow =
+    /\b(configure|set)\b.+\bembedding\.(?:provider|model)\b.+\b(separately|real embedding model|text-embedding-[\w-]+|semantic search)\b/i
+      .test(text) ||
+    /\bembedding model\b.+\b(reused|reuse)\b.+\b(chat llm|llm)\b/i
+      .test(text) ||
+    /\bmodel mismatch\b.+\b(semantic search|embedding model|http\s*500|500)\b/i
+      .test(text);
+  return hasEmbeddingModelConfigEvidence(text) && (hasCapabilityBoundary || hasSeparatedModelFlow);
+}
+
+function hasEmbeddingModelConfigFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasNamedFailure =
+    /\b(http\s*500|returned\s+500|semantic search\s+500|model mismatch|did not expose|does not expose|missing \/v1\/embeddings|lacked \/v1\/embeddings|without \/v1\/embeddings)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|which|caused|returned|reused|missing|did not expose|does not expose|without)\b/i
+      .test(text);
+  return hasEmbeddingModelConfigEvidence(text) && hasNamedFailure && hasCausalFlow;
+}
+
+function hasEsmImportExtensionEvidence(value: string) {
+  const text = value.toLowerCase();
+  const hasModuleToken =
+    /\b(typescript|tsx|node|esm|compiled esm|compiled dist|dist files?|dist|server typescript)\b/i
+      .test(text);
+  const hasSpecifierToken =
+    /\.js specifiers?|\.ts specifiers?|\.ts\b|\.js\b|import extension|typescript imports?|source imports?|esm modules?|compiled output/i
+      .test(text);
+  return hasModuleToken && hasSpecifierToken;
+}
+
+function hasEsmImportExtensionAction(value: string) {
+  const text = value.toLowerCase();
+  const hasAction = /\b(use|change|replace|import)\b/i.test(text);
+  const hasTarget =
+    /\.js specifiers?|typescript source imports?|server typescript imports?|source imports?/i
+      .test(text);
+  return hasEsmImportExtensionEvidence(text) && hasAction && hasTarget;
+}
+
+function hasEsmImportExtensionMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasEmitSpecifierFlow =
+    /\btypescript\b.+\b(imported|imports?)\b.+\.ts\b.+\b(compiled esm|emitted|emit)\b.+\.ts specifier/i
+      .test(text) ||
+    /\.ts specifier\b.+\b(node|dist|compiled)\b.+\b(resolve|resolves?|could not resolve)\b/i
+      .test(text) ||
+    /\bcompiled esm\b.+\b(emitted|emit)\b.+\.ts specifier/i
+      .test(text);
+  const hasJsSpecifierMappingFlow =
+    /\.js specifiers?\b.+\b(typescript|tsx|node|compiled dist|dist files?|esm modules?)\b/i
+      .test(text) ||
+    /\btsx\b.+\b(maps?|resolves?)\b.+\b(development|\.js specifiers?)\b/i
+      .test(text) ||
+    /\bnode\b.+\b(resolves?|runs?)\b.+\b(compiled dist|dist files?|compiled output|esm modules?)\b/i
+      .test(text);
+  return hasEsmImportExtensionEvidence(text) && (hasEmitSpecifierFlow || hasJsSpecifierMappingFlow);
+}
+
+function hasEsmImportExtensionFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasNamedFailure =
+    /\b(could not resolve|cannot resolve|module not found|breaks? tsx tests?|tests? fail(?:ed)?|build fail(?:ed)?|dist fail(?:ed)?)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|emitted|emit|compiled|directly|resolve|resolves?|mapped?|maps?|breaks?)\b/i
+      .test(text);
+  return hasEsmImportExtensionEvidence(text) && hasNamedFailure && hasCausalFlow;
+}
+
+function hasImportContentArrayEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(codex adapter|codex jsonl|response_item\.content|content arrays?|array-shaped assistant content|assistant content|assistant messages?|imported conversation messages?|empty imported conversation messages?|text fragments?)\b/i
+    .test(text);
+}
+
+function hasImportContentArrayAction(value: string) {
+  const text = value.toLowerCase();
+  const hasAction =
+    /\b(parse|parsed|extract|extracted|join|joined|save|saving)\b/i.test(text);
+  const hasTarget =
+    /\b(response_item\.content|content arrays?|assistant content|text fragments?|conversation messages?|assistant messages?)\b/i
+      .test(text);
+  return hasImportContentArrayEvidence(text) && hasAction && hasTarget;
+}
+
+function hasImportContentArrayMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasStringVsArrayFlow =
+    /\btreated\b.+\bresponse_item\.content\b.+\bplain string\b/i.test(text) ||
+    /\barray-shaped assistant content\b/i.test(text) ||
+    /\bresponse_item\.content arrays?\b/i.test(text);
+  const hasParseJoinFlow =
+    /\b(parse|extract)\b.+\b(response_item\.content|content arrays?)\b.+\b(join|text fragments?|save|saving|conversation messages?)\b/i
+      .test(text) ||
+    /\b(join|joined)\b.+\btext fragments?\b.+\b(before saving|conversation messages?|assistant messages?)\b/i
+      .test(text);
+  return hasImportContentArrayEvidence(text) && (hasStringVsArrayFlow || hasParseJoinFlow);
+}
+
+function hasImportContentArrayFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasContentLoss =
+    /\b(empty turns?|empty imported conversation messages?|empty messages?|missing assistant text|lost assistant text|lost assistant content|missing assistant content|without assistant text)\b/i
+      .test(text);
+  const hasCausalFlow = /\b(so|because|instead of|produced|lost|missing)\b/i.test(text);
+  return hasImportContentArrayEvidence(text) && hasContentLoss && hasCausalFlow;
+}
+
+function hasSignatureRawBodyEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(hmac|signature verification|webhook signatures?|webhook signature|rawbody|raw body|raw request body|signed bytes?|json\.parse|request body)\b/i
+    .test(text) &&
+    /\b(hmac|signature|webhook|rawbody|raw body|raw request body|signed bytes?)\b/i
+      .test(text);
+}
+
+function hasSignatureRawBodyAction(value: string) {
+  const text = value.toLowerCase();
+  const hasRawBodyAction =
+    /\b(read|use|preserve|verify)\b.+\b(rawbody|raw body|raw request body|hmac|signature)\b.+\b(before|over|json\.parse|parsing|signed bytes?)\b/i
+      .test(text) ||
+    /\bverify\b.+\b(hmac|signature)\b.+\b(rawbody|raw body|raw request body)\b/i
+      .test(text) ||
+    /\b(rawbody|raw body|raw request body)\b.+\b(before|hmac|signature|json\.parse|parsing)\b/i
+      .test(text);
+  return hasSignatureRawBodyEvidence(text) && hasRawBodyAction;
+}
+
+function hasSignatureRawBodyMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasRawBodySignatureFlow =
+    /\b(hmac|signature)\b.+\b(rawbody|raw body|raw request body|signed bytes?)\b/i
+      .test(text) ||
+    /\b(rawbody|raw body|raw request body)\b.+\b(hmac|signature|json\.parse|parsing)\b/i
+      .test(text);
+  const hasParsingByteChangeFlow =
+    /\bjson\.parse\b.+\b(reconstructed|changed|normalize|normalized|signed bytes?|hmac|signature|request body)\b/i
+      .test(text) ||
+    /\bparsing\b.+\b(normalize|normalized|change|changed)\b.+\b(bytes?|request body|signed bytes?)\b/i
+      .test(text) ||
+    /\brequest body\b.+\bbefore\b.+\b(hmac|signature)\b.+\bchanged\b.+\bsigned bytes?\b/i
+      .test(text);
+  return hasSignatureRawBodyEvidence(text) && (hasRawBodySignatureFlow || hasParsingByteChangeFlow);
+}
+
+function hasSignatureRawBodyFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasSignatureFailure =
+    /\b(http\s*400|returned\s+http\s*400|valid signatures? fail|valid signatures? (?:are )?not rejected|signatures? (?:are )?not rejected|signatures? (?:are )?rejected|signature verification returned)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|before|after|can|could|changed|normalize|normalized|reconstructed|fail|rejected)\b/i
+      .test(text);
+  return hasSignatureRawBodyEvidence(text) && hasSignatureFailure && hasCausalFlow;
+}
+
+function hasAdvisoryLockTransactionEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(pg_advisory(?:_xact)?_lock|advisory locks?|session locks?|transaction-scoped|stale locks?|queue workers?|failed job rollbacks?|job transaction)\b/i
+    .test(text) &&
+    /\b(lock|locks?|pg_advisory|rollback|queue workers?|job transaction)\b/i
+      .test(text);
+}
+
+function hasAdvisoryLockTransactionAction(value: string) {
+  const text = value.toLowerCase();
+  const hasScopedLockAction =
+    /\b(use|switch to|acquire)\b.+\b(pg_advisory_xact_lock|transaction-scoped|xact lock|job transaction)\b/i
+      .test(text) ||
+    /\bpg_advisory_xact_lock\b.+\b(transaction|rollback|releases? the lock|next retry)\b/i
+      .test(text);
+  return hasAdvisoryLockTransactionEvidence(text) && hasScopedLockAction;
+}
+
+function hasAdvisoryLockTransactionMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasSessionLockRollbackFlow =
+    /\b(session-scoped|session locks?|pg_advisory_lock)\b.+\b(surviv(?:e|ed|es)|failed jobs?|rollback|rollbacks?|stale locks?|block(?:ed)? queue workers?)\b/i
+      .test(text) ||
+    /\bstale locks?\b.+\b(block(?:ed)?|queue workers?|retries)\b/i
+      .test(text);
+  const hasXactLockReleaseFlow =
+    /\b(pg_advisory_xact_lock|transaction-scoped)\b.+\b(rollback|releases? the lock|job transaction|next retry)\b/i
+      .test(text) ||
+    /\brollback\b.+\breleases? the lock\b.+\b(next retry|queue workers?|failed jobs?)\b/i
+      .test(text);
+  return hasAdvisoryLockTransactionEvidence(text) && (hasSessionLockRollbackFlow || hasXactLockReleaseFlow);
+}
+
+function hasAdvisoryLockTransactionFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasLockFailure =
+    /\b(stale locks?|block(?:ed)? queue workers?|surviv(?:e|ed|es) failed job rollbacks?|failed job rollbacks?|session locks? can survive|rollback releases the lock)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|after|before|rollback|rollbacks?|failed jobs?|surviv(?:e|ed|es)|block(?:ed)?|retries|releases?)\b/i
+      .test(text);
+  return hasAdvisoryLockTransactionEvidence(text) && hasLockFailure && hasCausalFlow;
+}
+
+function hasOffsetCommitAfterProcessingEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(kafka|consumer offsets?|offset commits?|commit(?:ted)? offsets?|partition offset|acknowledg(?:e|ed|es|ing)? messages?|unprocessed messages?)\b/i
+    .test(text) &&
+    /\b(offsets?|commit(?:ted|s)?|database transaction|transaction commits?|persist(?:ed|s|ence)?|messages?)\b/i
+      .test(text);
+}
+
+function hasOffsetCommitAfterProcessingAction(value: string) {
+  const text = value.toLowerCase();
+  const hasCommitAfterProcessingAction =
+    /\bcommit\b.+\boffsets?\b.+\b(only after|after)\b.+\b(database transaction|transaction commits?|persist(?:ed|s|ence)?)\b/i
+      .test(text) ||
+    /\bretry\b.+\b(same partition offset|partition offset|same .*offset)\b.+\b(persistence fails?|persist(?:ence)? fails?|fails?)\b/i
+      .test(text);
+  return hasOffsetCommitAfterProcessingEvidence(text) && hasCommitAfterProcessingAction;
+}
+
+function hasOffsetCommitAfterProcessingMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasEarlyCommitCrashFlow =
+    /\bcommit(?:ted)?\b.+\boffsets?\b.+\bbefore\b.+\b(database transaction|transaction commits?|persist(?:ed|s|ence)?)\b/i
+      .test(text) ||
+    /\bcrash\b.+\backnowledg(?:e|ed|es|ing)\b.+\b(unprocessed messages?|messages whose rows were never persisted)\b/i
+      .test(text) ||
+    /\backnowledg(?:e|ed|es|ing)\b.+\bmessages?\b.+\b(rows? (?:were )?never persisted|unprocessed|message loss)\b/i
+      .test(text);
+  const hasPostCommitRetryFlow =
+    /\bcommit\b.+\boffsets?\b.+\b(after|only after)\b.+\b(database transaction|transaction commits?)\b/i
+      .test(text) ||
+    /\bretry\b.+\b(same partition offset|partition offset|same .*offset)\b.+\b(persistence fails?|fails?)\b/i
+      .test(text);
+  return hasOffsetCommitAfterProcessingEvidence(text) && (hasEarlyCommitCrashFlow || hasPostCommitRetryFlow);
+}
+
+function hasOffsetCommitAfterProcessingFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasOffsetFailure =
+    /\b(message loss|acknowledg(?:e|ed|es|ing) unprocessed messages?|unprocessed messages?|rows? (?:were )?never persisted|persistence fails?|crash)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|before|after|crash|acknowledg(?:e|ed|es|ing)|never persisted|persistence fails?|retry|commit(?:ted)?|transaction commits?)\b/i
+      .test(text);
+  return hasOffsetCommitAfterProcessingEvidence(text) && hasOffsetFailure && hasCausalFlow;
+}
+
+function hasDurableEngineeringEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(json|jsonl|fixtures?|fixture corpora|corpus|samples?|calibration samples?|calibration corpus|dataset object|fixture object|experience-gate|provenance|contains_real_user_data|synthetic data|raw local paths?|raw user paths?|private ips?|credentials?|private-key text|secret-like tokens?|secrets?|sanitization rules?)\b/i
+    .test(text);
+}
+
+function hasDurableEngineeringPreventionAction(value: string) {
+  const text = value.toLowerCase();
+  return hasDurableEngineeringEvidence(text) &&
+    /\b(wrap|store|stored|reject|rejects?|test|tests|sanitize|sanitiz(?:e|ed|es|ing|ation)|strip|validate|assert|assertions?)\b/i
+      .test(text);
+}
+
+function hasDurableEngineeringMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasConcreteGovernanceMechanism =
+    /\b(dataset object|fixture object|provenance metadata|synthetic provenance|provenance|privacy assertions?|contains_real_user_data=false|sanitization rules?|tests? that reject|before committing|review context)\b/i
+      .test(text);
+  const hasSensitiveDataEvidence =
+    /\b(raw local paths?|raw user paths?|private ips?|credentials?|private-key text|secret-like tokens?|secrets?)\b/i
+      .test(text);
+  const hasDataArtifact =
+    /\b(json sample arrays?|json|fixtures?|fixture corpora|corpus|samples?|calibration samples?|calibration corpus|dataset object|fixture object|experience-gate)\b/i
+      .test(text);
+  return hasDurableEngineeringEvidence(text) &&
+    (
+      hasConcreteGovernanceMechanism ||
+      (hasDurableEngineeringPreventionAction(text) && hasSensitiveDataEvidence && hasDataArtifact)
+    );
+}
+
+function hasDurableEngineeringFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasConcreteConsequence =
+    /\b(hid whether|could commit|cannot silently include|silently include|leak(?:ed|s|ing)?|raw local paths?|raw user paths?|private ips?|credentials?|private-key text|secret-like tokens?|secrets?|without review context|missing review context|privacy leak|private data|sensitive data)\b/i
+      .test(text);
+  const hasFailureFlow =
+    /\b(because|so|caused|led to|hid whether|could commit|cannot silently include|without review context|leak(?:ed|s|ing)?|returned|overwrote|threw)\b/i
+      .test(text);
+  return hasDurableEngineeringEvidence(text) && hasConcreteConsequence && hasFailureFlow;
+}
+
+function hasImportDedupeEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(chokidar|jsonl|mtime|file size|source file size|file revision|import scan|adapter|import dedupe key|dedupe key|duplicate inserts?|unchanged [\w -]*files?|reparsed|reparse|same file revision|claude code|appends?|appending|truncated lines?|partial writes?|latest (?:imported )?(?:conversation )?messages?|file size and mtime|stop changing|stay stable|stabiliz(?:e|es|ed|ing))\b/i
+    .test(text);
+}
+
+function hasImportDedupeAction(value: string) {
+  const text = value.toLowerCase();
+  const hasDedupeAction = /\b(use|skip|dedupe|deduplicate|key|compare|track|debounce|wait)\b/i.test(text);
+  const hasRevisionKey =
+    /\b(file size|source file size|mtime|dedupe key|file revision|skip parsing|same file revision|stay stable|stop changing|stable before parsing|partial writes? (?:are )?skipped)\b/i
+      .test(text);
+  return hasImportDedupeEvidence(text) && hasDedupeAction && hasRevisionKey;
+}
+
+function hasImportDedupeMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasDedupeFlow =
+    /\b(import dedupe|dedupe key|dedupe|deduplicate|skip parsing|same file revision)\b/i
+      .test(text);
+  const hasRevisionOrWatcherEvidence =
+    /\b(file size|source file size|mtime|file revision|same file revision|chokidar|unchanged [\w -]*files?|jsonl|reparsed|reparse|repeated)\b/i
+      .test(text);
+  const hasPartialWriteFlow =
+    /\b(chokidar|jsonl|claude code|adapter)\b.+\b(appends?|appending|partial writes?|truncated lines?|file size|mtime|stable|stabiliz(?:e|es|ed|ing)|stop changing)\b/i
+      .test(text) ||
+    /\b(debounce|wait)\b.+\b(imports?|jsonl)\b.+\b(until|before)\b.+\b(file size|mtime|stable|stabiliz(?:e|es|ed|ing)|stop changing|parsing|appends?)\b/i
+      .test(text) ||
+    /\bparsing\b.+\bwhile\b.+\b(claude code|[\w -]+)?\s*appending\b/i
+      .test(text) ||
+    /\b(imports?|jsonl)\b.+\buntil\b.+\bappends?\b.+\bstabiliz(?:e|es|ed|ing)\b/i
+      .test(text);
+  return hasImportDedupeEvidence(text) &&
+    ((hasDedupeFlow && hasRevisionOrWatcherEvidence) || hasPartialWriteFlow);
+}
+
+function hasImportDedupeFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasRepeatedImportConsequence =
+    /\b(repeated events?|repeated jsonl parsing|reparsed|reparse|duplicate inserts?|same conversation|every chokidar event|truncated lines?|drop(?:ped)? (?:the )?(?:latest )?(?:imported )?(?:conversation )?messages?|partial writes?)\b/i
+      .test(text);
+  const hasCausalFlow = /\b(because|so|otherwise|attempted|prevents?|preventing|while|before|until|skipped)\b/i.test(text);
+  return hasImportDedupeEvidence(text) && hasRepeatedImportConsequence && hasCausalFlow;
+}
+
+function hasContentSanitizationEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /<system-reminder>|<command-name>|\b(jsonl|source adapter|adapter|claude code|sanitizecontent|system xml tags?|xml tags?|system-reminder|command-name|system noise|raw jsonl|message content|human-facing notes?|note content|imported conversation messages?)\b/i
+    .test(text);
+}
+
+function hasContentSanitizationMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasSanitizeAction =
+    /\b(sanitize|sanitized|sanitizecontent|strip|stripped|remove|removed|filter|filtered|clean)\b/i
+      .test(text);
+  const hasImportedContentFlow =
+    /\b(pars(?:e|ed|es|ing)|sav(?:e|ed|es|ing)|import(?:ed|ing)?|raw jsonl|message content|conversation messages?|before saving)\b/i
+      .test(text);
+  const hasNoiseOrTagTarget =
+    /<system-reminder>|<command-name>|\b(system xml tags?|xml tags?|system-reminder|command-name|system noise|raw jsonl|message content)\b/i
+      .test(text);
+  return hasContentSanitizationEvidence(text) &&
+    hasSanitizeAction &&
+    (hasImportedContentFlow || hasNoiseOrTagTarget);
+}
+
+function hasContentSanitizationFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasLeakOrPollution =
+    /\b(leak(?:ed|s|ing)?|pollut(?:e|ed|es|ing|ion)|system noise|raw jsonl|become note content|human-facing notes?|note content)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|leak(?:ed|s|ing)? into|does not become|before saving|raw jsonl message content)\b/i
+      .test(text);
+  return hasContentSanitizationEvidence(text) && hasLeakOrPollution && hasCausalFlow;
+}
+
+function hasPersistenceSnapshotEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(sql\.js|chatcrystal\.db|savedatabase|p-queue|db writes?|db mutations?|db snapshots?|database snapshots?|committed rows|in-memory connection|auto-save)\b/i
+    .test(text);
+}
+
+function hasPersistenceSerializationMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasPersistenceFlow =
+    /\b(auto-save|persist|persisted|saveDatabase|snapshots?|db bytes|bytes|committed rows|transaction|stale state|stale snapshots?|stale chatcrystal\.db|overwrite|newer rows)\b/i
+      .test(text);
+  const hasMutationConcurrency =
+    /\b(concurrent|concurrently|same in-memory connection|same sql\.js database|mutat(?:e|ed|es|ing|ion)|later save|overwrite|while)\b/i
+      .test(text);
+  const hasSerialization =
+    /\b(queue|queued|serialize|serialized|p-queue|through one p-queue|after the transaction|route|routed|saveDatabase after)\b/i
+      .test(text);
+  return hasPersistenceSnapshotEvidence(text) &&
+    (
+      (hasSerialization && hasPersistenceFlow) ||
+      (hasPersistenceFlow && hasMutationConcurrency)
+    );
+}
+
+function hasIndexConsistencyEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(vectra|semantic search|note_id|search index|vector index|index entries?|deleted notes?|note rows?|sql\.js rows?)\b/i
+    .test(text);
+}
+
+function hasIndexConsistencyAction(value: string) {
+  const text = value.toLowerCase();
+  const hasAction = /\b(assert|verify|verified|check|test|testing|keep|remove|prune|clean(?:up| up))\b/i
+    .test(text);
+  return hasIndexConsistencyEvidence(text) &&
+    hasAction &&
+    (hasSqlVectorCleanupRelation(text) || hasSqlVectorCommitDivergence(text));
+}
+
+function hasIndexConsistencyMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasIndexReference =
+    /\b(vectra|semantic search|note_id|search index|vector index|index entries?)\b/i
+      .test(text);
+  const hasDeletionOrCleanup =
+    /\b(delet(?:e|ed|es|ing|ion)|remov(?:e|ed|es|ing)|clean(?:up| up)|prun(?:e|ed|es|ing))\b/i
+      .test(text);
+  const hasStaleOrDeletedReference =
+    /\b(stale|orphan|deleted notes?|stale note_id hits?|note_id hits?|return(?:ed|s|ing)? stale|return(?:ed|s|ing)? deleted)\b/i
+      .test(text);
+  const hasRowIndexRelation =
+    /\b(sql\.js rows?|note rows?|rows?)\b.+\b(vectra|semantic search|search index|vector index|index entries?)\b/i
+      .test(text) ||
+    /\b(vectra|semantic search|search index|vector index|index entries?)\b.+\b(sql\.js rows?|note rows?|rows?)\b/i
+      .test(text);
+  return hasIndexConsistencyEvidence(text) &&
+    hasIndexReference &&
+    hasDeletionOrCleanup &&
+    (
+      hasStaleOrDeletedReference ||
+      hasRowIndexRelation ||
+      hasSqlVectorCleanupRelation(text) ||
+      hasSqlVectorCommitDivergence(text)
+    );
+}
+
+function hasIndexConsistencyFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasStaleReference =
+    /\b(stale|orphan|deleted notes?|stale note_id hits?|note_id hits?|return(?:ed|s|ing)? stale|return(?:ed|s|ing)? deleted)\b/i
+      .test(text);
+  const hasCausalDeletion =
+    /\b(because|without|after delet(?:e|ing)|after removing|removed|deletion|delet(?:e|ed|es|ing)|cannot return|leaves?)\b/i
+      .test(text);
+  const hasSameRunCleanupAssertion =
+    hasSqlVectorCleanupRelation(text) &&
+    /\b(same e2e run|one e2e run|same test|together)\b/i.test(text);
+  return hasIndexConsistencyEvidence(text) &&
+    (
+      (hasStaleReference && hasCausalDeletion) ||
+      hasSqlVectorCommitDivergence(text) ||
+      hasSameRunCleanupAssertion
+    );
+}
+
+function hasSqlVectorCleanupRelation(value: string) {
+  const text = value.toLowerCase();
+  const hasSqlStore = /\b(sql|sqlite|sql\.js|database|db|rows?)\b/i.test(text);
+  const hasVectorStore = /\b(vectra|vector|semantic search|search index|index entries?)\b/i.test(text);
+  const hasCleanupOrDeletion = /\b(delet(?:e|ed|es|ing|ion)|remov(?:e|ed|es|ing)|clean(?:up| up)|prun(?:e|ed|es|ing))\b/i
+    .test(text);
+  return hasSqlStore && hasVectorStore && hasCleanupOrDeletion;
+}
+
+function hasSqlVectorCommitDivergence(value: string) {
+  const text = value.toLowerCase();
+  const hasSqlCommit = /\b(sqlite|sql\.js|sql|database|db)\b.+\bcommits?\b/i.test(text);
+  const hasVectorCommit = /\b(vectra|vector)\b.+\bcommits?\b/i.test(text);
+  const hasDivergence = /\bdiverge|diverged|diverges|diverging|out of sync\b/i.test(text);
+  const hasCleanupContext = /\b(clean(?:up| up)|idempotent|delet(?:e|ed|es|ing|ion)|remov(?:e|ed|es|ing))\b/i
+    .test(text);
+  return hasSqlCommit && hasVectorCommit && hasDivergence && hasCleanupContext;
+}
+
+function hasFrontendCacheEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(react query|querykey|query keys?|cache key|cache keys?|redis|i18n|tenant_id|locale|phrase_id|translations?|translation rows?|cached english|zh-cn|deletenote|delete mutation|note delete mutation|tags cache|notes cache|cache entry|active tag filter|tag filters?|request url|filtered rows?|sidebar|tag counts?|filter chips?|stale tag filters?|derived tag counts?)\b/i
+    .test(text);
+}
+
+function hasFrontendCacheInvalidationAction(value: string) {
+  const text = value.toLowerCase();
+  const hasCacheAction = /\b(invalidate|invalidated|refetch|reload|refresh|update)\b/i.test(text);
+  const hasCacheTarget = /\b(cache|querykey|query keys?|cache keys?|react query|redis|i18n|translations?|translation rows?|tags?|notes?|tag counts?)\b/i.test(text);
+  const hasCacheKeyAction =
+    /\b(include|add)\b.+\b(active tag filter|tag filter|filter)\b.+\b(querykey|query key|cache key)\b/i
+      .test(text) ||
+    /\b(querykey|query key|cache key)\b.+\b(include|add|active tag filter|tag filter|filter|separate)\b/i
+      .test(text) ||
+    /\b(include|add|build|compose|derive|set)\b.+\b(tenant_id|locale|phrase_id)\b.+\b(cache key|cache keys?)\b/i
+      .test(text) ||
+    /\b(build|compose|derive|set)\b.+\b(cache key|cache keys?)\b.+\b(tenant_id|locale|phrase_id)\b/i
+      .test(text) ||
+    /\b(cache key|cache keys?)\b.+\b(tenant_id|locale|phrase_id)\b/i
+      .test(text);
+  return hasFrontendCacheEvidence(text) &&
+    ((hasCacheAction && hasCacheTarget) || hasCacheKeyAction);
+}
+
+function hasFrontendCacheInvalidationMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasInvalidationFlow =
+    /\b(invalidate|invalidated|refetch|reload|refresh|update)\b.+\b(cache|query keys?|react query|tags?|notes?|tag counts?)\b/i
+      .test(text) ||
+    /\b(cache|query keys?|react query|tags?|notes?|tag counts?)\b.+\b(invalidate|invalidated|refetch|reload|refresh|update)\b/i
+      .test(text);
+  const hasMutationOrDeleteContext =
+    /\b(after|when|once|succeeds?|delete|deleted|deletenote|delete mutation|mutation|removed sql row|sql row)\b/i
+      .test(text);
+  const hasCacheKeyFlow =
+    /\b(querykey|query key|cache key)\b.+\b(omit(?:s|ted)?|missing|without)\b.+\b(active tag filter|tag filter|filter)\b/i
+      .test(text) ||
+    /\b(active tag filter|tag filter|filter)\b.+\b(omit(?:ted)?|missing)\b.+\b(querykey|query key|cache key)\b/i
+      .test(text) ||
+    /\b(querykey|query key|cache key)\b.+\b(omitted|missing|without|include|included|active tag filter|tag filter|filter|tenant_id|locale|phrase_id)\b.+\b(stale filtered rows?|stale translations?|wrong translations?|cached english|english strings?|zh-cn|request url|separate notes cache entry|cache entry)\b/i
+      .test(text) ||
+    /\b(notes cache|react query cache|cache)\b.+\b(reused|reuse)\b.+\bstale filtered rows?\b/i
+      .test(text) ||
+    /\b(redis|i18n|cache|cache key|cache keys?)\b.+\b(reused|reuse)\b.+\b(cached english|english strings?|stale translations?|wrong translations?|zh-cn)\b/i
+      .test(text) ||
+    /\bcach(?:e|ing)\b.+\btranslations?\b.+\bonly by\b.+\bphrase_id\b.+\b(reused|reuse)\b.+\b(english strings?|cached english|zh-cn)\b/i
+      .test(text) ||
+    /\b(cache key|cache keys?)\b.+\b(used|uses|omit(?:s|ted)?|without)\b.+\bphrase_id\b.+\b(without|no|omit(?:s|ted)?)\b.+\blocale\b/i
+      .test(text) ||
+    /\b(active tag filter|tag filter|filter)\b.+\b(querykey|query key|cache key)\b.+\b(separate notes cache entry|stale filtered rows?|request url)\b/i
+      .test(text);
+  return hasFrontendCacheEvidence(text) &&
+    ((hasInvalidationFlow && hasMutationOrDeleteContext) || hasCacheKeyFlow);
+}
+
+function hasFrontendCacheFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasStaleUi =
+    /\b(stale|kept stale|does not show stale|cannot show stale|stale filtered rows?|stale tag filters?|stale filter chips?|stale tag counts?|stale note tags?|stale translations?|wrong translations?|cached english|english strings?)\b/i
+      .test(text);
+  const hasUiTarget =
+    /\b(sidebar|filter chips?|tag filters?|active tag filter|tag counts?|derived tag counts?|ui|react query|redis|i18n|tenant_id|locale|phrase_id|querykey|query key|cache key|request url|filtered rows?|translations?|translation rows?|tags cache|notes cache|cache entry|zh-cn)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(so|because|after|but|did not invalidate|removed|delete|deletion|leaves?|omitted|missing|without|reused|reuse|used|only by|changed|separate)\b/i
+      .test(text);
+  return hasFrontendCacheEvidence(text) && hasStaleUi && hasUiTarget && hasCausalFlow;
+}
+
+function hasSqliteWalSidecarEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(state\.vscdb(?:-(?:wal|shm))?|workspacestorage|cursor|trae|sql\.js|wal|shm|sidecars?|composer metadata|database rows?|chat rows?|committed wal pages?)\b/i
+    .test(text);
+}
+
+function hasSqliteWalSidecarAction(value: string) {
+  const text = value.toLowerCase();
+  const hasWalAction = /\b(copy|copied|include|open|opening|read|reading)\b/i.test(text);
+  const hasWalTarget =
+    /\b(state\.vscdb|state\.vscdb-wal|state\.vscdb-shm|wal|shm|sidecars?|sql\.js|database)\b/i
+      .test(text);
+  return hasSqliteWalSidecarEvidence(text) && hasWalAction && hasWalTarget;
+}
+
+function hasSqliteWalSidecarMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasCopySidecarFlow =
+    /\bcopy\b.+\bstate\.vscdb\b.+\b(?:state\.vscdb-wal|wal|-wal)\b.+\b(?:state\.vscdb-shm|shm|-shm)\b/i
+      .test(text) ||
+    /\b(?:wal|shm|sidecars?)\b.+\bcopy|copied\b/i.test(text);
+  const hasOpenWithSqlJsFlow =
+    /\b(before|when|so)\b.+\b(open|opening|sql\.js|committed wal pages?)\b/i.test(text) ||
+    /\b(open|opening|sql\.js|committed wal pages?)\b.+\b(before|when|so|sees?)\b/i.test(text);
+  const hasReadOnlyDbFlow =
+    /\b(reading only|read only)\b.+\bstate\.vscdb\b.+\bsql\.js\b/i.test(text) ||
+    /\bstate\.vscdb-wal\b.+\b(recent|composer metadata|committed wal pages?)\b/i.test(text);
+  return hasSqliteWalSidecarEvidence(text) &&
+    (
+      (hasCopySidecarFlow && hasOpenWithSqlJsFlow) ||
+      hasReadOnlyDbFlow
+    );
+}
+
+function hasSqliteWalSidecarFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasMissingOrStaleRows =
+    /\b(stale|missing|not missing|hides?|returned stale|returned missing|missing chat rows?|missing composer metadata|missing rows?)\b/i
+      .test(text);
+  const hasRowTarget =
+    /\b(composer metadata|composer rows?|chat rows?|database rows?|rows?|committed wal pages?|state\.vscdb-wal|wal)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|reading only|only state\.vscdb|before opening|kept recent|returned)\b/i
+      .test(text);
+  const hasDirectWalConsequence =
+    /\b(wal|state\.vscdb-wal|sidecars?)\b.+\b(hides?|stale|missing)\b.+\b(composer metadata|composer rows?|chat rows?|rows?)\b/i
+      .test(text) ||
+    /\b(hides?|stale|missing)\b.+\b(composer metadata|composer rows?|chat rows?|rows?)\b.+\b(wal|state\.vscdb-wal|sidecars?)\b/i
+      .test(text);
+  return hasSqliteWalSidecarEvidence(text) &&
+    hasMissingOrStaleRows &&
+    hasRowTarget &&
+    (hasCausalFlow || hasDirectWalConsequence);
+}
+
+function hasElectronResourceEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(packaged electron|packaged builds?|electron-builder|extraresources|process\.resourcespath|resourcespath|resource path|bundled server code|wasm|sql-wasm\.wasm|sql\.js|enoent|chatcrystal\.db)\b/i
+    .test(text);
+}
+
+function hasElectronResourceAction(value: string) {
+  const text = value.toLowerCase();
+  const hasResourceAction =
+    /\b(add|include|copy|resolve|load|initialize|open)\b/i.test(text);
+  const hasResourceTarget =
+    /\b(sql-wasm\.wasm|wasm|process\.resourcespath|resourcespath|extraresources|resource path|resources?|sql\.js|chatcrystal\.db)\b/i
+      .test(text);
+  return hasElectronResourceEvidence(text) && hasResourceAction && hasResourceTarget;
+}
+
+function hasElectronResourceMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasResourcePathFlow =
+    /\b(add|include|copy|resolve|load)\b.+\b(sql-wasm\.wasm|wasm|process\.resourcespath|resourcespath|extraresources|resource path|resources?|sql\.js)\b/i
+      .test(text) ||
+    /\b(sql-wasm\.wasm|wasm|process\.resourcespath|resourcespath|extraresources|resource path|resources?|sql\.js)\b.+\b(add|include|copy|resolve|load)\b/i
+      .test(text);
+  const hasPackagedResourceFlow =
+    /\b(packaged electron|packaged builds?|electron-builder|bundled server code)\b.+\b(sql-wasm\.wasm|wasm|resource|resourcespath|extraresources|copy|copied|location)\b/i
+      .test(text) ||
+    /\b(sql-wasm\.wasm|wasm|resource|resourcespath|extraresources|copy|copied|location)\b.+\b(packaged electron|packaged builds?|electron-builder|bundled server code)\b/i
+      .test(text);
+  return hasElectronResourceEvidence(text) && (hasResourcePathFlow || hasPackagedResourceFlow);
+}
+
+function hasElectronResourceFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasResourceFailure =
+    /\b(enoent|initialization throws?|throws? enoent|missing resource|not copied|did not copy|cannot open|cannot init|cannot initialize|failed to open|failed to initialize)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|when|but|relative to|before|without|not copied|did not copy)\b/i
+      .test(text);
+  return hasElectronResourceEvidence(text) && hasResourceFailure && hasCausalFlow;
+}
+
+function hasCrossPlatformPathEvidence(value: string) {
+  const text = value.toLowerCase();
+  return /\b(path\.win32|resolvedatadirfortest|data_dir|posix|ubuntu runners?|windows data_dir|windows fixture|windows paths?|c:\/users|c:\\users|repository path|repo path)\b/i
+    .test(text);
+}
+
+function hasCrossPlatformPathAction(value: string) {
+  const text = value.toLowerCase();
+  const hasPathAction = /\b(normalize|compare|comparing|resolve|treat|treated)\b/i.test(text);
+  const hasPathTarget =
+    /\b(path\.win32|resolvedatadirfortest|data_dir|fixture expectations?|windows paths?|posix runners?|path parsing)\b/i
+      .test(text);
+  return hasCrossPlatformPathEvidence(text) && hasPathAction && hasPathTarget;
+}
+
+function hasCrossPlatformPathMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasNormalizationFlow =
+    /\b(normalize|compare|comparing|resolve)\b.+\b(path\.win32|windows data_dir|windows fixture|c:\/users|posix runners?|resolvedatadirfortest)\b/i
+      .test(text) ||
+    /\b(path\.win32|windows data_dir|windows fixture|c:\/users|posix runners?|resolvedatadirfortest)\b.+\b(normalize|compare|comparing|resolve)\b/i
+      .test(text);
+  const hasRelativePathFlow =
+    /\b(posix|ubuntu runners?|node posix path parsing|path parsing)\b.+\b(prepend(?:ed|s)?|relative|treated)\b/i
+      .test(text) ||
+    /\b(windows data_dir|windows fixture|c:\/users|c:\\users)\b.+\b(relative|prepended|repository path|repo path)\b/i
+      .test(text);
+  return hasCrossPlatformPathEvidence(text) && (hasNormalizationFlow || hasRelativePathFlow);
+}
+
+function hasCrossPlatformPathFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasPathFailure =
+    /\b(prepend(?:ed|s)? the (?:repository|repo) path|treated .+ as relative|as relative|relative path|wrong path|wrong directory)\b/i
+      .test(text);
+  const hasCausalFlow = /\b(because|when|so|before|treated|prepended)\b/i.test(text);
+  return hasCrossPlatformPathEvidence(text) && hasPathFailure && hasCausalFlow;
+}
+
+function hasConcreteMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasGenericReleaseValidation = isGenericReleaseValidationClaim(text);
+  const hasTimingOrder =
+    !hasGenericReleaseValidation &&
+    (
+      /\b(before|after|until|when)\b.+\b(import|importing|issue|issuing|request|requests|setup|ready|readiness|server|startup|data_dir|entrypoint|metadata|dist|compare|comparing)\b/i
+      .test(text) ||
+      /\b(import|importing|issue|issuing|request|requests|setup|ready|readiness|server|startup|data_dir|entrypoint|metadata|dist|compare|comparing)\b.+\b(before|after|until|when)\b/i
+        .test(text)
+    );
+  const hasRaceReadiness =
+    /\b(race|raced|readiness|startup|econrefused)\b.+\b(request|requests|ready|server|client calls?|fastify)\b/i
+      .test(text) ||
+    /\b(request|requests|ready|server|client calls?|fastify)\b.+\b(race|raced|readiness|startup|econrefused)\b/i
+      .test(text);
+  const hasPackageDistFlow =
+    /\b(parse|parsing|normalize|normalizing|compare|comparing)\b.+\b(package metadata|package version|generated dist|dist output)\b/i
+      .test(text) ||
+    /\b(package metadata|package version|generated dist|dist output)\b.+\b(diverged|diverge|parse|parsing|normalize|normalizing|compare|comparing)\b/i
+      .test(text);
+  const hasDataDirFallback = hasDefaultDataDirectoryConsequence(text);
+  const hasRelationalCleanup =
+    /\b(foreign_keys|orphan rows|cascade|nulling|resets foreign_keys)\b/i.test(text);
+  const hasDedupeKey =
+    /\b(dedupe|deduplicate)\b.+\b(source_run_key|key)\b/i.test(text);
+  const hasRequestFailureOrdering =
+    hasHttpFailureSignal(text) &&
+    (
+      /\b(ran after|after request setup|before issuing|before request setup|registration ran after)\b/i.test(text) ||
+      hasTimingOrder
+    );
+  const hasParserFieldValidation =
+    /\b(typeerror|parser|parsing|jsonl|response_item\.content|partial events?|partial codex events?|event shape|parser fields)\b.+\b(before|after|without content|validat(?:e|ing)|read(?:ing)?|skips?)\b/i
+      .test(text) ||
+    /\b(before|after|without content|validat(?:e|ing)|read(?:ing)?|skips?)\b.+\b(typeerror|parser|parsing|jsonl|response_item\.content|partial events?|partial codex events?|event shape|parser fields)\b/i
+      .test(text);
+  const hasRetryBackoffFlow =
+    /\b(retry|retried|retries|queue|queued|provider requests?)\b.+\b(rate[- ]limit|http 429|429|retry-after|backoff|delay|resuming batch summarization)\b/i
+      .test(text) ||
+    /\b(rate[- ]limit|http 429|429|retry-after|backoff|delay)\b.+\b(retry|retried|retries|queue|queued|provider requests?)\b/i
+      .test(text);
+  const hasSchemaDefaultArrayFlow = hasSchemaDefaultArrayMechanism(text);
+  const hasSchemaBoundaryFlow = hasSchemaBoundaryMechanism(text);
+  const hasJsonParsingFlow = hasJsonParsingMechanism(text);
+  const hasProviderBaseUrlFlow = hasProviderBaseUrlMechanism(text);
+  const hasEmbeddingModelConfigFlow = hasEmbeddingModelConfigMechanism(text);
+  const hasEsmImportExtensionFlow = hasEsmImportExtensionMechanism(text);
+  const hasImportContentArrayFlow = hasImportContentArrayMechanism(text);
+  const hasSignatureRawBodyFlow = hasSignatureRawBodyMechanism(text);
+  const hasAdvisoryLockTransactionFlow = hasAdvisoryLockTransactionMechanism(text);
+  const hasOffsetCommitAfterProcessingFlow = hasOffsetCommitAfterProcessingMechanism(text);
+  const hasDurableEngineeringFlow = hasDurableEngineeringMechanism(text);
+  const hasImportDedupeFlow = hasImportDedupeMechanism(text);
+  const hasContentSanitizationFlow = hasContentSanitizationMechanism(text);
+  const hasPersistenceSerializationFlow = hasPersistenceSerializationMechanism(text);
+  const hasDbTransactionAtomicityFlow = hasDbTransactionAtomicityMechanism(text);
+  const hasSqlParameterizationFlow = hasSqlParameterizationMechanism(text);
+  const hasStrictStructuralEngineeringFlow = hasStrictStructuralEngineeringMechanism(text);
+  const hasIndexConsistencyFlow = hasIndexConsistencyMechanism(text);
+  const hasElectronResourceFlow = hasElectronResourceMechanism(text);
+  const hasCrossPlatformPathFlow = hasCrossPlatformPathMechanism(text);
+  const hasFrontendCacheFlow = hasFrontendCacheInvalidationMechanism(text);
+  const hasSqliteWalSidecarFlow = hasSqliteWalSidecarMechanism(text);
+  return (
+    hasChineseRouteOrderingSignal(text) ||
+    hasTimingOrder ||
+    hasRaceReadiness ||
+    hasPackageDistFlow ||
+    hasDataDirFallback ||
+    hasRelationalCleanup ||
+    hasDedupeKey ||
+    hasRequestFailureOrdering ||
+    hasParserFieldValidation ||
+    hasRetryBackoffFlow ||
+    hasSchemaDefaultArrayFlow ||
+    hasSchemaBoundaryFlow ||
+    hasJsonParsingFlow ||
+    hasProviderBaseUrlFlow ||
+    hasEmbeddingModelConfigFlow ||
+    hasEsmImportExtensionFlow ||
+    hasImportContentArrayFlow ||
+    hasSignatureRawBodyFlow ||
+    hasAdvisoryLockTransactionFlow ||
+    hasOffsetCommitAfterProcessingFlow ||
+    hasDurableEngineeringFlow ||
+    hasImportDedupeFlow ||
+    hasContentSanitizationFlow ||
+    hasPersistenceSerializationFlow ||
+    hasDbTransactionAtomicityFlow ||
+    hasSqlParameterizationFlow ||
+    hasStrictStructuralEngineeringFlow ||
+    hasIndexConsistencyFlow ||
+    hasElectronResourceFlow ||
+    hasCrossPlatformPathFlow ||
+    hasFrontendCacheFlow ||
+    hasSqliteWalSidecarFlow
+  );
+}
+
+function hasConcreteTransferableText(value: string) {
+  if (hasPackageDistRootCauseShape(value) && !hasPackageItemSignal(value)) return false;
+  const hasConcreteConsequence =
+    hasFailureOrConsequenceSignal(value) ||
+    (hasPackageDistRootCauseShape(value) && hasPackageDistRootCauseSignal(value));
+  return (
+    hasNonPlaceholderMeaningfulText(value) &&
+    hasConcreteTransferableAction(value) &&
+    hasSpecificEvidence(value) &&
+    hasConcreteMechanism(value) &&
+    hasConcreteConsequence &&
+    !isExistenceOnlyClaim(value) &&
+    !isFirstPersonDiaryClaim(value) &&
+    !isVisibleWorkLogClaim(value) &&
+    !isLowValueOutcomeStatusClaim(value) &&
+    !isVisibleStatusSnapshotText(value) &&
+    !isGenericReleaseValidationClaim(value) &&
+    !isGenericStatusAction(value) &&
+    !isVagueGenericLesson(value)
+  );
+}
+
+function isFirstPersonDiaryClaim(value: string) {
+  if (hasChineseFirstPersonDiaryClaim(value)) return true;
+  const diaryVerbs = Array.from(new Set([
+    ...concreteActionWords.filter((word) => !/[\u3400-\u9fff]/.test(word)),
+    'added',
+    'adds',
+    'changed',
+    'checked',
+    'confirmed',
+    'configured',
+    'configures',
+    'diagnosed',
+    'discovered',
+    'ensure',
+    'ensured',
+    'ensures',
+    'fixed',
+    'found',
+    'gates',
+    'implemented',
+    'imported',
+    'caused',
+    'let',
+    'loaded',
+    'made',
+    'moved',
+    'normalized',
+    'parsed',
+    'pruned',
+    'reviewed',
+    'resolved',
+    'sanitized',
+    'stripped',
+    'switched',
+    'tested',
+    'updated',
+    'use',
+    'used',
+    'uses',
+    'sets',
+    'verified',
+  ]))
+    .map(regexEscape)
+    .join('|');
+  return new RegExp(
+    `(?:^|[:.!?,;]\\s*|\\b(?:and|then|but|so)\\s+)\\b(?:i|we)\\s+(?:(?:now|then|just|already|currently|also|finally)\\s+)?(?:${diaryVerbs})\\b`,
+    'i',
+  )
+    .test(value) ||
+    new RegExp(
+      `(?:^|[:.!?,;]\\s*)\\bmy\\s+(?:fix|change|implementation)\\s+(?:${diaryVerbs})\\b`,
+      'i',
+    )
+      .test(value);
+}
+
+function hasChineseFirstPersonDiaryClaim(value: string) {
+  const chineseAction = '(?:添加|修复|设置|配置|注册|等待|发现|验证|检查|确认|诊断|切换|更新|实现|改动|修改|处理|解决|去掉|剥离|规范化|清理|解析|移除|删除|过滤|截断|剪枝)';
+  const englishAction = Array.from(new Set([
+    ...concreteActionWords.filter((word) => !/[\u3400-\u9fff]/.test(word)),
+    'added',
+    'configured',
+    'fixed',
+    'imported',
+    'importing',
+    'placed',
+    'registered',
+    'switched',
+    'updated',
+    'validated',
+    'verified',
+  ]))
+    .map(regexEscape)
+    .join('|');
+  const subjectElidedAction =
+    `(?:已经|已)(?:${chineseAction}|(?:把|将|在|为).{0,80}(?:${chineseAction}|\\b(?:${englishAction})\\b))`;
+  const causativeAction =
+    `(?:我|我们)(?:已经|已)?(?:让|使).{0,80}(?:${chineseAction}|\\b(?:${englishAction})\\b)`;
+  return new RegExp(`(?:我|我们)(?:已经|已)?${chineseAction}|(?:我|我们)(?:已经|已)?(?:把|将).{0,80}(?:${chineseAction}|\\b(?:${englishAction})\\b)|${subjectElidedAction}|${causativeAction}`, 'i')
+    .test(value);
+}
+
+function hasPackageItemSignal(value: string) {
+  const text = value.toLowerCase();
+  if (/\b(current|local|status checks?|checked)\b/i.test(text)) return false;
+  return hasPackageDistRootCauseSignal(text);
+}
+
+function hasFailureOrConsequenceSignal(value: string) {
+  return (
+    /\b(race|raced|orphan|dedupe|deduplicate|stale dist|dist diverge|dist diverged|diverge|diverged|econrefused|typeerror|threw|throws?|readiness issue|startup race|invalid note_tags|foreign_keys|cascade|nulling|source_run_key collision)\b/i
+      .test(value) ||
+    hasSchemaArrayFailureSignal(value) ||
+    hasSchemaBoundaryFailureSignal(value) ||
+    hasJsonParsingFailureSignal(value) ||
+    hasProviderBaseUrlFailureSignal(value) ||
+    hasEmbeddingModelConfigFailureSignal(value) ||
+    hasEsmImportExtensionFailureSignal(value) ||
+    hasImportContentArrayFailureSignal(value) ||
+    hasSignatureRawBodyFailureSignal(value) ||
+    hasAdvisoryLockTransactionFailureSignal(value) ||
+    hasOffsetCommitAfterProcessingFailureSignal(value) ||
+    hasDurableEngineeringFailureSignal(value) ||
+    hasImportDedupeFailureSignal(value) ||
+    hasContentSanitizationFailureSignal(value) ||
+    hasPersistenceSnapshotFailureSignal(value) ||
+    hasDbTransactionAtomicityFailureSignal(value) ||
+    hasSqlParameterizationFailureSignal(value) ||
+    hasStrictStructuralEngineeringFailureSignal(value) ||
+    hasIndexConsistencyFailureSignal(value) ||
+    hasElectronResourceFailureSignal(value) ||
+    hasCrossPlatformPathFailureSignal(value) ||
+    hasFrontendCacheFailureSignal(value) ||
+    hasSqliteWalSidecarFailureSignal(value) ||
+    hasDefaultDataDirectoryConsequence(value) ||
+    hasHttpFailureSignal(value)
+  );
+}
+
+function hasSchemaArrayFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasArrayFailure =
+    /\b(undefined|throws?|throw|omitted arrays?|omitted items?|optional arrays?)\b/i.test(text) ||
+    /\.optional\(\)/i.test(text);
+  const hasIterationOrHandler =
+    /\b(iterat(?:e|ed|es|ing|ion)|handler|handler logic)\b/i.test(text);
+  return hasSchemaArrayEvidence(text) && hasArrayFailure && hasIterationOrHandler;
+}
+
+function hasSchemaBoundaryFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasValidationFailure =
+    /\b(http\s*400|returned\s+400|rejects?|rejected|validation failure|before handler logic|before handler logic runs?)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|before|while|expected|expects?|supplied|supply|carry|convert|converts?)\b/i
+      .test(text);
+  return hasSchemaBoundaryEvidence(text) && hasValidationFailure && hasCausalFlow;
+}
+
+function hasPersistenceSnapshotFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasSnapshotFailure =
+    /\b(stale|overwrite|newer rows|committed rows|persist stale|stale state|stale snapshots?|snapshot mismatch|snapshots? match)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|while|so|concurrent|concurrently|same in-memory connection|mutat(?:e|ed|es|ing|ion)|auto-save|later save|overwrite|transaction)\b/i
+      .test(text);
+  return hasPersistenceSnapshotEvidence(text) && hasSnapshotFailure && hasCausalFlow;
+}
+
+function hasDbTransactionAtomicityEvidence(value: string) {
+  const text = value.toLowerCase();
+  const hasDbImportContext = /\b(sql\.js|database|db|import|imports?|conversation imports?)\b/i
+    .test(text);
+  const hasAtomicityTarget =
+    /\b(conversation rows?|message rows?|conversation row|conversation|message insert|message inserts?|message insert throws?|thrown message insert|conversation inserts?|transaction|rollback|roll back|partial conversation rows?|partial rows?|incomplete conversations?)\b/i
+      .test(text);
+  return hasDbImportContext && hasAtomicityTarget;
+}
+
+function hasDbTransactionAtomicityAction(value: string) {
+  const text = value.toLowerCase();
+  const hasTransactionAction =
+    /\b(wrap|begin|commit|rollback|roll back|use)\b/i.test(text);
+  const hasRelatedInsertTarget =
+    /\b(transaction|conversation and message inserts?|conversation rows?|message rows?|message inserts?|failed imports?|whole conversation|incomplete conversations?)\b/i
+      .test(text);
+  return hasDbTransactionAtomicityEvidence(text) && hasTransactionAction && hasRelatedInsertTarget;
+}
+
+function hasDbTransactionAtomicityMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasTransactionWrapFlow =
+    /\b(wrap|begin|use)\b.+\b(conversation|message|insert|imports?)\b.+\btransaction\b/i
+      .test(text) ||
+    /\btransaction\b.+\b(conversation|message|insert|imports?)\b/i
+      .test(text);
+  const hasRollbackFlow =
+    /\b(failed imports?|failed message insert|thrown message insert|message insert throws?|any message insert throws?|failure)\b.+\b(rollback|roll back|partial|whole conversation|incomplete conversations?)\b/i
+      .test(text) ||
+    /\b(rollback|roll back)\b.+\b(failed imports?|failed message insert|message insert throws?|any message insert throws?|whole conversation)\b/i
+      .test(text);
+  const hasPartialInsertFlow =
+    /\binserted\b.+\bconversation row\b.+\bbefore\b.+\bmessage rows?\b/i
+      .test(text) ||
+    /\b(thrown|failed) message insert\b.+\bleft\b.+\b(partial conversation rows?|incomplete conversations?)\b/i
+      .test(text) ||
+    /\bwrote\b.+\bconversation\b.+\bbefore\b.+\bmessages\b/i
+      .test(text);
+  const hasPreventionSummaryFlow =
+    /\btransaction\b.+\b(prevents?|avoids?)\b.+\b(partial conversation rows?|partial rows?|incomplete conversations?)\b/i
+      .test(text);
+  return hasDbTransactionAtomicityEvidence(text) &&
+    ((hasTransactionWrapFlow && hasRollbackFlow) || hasPartialInsertFlow || hasPreventionSummaryFlow);
+}
+
+function hasDbTransactionAtomicityFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasPartialImportConsequence =
+    /\b(partial conversation rows?|partial rows?|failed message insert left|thrown message insert left|incomplete conversations?|incomplete import|inconsistent data)\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|failed|left|prevents?|rolls? back|rollback|roll back|before)\b/i
+      .test(text);
+  return hasDbTransactionAtomicityEvidence(text) && hasPartialImportConsequence && hasCausalFlow;
+}
+
+function hasSqlParameterizationEvidence(value: string) {
+  const text = value.toLowerCase();
+  const hasQueryContext =
+    /\b(sql|sql\.js|where clauses?|queries?|query|lookups?|lookup)\b/i.test(text);
+  const hasParameterOrTagContext =
+    /\b(sql parameters?|parameters?|parameterized|parameterised|tag names?|tag values?|tag filters?|tag payload|user-controlled tag text|tags?|interpolated tag strings?|interpolated tag text)\b/i
+      .test(text);
+  const hasInterpolationBoundary =
+    /\b(quotes?|quote breakage|sql syntax|executable sql|where clauses?|interpolat(?:e|ed|ing)|bind(?:ing)?|parameteriz(?:e|ed|ing)|parameteris(?:e|ed|ing))\b/i
+      .test(text);
+  const hasChineseQueryContext =
+    /(?:sql|sql\.js|where\s*子句|查询)/i.test(text);
+  const hasChineseParameterOrTagContext =
+    /(?:参数化查询|sql\.js\s*参数|参数|tag\s*值|tag\s*文本|标签文本|用户控制的标签文本|标签)/i
+      .test(text);
+  const hasChineseInterpolationBoundary =
+    /(?:引号|sql\s*语法|语法注入|可执行\s*sql|where\s*子句|插入|绑定|参数化)/i
+      .test(text);
+  return (hasQueryContext && hasParameterOrTagContext && hasInterpolationBoundary) ||
+    (hasChineseQueryContext && hasChineseParameterOrTagContext && hasChineseInterpolationBoundary);
+}
+
+function hasSqlParameterizationAction(value: string) {
+  const text = value.toLowerCase();
+  return hasSqlParameterizationEvidence(text) &&
+    (
+      /\b(bind|binding|parameteriz(?:e|es|ed|ing)|parameteris(?:e|es|ed|ing))\b.+\b(tag names?|tags?|sql parameters?|parameters?|queries?|lookups?)\b/i
+        .test(text) ||
+      /\b(bind|binding)\b.+\b(tag values?|tag filters?|tag payload|tag text)\b.+\b(sql\.js\s+)?parameters?\b/i
+        .test(text) ||
+      /\b(use)\b.+\b(parameterized queries?|parameterised queries?|sql parameters?)\b/i
+        .test(text) ||
+      /(?:绑定|使用).{0,40}(?:sql\.js\s*)?参数/i
+        .test(text) ||
+      /参数化查询.{0,24}绑定.{0,24}(?:tag|标签)/i
+        .test(text)
+    );
+}
+
+function hasSqlParameterizationMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasInterpolationFailure =
+    /\btag names?\b.+\bquotes?\b.+\bbroke\b.+\b(sql lookup queries?|lookup queries?|queries?)\b/i
+      .test(text) ||
+    /\binterpolat(?:e|ed|ing)\b.+\b(tag text|tag strings?|tag names?|strings?|text)\b.+\b(where clauses?|sql syntax|queries?|lookups?|quotes?)\b/i
+      .test(text) ||
+    /\b(where clauses?)\b.+\binterpolat(?:e|ed|ing)\b.+\b(tag text|tag strings?|tag names?)\b/i
+      .test(text) ||
+    /\binterpolat(?:e|ed|ing)\b.+\buser-controlled tag names?\b.+\b(?:sql\s+)?where clauses?\b/i
+      .test(text) ||
+    /\binterpolat(?:e|ed|ing)\b.+\btag text\b.+\bcrafted tag payloads?\b.+\bchang(?:e|ed|es|ing)\b.+\b(?:sql\s+)?where clause syntax\b/i
+      .test(text) ||
+    /\bquotes?\b.+\btag\b.+\b(?:alter(?:ed|s|ing)|chang(?:ed|es|ing))\b.+\bsql syntax\b/i
+      .test(text) ||
+    /(?:标签查询|tag\s*文本|标签文本|用户控制的.{0,12}标签).{0,40}(?:插入|插值|拼接).{0,30}where\s*子句/i
+      .test(text) ||
+    /(?:引号|带引号的标签).{0,20}(?:改变|造成).{0,20}sql\s*语法/i
+      .test(text) ||
+    /(?:引号|带引号的标签).{0,20}(?:改变|造成).{0,20}where\s*子句语法/i
+      .test(text) ||
+    /sql\s*语法注入/i
+      .test(text);
+  const hasParameterizationFix =
+    /\bbind\b.+\btag names?\b.+\b(sql\.js\s+)?parameters?\b.+\bquotes?\b.+\bdata\b.+\binstead of sql syntax\b/i
+      .test(text) ||
+    /\bbind\b.+\btag values?\b.+\b(sql\.js\s+)?parameters?\b.+\binstead of\b.+\binterpolat(?:e|ing)\b.+\btag text\b.+\bwhere clauses?\b/i
+      .test(text) ||
+    /\bsql parameters?\b.+\btag filters?\b.+\buser-controlled tag text\b.+\bstays?\b.+\bdata\b.+\binstead of executable sql\b/i
+      .test(text) ||
+    /\bparameterized queries?\b.+\btag lookups?\b.+\buser-controlled tag text\b.+\bstays?\b.+\bdata\b.+\binstead of executable sql\b/i
+      .test(text) ||
+    /\bquotes?\b.+\bstay\b.+\bdata\b.+\binstead of sql syntax\b/i
+      .test(text) ||
+    /\bquotes?\b.+\bstay\b.+\bdata\b.+\binstead of\b.+\balter(?:ing)?\b.+\bwhere clause syntax\b/i
+      .test(text) ||
+    /\bbind\b.+\btag names?\b.+\bsql parameters?\b.+\binstead of\b.+\binterpolat(?:e|ing)\b.+\bwhere clauses?\b/i
+      .test(text) ||
+    /(?:绑定|参数化查询).{0,40}(?:tag|标签|用户控制的标签文本).{0,40}(?:数据|可执行\s*sql|where\s*子句|sql\s*语法)/i
+      .test(text) ||
+    /(?:tag\s*文本|标签文本|用户控制的标签文本).{0,40}绑定.{0,30}(?:sql\.js\s*)?参数/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|before|prevent|prevents|broke|breakage|instead of|interpolat(?:e|ed|ing)|bind|where clauses?|sql syntax)\b/i
+      .test(text) ||
+    /(?:避免|防止|改变|插入|绑定|而不是|作为数据|造成)/i.test(text);
+  return hasSqlParameterizationEvidence(text) &&
+    hasCausalFlow &&
+    (hasInterpolationFailure || hasParameterizationFix);
+}
+
+function hasSqlParameterizationFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasQueryBreakage =
+    /\bquote breakage\b/i.test(text) ||
+    /\bquotes?\b.+\b(broke|breaks?|breakage|broken)\b.+\b(sql lookup queries?|lookup queries?|queries?|lookups?)\b/i
+      .test(text) ||
+    /\b(broke|breaks?|breakage|broken)\b.+\b(sql lookup queries?|lookup queries?|queries?|lookups?)\b/i
+      .test(text) ||
+    /\bsql syntax\b.+\b(quotes?|tag text|tag strings?|tag names?)\b/i
+      .test(text) ||
+    /\bsql syntax injection\b/i
+      .test(text) ||
+    /\bquotes?\b.+\btag\b.+\b(?:alter(?:ed|s|ing)|chang(?:ed|es|ing))\b.+\bsql syntax\b/i
+      .test(text) ||
+    /\bcrafted tag payloads?\b.+\bchang(?:e|ed|es|ing)\b.+\b(?:sql\s+)?where clause syntax\b/i
+      .test(text) ||
+    /\balter(?:ed|s|ing)\b.+\bwhere clause syntax\b/i
+      .test(text) ||
+    /(?:sql\s*语法注入|引号.{0,20}(?:改变|造成).{0,20}(?:sql\s*语法|where\s*子句语法)|可执行\s*sql)/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|before|prevent|prevents|broke|breakage|instead of|interpolat(?:e|ed|ing)|where clauses?|sql syntax)\b/i
+      .test(text) ||
+    /(?:避免|防止|改变|插入|造成|而不是|作为数据)/i.test(text);
+  return hasSqlParameterizationEvidence(text) && hasQueryBreakage && hasCausalFlow;
+}
+
+function hasGeneralUniqueConstraintEvidence(value: string) {
+  const text = value.toLowerCase();
+  const hasUniqueConstraint =
+    /\bunique\s*\([^)]*,[^)]*\)|\bunique (?:key|constraint)\b/i.test(text);
+  const hasUniquePairDescriptor = /\bunique\b.+\bpairs?\b/i.test(text);
+  const hasNamedDbPair =
+    /\b[a-z0-9]+_[a-z0-9_]+\b|\b[a-z_]+_id\b.+\b[a-z_]+_id\b|\bnote-[a-z]+\s+pairs?\b/i
+      .test(text);
+  const hasDbContext =
+    /\b(table|rows?|constraint|pairs?|tags?|chips?|database|db|sqlite|sql\.js)\b/i
+      .test(text);
+  return (hasUniqueConstraint || hasUniquePairDescriptor) && hasNamedDbPair && hasDbContext;
+}
+
+function hasGeneralUniqueConstraintAction(value: string) {
+  const text = value.toLowerCase();
+  return hasGeneralUniqueConstraintEvidence(text) &&
+    (
+      /\b(add|create)\b.+\b(unique\s*\([^)]*\)|unique key|unique constraint|constraint)\b/i
+        .test(text) ||
+      /\breuse\b.+\bexisting\b.+\b[a-z0-9_]+ row\b/i.test(text)
+    );
+}
+
+function hasGeneralUniqueConstraintMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasUniquePrevention =
+    /\bunique\s*\([^)]*,[^)]*\).+\b(?:duplicate|repeated|reuse|existing|pairs?|chips?|rows?)\b/i
+      .test(text);
+  const hasDuplicatePairFlow =
+    /\b(?:allowed|allows?|without|no|missing|lacked|lacks)\b.+\bduplicate\b.+\b[a-z_]+_id\b.+\b(?:[a-z_]+_id\b|pairs?)\b/i
+      .test(text) ||
+    /\bduplicate\b.+\b[a-z_]+_id\b.+\b(?:[a-z_]+_id\b|pairs?)\b.+\b(?:chips?|rows?|notes?)\b/i
+      .test(text);
+  const hasReuseExistingRow =
+    /\breuse\b.+\bexisting\b.+\b[a-z0-9_]+ row\b.+\b(?:tag|duplicate|attached)\b/i
+      .test(text);
+  return hasUniquePrevention || hasDuplicatePairFlow || (hasGeneralUniqueConstraintEvidence(text) && hasReuseExistingRow);
+}
+
+function hasGeneralUniqueConstraintFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasDuplicateConsequence =
+    /\bduplicate (?:tag chips?|rows?|notes?|pairs?)\b/i.test(text) ||
+    /\bduplicate\b.+\bfor one\b/i.test(text);
+  const hasCausalFlow =
+    /\b(so|because|cannot create|could show|allowed|allows?|reuse|existing|repeated)\b/i
+      .test(text);
+  return hasDuplicateConsequence && hasCausalFlow;
+}
+
+function hasStrictStructuralEngineeringEvidence(value: string) {
+  const text = value.toLowerCase();
+  const hasConcreteToken =
+    /\b[a-z0-9]+_[a-z0-9_]+\b|\b[a-z][a-z0-9_]*\.[a-z_][a-z0-9_]*\b|\/api\/[\w/-]+/i
+      .test(text);
+  const hasNamedDbObject =
+    /\b(unique\s*\([^)]*\)|writeback receipts?|writeback_receipts|receipt rows?|source_agent|source_run_key|write_task_memory)\b/i
+      .test(text) ||
+    hasGeneralUniqueConstraintEvidence(text) ||
+    /\b(unique key|unique constraint)\b.+\b(writeback|receipt|source_agent|source_run_key)\b/i
+      .test(text) ||
+    /\b(writeback|receipt|source_agent|source_run_key)\b.+\b(unique key|unique constraint)\b/i
+      .test(text);
+  const hasNamedAsyncObject =
+    /\b(abortcontroller|activerequestid|setresults|react search|search view|\/api\/search|search request sequence|stale search requests?|stale responses?|stale results?|previous responses?|current query results?|current results|overlapping requests?|overlapping \/api\/search requests?)\b/i
+      .test(text);
+  const hasNamedRelationObject =
+    /\b(note_ids?|note_tags|tag counts?|filter chips?|webui|deletenotewithreview|note deletion|orphan tags?|unused tags?|joins? whose note_id|existing notes?)\b/i
+      .test(text);
+  const hasNamedTransportObject =
+    /\b(mcp|json-rpc|json rpc|stdio|stdout|stderr|process\.stdout|process\.stderr|response frames?|response transport|stdio stream)\b/i
+      .test(text);
+  const hasNamedLifecycleObject =
+    /\b(db initialization|database initialization|sql\.js initialization|sql\.js finished initialization|finished initialization|accepting import requests?|accepting \/api\/[\w/-]+ requests?|route handled requests?)\b/i
+      .test(text);
+  const hasNamedListenerObject =
+    /\b(websocket|web socket|message listener|event listener|useeffect cleanup|useeffect|remounts?|unmount|socket\.addeventlistener|socket\.removeeventlistener|addeventlistener|removeeventlistener)\b/i
+      .test(text);
+  const hasNamedProcessLifecycleObject =
+    /\b(child_process|child process|daemon pid|pid|crystal serve -d|crystal status|spawn handshake|spawn|exit code\s*\d+|nonzero exit codes?|non-zero exit codes?|dead server|running server|false serve success)\b/i
+      .test(text) ||
+    /\bdaemon\b.+\bexit code\b|\bexit code\b.+\bdaemon\b/i
+      .test(text);
+  const hasNamedProxyRoutingObject =
+    /\b(vite dev proxy|vite proxy|dev proxy|proxy path rewrite|proxy rewrite|proxy rewrote|registered fastify route|registered route|fastify)\b/i
+      .test(text) &&
+    /\b(\/api\/[\w/-]+|\/search|proxy|route|fastify|http\s*404)\b/i
+      .test(text);
+  const hasNamedSpaFallbackObject =
+    /\b(spa fallback|fallback handler|index\.html|json|api route|clients?|registered after the fallback handler)\b/i
+      .test(text) &&
+    /\b(\/api\/[\w/-]+|api route|requests?|route|fallback handler)\b/i
+      .test(text);
+  const hasNamedQueueDedupeObject =
+    /\b(summarize(?: --all)?|queue jobs?|conversation jobs?|conversation_id|enqueue(?:d|ing)?|retries|duplicate notes?|duplicate conversation jobs?)\b/i
+      .test(text) &&
+    /\b(duplicate|deduplicate|dedupe|retries|enqueue|enqueued|enqueueing|queue jobs?|conversation jobs?|conversation_id)\b/i
+      .test(text) &&
+    /\b(summarize|queue jobs?|conversation jobs?|conversation_id)\b/i
+      .test(text);
+  const hasNamedMigrationObject =
+    /\b(sqlite|chatcrystal\.db|migration|migrations?|not null|default|existing rows?|existing \w+ rows?|notes column|column nullable|backfill|constraint)\b/i
+      .test(text) &&
+    /\b(migration|migrations?|not null|backfill|chatcrystal\.db|constraint)\b/i
+      .test(text);
+  const hasNamedEventOrderObject =
+    /\b(jsonl|events?|event order|file-order parsing|timestamp|transcript|out-of-order writes?|user and assistant turns?|conversation (?:order|sequence))\b/i
+      .test(text) &&
+    /\b(jsonl|event order|timestamp|transcript|file-order|conversation|turns?)\b/i
+      .test(text);
+  const hasEngineeringContext =
+    /\b(sqlite|sql\.js|table|rows?|index|indexed lookup|lookup|lookups?|query|queries|filtered|filtering|request timeouts?|timed out|large imports?|messages?|note detail|cache|schema|parser|jsonl|event order|file-order parsing|out-of-order|timestamp|transcript|conversation sequence|user and assistant turns?|constraint|unique|duplicate|receipt|receipts|writeback|search|frontend|react|requests?|responses?|initialization|initialized|route|mcp|json-rpc|stdio|stdout|stderr|framing|transport|logs?|diagnostics?|tags?|joins?|deletion|cleanup|filter chips?|webui|websocket|listeners?|useeffect|remounts?|unmount|child_process|child process|daemon|pid|spawn|exit code|serve|status|dead server|migration|not null|default|backfill|column|startup|vite|proxy|fastify|rewrite|registered route|spa fallback|fallback handler|index\.html|conversation_id|queue jobs?|enqueue|enqueueing|summarize|activerequestid|setresults)\b/i
+      .test(text) ||
+    /(?:语义搜索|响应|查询结果|旧响应|旧的.*响应|覆盖.*结果)/i.test(text);
+  return (
+    hasConcreteToken ||
+    hasNamedDbObject ||
+    hasNamedAsyncObject ||
+    hasNamedRelationObject ||
+    hasNamedTransportObject ||
+    hasNamedLifecycleObject ||
+    hasNamedListenerObject ||
+    hasNamedProcessLifecycleObject ||
+    hasNamedProxyRoutingObject ||
+    hasNamedSpaFallbackObject ||
+    hasNamedQueueDedupeObject ||
+    hasNamedMigrationObject ||
+    hasNamedEventOrderObject
+  ) && hasEngineeringContext;
+}
+
+function hasStrictStructuralEngineeringAction(value: string) {
+  const text = value.toLowerCase();
+  const hasAction =
+    /\b(add|create|remove|wrap|validate|normalize|configure|set|index|return|reuse|cancel|use|wait|send|reserve|filter|prune|clean up|cleanup|register|deduplicate|dedupe|enqueue|enqueueing|ensure)\b/i
+      .test(text);
+  const hasConcreteDbAction =
+    /\b(add|create)\b.+\b(unique\s*\([^)]*\)|unique key|unique constraint|constraint|index|idx_[a-z0-9_]+)\b/i
+      .test(text) ||
+    /\b(return|reuse)\b.+\b(existing receipt row|first note|existing row)\b/i
+      .test(text) ||
+    hasGeneralUniqueConstraintAction(text);
+  const hasConcreteAsyncAction =
+    /\b(use\b.+\babortcontroller|abortcontroller\b.+\bcancel|cancel(?: older| previous| prior)?\b.+\b(?:\/api\/search|requests?|responses?))\b/i
+      .test(text) ||
+    /\bensure\b.+\bactiverequestid\b.+\bmatches\b.+\bbefore\b.+\bsetresults\b/i
+      .test(text) ||
+    /\b(gate)\b.+\b(result updates?|responses?|requests?|setresults)\b.+\b(active|activerequestid|latest|request id|query)\b/i
+      .test(text) ||
+    /\b(ignore)\b.+\b(responses?)\b.+\b(not from the latest query|older|previous|stale|latest query)\b/i
+      .test(text);
+  const hasConcreteQueueDedupeAction =
+    /\b(deduplicate|dedupe)\b.+\bqueue jobs?\b.+\bconversation_id\b/i
+      .test(text) ||
+    /\b(reuse|reuses?)\b.+\bpending job\b.+\bduplicate notes?\b/i
+      .test(text);
+  const hasConcreteRelationAction =
+    /\b(filter|filtered)\b.+\b(tag counts?|tags?)\b.+\b(existing notes?|existing note_ids?|note_ids?)\b/i
+      .test(text) ||
+    /\b(prune|remove|clean up|cleanup)\b.+\b(orphan note_tags rows?|orphan tags?|unused tags?|joins?)\b/i
+      .test(text);
+  const hasConcreteLifecycleAction =
+    /\b(wait)\b.+\b(db initialization|database initialization|sql\.js initialization|initialized|finished initialization)\b.+\b(before accepting|before handling|requests?)\b/i
+      .test(text);
+  const hasConcreteTransportAction =
+    /\b(send)\b.+\b(diagnostics?|logs?)\b.+\b(process\.stderr|stderr)\b/i
+      .test(text) ||
+    /\b(reserve)\b.+\b(process\.stdout|stdout)\b.+\b(json-rpc|json rpc|response frames?|stdio)\b/i
+      .test(text);
+  const hasConcreteListenerAction =
+    /\b(pair)\b.+\bsocket\.addeventlistener\b.+\bsocket\.removeeventlistener\b/i
+      .test(text) ||
+    /\b(return)\b.+\buseeffect cleanup\b.+\bsocket\.removeeventlistener\b/i
+      .test(text) ||
+    /\b(remove|cleanup|clean up)\b.+\b(message listener|event listener|websocket listener|socket\.removeeventlistener)\b/i
+      .test(text);
+  const hasConcreteProcessLifecycleAction =
+    /\b(wait)\b.+\b(child_process|child process|spawn handshake|child)\b.+\b(spawn handshake|ready|exit codes?|pid)\b/i
+      .test(text) ||
+    /\b(reject|treat)\b.+\b(nonzero|non-zero|exit code\s*\d+|exit codes?)\b.+\b(serve failure|failure|before persisting|pid)\b/i
+      .test(text) ||
+    /\b(persist|persisting|write|writing)\b.+\bpid\b.+\b(after|before)\b.+\b(spawn handshake|child|exit event|ready)\b/i
+      .test(text);
+  const hasConcreteProxyRoutingAction =
+    /\b(preserve|preserves|preserved|disable|disabled)\b.+\b(proxy path rewrite|proxy rewrite|\/api\/[\w/-]+ path|\/api\/[\w/-]+)\b/i
+      .test(text) ||
+    /\b(disable|disabled)\b.+\bproxy\b.+\brewrite\b.+\b(route|\/api\/[\w/-]+|fastify)\b/i
+      .test(text);
+  const hasConcreteSpaFallbackAction =
+    /\bregister\b.+(?:\/api\/[\w/-]+|\bapi route\b).+\bbefore\b.+\b(?:spa fallback|fallback handler)\b/i
+      .test(text) ||
+    /\breturn\b.+\bjson\b.+\binstead of\b.+\bindex\.html\b/i
+      .test(text);
+  const hasConcreteMigrationAction =
+    /\bbackfill\b.+\b(existing rows?|existing \w+ rows?|rows?)\b/i
+      .test(text) ||
+    /\badd\b.+\bcolumn\b.+\bnullable\b.+\bbackfill\b.+\benforce\b.+\bnot null\b/i
+      .test(text) ||
+    /\benforce\b.+\bnot null\b.+\b(after|then|once)\b.+\b(data|rows?|constraint)\b/i
+      .test(text);
+  return hasStrictStructuralEngineeringEvidence(text) &&
+    (
+      hasAction ||
+      hasConcreteDbAction ||
+      hasConcreteAsyncAction ||
+      hasConcreteQueueDedupeAction ||
+      hasConcreteRelationAction ||
+      hasConcreteLifecycleAction ||
+      hasConcreteTransportAction ||
+      hasConcreteListenerAction ||
+      hasConcreteProcessLifecycleAction ||
+      hasConcreteProxyRoutingAction ||
+      hasConcreteSpaFallbackAction ||
+      hasConcreteMigrationAction
+    );
+}
+
+function hasStrictStructuralEngineeringMechanism(value: string) {
+  const text = value.toLowerCase();
+  const hasIndexDefinition =
+    /\b(add|create)\b.+\b(index|idx_[a-z0-9_]+)\b.+\b(on|for)\b.+\b[a-z][a-z0-9_]*\.[a-z_][a-z0-9_]*\b/i
+      .test(text);
+  const hasLookupScanFlow =
+    /\b(indexed lookup|uses? an indexed lookup|full table scans?|scanned the full \w+ table|scanning every \w+ row|request timeouts?|timed out)\b/i
+      .test(text);
+  const hasFilterWithoutIndex =
+    /\b(filtered|filtering)\b.+\bby\b.+\b[a-z_][a-z0-9_]*\b.+\bwithout an index\b/i
+      .test(text);
+  const hasUniquenessConstraintFlow =
+    /\b(unique\s*\([^)]*\)|unique key|unique constraint)\b.+\b(prevents?|preventing|duplicate rows?|duplicate notes?|receipt rows?)\b/i
+      .test(text) ||
+    /\b(retried|retries|retry|reused|reuse)\b.+\b(source_run_key|same source_run_key|same run|one agent run|write_task_memory)\b.+\b(duplicate receipt rows?|duplicate rows?|duplicate notes?|no unique|unique constraint)\b/i
+      .test(text) ||
+    /\b(no|without|had no)\b.+\b(unique\s*\([^)]*\)|unique key|unique constraint)\b.+\b(duplicate receipt rows?|duplicate rows?|duplicate notes?)\b/i
+      .test(text) ||
+    /\b(return|reuse)\b.+\b(existing receipt row|existing row|first note)\b.+\b(retries|reuse|instead of inserting duplicate rows?)\b/i
+      .test(text) ||
+    /\b(source_run_key|writeback_receipts|receipt rows?)\b.+\b(unique\s*\([^)]*\)|unique key|unique constraint|duplicate receipt rows?|duplicate notes?)\b/i
+      .test(text) ||
+    hasGeneralUniqueConstraintMechanism(text);
+  const hasStaleAsyncResponseFlow =
+    /\b(overlapping|slower previous|previous|older|stale)\b.+\b(\/api\/search|search requests?|responses?)\b.+\b(overwrote|overwrite|replace|current query results?|current results)\b/i
+      .test(text) ||
+    /\b(older|previous|stale)\b.+\b\/api\/search responses?\b.+\boverwrote\b.+\b(?:progress (?:indicator|bar) )?loading state\b/i
+      .test(text) ||
+    /\b(overwrote|overwrite|replace)\b.+\b(current query results?|current results)\b/i
+      .test(text) ||
+    /\b(cancel|abortcontroller)\b.+\b(previous|older|prior|stale)\b.+\b(\/api\/search|requests?|responses?)\b/i
+      .test(text) ||
+    /\b(cancel|abortcontroller)\b.+\b(before starting the next query|before updating results|next query)\b/i
+      .test(text) ||
+    /\bstale responses?\b.+\b(cannot|do not|does not)\b.+\b(replace|overwrite)\b.+\bcurrent results\b/i
+      .test(text) ||
+    /\bgat(?:e|es|ed|ing)\b.+\b(result updates?|search result updates?|current results)\b.+\b(active|activerequestid|latest|request id|\/api\/search|query)\b/i
+      .test(text) ||
+    /\b(gate)\b.+\bsetresults\b.+\bactiverequestid\b/i
+      .test(text) ||
+    /\bgat(?:e|es|ed|ing)\b.+\bactiverequestid\b.+\bbefore\b.+\bsetresults\b.+\bstale loading state\b/i
+      .test(text) ||
+    /\bactiverequestid\b.+\bgat(?:e|es|ed|ing)\b.+\bstale\b.+\b(?:\/api\/search|responses?)\b/i
+      .test(text) ||
+    /\b(active|latest)\b.+\b(\/api\/search\s+)?request id\b.+\b(older responses?|stale responses?|current results|overwrite)\b/i
+      .test(text) ||
+    /\bactiverequestid\b.+\b(?:was\s+)?not checked\b.+\bbefore\b.+\bsetresults\b/i
+      .test(text) ||
+    /\bsetresults\b.+\b(?:did not|without)\b.+\bcheck(?:ing)?\b.+\bactiverequestid\b/i
+      .test(text) ||
+    /\bensure\b.+\bactiverequestid\b.+\bmatches\b.+\bbefore\b.+\bsetresults\b.+\bstale\b.+\b(?:\/api\/search|responses?)\b/i
+      .test(text) ||
+    /\b(ignore)\b.+\bresponses?\b.+\b(not from the latest query|older|previous|stale|latest query)\b/i
+      .test(text) ||
+    /\bolder\b.+\b\/api\/search responses?\b.+\b(after a newer query|newer query)\b.+\boverwrite\b.+\bcurrent results\b/i
+      .test(text) ||
+    /(?:旧(?:的)?\s*)?(?:\/api\/search\s*)?响应.{0,20}覆盖.{0,12}(?:当前查询结果|新结果)/i
+      .test(text) ||
+    /(?:在\s*)?setresults.{0,8}前.{0,12}校验.{0,16}activerequestid.{0,30}(?:避免|防止).{0,24}(?:旧(?:的)?\s*)?(?:\/api\/search\s*)?响应.{0,20}覆盖/i
+      .test(text) ||
+    /setresults.{0,8}前.{0,12}(?:没有|未).{0,8}校验.{0,16}activerequestid/i
+      .test(text);
+  const hasQueueDedupeFlow =
+    /\bsummarize\b.+\bretries\b.+\benqueue\b.+\bduplicate conversation jobs?\b/i
+      .test(text) ||
+    /\benqueue\b.+\bduplicate conversation jobs?\b/i
+      .test(text) ||
+    /\b(?:summarize --all|retries|retry)\b.+\benqueued\b.+\bsame conversation_id\b.+\bduplicate notes?\b/i
+      .test(text) ||
+    /\bqueue jobs?\b.+\bduplicate notes?\b.+\bsame conversation\b/i
+      .test(text) ||
+    /\bdeduplicate\b.+\bqueue jobs?\b.+\bconversation_id\b.+\b(retries|pending job|duplicate notes?|enqueueing)\b/i
+      .test(text) ||
+    /\bconversation_id\b.+\b(?:more than once|duplicate notes?|pending job|enqueueing|queue jobs?)\b/i
+      .test(text);
+  const hasRelationCleanupFlow =
+    /\b(filter|filtered)\b.+\b(tag counts?|tags?)\b.+\b(existing notes?|existing note_ids?|note_ids?)\b/i
+      .test(text) ||
+    /\b(prune|remove|clean up|cleanup)\b.+\b(orphan note_tags rows?|orphan tags?|unused tags?|joins?)\b/i
+      .test(text) ||
+    /\b(deleting notes?|note deletion|deletenotewithreview)\b.+\b(left|leaves?|orphan|unused|cleanup|joins?)\b/i
+      .test(text) ||
+    /\bcleanup\b.+\bdid not remove\b.+\bjoins?\b.+\bnote_id\b.+\bno longer existed\b/i
+      .test(text) ||
+    /\b(filter chips?)\b.+\b(count 0|orphan|unused)\b/i
+      .test(text);
+  const hasInitializationOrderFlow =
+    /\b(route|\/api\/[\w/-]+)\b.+\b(handled|handles?|accept(?:ed|ing)?|requests?)\b.+\bbefore\b.+\b(sql\.js|db|database)\b.+\b(finished initialization|initialization|initialized)\b/i
+      .test(text) ||
+    /\b(wait)\b.+\b(sql\.js|db|database)\b.+\b(initialization|initialized)\b.+\bbefore\b.+\b(accept(?:ing)?|handl(?:e|ing)?)\b.+\b(?:\/api\/[\w/-]+|requests?)\b/i
+      .test(text) ||
+    /\b(?:http\s*)?[45]\d\d\b.+\bbecause\b.+\b(route|\/api\/[\w/-]+)\b.+\bbefore\b.+\b(sql\.js|db|database)\b.+\b(initialization|initialized)\b/i
+      .test(text);
+  const hasTransportFramingFlow =
+    /\b(logs?|logging|diagnostics?)\b.+\b(process\.stdout|stdout)\b.+\b(interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|json-rpc|json rpc|responses?|frames?)\b/i
+      .test(text) ||
+    /\b(process\.stdout|stdout)\b.+\b(response transport|json-rpc|json rpc|response frames?|stdio stream)\b/i
+      .test(text) ||
+    /\b(process\.stdout|stdout)\b.+\b(corrupt(?:s|ed|ing)?|interleav(?:e|ed|es|ing))\b.+\b(json-rpc|json rpc|responses?|frames?|stdio)\b/i
+      .test(text) ||
+    /\b(send)\b.+\b(diagnostics?|logs?)\b.+\b(process\.stderr|stderr)\b.+\b(reserve|instead|process\.stdout|stdout|json-rpc|json rpc)\b/i
+      .test(text) ||
+    /\b(reserve)\b.+\b(process\.stdout|stdout)\b.+\b(json-rpc|json rpc|response frames?|stdio)\b/i
+      .test(text);
+  const hasListenerCleanupFlow =
+    /\bsocket\.addeventlistener\b.+\bsocket\.removeeventlistener\b.+\b(useeffect cleanup|cleanup|remounts?|duplicate websocket messages?|duplicate messages?)\b/i
+      .test(text) ||
+    /\breact remounts?\b.+\bsocket\.addeventlistener\b.+\bwithout removing\b.+\b(message listener|previous message listener)\b/i
+      .test(text) ||
+    /\bwithout removing\b.+\bprevious message listener\b.+\b(websocket message|message)\b.+\b(appended twice|duplicate)\b/i
+      .test(text) ||
+    /\buseeffect cleanup\b.+\bsocket\.removeeventlistener\b.+\b(before unmount|remounts?|one message listener)\b/i
+      .test(text) ||
+    /\blistener cleanup\b.+\bprevents?\b.+\bduplicate messages?\b/i
+      .test(text);
+  const hasProcessLifecycleFlow =
+    /\b(?:write|writes|wrote|writing|persist|persists|persisted|persisting)\b.+\b(?:daemon\s+)?pid\b.+\bbefore\b.+\b(?:observ(?:e|ed|ing).+exit event|child_process|child process|child is ready|spawn handshake|ready)\b/i
+      .test(text) ||
+    /\bexit code\s*\d+\b.+\b(?:looked like a running server|running server|dead server|serve failure|false serve success)\b/i
+      .test(text) ||
+    /\b(wait)\b.+\b(child_process|child process|spawn handshake)\b.+\b(reject|nonzero|non-zero|exit codes?)\b.+\bbefore\b.+\b(?:persist(?:ing)?|write|writing)\b.+\bpid\b/i
+      .test(text) ||
+    /\b(?:crystal status|status)\b.+\b(?:connect|connects|connecting)\b.+\bdead server\b/i
+      .test(text);
+  const hasProxyPathRewriteFlow =
+    /\b(vite dev proxy|vite proxy|dev proxy|proxy)\b.+\b(rewrote|rewrites?|rewrite|path rewrite|preserv(?:e|es|ed|ing))\b.+(?:\/api\/[\w/-]+|\/search|\b(?:path|registered route|fastify|route)\b)/i
+      .test(text) ||
+    /\bpreserv(?:e|es|ed|ing)\b.+\/api\/[\w/-]+.+\b(vite proxy|dev proxy|proxy)\b.+\b(fastify|registered route|route)\b/i
+      .test(text) ||
+    /\/api\/[\w/-]+.+\bpath\b.+\b(vite proxy|proxy|fastify|registered route)\b/i
+      .test(text) ||
+    /\/api\/[\w/-]+.+\b(rewrote|rewrites?|rewrite)\b.+\/[\w/-]+.+\bfastify\b.+\b(?:returned\s+)?http\s*404\b/i
+      .test(text) ||
+    /\b(disable|disabled|preserv(?:e|es|ed|ing))\b.+\bproxy\b.+\b(path rewrite|rewrite|\/api\/[\w/-]+)\b.+\b(registered fastify route|registered route|fastify|route)\b/i
+      .test(text);
+  const hasSpaFallbackRouteFlow =
+    /(?:\/api\/[\w/-]+|\bapi route\b).+\bfell through\b.+\bspa fallback\b.+\bbecause\b.+\bregistered after\b.+\bfallback handler\b/i
+      .test(text) ||
+    /\bspa fallback\b.+\broute order\b.+\breturns?\b.+\bhtml\b.+\bapi json\b/i
+      .test(text) ||
+    /\bapi route\b.+\bbefore\b.+\bspa fallback\b.+\breturns?\b.+\bjson\b/i
+      .test(text) ||
+    /\bapi route\b.+\bregistered after\b.+\bfallback handler\b.+\bindex\.html\b.+\bjson\b/i
+      .test(text) ||
+    /\bregister\b.+\b(?:\/api\/[\w/-]+|api route)\b.+\bbefore\b.+\bspa fallback\b.+\bjson\b.+\bindex\.html\b/i
+      .test(text) ||
+    /\bclients?\b.+\breceived\b.+\bindex\.html\b.+\binstead of\b.+\bjson\b/i
+      .test(text);
+  const hasMigrationConstraintFlow =
+    /\bmigration\b.+\badd(?:ed)?\b.+\bnot null\b.+\bwithout a default\b/i
+      .test(text) ||
+    /\bnot null\b.+\bwithout a default\b.+\b(existing rows?|existing \w+ rows?|chatcrystal\.db rows?|constraint)\b/i
+      .test(text) ||
+    /\b(existing rows?|existing \w+ rows?|chatcrystal\.db rows?)\b.+\bviolat(?:e|ed|es|ing)\b.+\bconstraint\b/i
+      .test(text) ||
+    /\bbackfill\b.+\b(existing rows?|existing \w+ rows?|rows?)\b.+\b(enforce|not null|constraint)\b/i
+      .test(text) ||
+    /\badd\b.+\bcolumn\b.+\bnullable\b.+\bbackfill\b.+\benforce\b.+\bnot null\b/i
+      .test(text);
+  const hasEventOrderFlow =
+    /\b(jsonl|events?|event order|file-order parsing|timestamp|transcript|turns?|conversation (?:order|sequence))\b.+\b(out[- ]of[- ]order|file-order|invert|normaliz(?:e|es|ed|ing|ation)|timestamp|real conversation sequence|preserv(?:e|es|ed|ing) conversation order)\b/i
+      .test(text) ||
+    /\bnormaliz(?:e|es|ed|ing|ation)\b.+\bevent order\b.+\btimestamp\b.+\b(before|transcript|sequence)\b/i
+      .test(text) ||
+    /\bfile-order parsing\b.+\binvert\b.+\buser\b.+\bassistant turns?\b/i
+      .test(text) ||
+    /\bout-of-order writes?\b.+\binvert\b.+\buser\b.+\bassistant turns?\b/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|timed out|overwrote|overwrite|reused|reuse|retried|retries|cancel|gat(?:e|es|ed|ing)|ignore|latest query|request id|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|wait|reserve|left|no longer existed|deleting notes?|note deletion|cleanup|prune|filter|duplicate|deduplicate|dedupe|enqueued|enqueue|pending job|appended twice|remounts?|unmount|spawn handshake|exit event|exit code|dead server|nonzero|non-zero|backfill|not null|default|constraint|violat(?:e|ed|es|ing)|rewrote|rewrite|proxy|preserv(?:e|es|ed|ing)|registered route|fell through|spa fallback|fallback handler|index\.html|out-of-order|file-order|invert|timestamp|conversation sequence)\b/i
+      .test(text) ||
+    /(?:因为|所以|导致|避免|防止|覆盖|校验|没有|未)/i.test(text);
+  return hasStrictStructuralEngineeringEvidence(text) &&
+    hasCausalFlow &&
+    (
+      (hasIndexDefinition && hasLookupScanFlow) ||
+      hasFilterWithoutIndex ||
+      hasLookupScanFlow ||
+      hasUniquenessConstraintFlow ||
+      hasStaleAsyncResponseFlow ||
+      hasQueueDedupeFlow ||
+      hasRelationCleanupFlow ||
+      hasInitializationOrderFlow ||
+      hasTransportFramingFlow ||
+      hasListenerCleanupFlow ||
+      hasProcessLifecycleFlow ||
+      hasProxyPathRewriteFlow ||
+      hasSpaFallbackRouteFlow ||
+      hasMigrationConstraintFlow ||
+      hasEventOrderFlow
+    );
+}
+
+function hasStrictStructuralEngineeringFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasNamedConsequence =
+    /\b(request timeouts?|timed out|timeouts?|full table scans?|scanned the full \w+ table|scanning every \w+ row|duplicate receipt rows?|duplicate rows?|duplicate notes?|duplicate conversation jobs?|duplicate messages?|duplicate websocket messages?|appended twice|stale responses?|stale results?|stale loading state|overwrote the current query results?|overwrote current results?|overwrite the current query results?|overwrite current results?|overwrote (?:the )?(?:progress (?:indicator|bar) )?loading state|replace current results?|invert user and assistant turns?|inverted user and assistant turns?|out-of-order writes?|file-order parsing can invert|orphan note_tags rows?|orphan tags?|unused tags?|count 0|joins? whose note_id no longer existed|http\s*[45]\d\d|returned\s+[45]\d\d|could not parse|cannot parse|corrupt(?:s|ed|ing)?(?: mcp)?(?: json-rpc)? framing|corrupt(?:s|ed|ing)?(?: mcp)? json-rpc|interleav(?:e|ed|es|ing).+(?:json-rpc|responses?|frames?|stdio stream)|false serve success|dead server|looked like a running server|running server|nonzero exit codes?|non-zero exit codes?|exit code\s*\d+|migration (?:does not )?fail(?:s|ed)?|migration failures?|existing row failures?|constraint violation|violated the constraint|fell through to the spa fallback|clients? received index\.html instead of json|return json instead of index\.html|returns? html for api json)\b/i
+      .test(text) ||
+    hasGeneralUniqueConstraintFailureSignal(text) ||
+    /(?:旧(?:的)?\s*)?(?:\/api\/search\s*)?响应.{0,20}覆盖.{0,12}(?:当前查询结果|新结果)/i
+      .test(text);
+  const hasCausalFlow =
+    /\b(because|so|but|without|instead of|before|after|until|avoid|avoids|prevent|prevents|overwrote|overwrite|reused|reuse|retried|retries|cancel|return existing|interleav(?:e|ed|es|ing)|corrupt(?:s|ed|ing)?|left|no longer existed|deleting notes?|note deletion|cleanup|filter|prune|remounts?|unmount|duplicate|deduplicate|dedupe|enqueued|enqueue|pending job|appended twice|spawn handshake|exit event|exit code|nonzero|non-zero|dead server|backfill|not null|default|constraint|violat(?:e|ed|es|ing)|migration|fell through|spa fallback|fallback handler|index\.html|out-of-order|file-order|invert|timestamp|conversation sequence)\b/i
+      .test(text) ||
+    /(?:因为|所以|导致|避免|防止|覆盖|校验|没有|未)/i.test(text);
+  return hasStrictStructuralEngineeringEvidence(text) && hasNamedConsequence && hasCausalFlow;
+}
+
+function hasStrongRootCauseSignal(value: string) {
+  if (hasPackageDistRootCauseShape(value)) return hasPackageDistRootCauseSignal(value);
+  if (isExistenceOnlyClaim(value)) return false;
+  if (isPackageArtifactObservationClaim(value)) return false;
+  if (hasGenericRootCauseRationale(value)) return false;
+  if (isWeakRootCauseClaim(value)) return false;
+  if (hasSignatureRawBodyFailureSignal(value)) return true;
+  if (hasHttpFailureSignal(value)) return hasConcreteHttpRootCauseSignal(value);
+  return (
+    hasFailureOrConsequenceSignal(value) ||
+    /\b(because|so)\b.+\b(ran before|ran after|returned http [45]\d\d|returned [45]\d\d|http [45]\d\d|imported.+before|used the default data directory|version parsing.+(inconsistent|mismatch|wrong|stale|diverged|diverge)|raced|race|econrefused)\b/i
+      .test(value) ||
+    /\b(ran before|ran after|returned http [45]\d\d|returned [45]\d\d|http [45]\d\d|imported.+before|used the default data directory|version parsing.+(inconsistent|mismatch|wrong|stale|diverged|diverge)|raced|race|econrefused)\b.+\b(because|so)\b/i
+      .test(value)
+  );
+}
+
+function hasPackageDistRootCauseShape(value: string) {
+  return /\b(package metadata|package version|version parsing|package version parsing|package normalization|version normalization)\b/i
+    .test(value) &&
+    /\b(generated dist output|dist output|dist comparison|dist comparisons|dist)\b/i
+      .test(value);
+}
+
+function hasPackageDistRootCauseSignal(value: string) {
+  const text = value.toLowerCase();
+  const packageMechanism = '(?:version parsing|parsing|version normalization|normalization|normalize|normalized|different formats|inconsistent normalization|comparison|comparing|version bump|bumping package metadata|dist generation|generated dist output)';
+  const packageOutcome = '(?:diverged|divergence|mismatch|stale(?: package metadata| output| dist)?|wrong comparison|comparison failure|dist comparisons? unreliable|differ(?:ed|s)? from package metadata|differ(?:ed|s)? from package version)';
+  const hasExplicitCausality = hasExplicitPackageCausality(text);
+  const hasPositiveSignal =
+    new RegExp(`\\b(package metadata|package version|generated dist output|dist output)\\b.+\\b${packageOutcome}\\b.+\\bbecause\\b.+\\b${packageMechanism}\\b.+\\b(inconsistent|different formats|mismatch|wrong|stale)\\b`, 'i')
+      .test(text) ||
+    new RegExp(`\\b(generated dist output|dist output)\\b.+\\b${packageOutcome}\\b.+\\b(package metadata|package version)\\b.+\\bbecause\\b.+\\b${packageMechanism}\\b.+\\b(inconsistent|different formats|mismatch|wrong|stale)\\b`, 'i')
+      .test(text) ||
+    new RegExp(`\\b(inconsistent|different formats)\\b.+\\b(version parsing|package version parsing|version normalization|package normalization)\\b.+\\b(generated dist output|dist output|dist comparisons?|dist)\\b.+\\b${packageOutcome}\\b`, 'i')
+      .test(text) ||
+    /\b(inconsistent|different formats)\b.+\b(version parsing|package version parsing|version normalization|package normalization)\b.+\bdist comparisons?\b.+\bunreliable\b/i
+      .test(text) ||
+    /\b(generated dist output|dist output)\b.+\bstale package metadata\b.+\bbecause\b.+\bversion bump\b.+\bran after\b.+\bdist generation\b/i
+      .test(text) ||
+    /\b(generated dist output|dist output)\b.+\bstale\b.+\bbecause\b.+\bdist generation\b.+\bran before\b.+\b(package metadata )?version bump\b/i
+      .test(text);
+  if ((isPackageArtifactObservationClaim(text) || isExistenceOnlyClaim(text)) && !hasExplicitCausality) {
+    return false;
+  }
+  if (hasPositiveSignal || hasExplicitCausality) return true;
+  if (isPackageArtifactObservationClaim(text) || isExistenceOnlyClaim(text)) return false;
+  return false;
+}
+
+function hasExplicitPackageCausality(value: string) {
+  const text = value.toLowerCase();
+  return (
+    /\b(diverged|divergence|mismatch|stale(?: package metadata| output| dist)?|wrong comparison|comparison failure|dist comparisons? unreliable|differ(?:ed|s)? from package metadata|differ(?:ed|s)? from package version)\b.+\bbecause\b.+\b(version parsing|parsing|version normalization|normalization|normalize|normalized|different formats|inconsistent normalization|comparison|comparing)\b/i
+      .test(text) ||
+    /\b(version parsing|parsing|version normalization|normalization|normalize|normalized|different formats|inconsistent normalization|comparison|comparing)\b.+\b(caused|produced|led to|made)\b.+\b(diverged|divergence|mismatch|stale(?: package metadata| output| dist)?|wrong comparison|comparison failure|dist comparisons? unreliable|differ(?:ed|s)? from package metadata|differ(?:ed|s)? from package version)\b/i
+      .test(text)
+  );
+}
+
+function isExistenceOnlyClaim(value: string) {
+  const text = value.toLowerCase();
+  const hasExistencePhrase =
+    /\b(existed|exists|was present|were present|present during|is available|was available|on disk|is on disk|was on disk|was there|were there|there was|there were|was found|were found|was included|were included|was located|were located|was listed|was detected|were detected|was observed|were observed|was seen|were seen|was discovered|were discovered|appeared|showed up)\b/
+      .test(text);
+  return hasExistencePhrase &&
+    !hasDefaultDataDirectoryConsequence(text) &&
+    !hasStrictStructuralEngineeringFailureSignal(text);
+}
+
+function isPackageArtifactObservationClaim(value: string) {
+  const text = value.toLowerCase();
+  const packageArtifact = '(?:package metadata|package version|package artifact|package artifacts)';
+  const observationVerb = '(?:exist(?:ed|s)?|present|available|found|included|located|listed|detect(?:ed)?|observ(?:ed)?|saw|seen|discover(?:ed)?|appeared|showed up|was there|were there)';
+  const activeObservation = new RegExp(`\\b${observationVerb}\\b(?:\\s+\\w+){0,4}\\s+${packageArtifact}\\b`, 'i');
+  const artifactObservation = new RegExp(`\\b${packageArtifact}\\b(?:\\s+\\w+){0,4}\\s+${observationVerb}\\b`, 'i');
+  return activeObservation.test(text) || artifactObservation.test(text);
+}
+
+function hasDefaultDataDirectoryConsequence(value: string) {
+  return /\b(prevents?|preventing|avoid|avoids|avoiding)\b.+\b(fallback\b.+\bdefault data directory|default data directory fallback)\b/i
+    .test(value) ||
+    /\bfell back\b.+\bdefault data directory\b/i.test(value) ||
+    /\bused the default data directory\b/i.test(value);
+}
+
+function isWeakRootCauseClaim(value: string) {
+  const text = value.toLowerCase();
+  const hasWeakPhrase =
+    /\b(not correct before|was not correct|not configured correctly|was wrong|incomplete|not proper|not properly|properly)\b/
+      .test(text);
+  return hasWeakPhrase &&
+    !hasConcreteRootCauseMechanism(text) &&
+    !hasDbTransactionAtomicityFailureSignal(text) &&
+    !hasStrictStructuralEngineeringFailureSignal(text);
+}
+
+function hasConcreteRootCauseMechanism(value: string) {
+  const text = value.toLowerCase();
+  if (hasChineseRouteOrderingSignal(text)) return true;
+  const hasRegistrationOrdering =
+    /(?:\/api\/[\w/-]+|route|registration).+\b(was registered after request setup|registration ran after request setup|registered after request setup|ran after request setup)\b/i
+      .test(text);
+  const hasConfigOrdering =
+    /\b(config|node_env config)\b.+\b(imported|was imported)\b.+\b(node_env\s+)?after request setup\b/i
+      .test(text) ||
+    /\bnode_env\b.+\bconfig\b.+\b(imported|was imported)\b.+\bafter request setup\b/i
+      .test(text) ||
+    /\bimported\b.+\bnode_env\b.+\bafter request setup\b/i
+      .test(text);
+  const hasMissingRouteMechanism =
+    /\b(route|\/api\/[\w/-]+)\b.+\b(missing|unregistered|was missing|was unregistered)\b.+\b(before request setup|before api requests?|api requests?|request setup)\b/i
+      .test(text) ||
+    /\b(route|\/api\/[\w/-]+)\b.+\b(was not registered|not registered)\b.+\b(before request setup|before api requests?|api requests?|request setup)\b/i
+      .test(text) ||
+    /\b(missing|unregistered)\b.+\b(route|\/api\/[\w/-]+)\b.+\b(before request setup|before api requests?|api requests?|request setup)\b/i
+      .test(text);
+  return hasRegistrationOrdering || hasConfigOrdering || hasMissingRouteMechanism;
+}
+
+function hasGenericRootCauseRationale(value: string) {
+  return /\bbecause\b.+\b(correctness|reliability|quality|it)\b.+\b(mattered|was important|is important)\b/i
+    .test(value);
+}
+
+function hasChineseRouteOrderingSignal(value: string) {
+  return /\/api\/[\w/-]+/i.test(value) &&
+    /路由/.test(value) &&
+    /注册/.test(value) &&
+    /request setup/i.test(value) &&
+    (
+      /(?:在\s*)?request setup.{0,8}(?:前|之前).{0,24}注册/i.test(value) ||
+      /request setup.{0,12}(?:之后|后).{0,12}(?:才)?注册/i.test(value) ||
+      /注册.{0,24}(?:在\s*)?request setup.{0,8}(?:前|之前)/i.test(value)
+    ) &&
+    /(?:导致|避免|防止|返回|http\s*[45]\d\d)/i.test(value);
+}
+
+function hasConcreteHttpRootCauseSignal(value: string) {
+  return hasConcreteRootCauseMechanism(value) ||
+    hasRateLimitRetryRootCauseSignal(value) ||
+    hasProviderBaseUrlFailureSignal(value) ||
+    hasEmbeddingModelConfigFailureSignal(value) ||
+    hasSchemaBoundaryFailureSignal(value) ||
+    (
+      hasStrictStructuralEngineeringMechanism(value) &&
+      hasStrictStructuralEngineeringFailureSignal(value)
+    );
+}
+
+function hasRateLimitRetryRootCauseSignal(value: string) {
+  const text = value.toLowerCase();
+  return (
+    /\b(http\s*)?429\b/.test(text) &&
+    /\b(rate[- ]limit|retry-after|backoff|queue|queued|provider api requests?|provider requests?)\b/i
+      .test(text) &&
+    /\b(retried immediately|retry immediately|without rate[- ]limit backoff|without backoff|backoff|retry-after|delay)\b/i
+      .test(text)
+  );
+}
+
+function hasHttpFailureSignal(value: string) {
+  const text = value.toLowerCase();
+  const hasHttpError = /\b(http\s*)?[45]\d\d\b/.test(text);
+  const hasFailureContext = /\b(api|request|requests|route|http|returned|failed|threw|error)\b/.test(text);
+  return hasHttpError && hasFailureContext && !/\b(status\s*)?2\d\d\b/.test(text);
+}
+
+function hasActionableResolution(value: string) {
+  return (
+    hasNonPlaceholderMeaningfulText(value) &&
+    hasConcreteTransferableAction(value) &&
+    hasSpecificObject(value) &&
+    hasConcreteMechanism(value) &&
+    !isGenericResolutionClaim(value) &&
+    !isGenericStatusAction(value) &&
+    !isVagueGenericFixClaim(value)
+  );
+}
+
+function isGenericResolutionClaim(value: string) {
+  return /\b(add|use|apply)\b.+\bvalidation\b.+\b(prevent|avoid)\b.+\b(future failures?|failures?|issues?)\b/i
+    .test(value) ||
+    /\bvalidate\b.+\b(?:to\s+)?(?:prevent|avoid)\b.+\b(future failures?|failures?|issues?)\b/i
+    .test(value) ||
+    /\badd\b.+\b(readiness|guard)\b.+\b(prevent|avoid)\b.+\b(future failures?|failures?|issues?)\b/i
+    .test(value);
+}
+
+function hasDurableFixSignal(note: MaterializedTaskMemoryNote) {
+  const rootCause = note.raw_payload.root_cause;
+  const resolution = note.raw_payload.resolution;
+  if (!rootCause || !resolution) return false;
+
+  const combined = `${rootCause}\n${resolution}`;
+  return (
+    hasNonPlaceholderMeaningfulText(rootCause) &&
+    hasStrongRootCauseSignal(rootCause) &&
+    hasActionableResolution(resolution) &&
+    hasSpecificEvidence(combined) &&
+    hasConcreteMechanism(combined) &&
+    !isGenericStatusAction(rootCause) &&
+    !isVagueGenericFixClaim(rootCause) &&
+    !isFirstPersonDiaryClaim(rootCause) &&
+    !isFirstPersonDiaryClaim(resolution)
+  );
+}
+
+function hasDurableReusableSignal(note: MaterializedTaskMemoryNote) {
+  const payload = note.raw_payload;
+  const hasVisibleSignal = hasVisibleQualitySignal(note);
+  const hasVisibleTitleSummarySignal = hasVisibleTitleSummaryQuality(note);
+  const hasVisibleFixSignal = hasVisibleConcreteFixSignal(note);
+  const hasFixSignal = hasDurableFixSignal(note);
+  if (!hasVisibleTitleSummarySignal) return false;
+  if (hasVisibleConclusionBoilerplate(note)) return false;
+  if (payload.outcome_type === 'fix') return hasFixSignal && hasVisibleFixSignal;
+  if (hasFixSignal) return hasVisibleFixSignal;
+  if (isMostlyOneOffStatus(note)) return false;
+
+  const hasStructuredSignal =
+    Boolean(payload.reusable_patterns?.some((item) => hasConcreteTransferableText(item))) ||
+    Boolean(payload.pitfalls?.some((item) => hasConcreteTransferableText(item))) ||
+    Boolean(payload.decisions?.some((item) => hasConcreteTransferableText(item)));
+  return hasStructuredSignal && hasVisibleStructuredSignal(note) && hasVisibleSignal;
+}
+
+function hasVisibleTitleSummaryQuality(note: MaterializedTaskMemoryNote) {
+  return hasVisibleTitleQuality(note.title) && hasVisibleSummaryQuality(note.summary);
+}
+
+function hasVisibleTitleQuality(title: string) {
+  return (
+    hasNonPlaceholderMeaningfulText(title, 10, 6) &&
+    hasVisibleConcreteContent(title) &&
+    !isGenericTitle(title) &&
+    !isFirstPersonDiaryClaim(title) &&
+    !isVisibleWorkLogClaim(title) &&
+    !isLowValueOutcomeStatusClaim(title) &&
+    !isVagueGenericFixClaim(title) &&
+    !isMetaReusableClaim(title) &&
+    !isGenericVisibleBoilerplateClaim(title) &&
+    !isChineseVisibleStatusShell(title) &&
+    !isVisibleStatusSnapshotText(title)
+  );
+}
+
+function hasVisibleSummaryQuality(summary: string) {
+  return (
+    hasNonPlaceholderMeaningfulText(summary) &&
+    hasVisibleConcreteContent(summary) &&
+    !isFirstPersonDiaryClaim(summary) &&
+    !isVisibleWorkLogClaim(summary) &&
+    !isLowValueOutcomeStatusClaim(summary) &&
+    !isVagueGenericFixClaim(summary) &&
+    !isMetaReusableClaim(summary) &&
+    !isGenericVisibleBoilerplateClaim(summary) &&
+    !isChineseVisibleStatusShell(summary) &&
+    !isVisibleStatusSnapshotText(summary)
+  );
+}
+
+function hasVisibleConcreteContent(value: string) {
+  const text = value.toLowerCase();
+  if (isExplicitEnglishStatusShell(text)) return false;
+  if (isLowValueOutcomeStatusClaim(text)) return false;
+  if (isChineseVisibleStatusShell(text)) return false;
+  if (isGenericReleaseValidationClaim(text)) return false;
+  if (hasGeneralUniqueConstraintEvidence(text)) return true;
+  if (hasSpecificEvidence(text) && hasConcreteMechanism(text)) return true;
+  if (hasSpecificEvidence(text) && hasFailureOrConsequenceSignal(text)) return true;
+  if (hasPackageDistRootCauseSignal(text)) return true;
+  if (/\bdata_dir\b.+\b(electron|import ordering|server entrypoint)\b/i.test(text)) return true;
+  return /\bdata_dir\b.+\b(prevents?|avoids?)\b.+\bfallback\b/i.test(text);
+}
+
+function isVisibleWorkLogClaim(value: string) {
+  return /^(added|changed|checked|confirmed|diagnosed|discovered|fixed|found|implemented|noted|observed|recorded|reviewed|resolved|switched|tested|testing|updated|verified)\b/i
+    .test(value.trim());
+}
+
+function isExplicitEnglishStatusShell(value: string) {
+  return hasTechnicalPrefixStatusShell(value) ||
+    /^\s*(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task|progress|verification|validation|regression|qa|diagnostics?|(?:smoke\s+)?test)\s+(?:record|report|note|summary|update|log|entry|check|result|results?|confirmed)|(?:implementation|task|fix|execution|run|work|status)\s+results?|run\s+results?|work\s*log(?:\s+entry)?|worklog(?:\s+entry)?|status|record|update|implementation|result|outcome|progress|verification|validation|regression|qa|check|diagnostics?|(?:smoke\s+)?test|completion(?:\s+(?:note|record))?|completed|done|this\s+fix|this\s+run)\s*(?:[:\-\u2013\u2014])/i
+      .test(value.trim()) ||
+    isValidationResultStatusShell(value) ||
+    isDiagnosticEvidenceStatusShell(value) ||
+    isConfirmationResultStatusShell(value) ||
+    isPredicateResultStatusShell(value) ||
+    isUndelimitedStatusPrefixShell(value) ||
+    isCurrentRunImplementationShell(value) ||
+    isCurrentRunStatusObservationClaim(value);
+}
+
+function isValidationResultStatusShell(value: string) {
+  return /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?(?:validation|regression|qa)\s+(?:confirmed|passed|succeeded|completed)\b/i
+    .test(value.trim());
+}
+
+function isDiagnosticEvidenceStatusShell(value: string) {
+  return /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?diagnostic evidence\s+(?:found|shows?|confirmed|indicates?)\b/i
+    .test(value.trim());
+}
+
+function isConfirmationResultStatusShell(value: string) {
+  const text = value.trim();
+  return (
+    hasSpecificEvidence(text) &&
+    /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?(?:check\s+)?(?:confirmed|done|verified)\b/i
+      .test(text)
+  ) ||
+    (
+      hasSpecificEvidence(text) &&
+      /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?(?:check\s+)?fix\s+(?:confirmed|done|verified)\b/i
+        .test(text)
+    ) ||
+    isChineseConfirmationResultStatusShell(text);
+}
+
+function isPredicateResultStatusShell(value: string) {
+  const text = value.trim();
+  return hasSpecificEvidence(text) &&
+    /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?(?:(?:smoke\s+)?test|result|progress|validation|qa|check|acceptance)\s+(?:shows?|is)\b/i
+      .test(text);
+}
+
+function isUndelimitedStatusPrefixShell(value: string) {
+  const text = value.trim();
+  return hasSpecificEvidence(text) &&
+    /^\s*(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2}\s+)?(?:status check|progress(?!\s+(?:indicator|bar)\b)|verification note|completion check|result check)\s+(?:[a-z][a-z0-9-]*\s+){0,4}(?=(?:activeRequestId|setResults|\/api\/|stale\b|http\b|api\b|[a-z0-9_]+\.[a-z_]))/i
+      .test(text);
+}
+
+function hasTechnicalPrefixStatusShell(value: string) {
+  const text = value.trim();
+  if (hasSignatureRawBodyFailureSignal(text)) return false;
+  const descriptorWord = String.raw`(?:api|search|vite|proxy|fastify|react|sqlite|database|mcp|websocket|codex|claude|import|jsonl|electron|daemon|embedding|llm|route)`;
+  const chineseDescriptorWord = String.raw`(?:搜索|接口|代理|路由|导入|数据库|前端|后端)`;
+  const englishDescriptorPrefix = String.raw`(?:[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,3})`;
+  const chineseDescriptorPrefix = String.raw`(?:[\u3400-\u9fff]{2,16})`;
+  const technicalPrefix = String.raw`(?:\/api\/[\w/-]+|[a-z0-9]+_[a-z0-9_]+|[a-z][a-z0-9_]*\.[a-z_][a-z0-9_]*|activerequestid|setresults|data_dir|node_env|child_process|jsonl|sqlite|sql\.js|websocket|mcp|json-rpc|${descriptorWord}(?:\s+${descriptorWord}){0,2}|${chineseDescriptorWord}(?:\s+${chineseDescriptorWord}){0,2}|${englishDescriptorPrefix}|${chineseDescriptorPrefix})`;
+  const englishShell = String.raw`(?:(?:status|work|implementation|execution|completion|fix|result|change|run|task|progress|verification|validation|regression|qa|diagnostics?|(?:smoke\s+)?test)\s+(?:record|report|note|summary|update|log|entry|check|result|results?|confirmed)|(?:status|record|update|implementation|result|outcome|progress|verification|validation|regression|qa|check|diagnostics?|(?:smoke\s+)?test|completion(?:\s+(?:note|record))?|completed|done))`;
+  const chineseShell = String.raw`(?:状态记录|记录状态|状态检查|工作日志|日志记录|工作记录|执行记录|完成记录|完成检查|状态更新|运行结果|执行结果|结果记录|结果报告|结果检查|任务结果|实现结果|修复结果|工作结果|状态结果|运行记录|任务记录|实现记录|实现说明|更新记录|变更记录|变更摘要|本次修复|本次执行|本次任务|本次改动|本轮执行|本轮修复|本轮任务|本轮改动|修复记录|测试记录|状态|结果|进度|验证|测试|诊断|完成|已完成|完成说明)`;
+  return new RegExp(`^\\s*${technicalPrefix}\\s+${englishShell}\\s*(?:[:\\-\\u2013\\u2014])`, 'i')
+    .test(text) ||
+    new RegExp(`^\\s*${technicalPrefix}\\s+${englishShell}\\s+(?:for|on|about)\\b`, 'i')
+      .test(text) ||
+    new RegExp(`^\\s*${technicalPrefix}\\s+${englishShell}\\s+(?=(?:\\/api\\/|http\\s*[45]\\d\\d\\b|returns?\\b|returned\\b|responds?\\b|because\\b))`, 'i')
+      .test(text) ||
+    new RegExp(`^\\s*${technicalPrefix}\\s*${chineseShell}\\s*(?:[：:\\-\\u2013\\u2014]|$)`, 'i')
+      .test(text) ||
+    new RegExp(`^\\s*${technicalPrefix}\\s*${chineseShell}\\s+(?=(?:\\/api\\/|http\\s*[45]\\d\\d\\b|返回|因为|因|导致))`, 'i')
+      .test(text);
+}
+
+function isCurrentRunImplementationShell(value: string) {
+  const text = value.trim();
+  const currentRunSubject = '(?:run|execution|fix|task|change)';
+  const currentRunPrefix = `(?:(?:(?:in|during|for)\\s+(?:this|the\\s+current|this\\s+current)\\s+${currentRunSubject})|(?:(?:the\\s+)?current|this)\\s+${currentRunSubject})`;
+  const implementationVerb = '(?:use|uses|used|did|add|adds|added|set|sets|configured?|register(?:s|ed)?|wait(?:s|ed)?|block(?:s|ed)?|gate(?:s|d)?|ignore(?:s|d)?|cancel(?:s|ed|led)?|move(?:s|d)?|place(?:s|d)?|import(?:s|ed)?|update(?:s|d)?|fix(?:es|ed)?|change(?:s|d)?|validat(?:e|es|ed)|normaliz(?:e|es|ed)|parse(?:s|d)?|strip(?:s|ped)?|debounce(?:s|d)?|route(?:s|d)?|return(?:s|ed)?|prune(?:s|d)?|remove(?:s|d)?|wrap(?:s|ped)?)';
+  const hasCurrentRunPrefix =
+    new RegExp(`^\\s*${currentRunPrefix}\\b`, 'i').test(text);
+  const hasImplementationAction =
+    new RegExp(`^\\s*${currentRunPrefix}\\b.{0,80}\\b${implementationVerb}\\b`, 'i')
+      .test(text);
+  return hasCurrentRunPrefix && hasImplementationAction && hasSpecificEvidence(text);
+}
+
+function isCurrentRunStatusObservationClaim(value: string) {
+  const text = value.trim();
+  return (
+    /\b(?:during|in)\s+this\s+run\b/i.test(text) &&
+    hasSpecificEvidence(text) &&
+    /\b(returned|returns?|http\s*[45]\d\d|observed|recorded|checked|verified|passed|completed|fixed|status)\b/i
+      .test(text)
+  );
+}
+
+function isLowValueOutcomeStatusClaim(value: string) {
+  const text = value.toLowerCase();
+  return (
+    isExplicitEnglishStatusShell(value) ||
+    /\ball good(?: now)?\b/i.test(text) ||
+    /\brecorded that\b/i.test(text) ||
+    /\bis now fixed\b/i.test(text) ||
+    /\bfix completed\b/i.test(text) ||
+    /\b(?:completed|recovered|fixed)\b.+\b(?:after|for|http|api|route|request|requests?|initialization|issue|fix)\b/i
+      .test(text) ||
+    /\b(issue|task|fix|route fix|route|request|requests?)\b.+\b(investigated|investigation)\b/i
+      .test(text) ||
+    /\b(investigated|investigation)\b.+\b(issue|task|fix|route|request|requests?)\b/i
+      .test(text)
+  );
+}
+
+function hasChineseVisibleMechanism(value: string) {
+  return (
+    /(?:在|于)?\s*(?:request setup|请求设置|请求初始化).{0,8}前.{0,24}(?:注册|移动|放置|等待|校验|验证|加载|导入|设置|移除|清理|解析|规范化|去重|剥离|去掉)/i
+      .test(value) ||
+    /(?:注册|移动|放置|等待|校验|验证|加载|导入|设置|移除|清理|解析|规范化|去重|剥离|去掉).{0,40}(?:request setup\s*前|请求设置前|请求初始化前|before request setup)/i
+      .test(value) ||
+    /(?:避免|防止).{0,30}(?:http\s*[45]\d\d|econrefused|typeerror|syntaxerror|stale|重复|缺失|泄露|回退|错误)/i
+      .test(value) &&
+    /(?:注册|移动|放置|等待|校验|验证|加载|导入|设置|移除|清理|解析|规范化|去重|剥离|去掉)/i
+      .test(value)
+  );
+}
+
+function isChineseVisibleStatusShell(value: string) {
+  if (!/[\u3400-\u9fff]/.test(value)) return false;
+  const hasStatusRecordShell =
+    hasTechnicalPrefixStatusShell(value) ||
+    isChineseConfirmationResultStatusShell(value) ||
+    /^\s*(?:状态记录|记录状态|状态检查|工作日志|日志记录|工作记录|执行记录|完成记录|完成检查|状态更新|运行结果|执行结果|结果记录|结果报告|结果检查|任务结果|实现结果|修复结果|工作结果|状态结果|运行记录|任务记录|实现记录|实现说明|更新记录|变更记录|变更摘要|本次修复|本次执行|本次任务|本次改动|本轮执行|本轮修复|本轮任务|本轮改动|修复记录|测试记录|结果|进度|验证|测试|诊断|完成|已完成|完成说明)\s*(?:[：:\-\u2013\u2014]|$)/i
+      .test(value) ||
+    /(?:^|[\s：:])(?:状态记录|记录状态|工作日志|日志记录|工作记录)(?:[\s：:]|$)|^(?:状态|记录)\s*[：:]/i
+      .test(value) ||
+    /(?:已记录|记录了).{0,80}(?:已修复|修复完成|已完成|完成|处理完成|解决完成)/i
+      .test(value);
+  if (hasStatusRecordShell) return true;
+  if (isChineseCurrentRunImplementationShell(value)) return true;
+
+  const hasCompletionShell =
+    /问题处理完|处理完成|处理完毕|修复好了|修好了|已经处理|已处理|回归正常|恢复正常|更稳定|不再返回|已解决|解决完成|已完成|修复完成|修复已完成/i
+      .test(value);
+  const hasWorkLogShell =
+    /这次.{0,20}(?:修复|处理).{0,8}(?:好了|完成|完毕)|(?:接口|问题|路由|请求).{0,12}(?:更稳定|回归正常|恢复正常)/i
+      .test(value);
+  return (hasCompletionShell || hasWorkLogShell) && !hasChineseVisibleMechanism(value);
+}
+
+function isChineseConfirmationResultStatusShell(value: string) {
+  return hasSpecificEvidence(value) &&
+    /^\s*(?:[\u3400-\u9fff]{2,16})?(?:检查)?确认(?=\s|$|[a-z0-9_\/])/i.test(value.trim());
+}
+
+function isChineseCurrentRunImplementationShell(value: string) {
+  const hasCurrentRunPrefix =
+    /^\s*(?:本次运行|本次执行|本次修复|本次任务|本次改动|本轮运行|本轮执行|本轮修复|本轮任务|本轮改动)/i.test(value);
+  const hasImplementationAction =
+    /^\s*(?:本次运行|本次执行|本次修复|本次任务|本次改动|本轮运行|本轮执行|本轮修复|本轮任务|本轮改动).{0,80}(?:使用|用了|添加|设置|配置|注册|等待|阻塞|拦截|修复|改动|修改|更新|解析|清理|规范化|去重|剥离|去掉|取消|移动|放置|验证|校验|\b(?:use|uses|used|gate(?:s|d)?|add|adds|added|set|sets|configured?|register(?:s|ed)?|wait(?:s|ed)?|block(?:s|ed)?|ignore(?:s|d)?|cancel(?:s|ed|led)?|update(?:s|d)?|fix(?:es|ed)?|parse(?:s|d)?|strip(?:s|ped)?|debounce(?:s|d)?|return(?:s|ed)?|prune(?:s|d)?|remove(?:s|d)?)\b)/i
+      .test(value);
+  return hasCurrentRunPrefix && hasImplementationAction && hasSpecificEvidence(value);
+}
+
+function isMetaReusableClaim(value: string) {
+  const text = value.toLowerCase();
+  const hasMetaClaim =
+    /\b(reusable lesson|reusable note|reusable fix|future work|future tasks?|this note captures|captures a reusable|for future work|for future tasks?)\b/i
+      .test(text);
+  return hasMetaClaim && !hasConcreteMechanism(text);
+}
+
+function isGenericVisibleBoilerplateClaim(value: string) {
+  const text = value.toLowerCase();
+  const hasGenericReliabilityFix =
+    /\b(?:backend|api|server)?\s*reliability\s+fix\b/i.test(text) ||
+    /\bfix\b.+\breliability\b/i.test(text) ||
+    /\breliability improvement\b/i.test(text) ||
+    /\bimprove\b.+\b(reliability|correctness)\b/i.test(text) ||
+    /\b(reliability|correctness)\b.+\bfuture requests?\b/i.test(text);
+  const hasGenericFutureFailure =
+    /\bfuture failure prevention\b/i.test(text) ||
+    /\b(?:avoid|prevent|prevents?|prevention)\b.+\bfuture failures?\b/i.test(text) ||
+    /\bfuture failures?\b.+\bexpected workflow\b/i.test(text);
+  const hasGenericReleaseValidation =
+    /\bvalidate behavior\b/i.test(text) ||
+    /\balways validate behavior before release\b/i.test(text) ||
+    /\bvalidate behavior\b.+\bbefore release\b/i.test(text) ||
+    isGenericReleaseValidationClaim(text);
+  const hasGenericResolvedInvestigation =
+    /\bissue resolved after investigation\b/i.test(text) ||
+    /\bresolved after investigation\b/i.test(text) ||
+    /\bissue was resolved after investigation(?: and testing)?\b/i.test(text);
+  return hasGenericResolvedInvestigation || (
+    hasGenericReliabilityFix ||
+    hasGenericFutureFailure ||
+    hasGenericReleaseValidation
+  ) && !hasConcreteMechanism(text);
+}
+
+function isGenericReleaseValidationClaim(value: string) {
+  const text = value.toLowerCase();
+  return (
+    /\b(?:release\s+)?(?:validat(?:e|ed|ing|ion)|verified?)\b.+(?:\/api\/[\w/-]+|api requests?|requests?)\b.+\bbefore (?:release|shipping)\b/i.test(text) ||
+    /(?:\/api\/[\w/-]+|api requests?|requests?)\b.+\b(?:validat(?:e|ed|ing|ion)|verified?)\b.+\bbefore (?:release|shipping)\b/i.test(text) ||
+    /\bvalidat(?:e|ing|ion)\b.+(?:\/api\/[\w/-]+|api requests?|requests?)\b.+\bbefore release\b/i.test(text) ||
+    /\bvalidat(?:e|ing|ion)\b.+\b(api requests?|requests?)\b.+\bbefore release\b/i.test(text) ||
+    /\b(api requests?|requests?)\b.+\bvalidat(?:e|ing|ion)\b.+\bbefore release\b/i.test(text)
+  );
+}
+
+function isVisibleStatusSnapshotText(value: string) {
+  const hasPassStatus = /\b(build|npm test|tests?|testing|typecheck|lint|ci|verification|checks?|smoke(?: tests?)?|acceptance|e2e|scenario)\b.+\bpassed\b/i
+    .test(value);
+  const hasSuccessStatus =
+    /\b(ci green|ci completed successfully|tests? succeeded|testing succeeded|verification succeeded|build succeeded|typecheck succeeded|lint succeeded)\b/i
+      .test(value) ||
+    /\b(typecheck|lint|ci|build|tests?|testing|verification)\b.+\bcompleted successfully\b/i
+      .test(value) ||
+    /\bverification\b.+\bconfirmed\b/i
+      .test(value);
+  const hasHttpSuccessStatus =
+    /\b(?:now\s+)?(?:returns?|responds?)(?:\s+with)?\s+(?:http\s*)?2\d\d\b/i
+      .test(value) ||
+    /\bhttp\s*2\d\d\b.+\b(after|now|success|succeeded|passed|ok|works?|working)\b/i
+      .test(value);
+  const hasStatusVerb = /\b(checked|noted|observed|reviewed|resolved|tested|testing passed|verified|verification|current|status)\b/i
+    .test(value);
+  const hasChineseStatus =
+    /已验证|验证通过|验证已通过|测试通过|构建通过|编译通过|类型检查通过|检查通过|检查已通过|冒烟通过|验收通过|已修复|修复已验证|ci\s*通过|持续集成通过/i
+      .test(value) ||
+    isChineseVisibleStatusShell(value) ||
+    /(?:提高|提升).{0,12}(?:可靠性|正确性)|(?:可靠性|正确性).{0,12}(?:提高|提升)/
+      .test(value);
+  const hasStatusObject =
+    /\b(node_env|env|environment|production|local|testing|server readiness|fastify readiness|api requests?|package version|version|generated dist output|dist output)\b/i
+      .test(value);
+  return hasPassStatus ||
+    hasSuccessStatus ||
+    hasHttpSuccessStatus ||
+    hasChineseStatus ||
+    ((hasStatusVerb && hasStatusObject) && !hasStrongReusableMechanism(value));
+}
+
+function conclusionText(
+  note: MaterializedTaskMemoryNote,
+  label: 'root cause' | 'resolution' | 'pattern' | 'decision' | 'pitfall',
+) {
+  const pattern = new RegExp(`^\\s*${label}:\\s*(.+)$`, 'i');
+  return note.key_conclusions
+    .map((item) => pattern.exec(item)?.[1]?.trim())
+    .filter((item): item is string => Boolean(item));
+}
+
+function hasVisibleConcreteFixSignal(note: MaterializedTaskMemoryNote) {
+  const rootCauses = conclusionText(note, 'root cause');
+  const resolutions = conclusionText(note, 'resolution');
+  return (
+    rootCauses.some((item) => hasVisibleRootCauseConclusionQuality(item)) &&
+    resolutions.some((item) => hasVisibleResolutionConclusionQuality(item))
+  );
+}
+
+function hasVisibleRootCauseConclusionQuality(value: string) {
+  return (
+    hasNonPlaceholderMeaningfulText(value) &&
+    hasStrongRootCauseSignal(value) &&
+    !isFirstPersonDiaryClaim(value) &&
+    !isVagueGenericFixClaim(value)
+  );
+}
+
+function hasVisibleResolutionConclusionQuality(value: string) {
+  return hasActionableResolution(value) && !isFirstPersonDiaryClaim(value);
+}
+
+function hasVisibleStructuredSignal(note: MaterializedTaskMemoryNote) {
+  return [
+    ...conclusionText(note, 'pattern'),
+    ...conclusionText(note, 'decision'),
+    ...conclusionText(note, 'pitfall'),
+  ].some((item) => hasConcreteTransferableText(item));
+}
+
+function hasVisibleConclusionBoilerplate(note: MaterializedTaskMemoryNote) {
+  return note.key_conclusions.some((item) => isLowQualityVisibleConclusion(item));
+}
+
+function isLowQualityVisibleConclusion(value: string) {
+  const labelMatch = /^\s*(root cause|resolution|pattern|decision|pitfall|takeaway|observation|build|test|error signature):\s*/i
+    .exec(value);
+  const label = labelMatch?.[1]?.toLowerCase();
+  const body = value.slice(labelMatch?.[0]?.length ?? 0);
+  const shouldApplyGenericLessonGate = label !== 'root cause' && label !== 'resolution';
+  const hasLowQualityBody =
+    isPlaceholderText(value) ||
+    isPlaceholderText(body) ||
+    isFirstPersonDiaryClaim(value) ||
+    isFirstPersonDiaryClaim(body) ||
+    isExplicitEnglishStatusShell(value) ||
+    isExplicitEnglishStatusShell(body) ||
+    isCurrentRunStatusObservationClaim(value) ||
+    isCurrentRunStatusObservationClaim(body) ||
+    isVisibleWorkLogClaim(body) ||
+    isVisibleStatusSnapshotText(body) ||
+    isLowValueOutcomeStatusClaim(value) ||
+    isLowValueOutcomeStatusClaim(body) ||
+    isMetaReusableClaim(value) ||
+    isMetaReusableClaim(body) ||
+    (shouldApplyGenericLessonGate && isVagueGenericLesson(body)) ||
+    isVagueGenericFixClaim(body) ||
+    isGenericVisibleBoilerplateClaim(value) ||
+    isGenericVisibleBoilerplateClaim(body);
+  if (label === 'observation' && isBareObservationStatusConclusion(body)) {
+    return true;
+  }
+  if (label === 'root cause') {
+    return hasLowQualityBody || !hasVisibleRootCauseConclusionQuality(body);
+  }
+  if (label === 'resolution') {
+    return hasLowQualityBody || !hasVisibleResolutionConclusionQuality(body);
+  }
+  return hasLowQualityBody || (shouldApplyGenericLessonGate && !hasConcreteConclusionValue(body));
+}
+
+function isBareObservationStatusConclusion(value: string) {
+  const text = value.trim();
+  const hasBareStatus =
+    /\b(?:returned|returns|responded|responds|hit|hits|threw|throws?|failed|fails?)\b.+\b(?:http\s*[45]\d\d|[45]\d\d|econrefused|typeerror|error)\b/i
+      .test(text) ||
+    /\b(?:http\s*[45]\d\d|econrefused|typeerror)\b\.?$/i.test(text);
+  const hasMechanismOrAction =
+    /\b(because|so|before|after|without|instead of|when|while|by|ensure|gate|register|wait|normalize|deduplicate|dedupe|bind|add|remove|wrap|use)\b/i
+      .test(text);
+  return hasBareStatus && !hasMechanismOrAction;
+}
+
+function hasConcreteConclusionValue(value: string) {
+  if (isLowValueOutcomeStatusClaim(value)) return false;
+  if (isGenericReleaseValidationClaim(value)) return false;
+  return (
+    hasVisibleConcreteContent(value) ||
+    hasConcreteTransferableText(value) ||
+    hasFailureOrConsequenceSignal(value)
+  );
+}
+
+function hasVisibleQualitySignal(note: MaterializedTaskMemoryNote) {
+  const conclusions = note.key_conclusions.join('\n').toLowerCase();
+  return /root cause:|resolution:|pitfall:|pattern:|decision:|error signature:/i.test(conclusions);
+}
+
+function isMostlyOneOffStatus(note: MaterializedTaskMemoryNote) {
+  const text = joined(note);
+  const statusWords = [
+    'version',
+    'status',
+    'checked',
+    'verified',
+    'verification',
+    'current',
+    'package',
+    'npm link',
+    'dist',
+    'local',
+    'environment',
+    'env',
+    'node_env',
+    'deployment',
+    'production',
+    '配置',
+    '版本',
+    '检查',
+    '状态',
+  ];
+  const statusHits = statusWords.filter((word) => text.includes(word)).length;
+  return (
+    statusHits >= 3 &&
+    (
+      !hasConcreteTransferableAction(text) ||
+      isGenericStatusAction(text) ||
+      isStatusShapedSelfContainedItem(note)
+    )
+  );
+}
+
+function isStatusShapedSelfContainedItem(note: MaterializedTaskMemoryNote) {
+  if (note.raw_payload.root_cause || note.raw_payload.resolution) return false;
+
+  const text = joined(note);
+  const hasStatusShape =
+    /\b(current|checked|verified|verification|checks?|status|local|node_env|env|environment|production|package version|version|dist output|generated dist output)\b/i
+      .test(text);
+  return hasStatusShape && !hasStrongReusableMechanism(text);
+}
+
+function hasStrongReusableMechanism(value: string) {
+  return /\b(normalize|normalizing|parse|parsing|diverge|diverged|default data directory|race|raced|orphan|dedupe|deduplicate|foreign_keys|cascade|nulling|source_run_key)\b/i
+    .test(value);
+}
+
+function hasLowQualityCodeSnippets(note: MaterializedTaskMemoryNote) {
+  return Boolean(note.raw_payload.code_snippets?.some((snippet) => !hasUsefulCodeSnippet(snippet)));
+}
+
+function hasUsefulCodeSnippet(
+  snippet: NonNullable<MaterializedTaskMemoryNote['raw_payload']['code_snippets']>[number],
+) {
+  const language = snippet.language.trim().toLowerCase();
+  const code = snippet.code.trim();
+  const description = snippet.description?.trim() ?? '';
+  if (!hasMeaningfulText(code, 4, 4) || isPlaceholderText(code)) return false;
+  if (isPlaceholderFunctionCallSnippet(code)) return false;
+  if (!hasNonPlaceholderMeaningfulText(description, 12, 8)) return false;
+
+  const combined = `${language}\n${code}\n${description}`;
+  const hasConcreteCodeShape =
+    /\b(pragma|select|insert|update|delete|create table)\b/i.test(code) ||
+    /\b(const|let|var|function|return|import|export|class)\b/i.test(code) ||
+    /\b[\w.]+\s*\([^)]*\S[^)]*\)/.test(code) ||
+    /\{[^}]+[:=][^}]+\}/.test(code) ||
+    /"[^"]+"\s*:/.test(code) ||
+    /\b[\w.]+\s*[:=]\s*(?:"[^"]+"|'[^']+'|`[^`]+`|\d+|true|false|\/[\w./-]+|\w+\([^)]*\))/
+      .test(code);
+  const hasConcreteEvidence =
+    /\b(pragma\s+foreign_keys|foreign_keys|json\.parse|z\.object|z\.array|response_item\.content|data_dir|node_env|source_run_key|note_tags)\b/i
+      .test(combined) ||
+    hasSchemaArrayEvidence(combined) ||
+    hasJsonParsingEvidence(combined) ||
+    hasProviderBaseUrlEvidence(combined) ||
+    hasImportContentArrayEvidence(combined) ||
+    hasContentSanitizationEvidence(combined) ||
+    hasPersistenceSnapshotEvidence(combined) ||
+    hasIndexConsistencyEvidence(combined) ||
+    hasImportDedupeEvidence(combined) ||
+    hasDurableEngineeringEvidence(combined) ||
+    hasSpecificEvidence(combined);
+  return hasConcreteEvidence && hasConcreteCodeShape;
+}
+
+function isPlaceholderFunctionCallSnippet(code: string) {
+  const normalized = normalizeSnippetForPlaceholderCall(code);
+  const match = /^([A-Za-z_$][\w$]*)\s*\(([^()]*)\)$/.exec(normalized);
+  if (!match) return false;
+
+  const functionName = match[1].toLowerCase();
+  const placeholderNames = /^(fix|handle|dothing|do_thing|process|update|set|parse|normalize|prune|strip|sanitize)$/i;
+  if (!placeholderNames.test(functionName)) return false;
+
+  const args = match[2].trim();
+  if (!args) return true;
+  return args
+    .split(',')
+    .every((arg) => isSimplePlaceholderArgument(arg.trim()));
+}
+
+function normalizeSnippetForPlaceholderCall(code: string) {
+  let normalized = code.trim().replace(/;$/, '').trim();
+  for (let i = 0; i < 4; i += 1) {
+    const next = normalized
+      .replace(/^return\s+/i, '')
+      .replace(/^await\s+/i, '')
+      .replace(/^(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*/i, '')
+      .trim();
+    if (next === normalized) break;
+    normalized = next.replace(/;$/, '').trim();
+  }
+  return normalized;
+}
+
+function isSimplePlaceholderArgument(value: string) {
+  return /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?$/.test(value) ||
+    /^["'`][^"'`]+["'`]$/.test(value);
+}
+
+function hasLowQualityTags(note: MaterializedTaskMemoryNote) {
+  return note.tags.some((tag) => isLowQualityTag(tag));
+}
+
+function normalizeTagForQuality(tag: string) {
+  let normalized = tag.trim().toLowerCase();
+  for (let i = 0; i < 3; i += 1) {
+    normalized = normalized
+      .replace(/^#+\s*/, '')
+      .replace(/^[`"'“”‘’「」『』《》\[\]()（）【】]+/, '')
+      .replace(/[`"'“”‘’「」『』《》\[\]()（）【】]+$/, '')
+      .replace(/[.。!！,，;；:：]+$/, '')
+      .trim();
+  }
+  return normalized;
+}
+
+function isLowQualityTag(tag: string) {
+  const normalized = normalizeTagForQuality(tag);
+  if (!normalized || isPlaceholderText(normalized)) return true;
+  return /^(fix|bug|issue|bugfix|bug[-_\s]?fix|success|fixed|reliable|reliability|quality|done|verified|test[-_\s]?passed|passed|ok|okay|resolved|working|complete|completed|all[-_\s]?good|status|checked|reviewed|tested|修复|已修复|修复完成|已完成|完成|已验证|验证|测试通过|测试|通过|可靠性|成功|状态|检查|问题|质量)$/i
+    .test(normalized);
+}
+
+export function validateMaterializedNoteQuality(
+  note: MaterializedTaskMemoryNote,
+  options: { mode: ValidationMode },
+): NoteQualityDecision {
+  const warnings: string[] = [];
+  const acceptedDurableFix =
+    hasDurableFixSignal(note) &&
+    hasVisibleConcreteFixSignal(note) &&
+    hasVisibleTitleSummaryQuality(note);
+
+  if (!hasMeaningfulText(note.title, 10, 6) || isGenericTitle(note.title)) {
+    warnings.push('title');
+  }
+  if (!hasMeaningfulText(note.summary)) {
+    warnings.push('summary');
+  }
+  if (!note.key_conclusions.some((item) => hasMeaningfulText(item, 16, 10))) {
+    warnings.push('key_conclusions');
+  }
+  if (hasLowQualityCodeSnippets(note)) {
+    warnings.push('code_snippets');
+  }
+  if (hasLowQualityTags(note)) {
+    warnings.push('tags');
+  }
+  if (!hasDurableReusableSignal(note)) {
+    warnings.push('durable_reusable_lesson');
+  }
+  if (!acceptedDurableFix && isMostlyOneOffStatus(note)) {
+    warnings.push('one_off_status');
+  }
+
+  const manualReadable =
+    !warnings.includes('title') &&
+    !warnings.includes('summary') &&
+    !warnings.includes('key_conclusions');
+
+  if (warnings.length === 0) {
+    return { accepted: true, reason: 'note-quality-ok', warnings: [] };
+  }
+  if (options.mode === 'manual' && manualReadable) {
+    return {
+      accepted: true,
+      reason: 'manual-note-quality-warning',
+      warnings,
+    };
+  }
+  return { accepted: false, reason: 'low-note-quality', warnings };
+}

@@ -225,6 +225,26 @@ export interface WriteTaskMemoryResponse {
   warnings: string[];
 }
 
+export interface MaterializedTaskMemoryNote {
+  title: string;
+  summary: string;
+  key_conclusions: string[];
+  embedding_text: string;
+  tags: string[];
+  raw_payload: WriteTaskMemoryPayload;
+}
+
+export type ValidateTaskMemoryRequest = WriteTaskMemoryRequest;
+
+export interface ValidateTaskMemoryResponse {
+  mode: 'auto' | 'manual';
+  accepted: boolean;
+  decision: 'accepted' | 'skipped';
+  reason: string;
+  warnings: string[];
+  materialized_note: MaterializedTaskMemoryNote;
+}
+
 // --- Tags ---
 
 export interface Tag {
