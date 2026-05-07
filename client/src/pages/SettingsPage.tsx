@@ -12,6 +12,10 @@ import {
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/ConfirmDialog.tsx";
+import {
+	getSelectedLanguageCode,
+	LANGUAGE_OPTIONS,
+} from "@/i18n/language.ts";
 import { api } from "@/lib/api.ts";
 import { useTheme } from "@/providers/useTheme.ts";
 
@@ -137,10 +141,13 @@ export function SettingsPage() {
 		setPendingConfig(null);
 	};
 
-	const languages = [
-		{ code: "zh", label: t("language_name.zh") },
-		{ code: "en", label: t("language_name.en") },
-	];
+	const selectedLanguage = getSelectedLanguageCode(
+		i18n.resolvedLanguage ?? i18n.language,
+	);
+	const languages = LANGUAGE_OPTIONS.map((code) => ({
+		code,
+		label: t(`language_name.${code}`),
+	}));
 
 	return (
 		<div className="p-6 max-w-2xl">
@@ -193,7 +200,7 @@ export function SettingsPage() {
 							key={code}
 							onClick={() => i18n.changeLanguage(code)}
 							className={`px-4 py-2 text-sm border transition-colors ${
-								i18n.language === code
+								selectedLanguage === code
 									? "border-[var(--accent)] text-accent"
 									: "border-theme text-secondary hover:text-primary"
 							}`}
