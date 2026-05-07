@@ -42,6 +42,24 @@ function insertImportedConversation(db: Pick<Database, 'run'>, id: string) {
   );
 }
 
+const READINESS_TITLE = 'Server readiness race returns ECONNREFUSED';
+const READINESS_SUMMARY =
+  'Wait for Fastify readiness before issuing API requests to avoid startup race failures.';
+const READINESS_ROOT_CAUSE =
+  'Client calls hit ECONNREFUSED because they ran before the local server was ready.';
+const READINESS_RESOLUTION =
+  'Wait for the Fastify server readiness promise before issuing API requests.';
+const READINESS_ECONNREFUSED = 'ECONNREFUSED before Fastify readiness';
+const READINESS_ETIMEDOUT = 'ETIMEDOUT before Fastify readiness';
+const READINESS_EXISTING_PITFALL =
+  'Starting API requests before Fastify readiness lets client calls hit ECONNREFUSED during tests.';
+const READINESS_INCOMING_PITFALL =
+  'Do not issue HTTP requests before awaiting Fastify readiness because startup races return ECONNREFUSED.';
+const READINESS_INCOMING_PATTERN =
+  'Gate API request helpers on Fastify readiness before issuing HTTP calls.';
+const READINESS_DECISION =
+  'Wait for Fastify readiness before request setup because client calls return ECONNREFUSED when they race server startup.';
+
 function seedExistingNote(
   db: Database,
   {
@@ -100,12 +118,12 @@ test('writeTaskMemory replays the same persisted decision for the same auto rece
       branch: 'main',
     },
     memory: {
-      summary:
-        'Await server readiness before requests so client calls do not race startup and fail with connection errors.',
+      title: READINESS_TITLE,
+      summary: READINESS_SUMMARY,
       outcome_type: 'fix',
-      root_cause: 'Requests raced the server startup',
-      resolution: 'Await readiness in the helper',
-      error_signatures: ['ECONNREFUSED'],
+      root_cause: READINESS_ROOT_CAUSE,
+      resolution: READINESS_RESOLUTION,
+      error_signatures: [READINESS_ECONNREFUSED],
     },
   } as const;
 
@@ -215,6 +233,122 @@ test('writeTaskMemory persists tags for created memories', async () => {
   );
 });
 
+test('writeTaskMemory skips weak auto status records before semantic search', async () => {
+  const db = await createSqlDatabase();
+  let searchCalls = 0;
+  let embedCalls = 0;
+  let saveCalls = 0;
+
+  const result = await writeTaskMemory(
+    {
+      mode: 'auto',
+      source_run_key: 'run-status-snapshot',
+      task: {
+        goal: 'Record local package version status',
+        task_kind: 'investigate',
+        source_agent: 'codex',
+        project_key: 'git:repo',
+      },
+      memory: {
+        title: 'Persist local package version status',
+        summary:
+          'Persist checked current local package version status and generated dist output.',
+        outcome_type: 'decision',
+        decisions: [
+          'Persist checked current local package version status and generated dist output.',
+        ],
+      },
+    },
+    {
+      db: db as never,
+      save: () => {
+        saveCalls++;
+      },
+      generateEmbeddings: async () => {
+        embedCalls++;
+        return 1;
+      },
+      semanticSearch: async () => {
+        searchCalls++;
+        return [];
+      },
+    },
+  );
+
+  const noteCount = Number(db.exec('SELECT COUNT(*) FROM notes')[0].values[0][0]);
+  const receiptRows = db.exec(
+    'SELECT decision, reason, index_status FROM writeback_receipts WHERE source_run_key = ?',
+    ['run-status-snapshot'],
+  );
+
+  assert.equal(result.decision, 'skipped');
+  assert.equal(result.reason, 'low-note-quality');
+  assert.ok(result.warnings.includes('one_off_status') || result.warnings.includes('durable_reusable_lesson'));
+  assert.equal(searchCalls, 0);
+  assert.equal(embedCalls, 0);
+  assert.equal(saveCalls, 1);
+  assert.equal(noteCount, 0);
+  assert.deepEqual(receiptRows[0].values[0], [
+    'skipped',
+    'low-note-quality',
+    'completed',
+  ]);
+});
+
+test('writeTaskMemory persists materialized fields for created notes', async () => {
+  const db = await createSqlDatabase();
+
+  const result = await writeTaskMemory(
+    {
+      mode: 'auto',
+      source_run_key: 'run-materialized-create',
+      task: {
+        goal: 'Fix server readiness race',
+        task_kind: 'debug',
+        source_agent: 'codex',
+        project_key: 'git:repo',
+        project_dir: 'C:/repo',
+        cwd: 'C:/repo',
+      },
+      memory: {
+        title: '  Server readiness race returns ECONNREFUSED  ',
+        summary:
+          'Wait for Fastify readiness\n before issuing API requests to avoid startup race failures.',
+        outcome_type: 'fix',
+        root_cause: READINESS_ROOT_CAUSE,
+        resolution: READINESS_RESOLUTION,
+      },
+    },
+    {
+      db: db as never,
+      generateEmbeddings: async () => 1,
+      semanticSearch: async () => [],
+    },
+  );
+
+  const noteRows = db.exec(
+    'SELECT title, summary, key_conclusions, raw_llm_response FROM notes WHERE id = ?',
+    [result.note_id],
+  );
+  const rawPayload = JSON.parse(String(noteRows[0].values[0][3])) as {
+    key_conclusions?: string[];
+    title?: string;
+  };
+
+  assert.equal(result.decision, 'created');
+  assert.equal(noteRows[0].values[0][0], 'Server readiness race returns ECONNREFUSED');
+  assert.equal(
+    noteRows[0].values[0][1],
+    'Wait for Fastify readiness before issuing API requests to avoid startup race failures.',
+  );
+  assert.deepEqual(JSON.parse(String(noteRows[0].values[0][2])), [
+    `Root cause: ${READINESS_ROOT_CAUSE}`,
+    `Resolution: ${READINESS_RESOLUTION}`,
+  ]);
+  assert.equal(rawPayload.title, '  Server readiness race returns ECONNREFUSED  ');
+  assert.equal(rawPayload.key_conclusions, undefined);
+});
+
 test('writeTaskMemory re-embeds the merge target after appending evidence', async () => {
   const db = await createSqlDatabase();
   insertImportedConversation(db, 'conv-existing');
@@ -224,18 +358,18 @@ test('writeTaskMemory re-embeds the merge target after appending evidence', asyn
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       'conv-existing',
-      'Timeout fix',
-      'Existing timeout fix summary.',
+      READINESS_TITLE,
+      READINESS_SUMMARY,
       JSON.stringify({
-        root_cause: 'Requests raced the server startup',
-        resolution: 'Await readiness in the helper',
+        root_cause: READINESS_ROOT_CAUSE,
+        resolution: READINESS_RESOLUTION,
       }),
       'git:repo',
       'project',
       'imported-conversation',
       'codex',
       'debug',
-      JSON.stringify(['ECONNREFUSED']),
+      JSON.stringify([READINESS_ECONNREFUSED]),
       JSON.stringify([]),
       'fix',
     ],
@@ -261,12 +395,12 @@ test('writeTaskMemory re-embeds the merge target after appending evidence', asyn
         branch: 'main',
       },
       memory: {
-        summary:
-          'Await server readiness before requests so client calls do not race startup and fail with connection errors.',
+        title: READINESS_TITLE,
+        summary: READINESS_SUMMARY,
         outcome_type: 'fix',
-        root_cause: 'Requests raced the server startup',
-        resolution: 'Await readiness in the helper',
-        error_signatures: ['ECONNREFUSED'],
+        root_cause: READINESS_ROOT_CAUSE,
+        resolution: READINESS_RESOLUTION,
+        error_signatures: [READINESS_ECONNREFUSED],
       },
     },
     {
@@ -305,8 +439,8 @@ test('writeTaskMemory merge preserves existing structured payload fields while a
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       'conv-merge-payload',
-      'Timeout fix',
-      'Existing timeout fix summary.',
+      READINESS_TITLE,
+      READINESS_SUMMARY,
       JSON.stringify(['Existing conclusion']),
       JSON.stringify([
         {
@@ -316,17 +450,19 @@ test('writeTaskMemory merge preserves existing structured payload fields while a
         },
       ]),
       JSON.stringify({
-        root_cause: 'Requests raced the server startup',
-        resolution: 'Await readiness in the helper',
-        reusable_patterns: ['Existing helper'],
-        pitfalls: ['Old pitfall'],
+        root_cause: READINESS_ROOT_CAUSE,
+        resolution: READINESS_RESOLUTION,
+        reusable_patterns: [
+          'Wait for Fastify readiness before request setup so client calls cannot race server startup.',
+        ],
+        pitfalls: [READINESS_EXISTING_PITFALL],
       }),
       'git:repo',
       'project',
       'imported-conversation',
       'codex',
       'debug',
-      JSON.stringify(['ECONNREFUSED']),
+      JSON.stringify([READINESS_ECONNREFUSED]),
       JSON.stringify(['tests/server.ts']),
       'fix',
     ],
@@ -349,22 +485,26 @@ test('writeTaskMemory merge preserves existing structured payload fields while a
         cwd: 'C:/repo',
       },
       memory: {
-        summary:
-          'Await server readiness before requests so client calls do not race startup and fail with connection errors.',
+        title: READINESS_TITLE,
+        summary: READINESS_SUMMARY,
         outcome_type: 'fix',
-        root_cause: 'Requests raced the server startup',
-        resolution: 'Await readiness in the helper',
-        error_signatures: ['ECONNREFUSED', 'ETIMEDOUT'],
+        root_cause: READINESS_ROOT_CAUSE,
+        resolution: READINESS_RESOLUTION,
+        error_signatures: [READINESS_ECONNREFUSED, READINESS_ETIMEDOUT],
         files_touched: ['tests/helper.ts'],
-        key_conclusions: ['New conclusion'],
+        reusable_patterns: [
+          READINESS_INCOMING_PATTERN,
+        ],
+        decisions: [READINESS_DECISION],
         code_snippets: [
           {
             language: 'ts',
-            code: 'await helper.ready()',
-            description: 'New snippet',
+            code: "await fastify.ready();\nawait client.get('/api/status');",
+            description:
+              'Request helper waits for Fastify readiness before issuing API calls that otherwise hit ECONNREFUSED.',
           },
         ],
-        pitfalls: ['New pitfall'],
+        pitfalls: [READINESS_INCOMING_PITFALL],
       },
     },
     {
@@ -392,11 +532,19 @@ test('writeTaskMemory merge preserves existing structured payload fields while a
     reusable_patterns?: string[];
     pitfalls?: string[];
     resolution?: string;
+    decisions?: string[];
   };
 
   assert.deepEqual(JSON.parse(String(rows[0].values[0][0])), [
-    'Existing conclusion',
-    'New conclusion',
+    `Root cause: ${READINESS_ROOT_CAUSE}`,
+    `Resolution: ${READINESS_RESOLUTION}`,
+    `Pitfall: ${READINESS_EXISTING_PITFALL}`,
+    `Pitfall: ${READINESS_INCOMING_PITFALL}`,
+    'Pattern: Wait for Fastify readiness before request setup so client calls cannot race server startup.',
+    `Pattern: ${READINESS_INCOMING_PATTERN}`,
+    `Decision: ${READINESS_DECISION}`,
+    `Error signature: ${READINESS_ECONNREFUSED}`,
+    `Error signature: ${READINESS_ETIMEDOUT}`,
   ]);
   assert.deepEqual(JSON.parse(String(rows[0].values[0][1])), [
     {
@@ -406,21 +554,29 @@ test('writeTaskMemory merge preserves existing structured payload fields while a
     },
     {
       language: 'ts',
-      code: 'await helper.ready()',
-      description: 'New snippet',
+      code: "await fastify.ready();\nawait client.get('/api/status');",
+      description:
+        'Request helper waits for Fastify readiness before issuing API calls that otherwise hit ECONNREFUSED.',
     },
   ]);
   assert.deepEqual(JSON.parse(String(rows[0].values[0][2])), [
-    'ECONNREFUSED',
-    'ETIMEDOUT',
+    READINESS_ECONNREFUSED,
+    READINESS_ETIMEDOUT,
   ]);
   assert.deepEqual(JSON.parse(String(rows[0].values[0][3])), [
     'tests/server.ts',
     'tests/helper.ts',
   ]);
-  assert.deepEqual(mergedPayload.reusable_patterns, ['Existing helper']);
-  assert.deepEqual(mergedPayload.pitfalls, ['Old pitfall', 'New pitfall']);
-  assert.equal(mergedPayload.resolution, 'Await readiness in the helper');
+  assert.deepEqual(mergedPayload.reusable_patterns, [
+    'Wait for Fastify readiness before request setup so client calls cannot race server startup.',
+    READINESS_INCOMING_PATTERN,
+  ]);
+  assert.deepEqual(mergedPayload.decisions, [READINESS_DECISION]);
+  assert.deepEqual(mergedPayload.pitfalls, [
+    READINESS_EXISTING_PITFALL,
+    READINESS_INCOMING_PITFALL,
+  ]);
+  assert.equal(mergedPayload.resolution, READINESS_RESOLUTION);
 });
 
 test('writeTaskMemory replay completes pending indexing before returning the stored auto decision', async () => {
@@ -480,17 +636,18 @@ test('writeTaskMemory replay completes pending indexing before returning the sto
   assert.equal(saveCalls, 1);
 });
 
-test('writeTaskMemory merges root-cause-only fixes with matching existing memories', async () => {
+test('writeTaskMemory merges fixes with matching existing memories after preflight', async () => {
   const db = await createSqlDatabase();
   seedExistingNote(db, {
     noteId: 77,
     projectKey: 'git:repo',
     outcomeType: 'fix',
     raw: {
-      root_cause: 'Requests raced server startup',
-      error_signatures: ['ECONNREFUSED'],
+      root_cause: READINESS_ROOT_CAUSE,
+      resolution: READINESS_RESOLUTION,
+      error_signatures: [READINESS_ECONNREFUSED],
     },
-    errorSignatures: ['ECONNREFUSED'],
+    errorSignatures: [READINESS_ECONNREFUSED],
   });
 
   const result = await writeTaskMemory(
@@ -504,11 +661,12 @@ test('writeTaskMemory merges root-cause-only fixes with matching existing memori
         project_key: 'git:repo',
       },
       memory: {
-        summary:
-          'Requests can race server startup and cause ECONNREFUSED during tests.',
+        title: READINESS_TITLE,
+        summary: READINESS_SUMMARY,
         outcome_type: 'fix',
-        root_cause: 'Requests raced server startup',
-        error_signatures: ['ECONNREFUSED'],
+        root_cause: READINESS_ROOT_CAUSE,
+        resolution: READINESS_RESOLUTION,
+        error_signatures: [READINESS_ECONNREFUSED],
       },
     },
     {
@@ -596,10 +754,11 @@ test('writeTaskMemory accepts concise fixes when structured fields carry the exp
         cwd: 'C:/repo',
       },
       memory: {
-        summary: 'Await readiness before requests.',
+        title: READINESS_TITLE,
+        summary: READINESS_SUMMARY,
         outcome_type: 'fix',
-        root_cause: 'Requests raced server startup.',
-        resolution: 'Wait for server readiness before issuing requests.',
+        root_cause: READINESS_ROOT_CAUSE,
+        resolution: READINESS_RESOLUTION,
       },
     },
     {
@@ -621,7 +780,7 @@ test('writeTaskMemory accepts valid pattern candidates and creates notes', async
       mode: 'auto',
       source_run_key: 'run-pattern',
       task: {
-        goal: 'Add experience quality gate',
+        goal: 'Normalize package metadata before dist comparison',
         task_kind: 'implement',
         source_agent: 'codex',
         project_key: 'git:repo',
@@ -629,11 +788,12 @@ test('writeTaskMemory accepts valid pattern candidates and creates notes', async
         cwd: 'C:/repo',
       },
       memory: {
+        title: 'Normalize package metadata before dist comparison',
         summary:
-          'Core quality gates should validate agent writeback payloads before semantic merge so weak candidates cannot enter the experience library.',
+          'Normalize package metadata before comparing generated dist output when version formats make dist comparisons unreliable.',
         outcome_type: 'pattern',
         reusable_patterns: [
-          'Put quality gates at trusted persistence boundaries before duplicate detection.',
+          'Normalize package metadata before comparing generated dist output because inconsistent version formats made dist comparisons unreliable.',
         ],
       },
     },
