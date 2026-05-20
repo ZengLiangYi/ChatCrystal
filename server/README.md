@@ -8,7 +8,7 @@
 
 [![npm](https://img.shields.io/npm/v/chatcrystal?style=flat-square)](https://www.npmjs.com/package/chatcrystal)
 [![GitHub](https://img.shields.io/github/stars/ZengLiangYi/ChatCrystal?style=flat-square)](https://github.com/ZengLiangYi/ChatCrystal)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/ZengLiangYi/ChatCrystal/blob/main/LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](https://github.com/ZengLiangYi/ChatCrystal/blob/main/LICENSE)
 
 </div>
 
@@ -134,4 +134,4 @@ ChatCrystal also has a web UI and Electron desktop app. See the [GitHub reposito
 
 ## License
 
-[MIT](https://github.com/ZengLiangYi/ChatCrystal/blob/main/LICENSE)
+[Apache License 2.0](https://github.com/ZengLiangYi/ChatCrystal/blob/main/LICENSE)
