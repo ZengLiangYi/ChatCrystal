@@ -283,3 +283,27 @@ test('triggerSummarize creates notes for accepted conversations', async () => {
   assert.equal(Number(noteCount[0].values[0][0]), 1);
   assert.equal(status[0].values[0][0], 'summarized');
 });
+
+test('triggerSummarize marks conversations with preserved notes as summarized', async () => {
+  const db = await createSqlDatabase();
+  insertConversation(db, 'conv-preserved-note');
+  db.run(
+    `INSERT INTO notes (
+      conversation_id, title, summary, key_conclusions, code_snippets, is_edited, source_type
+    ) VALUES (?, ?, ?, ?, ?, 1, 'imported-conversation')`,
+    ['conv-preserved-note', 'Edited note', 'Keep this note.', '[]', '[]'],
+  );
+
+  const result = await triggerSummarize('conv-preserved-note', {
+    db: db as never,
+    save: () => undefined,
+    prepareTranscript: () => {
+      throw new Error('existing notes should not rebuild transcript');
+    },
+  });
+
+  const status = db.exec('SELECT status FROM conversations WHERE id = ?', ['conv-preserved-note']);
+
+  assert.equal(typeof result, 'number');
+  assert.equal(status[0].values[0][0], 'summarized');
+});

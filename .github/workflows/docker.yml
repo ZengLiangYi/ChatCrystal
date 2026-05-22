@@ -1,0 +1,175 @@
+name: Docker
+
+on:
+  pull_request:
+    paths:
+      - Dockerfile
+      - docker-compose.yml
+      - docker-compose.build.yml
+      - .dockerignore
+      - package.json
+      - package-lock.json
+      - tsconfig.base.json
+      - README.md
+      - LICENSE
+      - NOTICE
+      - scripts/**
+      - server/**
+      - client/**
+      - shared/**
+      - .github/workflows/docker.yml
+  push:
+    branches: [main]
+    tags:
+      - v*
+    paths:
+      - Dockerfile
+      - docker-compose.yml
+      - docker-compose.build.yml
+      - .dockerignore
+      - package.json
+      - package-lock.json
+      - tsconfig.base.json
+      - README.md
+      - LICENSE
+      - NOTICE
+      - scripts/**
+      - server/**
+      - client/**
+      - shared/**
+      - .github/workflows/docker.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_NAME: ghcr.io/zengliangyi/chatcrystal
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate Compose
+        run: docker compose config
+
+      - name: Validate Compose source build override
+        run: docker compose -f docker-compose.yml -f docker-compose.build.yml config
+
+      - name: Build image
+        run: docker build -t chatcrystal:test .
+
+      - name: Smoke test CLI in image
+        run: docker run --rm --entrypoint crystal chatcrystal:test --version
+
+      - name: Smoke test container
+        run: |
+          docker run -d --name chatcrystal-smoke \
+            -e CHATCRYSTAL_CLOUD_MODE=true \
+            -e CHATCRYSTAL_API_TOKEN=ci-smoke-token-123456 \
+            -e DATA_DIR=/data \
+            -p 127.0.0.1::3721 \
+            chatcrystal:test
+          mapped="$(docker port chatcrystal-smoke 3721/tcp)"
+          port="${mapped##*:}"
+          for _attempt in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:${port}/api/health"; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs chatcrystal-smoke
+          exit 1
+
+      - name: Cleanup
+        if: always()
+        run: docker rm -f chatcrystal-smoke || true
+
+  publish:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: docker-publish-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Verify publish ref
+        run: |
+          git fetch --no-tags origin main
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            remote_sha="$(git rev-parse origin/main)"
+            if [ "${GITHUB_SHA}" != "${remote_sha}" ]; then
+              echo "::error::Refusing to publish because ${GITHUB_SHA} is not the current origin/main (${remote_sha})."
+              exit 1
+            fi
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+              echo "::error::Refusing to publish tag ${GITHUB_REF_NAME} because ${GITHUB_SHA} is not reachable from origin/main."
+              exit 1
+            fi
+          else
+            echo "::error::Docker image publishing is limited to main and v* tags."
+            exit 1
+          fi
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,prefix=sha-
+            type=ref,event=tag
+            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Publish image
+        id: publish
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Verify public pull
+        run: |
+          docker logout ghcr.io || true
+          if ! docker pull "${IMAGE_NAME}@${{ steps.publish.outputs.digest }}"; then
+            echo "::error::GHCR image is not publicly pullable. Open the package settings for ghcr.io/zengliangyi/chatcrystal, change visibility to Public, then rerun this workflow."
+            exit 1
+          fi
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            docker pull "${IMAGE_NAME}:latest"
+          fi

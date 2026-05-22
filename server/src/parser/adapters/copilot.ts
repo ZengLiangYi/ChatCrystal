@@ -286,6 +286,7 @@ export function getCopilotWatchPaths(): string[] {
 export const copilotAdapter: SourceAdapter = {
 	name: "copilot",
 	displayName: "GitHub Copilot",
+	parserVersion: "copilot@1",
 
 	async detect(): Promise<SourceInfo | null> {
 		try {

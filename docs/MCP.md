@@ -37,6 +37,38 @@ Example agent configuration:
 
 If a tool separately asks for an HTTP API endpoint, use `http://localhost:3721`. Do not use a bare `http://127.0.0.1` URL without a port because HTTP defaults to port 80.
 
+### Cloud Mode
+
+`crystal mcp` uses the same connection priority as the CLI. After `crystal connect`, MCP clients can keep using:
+
+```json
+{
+  "mcpServers": {
+    "chatcrystal": {
+      "command": "crystal",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+You can also pass environment variables from the MCP client:
+
+```json
+{
+  "mcpServers": {
+    "chatcrystal": {
+      "command": "crystal",
+      "args": ["mcp"],
+      "env": {
+        "CHATCRYSTAL_BASE_URL": "https://chatcrystal.example.com",
+        "CHATCRYSTAL_API_TOKEN": "your-long-token"
+      }
+    }
+  }
+}
+```
+
 ## MCP Tools
 
 ChatCrystal exposes six MCP tools:
@@ -94,4 +126,3 @@ The currently published skill set is intentionally narrow:
 MCP writeback is protected by the same experience quality standard used by the summarization pipeline. Low-signal summaries, unverified work, raw logs, and informational exchanges should be filtered before they become memory assets.
 
 See [Experience Quality Gate](EXPERIENCE_GATE.md).
-

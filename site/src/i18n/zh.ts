@@ -51,7 +51,7 @@ export const zh: Translations = {
     yourMachine: '你的电脑',
     points: [
       { title: '数据不出本机', desc: 'SQLite 本地存储，无需云端' },
-      { title: '完全开源', desc: 'MIT 协议，代码透明可审计' },
+      { title: '完全开源', desc: 'Apache-2.0 协议，代码透明可审计' },
       { title: '自主可控', desc: '自选 LLM 服务商，支持 Ollama 全本地运行' },
     ],
   },

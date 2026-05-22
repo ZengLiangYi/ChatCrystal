@@ -15,6 +15,7 @@ interface SearchResult {
 
 interface SearchViewProps {
   client: CrystalClient;
+  connectionInfo?: string;
   /** Pre-filled query (e.g., from search command argument) */
   initialQuery?: string;
   /** Called when user selects a result */
@@ -23,7 +24,7 @@ interface SearchViewProps {
   onBack: () => void;
 }
 
-export function SearchView({ client, initialQuery, onSelectNote, onBack }: SearchViewProps) {
+export function SearchView({ client, connectionInfo, initialQuery, onSelectNote, onBack }: SearchViewProps) {
   const [showInput, setShowInput] = useState(!initialQuery);
   const [query, setQuery] = useState(initialQuery || '');
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -98,6 +99,7 @@ export function SearchView({ client, initialQuery, onSelectNote, onBack }: Searc
       onSelect={(item, index) => onSelectNote(item.note_id, index)}
       onSearch={() => setShowInput(true)}
       onQuit={onBack}
+      connectionInfo={connectionInfo}
       title={titleText}
       keyboardActive={!searching}
     />

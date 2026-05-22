@@ -2,7 +2,7 @@
   "name": "chatcrystal",
   "version": "0.4.10",
   "private": false,
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/ZengLiangYi/ChatCrystal"

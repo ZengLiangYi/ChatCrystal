@@ -1,6 +1,6 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { runtimePaths } from "./runtime/paths.js";
 
 function resolveHome(p: string): string {
@@ -111,5 +111,10 @@ function persistConfig() {
 	if (!toSave.embedding.apiKey)
 		delete (toSave.embedding as Record<string, unknown>).apiKey;
 
-	writeFileSync(configPath, JSON.stringify(toSave, null, 2), "utf-8");
+	mkdirSync(dirname(configPath), { recursive: true });
+	writeFileSync(configPath, JSON.stringify(toSave, null, 2), {
+		encoding: "utf-8",
+		mode: 0o600,
+	});
+	chmodSync(configPath, 0o600);
 }

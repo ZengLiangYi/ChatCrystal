@@ -17,6 +17,10 @@ import { noteRoutes } from './routes/notes.js';
 import { configRoutes } from './routes/config.js';
 import { relationRoutes } from './routes/relations.js';
 import { memoryRoutes } from './routes/memory.js';
+import { healthRoutes } from './routes/health.js';
+import { authRoutes, registerCloudAuthHook } from './routes/setup.js';
+import { getOrCreateSetupCode, setupRequired } from './services/auth.js';
+import { isCloudMode } from './runtime/cloud.js';
 
 // Initialize parser adapters (registers built-in adapters)
 import './parser/index.js';
@@ -36,7 +40,7 @@ export async function createServer(options?: {
   port?: number;
   host?: string;
 }): Promise<ServerInstance> {
-  const app = Fastify({ logger: true });
+  const app = Fastify({ logger: true, bodyLimit: 25 * 1024 * 1024 });
 
   // CORS for dev (client on different port)
   await app.register(cors, { origin: true });
@@ -46,7 +50,18 @@ export async function createServer(options?: {
   startAutoSave();
   seedDemoData();
 
-  // Register routes
+  if (isCloudMode() && setupRequired()) {
+    const code = getOrCreateSetupCode();
+    app.log.warn({ setupCodePath: '/data/setup-code' }, `ChatCrystal setup required. Setup code: ${code}`);
+    console.log(`[Setup] ChatCrystal setup required. Setup code: ${code}`);
+  }
+
+  // Register public routes and cloud auth hook before private routes
+  await app.register(healthRoutes);
+  await app.register(authRoutes);
+  registerCloudAuthHook(app);
+
+  // Register protected routes
   await app.register(statusRoutes);
   await app.register(importRoutes);
   await app.register(conversationRoutes);
@@ -83,8 +98,8 @@ export async function createServer(options?: {
   console.log(`[LLM] Provider: ${appConfig.llm.provider} / ${appConfig.llm.model}`);
   console.log(`[Embedding] Provider: ${appConfig.embedding.provider} / ${appConfig.embedding.model}`);
 
-  // Start file watcher
-  const watcher = startWatcher();
+  // Start file watcher only for local mode; cloud imports are pushed from clients.
+  const watcher = isCloudMode() ? null : startWatcher();
 
   // Start server
   const port = options?.port ?? appConfig.port;
@@ -95,7 +110,7 @@ export async function createServer(options?: {
   // Graceful shutdown function
   async function shutdown() {
     console.log('[Server] Shutting down...');
-    await watcher.close();
+    await watcher?.close();
     closeDatabase();
     await app.close();
   }

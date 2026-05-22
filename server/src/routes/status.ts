@@ -3,6 +3,7 @@ import { appConfig } from "../config.js";
 import { getDatabase } from "../db/index.js";
 import { resultToObjects } from "../db/utils.js";
 import { detectAllSources } from "../parser/index.js";
+import { getProviderWarnings, isCloudMode } from "../runtime/cloud.js";
 
 export async function statusRoutes(app: FastifyInstance) {
 	app.get("/api/status", async () => {
@@ -33,6 +34,8 @@ export async function statusRoutes(app: FastifyInstance) {
 			data: {
 				server: true,
 				database: true,
+				cloudMode: isCloudMode(),
+				providerWarnings: getProviderWarnings(),
 				isSeeded: Number(convCount) > 0 && Number(realConvCount) === 0,
 				stats: {
 					totalConversations: convCount,
@@ -46,6 +49,7 @@ export async function statusRoutes(app: FastifyInstance) {
 
 	// Current config (read-only, no secrets)
 	app.get("/api/config", async () => {
+		const cloudMode = isCloudMode();
 		return {
 			success: true,
 			data: {
@@ -61,9 +65,9 @@ export async function statusRoutes(app: FastifyInstance) {
 					model: appConfig.embedding.model,
 					hasApiKey: !!appConfig.embedding.apiKey,
 				},
-				sources: (await detectAllSources()).map((s) => s.info),
+				sources: cloudMode ? [] : (await detectAllSources()).map((s) => s.info),
 				enabledSources: appConfig.enabledSources,
-				claudeProjectsDir: appConfig.claudeProjectsDir,
+				claudeProjectsDir: cloudMode ? "" : appConfig.claudeProjectsDir,
 			},
 		};
 	});

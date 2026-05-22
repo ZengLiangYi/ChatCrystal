@@ -49,7 +49,7 @@ export const en = {
     yourMachine: 'Your machine',
     points: [
       { title: 'Never leaves your machine', desc: 'SQLite local storage, zero cloud dependency' },
-      { title: 'Fully open source', desc: 'MIT License, transparent and auditable' },
+      { title: 'Fully open source', desc: 'Apache-2.0 licensed, transparent and auditable' },
       { title: "You're in control", desc: 'Choose your LLM provider — supports Ollama for fully local AI' },
     ],
   },

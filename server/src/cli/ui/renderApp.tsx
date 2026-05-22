@@ -10,10 +10,11 @@ import type { CrystalClient } from '../client.js';
  */
 export async function renderApp(client: CrystalClient, initialView: ViewState): Promise<void> {
   // Ensure server is available before entering interactive mode
-  await client.ensureServer();
+  const status = await client.status();
+  const connectionInfo = client.getConnectionSummary(status);
 
   const { waitUntilExit } = render(
-    <App client={client} initialView={initialView} />,
+    <App client={client} initialView={initialView} connectionInfo={connectionInfo} />,
   );
 
   await waitUntilExit();

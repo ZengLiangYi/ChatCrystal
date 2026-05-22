@@ -8,7 +8,7 @@
 
 [![GitHub release](https://img.shields.io/github/v/release/ZengLiangYi/ChatCrystal?style=flat-square)](https://github.com/ZengLiangYi/ChatCrystal/releases)
 [![npm](https://img.shields.io/npm/v/chatcrystal?style=flat-square)](https://www.npmjs.com/package/chatcrystal)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen?style=flat-square)](https://nodejs.org/)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey?style=flat-square)](#)
 [![Website](https://img.shields.io/badge/website-ChatCrystal-5A5FD6?style=flat-square)](https://zengliangyi.github.io/ChatCrystal/)
@@ -44,6 +44,37 @@ crystal import
 ```
 
 Then open http://localhost:3721 in your browser.
+
+### Docker Cloud
+
+The default Compose deployment runs only the ChatCrystal service. It stores data in the `chatcrystal-data` volume mounted at `/data` inside the container.
+
+```bash
+git clone https://github.com/ZengLiangYi/ChatCrystal.git
+cd ChatCrystal
+docker compose up -d
+```
+
+The default `docker-compose.yml` pulls `ghcr.io/zengliangyi/chatcrystal:latest` from GitHub Container Registry. Set `CHATCRYSTAL_IMAGE_TAG` to pin a published version. To build from source instead, run `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`.
+
+To update an existing Docker deployment, run `docker compose pull && docker compose up -d`. Maintainers only: after the first GHCR publish, make the `ghcr.io/zengliangyi/chatcrystal` package public in GitHub Packages; the release workflow verifies anonymous pull access before passing.
+
+Compose binds ChatCrystal to `127.0.0.1:3721` by default. Set `CHATCRYSTAL_HOST_PORT` to change the host port. For public cloud access, put an HTTPS reverse proxy in front of it and connect to the HTTPS URL. Do not expose bearer-token traffic over plain HTTP.
+
+On first start without `CHATCRYSTAL_API_TOKEN`, open the Web UI and enter the setup code printed in container logs or stored at `/data/setup-code`, then choose one shared API token for your devices.
+
+To use an existing Ollama or external API, configure provider URLs in the Web UI or environment. In Docker, `localhost` means inside the container; use `CHATCRYSTAL_DOCKER_LLM_BASE_URL` and `CHATCRYSTAL_DOCKER_EMBEDDING_BASE_URL` for Compose-time provider URL overrides. Docker Desktop can reach host Ollama at `http://host.docker.internal:11434`, or you can use a remote HTTPS/OpenAI-compatible API.
+
+### Import from a Device into the Cloud Instance
+
+Install or run the CLI on the device that has Claude Code, Cursor, Codex CLI, Trae, or GitHub Copilot history:
+
+```bash
+crystal connect https://chatcrystal.example.com --token "your-long-token"
+crystal import --yes
+```
+
+The CLI scans local histories, parses them locally, and uploads normalized conversations to the cloud. The cloud never scans your local filesystem. Imported conversations are not summarized automatically; use the Web UI or `crystal summarize --all` when you are ready. CLI commands refuse to send ChatCrystal API tokens to non-local `http://` URLs by default; use HTTPS for cloud access.
 
 ## What It Does
 
@@ -128,4 +159,4 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for architecture, testing, build,
 
 ## License
 
-[MIT](LICENSE)
+[Apache License 2.0](LICENSE)

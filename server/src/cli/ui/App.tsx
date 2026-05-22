@@ -13,13 +13,14 @@ import type { CrystalClient } from '../client.js';
 interface AppProps {
   client: CrystalClient;
   initialView: ViewState;
+  connectionInfo?: string;
 }
 
 /**
  * Root interactive app. Manages view stack and routes to view components.
  * Each command creates an <App> with the appropriate initial view.
  */
-export function App({ client, initialView }: AppProps) {
+export function App({ client, initialView, connectionInfo }: AppProps) {
   const { current, depth, push, pop, replace } = useViewStack(initialView);
   const { columns, rows } = useTerminalSize();
   const { exit } = useApp();
@@ -66,6 +67,7 @@ export function App({ client, initialView }: AppProps) {
         <NotesListView
           key={viewKey}
           client={client}
+          connectionInfo={connectionInfo}
           tagFilter={props.tagFilter as string | undefined}
           onSelectNote={(noteId, index) => {
             push({ type: 'note-detail', props: { noteId, currentIndex: index } });
@@ -80,6 +82,7 @@ export function App({ client, initialView }: AppProps) {
         <NoteDetailView
           key={viewKey}
           client={client}
+          connectionInfo={connectionInfo}
           noteId={props.noteId as number}
           noteIds={props.noteIds as number[] | undefined}
           currentIndex={props.currentIndex as number | undefined}
@@ -96,6 +99,7 @@ export function App({ client, initialView }: AppProps) {
         <SearchView
           key={viewKey}
           client={client}
+          connectionInfo={connectionInfo}
           initialQuery={props.initialQuery as string | undefined}
           onSelectNote={(noteId, index) => {
             push({ type: 'note-detail', props: { noteId, currentIndex: index } });
@@ -109,6 +113,7 @@ export function App({ client, initialView }: AppProps) {
         <TagsView
           key={viewKey}
           client={client}
+          connectionInfo={connectionInfo}
           onSelectTag={(tagName) => {
             push({ type: 'notes-list', props: { tagFilter: tagName } });
           }}
@@ -121,6 +126,7 @@ export function App({ client, initialView }: AppProps) {
         <ConversationsView
           key={viewKey}
           client={client}
+          connectionInfo={connectionInfo}
           source={props.source as string | undefined}
           status={props.status as string | undefined}
           search={props.search as string | undefined}
@@ -144,6 +150,7 @@ export function App({ client, initialView }: AppProps) {
         <RelationsView
           key={viewKey}
           client={client}
+          connectionInfo={connectionInfo}
           noteId={props.noteId as number}
           onSelectNote={(noteId, index) => {
             push({ type: 'note-detail', props: { noteId, currentIndex: index } });

@@ -44,6 +44,7 @@ interface InteractiveListProps<T> {
   renderSidePreview?: (item: T, width: number) => React.ReactNode;
   /** Extra hints to show in status bar */
   extraHints?: Hint[];
+  connectionInfo?: string;
   /** Title shown in header */
   title: string;
   /** Keyboard active (set false when search bar is open) */
@@ -63,7 +64,7 @@ export function InteractiveList<T>({
   items, columns, total, loading, error, hasMore,
   onLoadMore, onSelect, onSearch, onQuit, onRetry, onSummarize, onDelete,
   renderPreview, renderSidePreview,
-  extraHints, title, keyboardActive = true,
+  extraHints, connectionInfo, title, keyboardActive = true,
 }: InteractiveListProps<T>) {
   const [cursor, setCursor] = useState(0);
   const [scrollOffset, setScrollOffset] = useState(0);
@@ -299,6 +300,7 @@ export function InteractiveList<T>({
 
         {/* Status bar */}
         <StatusBar
+          connectionInfo={connectionInfo}
           info={items.length > 0 ? t.pageInfo(cursor + 1, total) : undefined}
           hints={hints}
         />
@@ -338,6 +340,7 @@ export function InteractiveList<T>({
 
       {/* Status bar */}
       <StatusBar
+        connectionInfo={connectionInfo}
         info={items.length > 0 ? t.pageInfo(cursor + 1, total) : undefined}
         hints={hints}
       />

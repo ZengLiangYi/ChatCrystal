@@ -6,12 +6,16 @@ import type {
   DeleteNoteReviewResponse,
   RecallForTaskRequest,
   RecallForTaskResponse,
+  RemoteImportRequest,
+  RemoteImportResponse,
   ValidateTaskMemoryRequest,
   ValidateTaskMemoryResponse,
   WriteTaskMemoryRequest,
   WriteTaskMemoryResponse,
 } from '@chatcrystal/shared';
+import { isLocalBaseUrl } from '../runtime/cloud.js';
 import { runtimePaths } from '../runtime/paths.js';
+import type { ConnectionSource } from './connection.js';
 
 export class ServerNotAvailableError extends Error {
   constructor(baseUrl: string) {
@@ -29,7 +33,23 @@ export class ApiError extends Error {
 
 export const DEFAULT_SERVER_BASE_URL = 'http://localhost:3721';
 
-const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', '[::1]']);
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
+
+export type CrystalClientOptions = {
+  baseUrl?: string;
+  token?: string;
+  connectionSource?: ConnectionSource | 'direct' | string;
+};
+
+export type CrystalStatus = {
+  server: boolean;
+  database: boolean;
+  cloudMode?: boolean;
+  providerWarnings?: string[];
+  isSeeded?: boolean;
+  stats: { totalConversations: number; totalNotes: number; totalTags: number };
+  recentNotes: Array<{ id: number; title: string; project_name: string; created_at: string }>;
+};
 
 function hasExplicitPort(rawUrl: string): boolean {
   const withProtocol = /^[a-z][a-z\d+\-.]*:\/\//i.test(rawUrl) ? rawUrl : `http://${rawUrl}`;
@@ -41,12 +61,20 @@ export function normalizeBaseUrl(baseUrl?: string): string {
   const raw = baseUrl?.trim();
   if (!raw) return DEFAULT_SERVER_BASE_URL;
 
-  const input = /^[a-z][a-z\d+\-.]*:\/\//i.test(raw) ? raw : `http://${raw}`;
-  const explicitPort = hasExplicitPort(input);
+  const hasProtocol = /^[a-z][a-z\d+\-.]*:\/\//i.test(raw);
+  const provisionalInput = hasProtocol ? raw : `http://${raw}`;
 
   let url: URL;
   try {
+    const provisionalUrl = new URL(provisionalInput);
+    const input = hasProtocol || LOCAL_HOSTS.has(provisionalUrl.hostname)
+      ? provisionalInput
+      : `https://${raw}`;
+    const explicitPort = hasExplicitPort(input);
     url = new URL(input);
+    if (url.protocol === 'http:' && LOCAL_HOSTS.has(url.hostname) && !explicitPort) {
+      url.port = '3721';
+    }
   } catch {
     throw new Error(`Invalid server base URL "${baseUrl}". Expected a URL like ${DEFAULT_SERVER_BASE_URL}.`);
   }
@@ -55,19 +83,77 @@ export function normalizeBaseUrl(baseUrl?: string): string {
     throw new Error(`Invalid server base URL "${baseUrl}". Only http and https URLs are supported.`);
   }
 
-  if (url.protocol === 'http:' && LOCAL_HOSTS.has(url.hostname) && !explicitPort) {
-    url.port = '3721';
-  }
-
   return url.toString().replace(/\/+$/, '');
+}
+
+export function isInsecureRemoteHttp(baseUrl: string): boolean {
+  try {
+    const url = new URL(baseUrl);
+    return url.protocol === 'http:' && !isLocalBaseUrl(baseUrl);
+  } catch {
+    return false;
+  }
+}
+
+export function allowInsecureRemoteHttp(): boolean {
+  return process.env.CHATCRYSTAL_ALLOW_INSECURE_REMOTE_HTTP === 'true';
+}
+
+export function assertSafeAuthTransport(baseUrl: string, token?: string): void {
+  if (!token?.trim()) return;
+  if (!isInsecureRemoteHttp(baseUrl) || allowInsecureRemoteHttp()) return;
+  throw new Error(
+    'Refusing to send a ChatCrystal API token over non-local HTTP. Use HTTPS for cloud access, connect through a local tunnel, or set CHATCRYSTAL_ALLOW_INSECURE_REMOTE_HTTP=true only on a trusted private network.',
+  );
+}
+
+export function isUserConfiguredLoopback(baseUrl: string, connectionSource: ConnectionSource | 'direct' | string): boolean {
+  return isLocalBaseUrl(baseUrl) && connectionSource !== 'local-default' && connectionSource !== 'direct';
+}
+
+export function assertExpectedInstanceForConnection(
+  baseUrl: string,
+  connectionSource: ConnectionSource | 'direct' | string,
+  status: { cloudMode?: boolean },
+): void {
+  if (isUserConfiguredLoopback(baseUrl, connectionSource) && status.cloudMode !== true) {
+    throw new Error(
+      'Refusing to use a configured loopback connection that did not report cloud mode. This may be an SSH tunnel or the wrong local instance; use the implicit local default for local mode.',
+    );
+  }
 }
 
 export class CrystalClient {
   private serverChecked = false;
+  private expectedInstanceChecked = false;
   private baseUrl: string;
+  private token?: string;
+  readonly connectionSource: ConnectionSource | 'direct' | string;
 
-  constructor(baseUrl?: string) {
-    this.baseUrl = normalizeBaseUrl(baseUrl);
+  constructor(options?: string | CrystalClientOptions) {
+    if (typeof options === 'string' || options === undefined) {
+      this.baseUrl = normalizeBaseUrl(options);
+      this.connectionSource = 'direct';
+      return;
+    }
+
+    this.baseUrl = normalizeBaseUrl(options.baseUrl);
+    this.token = options.token?.trim() || undefined;
+    assertSafeAuthTransport(this.baseUrl, this.token);
+    this.connectionSource = options.connectionSource ?? 'direct';
+  }
+
+  getBaseUrl(): string {
+    return this.baseUrl;
+  }
+
+  getModeLabel(status?: { cloudMode?: boolean }): string {
+    if (status?.cloudMode) return 'Cloud';
+    return isLocalBaseUrl(this.baseUrl) ? 'Local' : 'Remote';
+  }
+
+  getConnectionSummary(status?: { cloudMode?: boolean }): string {
+    return `${this.getModeLabel(status)} ${this.baseUrl} (${this.connectionSource})`;
   }
 
   async ensureServer(): Promise<void> {
@@ -76,6 +162,10 @@ export class CrystalClient {
     if (await this.isServerRunning()) {
       this.serverChecked = true;
       return;
+    }
+
+    if (!isLocalBaseUrl(this.baseUrl) || this.connectionSource !== 'local-default') {
+      throw new ServerNotAvailableError(this.baseUrl);
     }
 
     const started = await this.autoStartServer();
@@ -87,7 +177,7 @@ export class CrystalClient {
 
   private async isServerRunning(): Promise<boolean> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/status`, {
+      const res = await fetch(`${this.baseUrl}/api/health`, {
         signal: AbortSignal.timeout(2000),
       });
       return res.ok;
@@ -132,19 +222,46 @@ export class CrystalClient {
     return false;
   }
 
-  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  private authHeaders(tokenOverride?: string): Record<string, string> {
+    const token = tokenOverride?.trim() || this.token;
+    assertSafeAuthTransport(this.baseUrl, token);
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  private shouldCheckExpectedInstance(path: string): boolean {
+    return !(
+      path.startsWith('/api/status') ||
+      path.startsWith('/api/health') ||
+      path.startsWith('/api/setup/') ||
+      path.startsWith('/api/auth/verify')
+    );
+  }
+
+  private async ensureExpectedInstance(path: string): Promise<void> {
+    if (this.expectedInstanceChecked || !this.shouldCheckExpectedInstance(path)) return;
+    await this.status();
+  }
+
+  private async request<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    options?: { tokenOverride?: string },
+  ): Promise<T> {
     await this.ensureServer();
+    await this.ensureExpectedInstance(path);
 
     const url = `${this.baseUrl}${path}`;
-    const options: RequestInit = { method };
+    const headers = new Headers(this.authHeaders(options?.tokenOverride));
+    const requestOptions: RequestInit = { method, headers };
     if (body !== undefined) {
-      options.headers = { 'Content-Type': 'application/json' };
-      options.body = JSON.stringify(body);
+      headers.set('Content-Type', 'application/json');
+      requestOptions.body = JSON.stringify(body);
     }
 
     let res: Response;
     try {
-      res = await fetch(url, options);
+      res = await fetch(url, requestOptions);
     } catch (err) {
       throw new ServerNotAvailableError(this.baseUrl);
     }
@@ -159,18 +276,20 @@ export class CrystalClient {
   }
 
   async status() {
-    return this.request<{
-      server: boolean;
-      database: boolean;
-      stats: { totalConversations: number; totalNotes: number; totalTags: number };
-      recentNotes: Array<{ id: number; title: string; project_name: string; created_at: string }>;
-    }>('GET', '/api/status');
+    const status = await this.request<CrystalStatus>('GET', '/api/status');
+    assertExpectedInstanceForConnection(this.baseUrl, this.connectionSource, status);
+    this.expectedInstanceChecked = true;
+    return status;
   }
 
   async importScan(source?: string) {
     return this.request<{
       total: number; imported: number; skipped: number; errors: number;
     }>('POST', '/api/import/scan', source ? { source } : undefined);
+  }
+
+  async ingestConversations(request: RemoteImportRequest) {
+    return this.request<RemoteImportResponse>('POST', '/api/import/ingest', request);
   }
 
   /**
@@ -182,9 +301,10 @@ export class CrystalClient {
     imported: number; skipped: number; errors: number;
   }) => void): Promise<{ total: number; imported: number; skipped: number; errors: number }> {
     await this.ensureServer();
+    await this.ensureExpectedInstance('/api/import/scan/stream');
 
     const res = await fetch(`${this.baseUrl}/api/import/scan/stream`, {
-      headers: { Accept: 'text/event-stream' },
+      headers: { Accept: 'text/event-stream', ...this.authHeaders() },
     });
 
     if (!res.ok || !res.body) {
@@ -241,9 +361,10 @@ export class CrystalClient {
     }>;
   }) => void): Promise<{ total: number; completed: number; failed: number }> {
     await this.ensureServer();
+    await this.ensureExpectedInstance('/api/queue/stream');
 
     const res = await fetch(`${this.baseUrl}/api/queue/stream`, {
-      headers: { Accept: 'text/event-stream' },
+      headers: { Accept: 'text/event-stream', ...this.authHeaders() },
     });
 
     if (!res.ok || !res.body) {
@@ -400,6 +521,19 @@ export class CrystalClient {
 
   async testConfig() {
     return this.request<{ connected: boolean; response?: string; error?: string }>('POST', '/api/config/test');
+  }
+
+  async verifyToken() {
+    return this.request<{ authenticated: boolean }>('POST', '/api/auth/verify');
+  }
+
+  async rotateToken(currentToken: string, nextToken: string) {
+    return this.request<{ rotated: boolean }>(
+      'POST',
+      '/api/auth/rotate',
+      { currentToken, nextToken },
+      { tokenOverride: currentToken },
+    );
   }
 }
 

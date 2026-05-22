@@ -3,6 +3,7 @@ import { appConfig } from "../config.js";
 import { getDatabase, saveDatabase } from "../db/index.js";
 import { withTransaction } from "../db/transaction.js";
 import { getAdapter, getAllAdapters } from "../parser/index.js";
+import { computeConversationContentHash } from "./importPayload.js";
 import { enqueueNoteVectorCleanupTask } from "./vector-cleanup.js";
 
 export interface ImportProgress {
@@ -57,12 +58,13 @@ export async function importAll(
 		try {
 			// Check if already imported and unchanged
 			const existing = db.exec(
-				"SELECT file_size, file_mtime FROM conversations WHERE id = ? AND source = ?",
+				"SELECT file_size, file_mtime, content_hash FROM conversations WHERE id = ? AND source = ?",
 				[meta.id, meta.source],
 			);
+			const existingRow = existing[0]?.values[0];
 
-			if (existing.length > 0 && existing[0].values.length > 0) {
-				const [existingSize, existingMtime] = existing[0].values[0];
+			if (existingRow) {
+				const [existingSize, existingMtime] = existingRow;
 				if (
 					Number(existingSize) === meta.fileSize &&
 					existingMtime === meta.fileMtime
@@ -80,6 +82,8 @@ export async function importAll(
 			}
 
 			const parsed = await adapter.parse(meta);
+			const contentHash = computeConversationContentHash(parsed);
+			const parserVersion = adapter.parserVersion ?? `${meta.adapterName}@1`;
 
 			// Skip conversations with fewer than 2 meaningful messages
 			if (parsed.messages.length < 2) {
@@ -87,11 +91,29 @@ export async function importAll(
 				continue;
 			}
 
+			const existingContentHash =
+				existingRow?.[2] === null || existingRow?.[2] === undefined
+					? null
+					: String(existingRow[2]);
+			if (existingRow && existingContentHash === contentHash) {
+				withTransaction(db, () => {
+					updateImportedConversationMetadata(
+						db,
+						parsed,
+						meta,
+						contentHash,
+						parserVersion,
+					);
+				});
+				progress.skipped++;
+				continue;
+			}
+
 			withTransaction(db, () => {
-				if (existing.length > 0 && existing[0].values.length > 0) {
-					replaceImportedConversation(db, parsed, meta);
+				if (existingRow) {
+					replaceImportedConversation(db, parsed, meta, contentHash, parserVersion);
 				} else {
-					insertConversation(db, parsed, meta);
+					insertConversation(db, parsed, meta, contentHash, parserVersion);
 					insertMessages(db, parsed);
 				}
 
@@ -122,10 +144,97 @@ export async function importAll(
 	return progress;
 }
 
+function updateImportedConversationMetadata(
+	db: ReturnType<typeof getDatabase>,
+	parsed: ParsedConversation,
+	meta: ConversationMeta,
+	contentHash: string,
+	parserVersion: string,
+) {
+	db.run(
+		`UPDATE conversations
+		    SET slug = ?,
+		        source_conversation_id = ?,
+		        content_hash = ?,
+		        parser_version = ?,
+		        project_dir = ?,
+		        project_name = ?,
+		        cwd = ?,
+		        git_branch = ?,
+		        message_count = ?,
+		        first_message_at = ?,
+		        last_message_at = ?,
+		        file_path = ?,
+		        file_size = ?,
+		        file_mtime = ?,
+		        updated_at = datetime('now')
+		  WHERE id = ? AND source = ?`,
+		[
+			parsed.slug,
+			meta.id,
+			contentHash,
+			parserVersion,
+			parsed.projectDir,
+			parsed.projectName,
+			parsed.cwd,
+			parsed.gitBranch,
+			parsed.messages.length,
+			parsed.firstMessageAt,
+			parsed.lastMessageAt,
+			meta.filePath,
+			meta.fileSize,
+			meta.fileMtime,
+			parsed.id,
+			parsed.source,
+		],
+	);
+}
+
+function deleteInvalidatedImportedNotes(
+	db: ReturnType<typeof getDatabase>,
+	conversationId: string,
+) {
+	const oldNoteIds =
+		db
+			.exec(
+				`SELECT id FROM notes
+				  WHERE conversation_id = ?
+				    AND coalesce(is_edited, 0) = 0
+				    AND coalesce(source_type, 'imported-conversation') = 'imported-conversation'`,
+				[conversationId],
+			)[0]
+			?.values.map((note) => Number(note[0])) ?? [];
+
+	for (const noteId of oldNoteIds) {
+		enqueueNoteVectorCleanupTask(noteId, { db });
+	}
+
+	db.run(
+		`DELETE FROM notes
+		  WHERE conversation_id = ?
+		    AND coalesce(is_edited, 0) = 0
+		    AND coalesce(source_type, 'imported-conversation') = 'imported-conversation'`,
+		[conversationId],
+	);
+}
+
+function hasNoteForConversation(
+	db: ReturnType<typeof getDatabase>,
+	conversationId: string,
+) {
+	const row = db.exec(
+		'SELECT 1 FROM notes WHERE conversation_id = ? LIMIT 1',
+		[conversationId],
+	)[0]?.values[0];
+	return Boolean(row);
+}
+
 function replaceImportedConversation(
 	db: ReturnType<typeof getDatabase>,
 	parsed: ParsedConversation,
 	meta: ConversationMeta,
+	contentHash: string,
+	parserVersion: string,
 ) {
 	const current = db.exec(
 		`SELECT status, experience_score, experience_gate_reason, experience_gate_details
@@ -143,20 +252,17 @@ function replaceImportedConversation(
 		row?.[3] === null || row?.[3] === undefined ? null : String(row[3]);
 	const keepUserRejectedGate =
 		status === "filtered" && experienceGateReason === "user-rejected-note";
-	const oldNoteIds =
-		db
-			.exec("SELECT id FROM notes WHERE conversation_id = ?", [parsed.id])[0]
-			?.values.map((note) => Number(note[0])) ?? [];
 
-	for (const noteId of oldNoteIds) {
-		enqueueNoteVectorCleanupTask(noteId, { db });
-	}
-	db.run("DELETE FROM notes WHERE conversation_id = ?", [parsed.id]);
+	deleteInvalidatedImportedNotes(db, parsed.id);
+	const hasPreservedNote = hasNoteForConversation(db, parsed.id);
 	db.run("DELETE FROM messages WHERE conversation_id = ?", [parsed.id]);
 	db.run(
 		`UPDATE conversations
 		    SET slug = ?,
 		        source = ?,
+		        source_conversation_id = ?,
+		        content_hash = ?,
+		        parser_version = ?,
 		        project_dir = ?,
 		        project_name = ?,
 		        cwd = ?,
@@ -176,6 +282,9 @@ function replaceImportedConversation(
 		[
 			parsed.slug,
 			parsed.source,
+			meta.id,
+			contentHash,
+			parserVersion,
 			parsed.projectDir,
 			parsed.projectName,
 			parsed.cwd,
@@ -186,7 +295,7 @@ function replaceImportedConversation(
 			meta.filePath,
 			meta.fileSize,
 			meta.fileMtime,
-			keepUserRejectedGate ? "filtered" : "imported",
+			keepUserRejectedGate ? "filtered" : hasPreservedNote ? "summarized" : "imported",
 			keepUserRejectedGate ? experienceScore : null,
 			keepUserRejectedGate ? experienceGateReason : null,
 			keepUserRejectedGate ? experienceGateDetails : null,
@@ -200,17 +309,23 @@ function insertConversation(
 	db: ReturnType<typeof getDatabase>,
 	parsed: ParsedConversation,
 	meta: ConversationMeta,
+	contentHash: string,
+	parserVersion: string,
 ) {
 	db.run(
 		`INSERT INTO conversations (
-      id, slug, source, project_dir, project_name, cwd, git_branch,
+      id, slug, source, source_conversation_id, content_hash, parser_version,
+      project_dir, project_name, cwd, git_branch,
       message_count, first_message_at, last_message_at,
       file_path, file_size, file_mtime, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'imported')`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'imported')`,
 		[
 			parsed.id,
 			parsed.slug,
 			parsed.source,
+			meta.id,
+			contentHash,
+			parserVersion,
 			parsed.projectDir,
 			parsed.projectName,
 			parsed.cwd,

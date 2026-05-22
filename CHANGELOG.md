@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Added Docker cloud deployment for a personal single-instance ChatCrystal server.
+- Added GHCR publishing workflow and Compose defaults for pulling the published image.
+- Added first-run setup mode and shared bearer token authentication for Web, API, CLI, and MCP.
+- Added CLI cloud connection commands and remote import from local AI tool histories.
+- Disabled server-side local scan import in cloud mode to avoid scanning container paths.
+
 ## [0.4.9] - 2026-04-29
 
 ### Experience Quality Gate

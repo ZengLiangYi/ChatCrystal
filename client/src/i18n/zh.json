@@ -131,7 +131,9 @@
   "import": {
     "imported": "已导入",
     "skipped": "已跳过",
-    "complete": "完成：导入 {{imported}} 条 / 共扫描 {{total}} 条"
+    "complete": "完成：导入 {{imported}} 条 / 共扫描 {{total}} 条",
+    "cloud_mode": "云端模式",
+    "cloud_import_hint": "在保存历史记录的设备上运行 crystal import --yes"
   },
   "data_source_conversations": "{{count}} 个对话",
   "key_conclusions": "关键结论",
@@ -141,6 +143,16 @@
     "description": "当前为演示数据。配置你的 LLM 提供商并导入你自己的 AI 对话来开始使用。",
     "configure_llm": "配置 LLM",
     "browse_demo": "浏览演示数据"
+  },
+  "auth": {
+    "title": "连接云端记忆库",
+    "setup_hint": "输入容器日志或 /data/setup-code 中的 setup code，然后设置所有设备共用的访问 token。",
+    "token_hint": "输入此 ChatCrystal 实例的访问 token。",
+    "setup_code": "Setup code",
+    "token": "访问 token",
+    "submit": "继续",
+    "error": "认证失败",
+    "insecure_http": "拒绝通过公网 HTTP 发送 ChatCrystal 访问 token。请使用 HTTPS 或本地隧道。"
   },
   "guide": {
     "step1": "1. 点击左侧「导入对话」扫描 AI 对话记录",

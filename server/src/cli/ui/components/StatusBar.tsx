@@ -9,6 +9,7 @@ export interface Hint {
 interface StatusBarProps {
   /** Left-side info text, e.g., "2/243" */
   info?: string;
+  connectionInfo?: string;
   /** Keyboard shortcut hints */
   hints: Hint[];
 }
@@ -16,13 +17,14 @@ interface StatusBarProps {
 /**
  * Fixed bottom status bar showing context info (left) and keyboard hints (right).
  */
-export function StatusBar({ info, hints }: StatusBarProps) {
+export function StatusBar({ info, connectionInfo, hints }: StatusBarProps) {
   const hintsText = hints.map(h => `${h.key}:${h.label}`).join('  ');
+  const leftInfo = [connectionInfo, info].filter(Boolean).join(' | ');
 
   return (
     <Box>
-      {info && (
-        <Text dimColor> {info} </Text>
+      {leftInfo && (
+        <Text dimColor> {leftInfo} </Text>
       )}
       <Box flexGrow={1} />
       <Text dimColor>{hintsText} </Text>

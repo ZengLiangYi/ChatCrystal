@@ -9,6 +9,7 @@ import type { CrystalClient } from '../../client.js';
 
 interface NoteDetailViewProps {
   client: CrystalClient;
+  connectionInfo?: string;
   noteId: number;
   /** For prev/next navigation */
   noteIds?: number[];
@@ -20,7 +21,7 @@ interface NoteDetailViewProps {
 }
 
 export function NoteDetailView({
-  client, noteId, noteIds, currentIndex, total, onBack, onNavigate,
+  client, connectionInfo, noteId, noteIds, currentIndex, total, onBack, onNavigate,
 }: NoteDetailViewProps) {
   const [note, setNote] = useState<NoteDetail | null>(null);
   const [relations, setRelations] = useState<Array<{ id: number; title: string; relation_type: string }>>([]);
@@ -138,6 +139,7 @@ export function NoteDetailView({
         setShowDeletePanel(true);
       }}
       position={position}
+      connectionInfo={connectionInfo}
       relations={relations}
     />
   );

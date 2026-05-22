@@ -107,6 +107,10 @@ export const runtimePaths = {
   dataDir,
   dbPath: path.resolve(dataDir, 'chatcrystal.db'),
   configPath: path.resolve(dataDir, 'config.json'),
+  authPath: path.resolve(dataDir, 'auth.json'),
+  setupCodePath: path.resolve(dataDir, 'setup-code'),
+  setupStatePath: path.resolve(dataDir, 'setup-state.json'),
+  clientConfigPath: process.env.CHATCRYSTAL_CLIENT_CONFIG_PATH ?? path.resolve(homedir(), '.chatcrystal', 'client.json'),
   pidPath: path.resolve(dataDir, 'crystal.pid'),
   logPath: path.resolve(dataDir, 'crystal-server.log'),
 };

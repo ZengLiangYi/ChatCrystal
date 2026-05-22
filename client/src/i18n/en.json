@@ -131,7 +131,9 @@
   "import": {
     "imported": "Imported",
     "skipped": "Skipped",
-    "complete": "Done: {{imported}} imported / {{total}} scanned"
+    "complete": "Done: {{imported}} imported / {{total}} scanned",
+    "cloud_mode": "Cloud mode",
+    "cloud_import_hint": "Run crystal import --yes on the device with local histories"
   },
   "data_source_conversations": "{{count}} conversations",
   "key_conclusions": "Key Conclusions",
@@ -141,6 +143,16 @@
     "description": "You're viewing demo data. Configure your LLM provider and import your own AI conversations to get started.",
     "configure_llm": "Configure LLM",
     "browse_demo": "Browse Demo Data"
+  },
+  "auth": {
+    "title": "Connect to Cloud Memory",
+    "setup_hint": "Enter the setup code from the container logs or /data/setup-code, then choose the shared access token for your devices.",
+    "token_hint": "Enter the access token for this ChatCrystal instance.",
+    "setup_code": "Setup code",
+    "token": "Access token",
+    "submit": "Continue",
+    "error": "Authentication failed",
+    "insecure_http": "Refusing to send ChatCrystal access tokens over public HTTP. Use HTTPS or a local tunnel."
   },
   "guide": {
     "step1": "1. Click \"Import\" in the sidebar to scan AI conversations",

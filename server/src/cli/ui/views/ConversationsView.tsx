@@ -17,6 +17,7 @@ export interface ConversationItem {
 
 interface ConversationsViewProps {
   client: CrystalClient;
+  connectionInfo?: string;
   source?: string;
   status?: string;
   search?: string;
@@ -26,7 +27,7 @@ interface ConversationsViewProps {
   onQuit: () => void;
 }
 
-export function ConversationsView({ client, source, status, search, onSelect, onSearch, onQuit }: ConversationsViewProps) {
+export function ConversationsView({ client, connectionInfo, source, status, search, onSelect, onSearch, onQuit }: ConversationsViewProps) {
   const t = getLocale();
   const [summarizing, setSummarizing] = useState<string | null>(null);
   const [spinFrame, setSpinFrame] = useState(0);
@@ -97,6 +98,7 @@ export function ConversationsView({ client, source, status, search, onSelect, on
       onRetry={retry}
       onSummarize={handleSummarize}
       extraHints={extraHints}
+      connectionInfo={connectionInfo}
       title={t.conversationsTitle}
       renderPreview={(item) => {
         if (summarizing === item.id) return `${spinChars[spinFrame]} ${t.hints.summarize.split(':')[1]}...`;

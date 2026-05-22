@@ -16,6 +16,9 @@ export interface SourceAdapter {
   /** Display name shown in UI, e.g. 'Claude Code' */
   readonly displayName: string;
 
+  /** Parser contract version used by remote import deduplication/auditing. */
+  readonly parserVersion?: string;
+
   /**
    * Detect if this data source is available on the current machine.
    * Returns source info if found, null otherwise.
