@@ -11,12 +11,13 @@ interface TagItem {
 
 interface TagsViewProps {
   client: CrystalClient;
+  connectionInfo?: string;
   /** Called when user selects a tag → navigate to notes filtered by this tag */
   onSelectTag: (tagName: string) => void;
   onQuit: () => void;
 }
 
-export function TagsView({ client, onSelectTag, onQuit }: TagsViewProps) {
+export function TagsView({ client, connectionInfo, onSelectTag, onQuit }: TagsViewProps) {
   const [tags, setTags] = useState<TagItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +50,7 @@ export function TagsView({ client, onSelectTag, onQuit }: TagsViewProps) {
       onSelect={(item) => onSelectTag(item.name)}
       onQuit={onQuit}
       onRetry={load}
+      connectionInfo={connectionInfo}
       title={t.tagsTitle}
     />
   );

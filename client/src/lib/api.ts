@@ -1,21 +1,57 @@
 import type { DeleteNoteReviewRequest, DeleteNoteReviewResponse } from "@chatcrystal/shared";
 
 const BASE = "/api";
+const TOKEN_KEY = "chatcrystal.apiToken";
+export const AUTH_CHANGED_EVENT = "chatcrystal-auth-changed";
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 
 type DeleteNoteWebRequest = Omit<DeleteNoteReviewRequest, "source"> & { source: "web" };
 
+export function getStoredToken(): string | null {
+	return window.localStorage.getItem(TOKEN_KEY);
+}
+
+export function setStoredToken(token: string): void {
+	window.localStorage.setItem(TOKEN_KEY, token);
+	window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
+}
+
+export function clearStoredToken(): void {
+	window.localStorage.removeItem(TOKEN_KEY);
+	window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
+}
+
+export function isInsecureRemoteHttpLocation(location = window.location): boolean {
+	return location.protocol === "http:" && !LOCAL_HOSTS.has(location.hostname);
+}
+
+export function assertSafeWebAuthTransport(): void {
+	if (!isInsecureRemoteHttpLocation()) return;
+	throw new Error(
+		"Refusing to send ChatCrystal access tokens over public HTTP. Use HTTPS or a local tunnel.",
+	);
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-	const headers: Record<string, string> = {};
+	const headers = new Headers(options?.headers);
 	// Only set Content-Type for requests with body
 	if (options?.body) {
-		headers["Content-Type"] = "application/json";
+		headers.set("Content-Type", "application/json");
+	}
+	const token = getStoredToken();
+	if (token) {
+		assertSafeWebAuthTransport();
+		headers.set("Authorization", `Bearer ${token}`);
 	}
 	const res = await fetch(`${BASE}${path}`, {
-		headers,
 		...options,
+		headers,
 	});
 	if (!res.ok) {
 		const body = await res.json().catch(() => ({}));
+		if (res.status === 401) {
+			clearStoredToken();
+		}
 		throw new Error(body.error || `Request failed: ${res.status}`);
 	}
 	const json = await res.json();
@@ -28,12 +64,31 @@ export const api = {
 		request<{
 			server: boolean;
 			database: boolean;
+			cloudMode: boolean;
+			providerWarnings: string[];
 			stats: {
 				totalConversations: number;
 				totalNotes: number;
 				totalTags: number;
 			};
 		}>("/status"),
+
+	getSetupStatus: () =>
+		request<{
+			cloudMode: boolean;
+			setupRequired: boolean;
+			authenticated: boolean;
+			providerWarnings: string[];
+		}>("/setup/status"),
+
+	completeSetup: (data: { setupCode: string; token: string }) =>
+		request<{ authenticated: boolean }>("/setup/complete", {
+			method: "POST",
+			body: JSON.stringify(data),
+		}),
+
+	verifyToken: () =>
+		request<{ authenticated: boolean }>("/auth/verify", { method: "POST" }),
 
 	triggerImport: () =>
 		request<{

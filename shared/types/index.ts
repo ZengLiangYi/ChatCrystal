@@ -33,6 +33,13 @@ export type ConversationStatus =
   | 'filtered'
   | 'error';
 
+export type ChatCrystalSource =
+  | 'claude-code'
+  | 'codex'
+  | 'cursor'
+  | 'trae'
+  | 'copilot';
+
 export interface Message {
   id: string;
   conversation_id: string;
@@ -377,6 +384,8 @@ export interface ParsedMessage {
 export interface SystemStatus {
   server: boolean;
   database: boolean;
+  cloudMode?: boolean;
+  providerWarnings?: string[];
   ollama: boolean;
   watcher: boolean;
   sources: SourceInfo[];
@@ -385,4 +394,55 @@ export interface SystemStatus {
     totalNotes: number;
     totalTags: number;
   };
+}
+
+export interface SetupStatusResponse {
+  cloudMode: boolean;
+  setupRequired: boolean;
+  authenticated: boolean;
+  providerWarnings: string[];
+}
+
+export interface CompleteSetupRequest {
+  setupCode: string;
+  token: string;
+}
+
+export interface RotateTokenRequest {
+  currentToken: string;
+  nextToken: string;
+}
+
+export interface RemoteImportItem {
+  source: ChatCrystalSource;
+  sourceConversationId: string;
+  conversationId: string;
+  contentHash: string;
+  parserVersion: string;
+  meta: ConversationMeta;
+  parsed: ParsedConversation;
+}
+
+export interface RemoteImportRequest {
+  version: 1;
+  items: RemoteImportItem[];
+}
+
+export type RemoteImportItemStatus = 'imported' | 'replaced' | 'skipped' | 'error';
+
+export interface RemoteImportItemResult {
+  source: ChatCrystalSource;
+  sourceConversationId: string;
+  conversationId: string;
+  status: RemoteImportItemStatus;
+  error?: string;
+}
+
+export interface RemoteImportResponse {
+  total: number;
+  imported: number;
+  replaced: number;
+  skipped: number;
+  errors: number;
+  items: RemoteImportItemResult[];
 }

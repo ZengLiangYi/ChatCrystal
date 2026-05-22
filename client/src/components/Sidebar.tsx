@@ -29,6 +29,7 @@ export function Sidebar() {
   const { t } = useTranslation();
   const { data: status } = useStatus();
   const { state: importState, start: startImport, reset: resetImport } = useImportStream();
+  const cloudMode = status?.cloudMode === true;
 
   // Auto-dismiss done/error state after 5 seconds
   useEffect(() => {
@@ -78,8 +79,9 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Import button */}
-      <div className="px-3 py-3 border-t border-theme">
+      {/* Import */}
+      {!cloudMode && (
+        <div className="px-3 py-3 border-t border-theme">
         <button
           type="button"
           onClick={startImport}
@@ -135,7 +137,16 @@ export function Sidebar() {
             {importState.error}
           </p>
         )}
-      </div>
+        </div>
+      )}
+      {cloudMode && (
+        <div className="px-3 py-3 border-t border-theme">
+          <div className="text-xs text-muted leading-relaxed">
+            <div className="font-medium text-primary">{t('import.cloud_mode')}</div>
+            <div className="mt-1">{t('import.cloud_import_hint')}</div>
+          </div>
+        </div>
+      )}
 
       {/* Stats footer */}
       {status && (

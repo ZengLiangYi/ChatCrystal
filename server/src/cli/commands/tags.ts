@@ -1,5 +1,6 @@
 import type { Command } from 'commander';
 import { CrystalClient } from '../client.js';
+import { resolveConnection } from '../connection.js';
 import {
   shouldOutputJson, outputJson,
   printHeader, printTable, printError,
@@ -13,7 +14,12 @@ export function registerTagsCommand(program: Command) {
     .description('List all tags with usage counts')
     .action(async () => {
       const globalOpts = program.opts();
-      const client = new CrystalClient(globalOpts.baseUrl);
+      const connection = resolveConnection({ baseUrl: globalOpts.baseUrl, token: globalOpts.token });
+      const client = new CrystalClient({
+        baseUrl: connection.baseUrl,
+        token: connection.token,
+        connectionSource: connection.source,
+      });
 
       try {
         // Interactive mode

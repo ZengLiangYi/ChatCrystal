@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { assertSafeWebAuthTransport, clearStoredToken, getStoredToken } from '../lib/api';
 
 export interface ImportProgress {
   total: number;
@@ -32,13 +33,28 @@ export function useImportStream() {
 
   const start = useCallback(() => {
     setState({ status: 'running', progress: null });
+    const headers = new Headers({ Accept: 'text/event-stream' });
+    const token = getStoredToken();
+    if (token) {
+      try {
+        assertSafeWebAuthTransport();
+      } catch (err) {
+        setState({ status: 'error', error: err instanceof Error ? err.message : 'Import failed' });
+        return;
+      }
+      headers.set('Authorization', `Bearer ${token}`);
+    }
 
     fetch(`${API_BASE}/api/import/scan/stream`, {
-      headers: { Accept: 'text/event-stream' },
+      headers,
     })
       .then(async (res) => {
         if (!res.ok || !res.body) {
-          setState({ status: 'error', error: `Request failed: ${res.status}` });
+          if (res.status === 401) {
+            clearStoredToken();
+          }
+          const body = await res.json().catch(() => ({}));
+          setState({ status: 'error', error: body.error || `Request failed: ${res.status}` });
           return;
         }
 

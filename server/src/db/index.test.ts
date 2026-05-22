@@ -116,6 +116,50 @@ test('applySchemaMigrations adds conversation experience gate audit columns', as
   assert.ok(columns.includes('experience_gate_details'));
 });
 
+test('applySchemaMigrations backfills remote import identity columns for legacy conversations', async () => {
+  const db = await createDatabase();
+
+  db.exec(`
+    CREATE TABLE conversations (
+      id TEXT PRIMARY KEY,
+      slug TEXT,
+      source TEXT NOT NULL DEFAULT 'claude-code',
+      project_dir TEXT NOT NULL,
+      project_name TEXT NOT NULL,
+      cwd TEXT,
+      git_branch TEXT,
+      message_count INTEGER DEFAULT 0,
+      first_message_at TEXT,
+      last_message_at TEXT,
+      file_path TEXT,
+      file_size INTEGER,
+      file_mtime TEXT,
+      status TEXT DEFAULT 'imported',
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    INSERT INTO conversations (
+      id, source, project_dir, project_name, first_message_at, last_message_at, file_path
+    ) VALUES
+      ('session-1', 'codex', 'C:/repo', 'repo', '2026-05-20', '2026-05-20', 'a.jsonl'),
+      ('codex:session-2', 'codex', 'C:/repo', 'repo', '2026-05-20', '2026-05-20', 'b.jsonl');
+  `);
+
+  applySchemaMigrations(db);
+
+  const rows = db.exec(
+    `SELECT id, source_conversation_id, parser_version
+       FROM conversations
+      ORDER BY id ASC`,
+  )[0].values;
+
+  assert.deepEqual(rows, [
+    ['codex:session-2', 'session-2', 'codex@1'],
+    ['session-1', 'session-1', 'codex@1'],
+  ]);
+});
+
 test('applySchemaMigrations converts confirmed low-signal errors to filtered', async () => {
   const db = await createDatabase();
 

@@ -1,5 +1,6 @@
 import type { Command } from 'commander';
 import { CrystalClient } from '../client.js';
+import { resolveConnection } from '../connection.js';
 import {
   shouldOutputJson, outputJson,
   printSuccess, printError, printKeyValue, printHeader, printTable, truncate,
@@ -13,7 +14,12 @@ export function registerSummarizeCommand(program: Command) {
     .option('--retry-errors', 'Reset error conversations and allow retry')
     .action(async (id, opts) => {
       const globalOpts = program.opts();
-      const client = new CrystalClient(globalOpts.baseUrl);
+      const connection = resolveConnection({ baseUrl: globalOpts.baseUrl, token: globalOpts.token });
+      const client = new CrystalClient({
+        baseUrl: connection.baseUrl,
+        token: connection.token,
+        connectionSource: connection.source,
+      });
 
       try {
         if (opts.retryErrors) {

@@ -1,15 +1,17 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { CrystalClient } from '../client.js';
+import { CrystalClient, type CrystalClientOptions } from '../client.js';
 import {
   RecallForTaskRequestShape,
   ValidateTaskMemoryRequestShape,
   WriteTaskMemoryRequestShape,
 } from '../../services/memory/schemas.js';
 
-export async function startMcpServer(baseUrl: string) {
-  const client = new CrystalClient(baseUrl);
+export async function startMcpServer(options?: string | CrystalClientOptions) {
+  const client = new CrystalClient(options);
+  const status = await client.status();
+  console.error(`ChatCrystal MCP: ${client.getConnectionSummary(status)}`);
   const server = new McpServer({
     name: 'chatcrystal',
     version: '0.2.0',

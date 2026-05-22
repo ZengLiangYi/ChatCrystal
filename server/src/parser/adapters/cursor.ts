@@ -227,6 +227,7 @@ async function findOrphanBubbleComposers(
 export const cursorAdapter: SourceAdapter = {
 	name: "cursor",
 	displayName: "Cursor",
+	parserVersion: "cursor@1",
 
 	async detect(): Promise<SourceInfo | null> {
 		const globalDbPath = getGlobalVscdbPath();

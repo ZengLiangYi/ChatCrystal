@@ -28,6 +28,7 @@ interface DetailViewProps {
   onDelete?: () => void;
   /** Position string like "2/243" */
   position?: string;
+  connectionInfo?: string;
   /** Related notes to show at bottom */
   relations?: Array<{ id: number; title: string; relation_type: string }>;
 }
@@ -36,7 +37,7 @@ interface DetailViewProps {
  * Full-screen note detail view with scrolling.
  * Shows title, metadata, summary, conclusions, code snippets, relations.
  */
-export function DetailView({ note, onBack, onPrev, onNext, onDelete, position, relations }: DetailViewProps) {
+export function DetailView({ note, onBack, onPrev, onNext, onDelete, position, connectionInfo, relations }: DetailViewProps) {
   const [scrollY, setScrollY] = useState(0);
   const { rows: termRows, columns: termCols } = useTerminalSize();
   const t = getLocale();
@@ -167,6 +168,7 @@ export function DetailView({ note, onBack, onPrev, onNext, onDelete, position, r
         <Text> </Text>
       )}
       <StatusBar
+        connectionInfo={connectionInfo}
         info={position ? `[${position}]` : undefined}
         hints={hints}
       />

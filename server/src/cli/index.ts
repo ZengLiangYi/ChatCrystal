@@ -3,7 +3,6 @@
 import { Command } from 'commander';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { DEFAULT_SERVER_BASE_URL } from './client.js';
 
 // Read version from package.json
 const pkgPath = resolve(import.meta.dirname, '../../../../package.json');
@@ -15,7 +14,8 @@ program
   .name('crystal')
   .description('ChatCrystal — AI conversation knowledge crystallization tool')
   .version(pkg.version)
-  .option('-b, --base-url <url>', 'Server base URL', DEFAULT_SERVER_BASE_URL)
+  .option('-b, --base-url <url>', 'Server base URL')
+  .option('--token <token>', 'ChatCrystal API token for cloud mode')
   .option('--json', 'Force JSON output (override TTY detection)')
   .option('--no-interactive', 'Disable interactive mode (always use plain output)');
 
@@ -30,7 +30,10 @@ import { registerSummarizeCommand } from './commands/summarize.js';
 import { registerConfigCommand } from './commands/config.js';
 import { registerServeCommand } from './commands/serve.js';
 import { registerMcpCommand } from './commands/mcp.js';
+import { registerConnectCommand } from './commands/connect.js';
+import { registerTokenCommand } from './commands/token.js';
 
+registerConnectCommand(program);
 registerStatusCommand(program);
 registerConversationsCommand(program);
 registerImportCommand(program);
@@ -41,5 +44,6 @@ registerSummarizeCommand(program);
 registerConfigCommand(program);
 registerServeCommand(program);
 registerMcpCommand(program);
+registerTokenCommand(program);
 
 program.parse();

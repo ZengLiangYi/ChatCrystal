@@ -14,12 +14,13 @@ interface RelationItem {
 
 interface RelationsViewProps {
   client: CrystalClient;
+  connectionInfo?: string;
   noteId: number;
   onSelectNote: (noteId: number, index: number) => void;
   onBack: () => void;
 }
 
-export function RelationsView({ client, noteId, onSelectNote, onBack }: RelationsViewProps) {
+export function RelationsView({ client, connectionInfo, noteId, onSelectNote, onBack }: RelationsViewProps) {
   const [relations, setRelations] = useState<RelationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +68,7 @@ export function RelationsView({ client, noteId, onSelectNote, onBack }: Relation
       onSelect={(item, index) => onSelectNote(item.relatedNoteId, index)}
       onQuit={onBack}
       onRetry={load}
+      connectionInfo={connectionInfo}
       title={`${t.relationsTitle} #${noteId}`}
     />
   );

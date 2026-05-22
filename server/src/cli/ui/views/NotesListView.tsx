@@ -19,6 +19,7 @@ export interface NoteItem {
 
 interface NotesListViewProps {
   client: CrystalClient;
+  connectionInfo?: string;
   /** Pre-set tag filter (e.g., when navigating from tags view) */
   tagFilter?: string;
   /** Called when user selects a note */
@@ -29,7 +30,7 @@ interface NotesListViewProps {
   onQuit: () => void;
 }
 
-export function NotesListView({ client, tagFilter, onSelectNote, onSearch, onQuit }: NotesListViewProps) {
+export function NotesListView({ client, connectionInfo, tagFilter, onSelectNote, onSearch, onQuit }: NotesListViewProps) {
   const t = getLocale();
   const [deleteTarget, setDeleteTarget] = useState<NoteItem | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -105,6 +106,7 @@ export function NotesListView({ client, tagFilter, onSelectNote, onSearch, onQui
       onQuit={onQuit}
       onRetry={retry}
       onDelete={handleDelete}
+      connectionInfo={connectionInfo}
       title={title}
       renderPreview={(item) => item.summary}
       renderSidePreview={(item, width) => {

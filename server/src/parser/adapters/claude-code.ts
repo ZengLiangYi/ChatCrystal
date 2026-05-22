@@ -184,6 +184,7 @@ function extractProjectName(dirName: string): string {
 export const claudeCodeAdapter: SourceAdapter = {
   name: 'claude-code',
   displayName: 'Claude Code',
+  parserVersion: 'claude-code@1',
 
   async detect(): Promise<SourceInfo | null> {
     const dir = appConfig.claudeProjectsDir;

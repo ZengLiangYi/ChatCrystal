@@ -37,6 +37,38 @@ Agent 配置示例：
 
 如果某个工具另外要求填写 HTTP API endpoint，请使用 `http://localhost:3721`。不要填写没有端口的裸 `http://127.0.0.1`，因为 HTTP 会默认落到 80 端口。
 
+### 云端模式
+
+`crystal mcp` 使用与 CLI 相同的连接优先级。执行 `crystal connect` 后，MCP 客户端可以继续使用：
+
+```json
+{
+  "mcpServers": {
+    "chatcrystal": {
+      "command": "crystal",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+也可以在 MCP 客户端配置中直接传入环境变量：
+
+```json
+{
+  "mcpServers": {
+    "chatcrystal": {
+      "command": "crystal",
+      "args": ["mcp"],
+      "env": {
+        "CHATCRYSTAL_BASE_URL": "https://chatcrystal.example.com",
+        "CHATCRYSTAL_API_TOKEN": "your-long-token"
+      }
+    }
+  }
+}
+```
+
 ## MCP 工具
 
 ChatCrystal 暴露六个 MCP 工具：
@@ -94,4 +126,3 @@ Full mode 需要：
 MCP writeback 受同一套经验质量标准保护。低信号摘要、未验证工作、原始日志和信息型问答不应进入经验资产库。
 
 详见[经验质量门槛](EXPERIENCE_GATE.zh-CN.md)。
-

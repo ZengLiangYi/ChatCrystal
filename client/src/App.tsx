@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { ThemeProvider } from '@/providers/ThemeProvider.tsx';
 import '@/i18n';
 import { Layout } from '@/components/Layout.tsx';
+import { AuthGate } from '@/components/AuthGate.tsx';
 
 const DashboardPage = lazy(() => import('@/pages/Dashboard.tsx').then((module) => ({ default: module.Dashboard })));
 const ConversationsPage = lazy(() => import('@/pages/Conversations.tsx').then((module) => ({ default: module.Conversations })));
@@ -37,20 +38,22 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route element={<Layout />}>
-              <Route path="/" element={<RouteSuspense><DashboardPage /></RouteSuspense>} />
-              <Route path="/conversations" element={<RouteSuspense><ConversationsPage /></RouteSuspense>} />
-              <Route path="/conversations/:id" element={<RouteSuspense><ConversationDetailPage /></RouteSuspense>} />
-              <Route path="/notes" element={<RouteSuspense><NotesPage /></RouteSuspense>} />
-              <Route path="/notes/:id" element={<RouteSuspense><NoteDetailPage /></RouteSuspense>} />
-              <Route path="/search" element={<RouteSuspense><SearchPage /></RouteSuspense>} />
-              <Route path="/graph" element={<RouteSuspense><RelationGraphPage /></RouteSuspense>} />
-              <Route path="/settings" element={<RouteSuspense><SettingsPage /></RouteSuspense>} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
+        <AuthGate>
+          <BrowserRouter>
+            <Routes>
+              <Route element={<Layout />}>
+                <Route path="/" element={<RouteSuspense><DashboardPage /></RouteSuspense>} />
+                <Route path="/conversations" element={<RouteSuspense><ConversationsPage /></RouteSuspense>} />
+                <Route path="/conversations/:id" element={<RouteSuspense><ConversationDetailPage /></RouteSuspense>} />
+                <Route path="/notes" element={<RouteSuspense><NotesPage /></RouteSuspense>} />
+                <Route path="/notes/:id" element={<RouteSuspense><NoteDetailPage /></RouteSuspense>} />
+                <Route path="/search" element={<RouteSuspense><SearchPage /></RouteSuspense>} />
+                <Route path="/graph" element={<RouteSuspense><RelationGraphPage /></RouteSuspense>} />
+                <Route path="/settings" element={<RouteSuspense><SettingsPage /></RouteSuspense>} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </AuthGate>
       </ThemeProvider>
     </QueryClientProvider>
   );

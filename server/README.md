@@ -34,6 +34,19 @@ crystal search "React state"       # Semantic search your knowledge
 
 The server auto-launches in background on first command. No manual setup needed.
 
+## Cloud Connection
+
+For a Docker cloud instance, save the shared token once:
+
+```bash
+crystal connect https://chatcrystal.example.com --token "your-long-token"
+crystal import --yes
+```
+
+`crystal import` still scans and parses histories on the local device, then uploads normalized conversations to the cloud instance. The cloud server does not scan your local filesystem. `crystal mcp` reuses the same saved connection and token.
+
+Use HTTPS for cloud connections. CLI commands refuse to send ChatCrystal API tokens to non-local `http://` URLs by default.
+
 ## CLI Commands
 
 ```bash
@@ -63,7 +76,7 @@ crystal serve stop                      # Stop daemon
 crystal serve status                    # Check if running
 ```
 
-**Global options:** `--base-url <url>` (server address), `--json` (force JSON output), `--version`
+**Global options:** `--base-url <url>` (server address), `--token <token>` (cloud API token), `--json` (force JSON output), `--version`
 
 **Output:** TTY-aware — colored tables in terminal, JSON when piped.
 

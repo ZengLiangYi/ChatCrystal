@@ -129,6 +129,7 @@ function extractProjectName(cwd: string): string {
 export const codexAdapter: SourceAdapter = {
 	name: "codex",
 	displayName: "Codex CLI",
+	parserVersion: "codex@1",
 
 	async detect(): Promise<SourceInfo | null> {
 		const dir = appConfig.codexSessionsDir;

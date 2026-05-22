@@ -1,6 +1,7 @@
 import type { Command } from 'commander';
 import type { ExperienceReviewReason } from '@chatcrystal/shared';
 import { CrystalClient } from '../client.js';
+import { resolveConnection } from '../connection.js';
 import {
   shouldOutputJson, outputJson,
   printHeader, printTable, printKeyValue, printError, truncate,
@@ -34,7 +35,12 @@ export function registerNotesCommand(program: Command) {
     .option('-l, --limit <n>', 'Items per page', '20')
     .action(async (opts) => {
       const globalOpts = program.opts();
-      const client = new CrystalClient(globalOpts.baseUrl);
+      const connection = resolveConnection({ baseUrl: globalOpts.baseUrl, token: globalOpts.token });
+      const client = new CrystalClient({
+        baseUrl: connection.baseUrl,
+        token: connection.token,
+        connectionSource: connection.source,
+      });
 
       try {
         // Interactive mode
@@ -90,7 +96,12 @@ export function registerNotesCommand(program: Command) {
     .description('View a note in detail')
     .action(async (id) => {
       const globalOpts = program.opts();
-      const client = new CrystalClient(globalOpts.baseUrl);
+      const connection = resolveConnection({ baseUrl: globalOpts.baseUrl, token: globalOpts.token });
+      const client = new CrystalClient({
+        baseUrl: connection.baseUrl,
+        token: connection.token,
+        connectionSource: connection.source,
+      });
 
       try {
         // Interactive mode
@@ -158,7 +169,12 @@ export function registerNotesCommand(program: Command) {
     .option('-y, --yes', 'Skip confirmation prompt')
     .action(async (id, opts) => {
       const globalOpts = program.opts();
-      const client = new CrystalClient(globalOpts.baseUrl);
+      const connection = resolveConnection({ baseUrl: globalOpts.baseUrl, token: globalOpts.token });
+      const client = new CrystalClient({
+        baseUrl: connection.baseUrl,
+        token: connection.token,
+        connectionSource: connection.source,
+      });
       const rawId = String(id);
       const reason = String(opts.reason);
 
@@ -234,7 +250,12 @@ export function registerNotesCommand(program: Command) {
     .description('View relations for a note')
     .action(async (id) => {
       const globalOpts = program.opts();
-      const client = new CrystalClient(globalOpts.baseUrl);
+      const connection = resolveConnection({ baseUrl: globalOpts.baseUrl, token: globalOpts.token });
+      const client = new CrystalClient({
+        baseUrl: connection.baseUrl,
+        token: connection.token,
+        connectionSource: connection.source,
+      });
 
       try {
         // Interactive mode

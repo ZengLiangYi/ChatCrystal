@@ -252,6 +252,7 @@ export function getTraeWatchPaths(): string[] {
 export const traeAdapter: SourceAdapter = {
 	name: "trae",
 	displayName: "Trae",
+	parserVersion: "trae@1",
 
 	async detect(): Promise<SourceInfo | null> {
 		try {

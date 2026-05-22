@@ -211,6 +211,13 @@ export async function triggerSummarize(
   // Check if already summarized
   const existingNote = db.exec('SELECT id FROM notes WHERE conversation_id = ?', [conversationId]);
   if (existingNote.length > 0 && existingNote[0].values.length > 0) {
+    if (status !== 'summarized') {
+      db.run(
+        `UPDATE conversations SET status = 'summarized', updated_at = datetime('now') WHERE id = ?`,
+        [conversationId],
+      );
+      save();
+    }
     return Number(existingNote[0].values[0][0]);
   }
 

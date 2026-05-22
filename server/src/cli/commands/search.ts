@@ -1,5 +1,6 @@
 import type { Command } from 'commander';
 import { CrystalClient } from '../client.js';
+import { resolveConnection } from '../connection.js';
 import {
   shouldOutputJson, outputJson,
   printHeader, printTable, printError, truncate,
@@ -14,7 +15,12 @@ export function registerSearchCommand(program: Command) {
     .option('-l, --limit <n>', 'Max results', '10')
     .action(async (query, opts) => {
       const globalOpts = program.opts();
-      const client = new CrystalClient(globalOpts.baseUrl);
+      const connection = resolveConnection({ baseUrl: globalOpts.baseUrl, token: globalOpts.token });
+      const client = new CrystalClient({
+        baseUrl: connection.baseUrl,
+        token: connection.token,
+        connectionSource: connection.source,
+      });
 
       try {
         // Interactive mode

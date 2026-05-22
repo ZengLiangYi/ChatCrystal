@@ -49,6 +49,22 @@ export function applySchemaMigrations(db: Database): void {
   ensureColumn(db, 'conversations', 'experience_score', 'ALTER TABLE conversations ADD COLUMN experience_score REAL');
   ensureColumn(db, 'conversations', 'experience_gate_reason', 'ALTER TABLE conversations ADD COLUMN experience_gate_reason TEXT');
   ensureColumn(db, 'conversations', 'experience_gate_details', 'ALTER TABLE conversations ADD COLUMN experience_gate_details TEXT');
+  ensureColumn(db, 'conversations', 'source_conversation_id', 'ALTER TABLE conversations ADD COLUMN source_conversation_id TEXT');
+  ensureColumn(db, 'conversations', 'content_hash', 'ALTER TABLE conversations ADD COLUMN content_hash TEXT');
+  ensureColumn(db, 'conversations', 'parser_version', 'ALTER TABLE conversations ADD COLUMN parser_version TEXT');
+  db.run(
+    `UPDATE conversations
+        SET source_conversation_id = CASE
+          WHEN id LIKE source || ':%' THEN substr(id, length(source) + 2)
+          ELSE id
+        END
+      WHERE source_conversation_id IS NULL OR trim(source_conversation_id) = ''`,
+  );
+  db.run(
+    `UPDATE conversations
+        SET parser_version = source || '@1'
+      WHERE parser_version IS NULL OR trim(parser_version) = ''`,
+  );
   ensureColumn(db, 'notes', 'embedding_status', "ALTER TABLE notes ADD COLUMN embedding_status TEXT DEFAULT 'pending'");
   ensureColumn(db, 'notes', 'project_key', 'ALTER TABLE notes ADD COLUMN project_key TEXT');
   ensureColumn(db, 'notes', 'scope', "ALTER TABLE notes ADD COLUMN scope TEXT DEFAULT 'project'");
@@ -79,6 +95,12 @@ export function applySchemaMigrations(db: Database): void {
   );
 
   db.exec(POST_MIGRATION_SQL);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_conversations_source_conversation_id
+      ON conversations(source, source_conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_conversations_content_hash
+      ON conversations(content_hash);
+  `);
   ensureIndexColumns(
     db,
     'idx_vector_cleanup_tasks_pending',

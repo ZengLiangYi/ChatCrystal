@@ -1,9 +1,28 @@
 import type { Command } from 'commander';
 import { CrystalClient } from '../client.js';
+import { resolveConnection } from '../connection.js';
 import {
   shouldOutputJson, outputJson,
   printHeader, printKeyValue, printSuccess, printError,
 } from '../formatter.js';
+
+export function isSensitiveConfigKey(key: string): boolean {
+  const normalized = key.toLowerCase();
+  return (
+    normalized.endsWith('.apikey') ||
+    normalized.endsWith('.api_key') ||
+    normalized.includes('token') ||
+    normalized.includes('secret') ||
+    normalized.includes('password')
+  );
+}
+
+export function formatConfigSetSuccess(key: string, value: string): string {
+  const displayValue = isSensitiveConfigKey(key)
+    ? (value.trim() ? '(set)' : '(cleared)')
+    : value;
+  return `Updated ${key} = ${displayValue}`;
+}
 
 export function registerConfigCommand(program: Command) {
   const config = program
@@ -15,7 +34,12 @@ export function registerConfigCommand(program: Command) {
     .description('Show current configuration')
     .action(async () => {
       const globalOpts = program.opts();
-      const client = new CrystalClient(globalOpts.baseUrl);
+      const connection = resolveConnection({ baseUrl: globalOpts.baseUrl, token: globalOpts.token });
+      const client = new CrystalClient({
+        baseUrl: connection.baseUrl,
+        token: connection.token,
+        connectionSource: connection.source,
+      });
 
       try {
         const data = await client.getConfig();
@@ -53,7 +77,12 @@ export function registerConfigCommand(program: Command) {
     .option('--confirm', 'Confirm potentially destructive changes')
     .action(async (key, value, opts) => {
       const globalOpts = program.opts();
-      const client = new CrystalClient(globalOpts.baseUrl);
+      const connection = resolveConnection({ baseUrl: globalOpts.baseUrl, token: globalOpts.token });
+      const client = new CrystalClient({
+        baseUrl: connection.baseUrl,
+        token: connection.token,
+        connectionSource: connection.source,
+      });
 
       try {
         const [section, field] = key.split('.');
@@ -88,7 +117,7 @@ export function registerConfigCommand(program: Command) {
           return;
         }
 
-        printSuccess(`Updated ${key} = ${value}`);
+        printSuccess(formatConfigSetSuccess(key, value));
         console.log();
       } catch (err) {
         printError(err instanceof Error ? err.message : 'Failed to update config');
@@ -101,7 +130,12 @@ export function registerConfigCommand(program: Command) {
     .description('Test LLM connection')
     .action(async () => {
       const globalOpts = program.opts();
-      const client = new CrystalClient(globalOpts.baseUrl);
+      const connection = resolveConnection({ baseUrl: globalOpts.baseUrl, token: globalOpts.token });
+      const client = new CrystalClient({
+        baseUrl: connection.baseUrl,
+        token: connection.token,
+        connectionSource: connection.source,
+      });
 
       try {
         const data = await client.testConfig();

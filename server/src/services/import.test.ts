@@ -10,6 +10,7 @@ import type {
 } from '@chatcrystal/shared';
 import type { Database } from 'sql.js';
 import type { SourceAdapter } from '../parser/adapter.js';
+import { computeConversationContentHash } from './importPayload.js';
 
 process.env.DATA_DIR = mkdtempSync(join(tmpdir(), 'chatcrystal-import-test-'));
 
@@ -124,10 +125,12 @@ function testAdapter(
 	name: string,
 	metas: ConversationMeta[],
 	parsedById: Map<string, ParsedConversation>,
+	parserVersion?: string,
 ): SourceAdapter {
 	return {
 		name,
 		displayName: `Test ${name}`,
+		parserVersion,
 		detect: async () => ({
 			name,
 			displayName: `Test ${name}`,
@@ -151,6 +154,9 @@ function insertExistingConversation(
 		status: string;
 		fileSize?: number;
 		fileMtime?: string;
+		sourceConversationId?: string | null;
+		contentHash?: string | null;
+		parserVersion?: string | null;
 		experienceScore?: number | null;
 		experienceGateReason?: string | null;
 		experienceGateDetails?: string | null;
@@ -158,15 +164,19 @@ function insertExistingConversation(
 ) {
 	db.run(
 		`INSERT INTO conversations (
-			id, slug, source, project_dir, project_name, cwd, git_branch,
+			id, slug, source, source_conversation_id, content_hash, parser_version,
+			project_dir, project_name, cwd, git_branch,
 			message_count, first_message_at, last_message_at,
 			file_path, file_size, file_mtime, status,
 			experience_score, experience_gate_reason, experience_gate_details
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		[
 			options.id,
 			`${options.id}-old-slug`,
 			options.source,
+			options.sourceConversationId ?? null,
+			options.contentHash ?? null,
+			options.parserVersion ?? null,
 			'C:/repo',
 			'repo',
 			'C:/repo',
@@ -200,11 +210,16 @@ function insertExistingMessage(db: Database, conversationId: string, content: st
 	);
 }
 
-function insertExistingNote(db: Database, noteId: number, conversationId: string) {
+function insertExistingNote(
+	db: Database,
+	noteId: number,
+	conversationId: string,
+	options: { isEdited?: boolean; sourceType?: string } = {},
+) {
 	db.run(
 		`INSERT INTO notes (
-			id, conversation_id, title, summary, key_conclusions, code_snippets
-		) VALUES (?, ?, ?, ?, ?, ?)`,
+			id, conversation_id, title, summary, key_conclusions, code_snippets, is_edited, source_type
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		[
 			noteId,
 			conversationId,
@@ -212,6 +227,8 @@ function insertExistingNote(db: Database, noteId: number, conversationId: string
 			'This note describes the old conversation content.',
 			'[]',
 			'[]',
+			options.isEdited ? 1 : 0,
+			options.sourceType ?? 'imported-conversation',
 		],
 	);
 }
@@ -370,4 +387,129 @@ test('importAll resets ordinary changed conversations to imported and clears sta
 	]);
 	assert.equal(Number(notes[0].values[0][0]), 0);
 	assert.deepEqual(cleanupTasks, [['note', '2', 'pending', 0, null]]);
+});
+
+test('importAll skips changed files when parsed content hash is unchanged', async () => {
+	const { db, importAll, registerAdapter, appConfig } = await loadRuntime();
+	resetDatabase(db);
+
+	const source = 'test-content-hash-skip';
+	const conversationId = 'conv-content-hash-skip';
+	const parsed = parsedConversation(conversationId, source, [
+		'same content user message',
+		'same content assistant message',
+	]);
+	const contentHash = computeConversationContentHash(parsed);
+
+	insertExistingConversation(db, {
+		id: conversationId,
+		source,
+		status: 'summarized',
+		fileSize: 10,
+		fileMtime: '2026-04-29T00:00:00Z',
+		sourceConversationId: conversationId,
+		contentHash,
+		parserVersion: `${source}@1`,
+	});
+	insertExistingMessage(db, conversationId, 'same content user message');
+	insertExistingNote(db, 3, conversationId, { isEdited: true });
+
+	registerAdapter(
+		testAdapter(
+			source,
+			[conversationMeta(conversationId, source, 99, '2026-04-29T00:09:00Z')],
+			new Map([[conversationId, parsed]]),
+			`${source}@2`,
+		),
+	);
+	appConfig.enabledSources = [source];
+
+	const progress = await importAll();
+
+	const conversation = db.exec(
+		`SELECT file_size, file_mtime, content_hash, parser_version, status
+		   FROM conversations WHERE id = ?`,
+		[conversationId],
+	)[0].values[0];
+	const noteCount = db.exec(
+		'SELECT COUNT(*) FROM notes WHERE conversation_id = ?',
+		[conversationId],
+	)[0].values[0][0];
+	const cleanupTasks = vectorCleanupRows(db);
+
+	assert.equal(progress.imported, 0);
+	assert.equal(progress.skipped, 1);
+	assert.deepEqual(conversation, [
+		99,
+		'2026-04-29T00:09:00Z',
+		contentHash,
+		`${source}@2`,
+		'summarized',
+	]);
+	assert.equal(Number(noteCount), 1);
+	assert.deepEqual(cleanupTasks, []);
+});
+
+test('importAll preserves edited notes when replacing changed local conversations', async () => {
+	const { db, importAll, registerAdapter, appConfig, getUnsummarizedIds } =
+		await loadRuntime();
+	resetDatabase(db);
+
+	const source = 'test-edited-note-reimport';
+	const conversationId = 'conv-edited-note-reimport';
+
+	insertExistingConversation(db, {
+		id: conversationId,
+		source,
+		status: 'summarized',
+		experienceScore: 64,
+		experienceGateReason: 'experience-threshold-met',
+		experienceGateDetails: '{"decision":"accept"}',
+	});
+	insertExistingMessage(db, conversationId, 'old edited-note message');
+	insertExistingNote(db, 4, conversationId, { isEdited: true });
+
+	registerAdapter(
+		testAdapter(
+			source,
+			[conversationMeta(conversationId, source, 40, '2026-04-29T00:04:00Z')],
+			new Map([
+				[
+					conversationId,
+					parsedConversation(conversationId, source, [
+						'new edited-note user message',
+						'new edited-note assistant message',
+					]),
+				],
+			]),
+		),
+	);
+	appConfig.enabledSources = [source];
+
+	const progress = await importAll();
+
+	const messages = db.exec(
+		`SELECT content FROM messages WHERE conversation_id = ? ORDER BY sort_order`,
+		[conversationId],
+	)[0].values.map((row) => String(row[0]));
+	const note = db.exec(
+		'SELECT id, is_edited FROM notes WHERE conversation_id = ?',
+		[conversationId],
+	)[0].values[0];
+	const conversation = db.exec(
+		`SELECT status, experience_score, experience_gate_reason, experience_gate_details
+		   FROM conversations WHERE id = ?`,
+		[conversationId],
+	)[0].values[0];
+	const cleanupTasks = vectorCleanupRows(db);
+
+	assert.equal(progress.imported, 1);
+	assert.deepEqual(messages, [
+		'new edited-note user message',
+		'new edited-note assistant message',
+	]);
+	assert.deepEqual(note, [4, 1]);
+	assert.deepEqual(conversation, ['summarized', null, null, null]);
+	assert.deepEqual(cleanupTasks, []);
+	assert.equal(getUnsummarizedIds().includes(conversationId), false);
 });

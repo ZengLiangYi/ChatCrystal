@@ -1,5 +1,6 @@
 import type { Command } from 'commander';
 import { CrystalClient } from '../client.js';
+import { resolveConnection } from '../connection.js';
 import {
   shouldOutputJson, outputJson,
   printHeader, printTable, truncate,
@@ -18,7 +19,12 @@ export function registerConversationsCommand(program: Command) {
     .option('--offset <n>', 'Offset for pagination', '0')
     .action(async (opts) => {
       const globalOpts = program.opts();
-      const client = new CrystalClient(globalOpts.baseUrl);
+      const connection = resolveConnection({ baseUrl: globalOpts.baseUrl, token: globalOpts.token });
+      const client = new CrystalClient({
+        baseUrl: connection.baseUrl,
+        token: connection.token,
+        connectionSource: connection.source,
+      });
 
       try {
         // Interactive mode

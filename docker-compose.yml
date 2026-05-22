@@ -1,0 +1,27 @@
+services:
+  chatcrystal:
+    image: ghcr.io/zengliangyi/chatcrystal:${CHATCRYSTAL_IMAGE_TAG:-latest}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${CHATCRYSTAL_HOST_PORT:-3721}:3721"
+    environment:
+      NODE_ENV: production
+      PORT: 3721
+      DATA_DIR: /data
+      CHATCRYSTAL_CLOUD_MODE: "true"
+      CHATCRYSTAL_API_TOKEN: ${CHATCRYSTAL_API_TOKEN:-}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_BASE_URL: ${CHATCRYSTAL_DOCKER_LLM_BASE_URL:-http://host.docker.internal:11434}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-qwen2.5:7b}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-ollama}
+      EMBEDDING_BASE_URL: ${CHATCRYSTAL_DOCKER_EMBEDDING_BASE_URL:-http://host.docker.internal:11434}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - chatcrystal-data:/data
+    restart: unless-stopped
+
+volumes:
+  chatcrystal-data:
