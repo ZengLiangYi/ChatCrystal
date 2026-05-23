@@ -16,7 +16,17 @@ process.env.DATA_DIR = mkdtempSync(join(tmpdir(), 'chatcrystal-import-test-'));
 
 type ImportRuntime = {
 	db: Database;
-	importAll: () => Promise<{ imported: number; skipped: number; errors: number }>;
+	importAll: () => Promise<{
+		imported: number;
+		replaced: number;
+		skipped: number;
+		errors: number;
+		importedIds: string[];
+		replacedIds: string[];
+		skippedIds: string[];
+		errorIds: string[];
+		summarizationCandidateIds: string[];
+	}>;
 	registerAdapter: (adapter: SourceAdapter) => void;
 	appConfig: { enabledSources: string[] };
 	getUnsummarizedIds: () => string[];
@@ -310,7 +320,8 @@ test('importAll preserves user-rejected review links and gate state when reimpor
 	);
 	const cleanupTasks = vectorCleanupRows(db);
 
-	assert.equal(progress.imported, 1);
+	assert.equal(progress.imported, 0);
+	assert.equal(progress.replaced, 1);
 	assert.deepEqual(conversation, [
 		'filtered',
 		86,
@@ -379,7 +390,8 @@ test('importAll resets ordinary changed conversations to imported and clears sta
 	);
 	const cleanupTasks = vectorCleanupRows(db);
 
-	assert.equal(progress.imported, 1);
+	assert.equal(progress.imported, 0);
+	assert.equal(progress.replaced, 1);
 	assert.deepEqual(conversation, ['imported', null, null, null]);
 	assert.deepEqual(messages, [
 		'new ordinary user message',
@@ -438,6 +450,7 @@ test('importAll skips changed files when parsed content hash is unchanged', asyn
 	const cleanupTasks = vectorCleanupRows(db);
 
 	assert.equal(progress.imported, 0);
+	assert.equal(progress.replaced, 0);
 	assert.equal(progress.skipped, 1);
 	assert.deepEqual(conversation, [
 		99,
@@ -448,6 +461,58 @@ test('importAll skips changed files when parsed content hash is unchanged', asyn
 	]);
 	assert.equal(Number(noteCount), 1);
 	assert.deepEqual(cleanupTasks, []);
+});
+
+test('importAll returns structured ids and excludes skipped from summary candidates', async () => {
+	const { db, importAll, registerAdapter, appConfig } = await loadRuntime();
+	resetDatabase(db);
+
+	const source = 'test-structured-import-ids';
+	const skippedParsed = parsedConversation('codex-same', source, [
+		'hello',
+		'world',
+	]);
+	const skippedHash = computeConversationContentHash(skippedParsed);
+
+	insertExistingConversation(db, {
+		id: 'codex-same',
+		source,
+		status: 'imported',
+		fileSize: 100,
+		fileMtime: '2026-05-23T00:00:00.000Z',
+		sourceConversationId: 'codex-same',
+		contentHash: skippedHash,
+		parserVersion: `${source}@test`,
+	});
+
+	registerAdapter(
+		testAdapter(
+			source,
+			[
+				conversationMeta('codex-new', source, 100, '2026-05-23T00:00:00.000Z'),
+				conversationMeta('codex-same', source, 100, '2026-05-23T00:00:00.000Z'),
+			],
+			new Map([
+				[
+					'codex-new',
+					parsedConversation('codex-new', source, ['new user', 'new assistant']),
+				],
+				['codex-same', skippedParsed],
+			]),
+		),
+	);
+	appConfig.enabledSources = [source];
+
+	const result = await importAll();
+
+	assert.equal(result.imported, 1);
+	assert.equal(result.replaced, 0);
+	assert.equal(result.skipped, 1);
+	assert.deepEqual(result.importedIds, ['codex-new']);
+	assert.deepEqual(result.replacedIds, []);
+	assert.deepEqual(result.skippedIds, ['codex-same']);
+	assert.deepEqual(result.errorIds, []);
+	assert.deepEqual(result.summarizationCandidateIds, ['codex-new']);
 });
 
 test('importAll preserves edited notes when replacing changed local conversations', async () => {
@@ -503,7 +568,8 @@ test('importAll preserves edited notes when replacing changed local conversation
 	)[0].values[0];
 	const cleanupTasks = vectorCleanupRows(db);
 
-	assert.equal(progress.imported, 1);
+	assert.equal(progress.imported, 0);
+	assert.equal(progress.replaced, 1);
 	assert.deepEqual(messages, [
 		'new edited-note user message',
 		'new edited-note assistant message',

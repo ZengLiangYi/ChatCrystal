@@ -12,6 +12,7 @@ import { registerAdapter } from '../parser/index.js';
 import {
   chunkRemoteImportItems,
   collectRemoteImportItems,
+  runRemoteImport,
   splitUploadableRemoteImportItems,
   validateRemoteImportSource,
 } from './remoteImport.js';
@@ -186,4 +187,39 @@ test('splitUploadableRemoteImportItems isolates oversized conversations', () => 
   const result = splitUploadableRemoteImportItems([small, large]);
   assert.deepEqual(result.uploadableItems.map((entry) => entry.sourceConversationId), ['small']);
   assert.deepEqual(result.oversizedItems.map((entry) => entry.sourceConversationId), ['large']);
+});
+
+test('runRemoteImport accumulates structured ids returned by remote ingest', async () => {
+  registerAdapter(sourceAdapter('codex'));
+  appConfig.enabledSources = ['codex'];
+
+  const result = await runRemoteImport({
+    ingestConversations: async (request) => {
+      const ids = request.items.map((entry) => entry.conversationId);
+      return {
+        total: request.items.length,
+        imported: ids.length,
+        replaced: 0,
+        skipped: 0,
+        errors: 0,
+        importedIds: ids,
+        replacedIds: [],
+        skippedIds: [],
+        errorIds: [],
+        summarizationCandidateIds: ids,
+        items: request.items.map((entry) => ({
+          source: entry.source,
+          sourceConversationId: entry.sourceConversationId,
+          conversationId: entry.conversationId,
+          status: 'imported',
+        })),
+      };
+    },
+  });
+
+  assert.deepEqual(result.importedIds, ['codex:codex-session']);
+  assert.deepEqual(result.replacedIds, []);
+  assert.deepEqual(result.skippedIds, []);
+  assert.deepEqual(result.errorIds, []);
+  assert.deepEqual(result.summarizationCandidateIds, ['codex:codex-session']);
 });

@@ -17,8 +17,10 @@ async function runImport() {
 	isImporting = true;
 	try {
 		const result = await importAll();
-		if (result.imported > 0) {
-			console.log(`[Watcher] Auto-imported ${result.imported} conversations`);
+		if (result.imported > 0 || result.replaced > 0) {
+			console.log(
+				`[Watcher] Auto-imported ${result.imported} new, ${result.replaced} updated conversations`,
+			);
 		}
 	} catch (err) {
 		console.error(

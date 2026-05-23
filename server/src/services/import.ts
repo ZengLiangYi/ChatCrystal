@@ -1,4 +1,8 @@
-import type { ConversationMeta, ParsedConversation } from "@chatcrystal/shared";
+import type {
+	ConversationMeta,
+	ImportBatchResult,
+	ParsedConversation,
+} from "@chatcrystal/shared";
 import { appConfig } from "../config.js";
 import { getDatabase, saveDatabase } from "../db/index.js";
 import { withTransaction } from "../db/transaction.js";
@@ -6,13 +10,9 @@ import { getAdapter, getAllAdapters } from "../parser/index.js";
 import { computeConversationContentHash } from "./importPayload.js";
 import { enqueueNoteVectorCleanupTask } from "./vector-cleanup.js";
 
-export interface ImportProgress {
-	total: number;
+export interface ImportProgress extends ImportBatchResult {
 	current: number;
 	currentFile: string;
-	imported: number;
-	skipped: number;
-	errors: number;
 }
 
 export type ProgressCallback = (progress: ImportProgress) => void;
@@ -44,8 +44,14 @@ export async function importAll(
 		current: 0,
 		currentFile: "",
 		imported: 0,
+		replaced: 0,
 		skipped: 0,
 		errors: 0,
+		importedIds: [],
+		replacedIds: [],
+		skippedIds: [],
+		errorIds: [],
+		summarizationCandidateIds: [],
 	};
 
 	const db = getDatabase();
@@ -70,6 +76,7 @@ export async function importAll(
 					existingMtime === meta.fileMtime
 				) {
 					progress.skipped++;
+					progress.skippedIds.push(meta.id);
 					continue;
 				}
 			}
@@ -78,6 +85,7 @@ export async function importAll(
 			const adapter = getAdapter(meta.adapterName);
 			if (!adapter) {
 				progress.errors++;
+				progress.errorIds.push(meta.id);
 				continue;
 			}
 
@@ -88,6 +96,7 @@ export async function importAll(
 			// Skip conversations with fewer than 2 meaningful messages
 			if (parsed.messages.length < 2) {
 				progress.skipped++;
+				progress.skippedIds.push(parsed.id);
 				continue;
 			}
 
@@ -106,6 +115,7 @@ export async function importAll(
 					);
 				});
 				progress.skipped++;
+				progress.skippedIds.push(parsed.id);
 				continue;
 			}
 
@@ -123,9 +133,21 @@ export async function importAll(
 				);
 			});
 
-			progress.imported++;
+			if (existingRow) {
+				progress.replaced++;
+				progress.replacedIds.push(parsed.id);
+				const status = readConversationStatus(db, parsed.id);
+				if (status === 'imported') {
+					progress.summarizationCandidateIds.push(parsed.id);
+				}
+			} else {
+				progress.imported++;
+				progress.importedIds.push(parsed.id);
+				progress.summarizationCandidateIds.push(parsed.id);
+			}
 		} catch (err) {
 			progress.errors++;
+			progress.errorIds.push(meta.id);
 			const errorMsg = err instanceof Error ? err.message : "Unknown error";
 			db.run(
 				`INSERT INTO import_log (file_path, status, message) VALUES (?, 'error', ?)`,
@@ -139,7 +161,7 @@ export async function importAll(
 	saveDatabase();
 
 	console.log(
-		`[Import] Done: ${progress.imported} imported, ${progress.skipped} skipped, ${progress.errors} errors`,
+		`[Import] Done: ${progress.imported} imported, ${progress.replaced} replaced, ${progress.skipped} skipped, ${progress.errors} errors`,
 	);
 	return progress;
 }
@@ -188,6 +210,17 @@ function updateImportedConversationMetadata(
 			parsed.source,
 		],
 	);
+}
+
+function readConversationStatus(
+	db: ReturnType<typeof getDatabase>,
+	conversationId: string,
+): string | null {
+	const row = db.exec(
+		'SELECT status FROM conversations WHERE id = ?',
+		[conversationId],
+	)[0]?.values[0];
+	return row ? String(row[0]) : null;
 }
 
 function deleteInvalidatedImportedNotes(

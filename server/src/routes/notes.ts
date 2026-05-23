@@ -76,6 +76,64 @@ export async function noteRoutes(app: FastifyInstance) {
     };
   });
 
+  app.post('/api/summarize/batch-ids', async (req) => {
+    const body = (req.body ?? {}) as { conversationIds?: unknown };
+    const { conversationIds } = body;
+    const requested = [...new Set(
+      Array.isArray(conversationIds)
+        ? conversationIds.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+        : [],
+    )];
+    const db = getDatabase();
+    const skipped: string[] = [];
+    const unknown: string[] = [];
+    let queued = 0;
+
+    for (const id of requested) {
+      const row = db.exec(
+        'SELECT project_name, slug, status FROM conversations WHERE id = ?',
+        [id],
+      )[0]?.values[0];
+      if (!row) {
+        unknown.push(id);
+        continue;
+      }
+
+      const [projectName, slug, status] = row as [string, string | null, string];
+      if (status !== 'imported' || taskTracker.isTaskActive(id)) {
+        skipped.push(id);
+        continue;
+      }
+
+      const title = `${projectName} / ${slug || id.slice(0, 8)}`;
+      enqueueWithRetry(id, title, () => triggerSummarize(id)).catch((err) => {
+        console.error(`[Summarize] Error for ${id}:`, err instanceof Error ? err.message : err);
+      });
+      queued++;
+    }
+
+    return {
+      success: true,
+      data: { queued, skipped, unknown, queue: getQueueStatus() },
+    };
+  });
+
+  app.post('/api/summarize/status-ids', async (req) => {
+    const body = (req.body ?? {}) as { conversationIds?: unknown };
+    const { conversationIds } = body;
+    const requested = [...new Set(
+      Array.isArray(conversationIds)
+        ? conversationIds.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+        : [],
+    )];
+    const db = getDatabase();
+    const items = requested.map((id) => {
+      const row = db.exec('SELECT status FROM conversations WHERE id = ?', [id])[0]?.values[0];
+      return { id, status: row ? String(row[0]) : 'unknown' };
+    });
+    return { success: true, data: { items, queue: getQueueStatus() } };
+  });
+
   // Reset error conversations back to 'imported' for retry
   app.post('/api/summarize/reset-errors', async () => {
     const db = getDatabase();

@@ -29,6 +29,11 @@ export type RemoteImportProgress = {
 
 export type RemoteImportResult = RemoteImportProgress & {
   localErrors: number;
+  importedIds: string[];
+  replacedIds: string[];
+  skippedIds: string[];
+  errorIds: string[];
+  summarizationCandidateIds: string[];
 };
 
 type RemoteImportClient = {
@@ -146,6 +151,11 @@ export async function runRemoteImport(
     skipped: 0,
     errors: collected.errors + oversizedItems.length,
     localErrors: collected.errors + oversizedItems.length,
+    importedIds: [],
+    replacedIds: [],
+    skippedIds: [],
+    errorIds: [],
+    summarizationCandidateIds: [],
   };
 
   onProgress?.(progress);
@@ -157,6 +167,11 @@ export async function runRemoteImport(
     progress.replaced += result.replaced;
     progress.skipped += result.skipped;
     progress.errors += result.errors;
+    progress.importedIds.push(...(result.importedIds ?? []));
+    progress.replacedIds.push(...(result.replacedIds ?? []));
+    progress.skippedIds.push(...(result.skippedIds ?? []));
+    progress.errorIds.push(...(result.errorIds ?? []));
+    progress.summarizationCandidateIds.push(...(result.summarizationCandidateIds ?? []));
     onProgress?.(progress);
   }
 
