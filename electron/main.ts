@@ -1,4 +1,5 @@
 import {
+	existsSync,
 	mkdirSync,
 	readFileSync,
 	writeFileSync,
@@ -8,24 +9,26 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { app, BrowserWindow, dialog, Menu, screen, session } from "electron";
+import { registerOnboardingIpc } from "./ipc";
+import { buildMcpSnippet } from "./mcp-snippets";
+import { getOnboardingDataUrl } from "./onboarding-page";
+import {
+	readElectronState,
+	redactToken,
+	writeElectronState,
+	type ElectronOnboardingState,
+} from "./state";
 import { createTray, destroyTray } from "./tray";
 
-// --------------------------------------------------
-// Single instance lock
-// --------------------------------------------------
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
 	app.quit();
 }
 
-// --------------------------------------------------
-// Remove default menu bar
-// --------------------------------------------------
 Menu.setApplicationMenu(null);
 
-// --------------------------------------------------
-// Window state persistence
-// --------------------------------------------------
+type WindowMode = "onboarding" | "local" | "cloud";
+
 interface WindowState {
 	x?: number;
 	y?: number;
@@ -34,6 +37,42 @@ interface WindowState {
 	isMaximized: boolean;
 }
 
+type ServerInstance = {
+	app: unknown;
+	port: number;
+	shutdown: () => Promise<void>;
+};
+
+type ServerModule = {
+	createServer: (opts?: {
+		port?: number;
+		host?: string;
+		startWatcher?: boolean;
+	}) => Promise<ServerInstance>;
+};
+
+type RemoteImportModule = {
+	runRemoteImport: (client: {
+		ingestConversations: (request: unknown) => Promise<unknown>;
+	}) => Promise<unknown>;
+};
+
+type ApiEnvelope<T> =
+	| { success: true; data: T }
+	| { success: false; error?: string };
+
+const ONBOARDING_ORIGIN = "null";
+const API_TOKEN_LOCAL_STORAGE_KEY = "chatcrystal.apiToken";
+const AUTH_CHANGED_EVENT = "chatcrystal-auth-changed";
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+
+let mainWindow: BrowserWindow | null = null;
+let serverShutdown: (() => Promise<void>) | null = null;
+let isQuitting = false;
+let serverPort = 3721;
+let lastNormalBounds: Electron.Rectangle | null = null;
+let currentOnboardingUrl = "";
+
 function getWindowStatePath(): string {
 	return path.join(app.getPath("userData"), "window-state.json");
 }
@@ -41,7 +80,7 @@ function getWindowStatePath(): string {
 function loadWindowState(): WindowState {
 	try {
 		const data = readFileSync(getWindowStatePath(), "utf-8");
-		return JSON.parse(data);
+		return JSON.parse(data) as WindowState;
 	} catch {
 		return { width: 1280, height: 800, isMaximized: false };
 	}
@@ -62,24 +101,10 @@ function saveWindowState(win: BrowserWindow): void {
 	try {
 		writeFileSync(getWindowStatePath(), JSON.stringify(state));
 	} catch {
-		// Ignore write errors
+		// Best effort only.
 	}
 }
 
-// Store last non-maximized bounds separately (avoids `any` cast on BrowserWindow)
-let lastNormalBounds: Electron.Rectangle | null = null;
-
-// --------------------------------------------------
-// State
-// --------------------------------------------------
-let mainWindow: BrowserWindow | null = null;
-let serverShutdown: (() => Promise<void>) | null = null;
-let isQuitting = false;
-let serverPort = 3721;
-
-// --------------------------------------------------
-// Port detection: try preferred port, fall back to random
-// --------------------------------------------------
 function findFreePort(preferred: number): Promise<number> {
 	return new Promise((resolve, reject) => {
 		const srv = net.createServer();
@@ -87,46 +112,67 @@ function findFreePort(preferred: number): Promise<number> {
 			srv.close(() => resolve(preferred));
 		});
 		srv.on("error", () => {
-			// Preferred port occupied, use random
-			const srv2 = net.createServer();
-			srv2.listen(0, "127.0.0.1", () => {
-				const port = (srv2.address() as net.AddressInfo).port;
-				srv2.close(() => resolve(port));
+			const fallback = net.createServer();
+			fallback.listen(0, "127.0.0.1", () => {
+				const port = (fallback.address() as net.AddressInfo).port;
+				fallback.close(() => resolve(port));
 			});
-			srv2.on("error", (err) => {
+			fallback.on("error", (err) => {
 				reject(new Error(`Cannot find a free port: ${err.message}`));
 			});
 		});
 	});
 }
 
-// --------------------------------------------------
-// Create main window
-// --------------------------------------------------
-function createWindow(): BrowserWindow {
-	const state = loadWindowState();
-
-	// S-1: Validate saved position against current screen bounds
-	// If window would be off-screen (e.g., external monitor disconnected), reset position
-	if (state.x !== undefined && state.y !== undefined) {
-		const displays = screen.getAllDisplays();
-		const visible = displays.some((d) => {
-			const b = d.bounds;
-			return (
-				state.x! >= b.x - 50 &&
-				state.x! < b.x + b.width &&
-				state.y! >= b.y - 50 &&
-				state.y! < b.y + b.height
-			);
-		});
-		if (!visible) {
-			state.x = undefined;
-			state.y = undefined;
-		}
+function getDataDir(): string {
+	if (process.env.DATA_DIR) {
+		return path.isAbsolute(process.env.DATA_DIR)
+			? process.env.DATA_DIR
+			: path.resolve(app.getAppPath(), process.env.DATA_DIR);
 	}
+	return path.join(homedir(), ".chatcrystal", "data");
+}
 
-	// I-3: icon path — __dirname is electron/dist/ in both dev and packaged
-	const iconPath = path.join(__dirname, "..", "icon.png");
+function setRuntimeEnvironment(): void {
+	const dataDir = getDataDir();
+	mkdirSync(dataDir, { recursive: true });
+	process.env.ELECTRON = "true";
+	process.env.DATA_DIR = dataDir;
+	if (app.isPackaged) {
+		process.env.ELECTRON_PACKAGED = "true";
+	}
+}
+
+function validateSavedPosition(state: WindowState): void {
+	if (state.x === undefined || state.y === undefined) return;
+
+	const displays = screen.getAllDisplays();
+	const visible = displays.some((display) => {
+		const bounds = display.bounds;
+		return (
+			state.x! >= bounds.x - 50 &&
+			state.x! < bounds.x + bounds.width &&
+			state.y! >= bounds.y - 50 &&
+			state.y! < bounds.y + bounds.height
+		);
+	});
+
+	if (!visible) {
+		state.x = undefined;
+		state.y = undefined;
+	}
+}
+
+function preloadForMode(mode: WindowMode): string {
+	if (mode === "cloud") return path.join(__dirname, "cloud-preload.js");
+	if (mode === "onboarding") return path.join(__dirname, "onboarding-preload.js");
+	return path.join(__dirname, "preload.js");
+}
+
+function createWindow(mode: WindowMode): BrowserWindow {
+	const state = loadWindowState();
+	validateSavedPosition(state);
+
 	const win = new BrowserWindow({
 		width: state.width,
 		height: state.height,
@@ -136,12 +182,12 @@ function createWindow(): BrowserWindow {
 		minHeight: 600,
 		show: false,
 		title: "ChatCrystal",
-		icon: iconPath,
+		icon: path.join(__dirname, "..", "icon.png"),
 		webPreferences: {
-			preload: path.join(__dirname, "preload.js"),
+			preload: preloadForMode(mode),
 			contextIsolation: true,
 			nodeIntegration: false,
-			sandbox: true, // I-6: explicit sandbox
+			sandbox: true,
 		},
 	});
 
@@ -149,7 +195,6 @@ function createWindow(): BrowserWindow {
 		win.maximize();
 	}
 
-	// Track restore bounds for maximized state
 	win.on("resize", () => {
 		if (!win.isMaximized()) {
 			lastNormalBounds = win.getBounds();
@@ -160,17 +205,13 @@ function createWindow(): BrowserWindow {
 			lastNormalBounds = win.getBounds();
 		}
 	});
-
-	// Show when ready to avoid flash
 	win.once("ready-to-show", () => {
 		win.show();
 	});
-
-	// Close → save state + hide to tray (unless quitting)
-	win.on("close", (e) => {
+	win.on("close", (event) => {
 		saveWindowState(win);
 		if (!isQuitting) {
-			e.preventDefault();
+			event.preventDefault();
 			win.hide();
 		}
 	});
@@ -178,9 +219,459 @@ function createWindow(): BrowserWindow {
 	return win;
 }
 
-// --------------------------------------------------
-// Graceful shutdown
-// --------------------------------------------------
+function replaceMainWindow(mode: WindowMode): BrowserWindow {
+	if (mainWindow && !mainWindow.isDestroyed()) {
+		saveWindowState(mainWindow);
+		mainWindow.destroy();
+	}
+	mainWindow = createWindow(mode);
+	return mainWindow;
+}
+
+function isLocalHttpUrl(rawUrl: string): boolean {
+	try {
+		const url = new URL(rawUrl);
+		return url.protocol === "http:" && LOCAL_HOSTS.has(url.hostname);
+	} catch {
+		return false;
+	}
+}
+
+function configureLocalContentSecurityPolicy(): void {
+	if (process.env.VITE_DEV_URL) return;
+
+	session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+		if (!isLocalHttpUrl(details.url)) {
+			callback({ responseHeaders: details.responseHeaders });
+			return;
+		}
+
+		callback({
+			responseHeaders: {
+				...details.responseHeaders,
+				"Content-Security-Policy": [
+					"default-src 'self';" +
+						" script-src 'self';" +
+						" style-src 'self' 'unsafe-inline';" +
+						" img-src 'self' data: blob:;" +
+						" font-src 'self' data:;" +
+						" connect-src 'self' http://localhost:* ws://localhost:*;" +
+						" object-src 'none';" +
+						" base-uri 'self'",
+				],
+			},
+		});
+	});
+}
+
+async function importServerModule<T>(relativeModulePath: string): Promise<T> {
+	const modulePath = path.join(
+		app.getAppPath(),
+		"server",
+		"dist",
+		"server",
+		"src",
+		relativeModulePath,
+	);
+	if (!existsSync(modulePath)) {
+		throw new Error(
+			`Missing compiled server module: ${modulePath}. Run npm run build -w server before packaging Electron.`,
+		);
+	}
+	const moduleUrl = pathToFileURL(modulePath).href;
+	return (await Function(
+		"specifier",
+		"return import(specifier)",
+	)(moduleUrl)) as T;
+}
+
+async function startServer(port: number): Promise<ServerInstance> {
+	const serverModule = await importServerModule<ServerModule>("index.js");
+	return serverModule.createServer({
+		port,
+		host: "127.0.0.1",
+		startWatcher: false,
+	});
+}
+
+function getDevCoreUrl(): string {
+	return process.env.CHATCRYSTAL_ELECTRON_DEV_CORE_URL ?? "http://localhost:3721";
+}
+
+async function ensureLocalCoreStarted(): Promise<{
+	appUrl: string;
+	apiBaseUrl: string;
+}> {
+	const devUrl = process.env.VITE_DEV_URL;
+	if (devUrl) {
+		return { appUrl: devUrl, apiBaseUrl: getDevCoreUrl() };
+	}
+
+	if (!serverShutdown) {
+		serverPort = await findFreePort(3721);
+		if (serverPort !== 3721) {
+			console.log(`[Electron] Port 3721 occupied, using port ${serverPort}`);
+		}
+		const server = await startServer(serverPort);
+		serverShutdown = server.shutdown;
+	}
+
+	const localUrl = `http://localhost:${serverPort}`;
+	return { appUrl: localUrl, apiBaseUrl: localUrl };
+}
+
+function normalizeCloudBaseUrl(value: string): string {
+	const trimmed = value.trim();
+	if (!trimmed) {
+		throw new Error("请输入云端地址");
+	}
+
+	const withProtocol = /^[a-z][a-z\d+\-.]*:\/\//i.test(trimmed)
+		? trimmed
+		: `https://${trimmed}`;
+	const url = new URL(withProtocol);
+	if (url.protocol !== "http:" && url.protocol !== "https:") {
+		throw new Error("云端地址必须使用 HTTP 或 HTTPS");
+	}
+	url.hash = "";
+	url.search = "";
+	return url.toString().replace(/\/+$/, "");
+}
+
+function getApiError(payload: unknown, fallback: string): string {
+	if (payload && typeof payload === "object" && "error" in payload) {
+		const error = (payload as { error?: unknown }).error;
+		if (typeof error === "string" && error.trim()) return error;
+	}
+	return fallback;
+}
+
+async function requestApi<T>(
+	baseUrl: string,
+	apiPath: string,
+	options: RequestInit = {},
+): Promise<T> {
+	const headers = new Headers(options.headers);
+	if (options.body !== undefined && !headers.has("Content-Type")) {
+		headers.set("Content-Type", "application/json");
+	}
+
+	const response = await fetch(`${baseUrl}${apiPath}`, {
+		...options,
+		headers,
+	});
+	const text = await response.text();
+	let payload: ApiEnvelope<T> | null = null;
+	if (text.trim()) {
+		try {
+			payload = JSON.parse(text) as ApiEnvelope<T>;
+		} catch {
+			payload = null;
+		}
+	}
+
+	if (!response.ok) {
+		throw new Error(
+			getApiError(payload, `请求失败：HTTP ${response.status}`),
+		);
+	}
+	if (!payload) {
+		throw new Error("服务器返回了无效响应");
+	}
+	if (!payload.success) {
+		throw new Error(payload.error || "请求失败");
+	}
+	return payload.data;
+}
+
+function withAuth(token: string): Record<string, string> {
+	return { Authorization: `Bearer ${token}` };
+}
+
+async function verifyCloudConnection(baseUrl: string, token: string): Promise<void> {
+	const status = await requestApi<{
+		cloudMode: boolean;
+		setupRequired: boolean;
+		authenticated: boolean;
+	}>(baseUrl, "/api/setup/status");
+
+	if (!status.cloudMode) {
+		throw new Error("该地址不是 ChatCrystal 云端核心");
+	}
+	if (status.setupRequired) {
+		throw new Error("云端核心尚未完成初始设置");
+	}
+
+	const verify = await requestApi<{ authenticated: boolean }>(
+		baseUrl,
+		"/api/auth/verify",
+		{ method: "POST", headers: withAuth(token) },
+	);
+	if (!verify.authenticated) {
+		throw new Error("Token 验证失败");
+	}
+}
+
+function readConfiguredCloudState(): ElectronOnboardingState {
+	const state = readElectronState();
+	if (!state.cloudBaseUrl || !state.cloudToken) {
+		throw new Error("请先配置云端地址和 token");
+	}
+	return state;
+}
+
+function writeModeState(
+	mode: "local" | "cloud",
+	patch: Partial<ElectronOnboardingState> = {},
+): ElectronOnboardingState {
+	const current = readElectronState();
+	const next: ElectronOnboardingState = {
+		...current,
+		...patch,
+		version: 1,
+		mode,
+		defaultMode: patch.defaultMode === undefined ? mode : patch.defaultMode,
+	};
+	writeElectronState(next);
+	return next;
+}
+
+async function saveCloudConnection(input: {
+	baseUrl: string;
+	token: string;
+}): Promise<{ mode: "cloud"; cloudBaseUrl: string; httpsRecommended: boolean }> {
+	const token = input.token.trim();
+	if (!token) {
+		throw new Error("请输入访问 token");
+	}
+	const cloudBaseUrl = normalizeCloudBaseUrl(input.baseUrl);
+	await verifyCloudConnection(cloudBaseUrl, token);
+	writeModeState("cloud", {
+		cloudBaseUrl,
+		cloudToken: token,
+		importSkipped: false,
+		mcpSkipped: false,
+		summarizationBatchIds: [],
+		summarizationRequestId: null,
+	});
+	return {
+		mode: "cloud",
+		cloudBaseUrl,
+		httpsRecommended: new URL(cloudBaseUrl).protocol === "http:",
+	};
+}
+
+async function startLocalMode(): Promise<{
+	mode: "local";
+	appUrl: string;
+	apiBaseUrl: string;
+}> {
+	const local = await ensureLocalCoreStarted();
+	writeModeState("local", {
+		importSkipped: false,
+		mcpSkipped: false,
+		summarizationBatchIds: [],
+		summarizationRequestId: null,
+	});
+	return { mode: "local", ...local };
+}
+
+async function getModeApiBaseUrl(mode: "local" | "cloud"): Promise<{
+	baseUrl: string;
+	token?: string;
+}> {
+	if (mode === "local") {
+		const local = await ensureLocalCoreStarted();
+		return { baseUrl: local.apiBaseUrl };
+	}
+
+	const state = readConfiguredCloudState();
+	return { baseUrl: state.cloudBaseUrl!, token: state.cloudToken! };
+}
+
+async function callModeApi<T>(
+	mode: "local" | "cloud",
+	apiPath: string,
+	options: RequestInit = {},
+): Promise<T> {
+	const target = await getModeApiBaseUrl(mode);
+	const headers = new Headers(options.headers);
+	if (target.token) {
+		headers.set("Authorization", `Bearer ${target.token}`);
+	}
+	return requestApi<T>(target.baseUrl, apiPath, { ...options, headers });
+}
+
+async function importLocalHistory(): Promise<unknown> {
+	return callModeApi("local", "/api/import/scan", { method: "POST" });
+}
+
+async function uploadLocalHistory(): Promise<unknown> {
+	const state = readConfiguredCloudState();
+	const remoteImport = await importServerModule<RemoteImportModule>(
+		path.join("services", "remoteImport.js"),
+	);
+
+	return remoteImport.runRemoteImport({
+		ingestConversations: (request) =>
+			requestApi(state.cloudBaseUrl!, "/api/import/ingest", {
+				method: "POST",
+				headers: withAuth(state.cloudToken!),
+				body: JSON.stringify(request),
+			}),
+	});
+}
+
+async function testModel(mode: "local" | "cloud"): Promise<unknown> {
+	return callModeApi(mode, "/api/config/test", { method: "POST" });
+}
+
+async function summarizeBatch(input: {
+	mode: "local" | "cloud";
+	conversationIds: string[];
+}): Promise<unknown> {
+	const result = await callModeApi(input.mode, "/api/summarize/batch-ids", {
+		method: "POST",
+		body: JSON.stringify({ conversationIds: input.conversationIds }),
+	});
+	writeModeState(input.mode, {
+		summarizationBatchIds: input.conversationIds,
+		summarizationRequestId: new Date().toISOString(),
+	});
+	return result;
+}
+
+async function getMcpSnippet(mode: "local" | "cloud"): Promise<unknown> {
+	if (mode === "local") {
+		const local = await ensureLocalCoreStarted();
+		return buildMcpSnippet({ mode: "local", baseUrl: local.apiBaseUrl });
+	}
+
+	const state = readConfiguredCloudState();
+	return buildMcpSnippet({
+		mode: "cloud",
+		baseUrl: state.cloudBaseUrl!,
+		token: state.cloudToken!,
+	});
+}
+
+function lockNavigationToOrigin(win: BrowserWindow, origin: string): void {
+	const isAllowed = (url: string) => new URL(url).origin === origin;
+	win.webContents.on("will-navigate", (event, url) => {
+		if (!isAllowed(url)) {
+			event.preventDefault();
+		}
+	});
+	win.webContents.on("will-redirect", (event, url) => {
+		if (!isAllowed(url)) {
+			event.preventDefault();
+		}
+	});
+	win.webContents.setWindowOpenHandler(({ url }) => {
+		if (isAllowed(url)) {
+			return { action: "allow" };
+		}
+		return { action: "deny" };
+	});
+}
+
+function lockNavigationToUrl(win: BrowserWindow, allowedUrl: string): void {
+	const isAllowed = (url: string) => url === allowedUrl;
+	win.webContents.on("will-navigate", (event, url) => {
+		if (!isAllowed(url)) {
+			event.preventDefault();
+		}
+	});
+	win.webContents.on("will-redirect", (event, url) => {
+		if (!isAllowed(url)) {
+			event.preventDefault();
+		}
+	});
+	win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+}
+
+function assertWindowOrigin(win: BrowserWindow, expectedOrigin: string): void {
+	const actualUrl = win.webContents.getURL();
+	const actualOrigin = new URL(actualUrl).origin;
+	if (actualOrigin !== expectedOrigin) {
+		throw new Error(
+			`云端地址跳转到了不同来源：${actualOrigin}，请确认云端 URL 是否正确`,
+		);
+	}
+}
+
+async function injectCloudToken(win: BrowserWindow, token: string): Promise<void> {
+	await win.webContents.executeJavaScript(
+		`window.localStorage.setItem(${JSON.stringify(API_TOKEN_LOCAL_STORAGE_KEY)}, ${JSON.stringify(token)});
+window.dispatchEvent(new Event(${JSON.stringify(AUTH_CHANGED_EVENT)}));`,
+		true,
+	);
+}
+
+async function openLocalApp(): Promise<{ mode: "local"; appUrl: string }> {
+	const local = await ensureLocalCoreStarted();
+	const win = replaceMainWindow("local");
+	await win.loadURL(local.appUrl);
+	createTray({ win, mode: "local", localBaseUrl: local.appUrl });
+	writeModeState("local");
+	return { mode: "local", appUrl: local.appUrl };
+}
+
+async function openCloudApp(): Promise<{ mode: "cloud"; cloudBaseUrl: string }> {
+	const state = readConfiguredCloudState();
+	const cloudBaseUrl = state.cloudBaseUrl!;
+	const win = replaceMainWindow("cloud");
+	const expectedOrigin = new URL(cloudBaseUrl).origin;
+	lockNavigationToOrigin(win, expectedOrigin);
+	await win.loadURL(cloudBaseUrl);
+	assertWindowOrigin(win, expectedOrigin);
+	await injectCloudToken(win, state.cloudToken!);
+	createTray({ win, mode: "cloud", cloudBaseUrl });
+	writeModeState("cloud");
+	return { mode: "cloud", cloudBaseUrl };
+}
+
+async function openOnboarding(initialError?: string): Promise<void> {
+	const win = replaceMainWindow("onboarding");
+	currentOnboardingUrl = getOnboardingDataUrl(initialError);
+	lockNavigationToUrl(win, currentOnboardingUrl);
+	await win.loadURL(currentOnboardingUrl);
+	createTray({ win, mode: "onboarding" });
+}
+
+async function openApp(mode: "local" | "cloud"): Promise<unknown> {
+	if (mode === "cloud") return openCloudApp();
+	return openLocalApp();
+}
+
+async function useTemporaryLocal(): Promise<unknown> {
+	const local = await ensureLocalCoreStarted();
+	writeModeState("local", { defaultMode: null });
+	return local;
+}
+
+function getRedactedState(): ElectronOnboardingState {
+	const state = readElectronState();
+	return { ...state, cloudToken: redactToken(state.cloudToken) };
+}
+
+function registerIpcHandlers(): void {
+	registerOnboardingIpc({
+		getOnboardingOrigin: () => ONBOARDING_ORIGIN,
+		getOnboardingUrl: () => currentOnboardingUrl,
+		getState: getRedactedState,
+		saveCloudConnection,
+		startLocal: startLocalMode,
+		importLocalHistory,
+		uploadLocalHistory,
+		testModel,
+		summarizeBatch,
+		getMcpSnippet,
+		openApp,
+		useTemporaryLocal,
+	});
+}
+
 async function gracefulShutdown(): Promise<void> {
 	console.log("[Electron] Shutting down...");
 	if (serverShutdown) {
@@ -190,151 +681,74 @@ async function gracefulShutdown(): Promise<void> {
 	destroyTray();
 }
 
-// --------------------------------------------------
-// App lifecycle
-// --------------------------------------------------
 app.on("second-instance", () => {
-	if (mainWindow) {
-		if (mainWindow.isMinimized()) mainWindow.restore();
-		mainWindow.show();
-		mainWindow.focus();
-	}
+	if (!mainWindow) return;
+	if (mainWindow.isMinimized()) mainWindow.restore();
+	mainWindow.show();
+	mainWindow.focus();
 });
 
-app.on("before-quit", (e) => {
-	if (!isQuitting) {
-		e.preventDefault();
-		isQuitting = true;
-		// I-1: timeout prevents infinite hang if shutdown gets stuck
-		const timeout = setTimeout(() => {
-			console.error("[Electron] Shutdown timed out, forcing exit");
-			app.exit(1);
-		}, 10000);
-		gracefulShutdown()
-			.catch((err) => console.error("[Electron] Shutdown error:", err))
-			.finally(() => {
-				clearTimeout(timeout);
-				app.quit();
-			});
-	}
+app.on("before-quit", (event) => {
+	if (isQuitting) return;
+
+	event.preventDefault();
+	isQuitting = true;
+	const timeout = setTimeout(() => {
+		console.error("[Electron] Shutdown timed out, forcing exit");
+		app.exit(1);
+	}, 10000);
+	gracefulShutdown()
+		.catch((err) => console.error("[Electron] Shutdown error:", err))
+		.finally(() => {
+			clearTimeout(timeout);
+			app.quit();
+		});
 });
 
 app.on("window-all-closed", () => {
-	// On Windows, don't quit when all windows closed (tray keeps running)
-	// This is handled by the close → hide logic above
+	// Windows tray keeps the app alive.
 });
 
-// --------------------------------------------------
-// Data directory
-// --------------------------------------------------
-function getDataDir(): string {
-	if (process.env.DATA_DIR) {
-		return path.isAbsolute(process.env.DATA_DIR)
-			? process.env.DATA_DIR
-			: path.resolve(app.getAppPath(), process.env.DATA_DIR);
-	}
-
-	return path.join(homedir(), ".chatcrystal", "data");
-}
-
-// --------------------------------------------------
-// Server startup with retry
-// --------------------------------------------------
-async function startServer(port: number): Promise<{
-	shutdown: () => Promise<void>;
-}> {
-	const serverEntry = pathToFileURL(
-		path.join(app.getAppPath(), "server", "dist", "server", "src", "index.js"),
-	).href;
-	// C-1: Function() constructor is used intentionally to bypass Electron's CJS
-	// bundler restrictions on dynamic import(). This is a known workaround for
-	// loading ESM server modules from a CJS main process. Replace with direct
-	// import() if the Electron main process is ever migrated to ESM.
-	const serverModule = (await Function(
-		"specifier",
-		"return import(specifier)",
-	)(serverEntry)) as {
-		createServer: (opts?: { port?: number; host?: string }) => Promise<{
-			app: unknown;
-			port: number;
-			shutdown: () => Promise<void>;
-		}>;
-	};
-	return serverModule.createServer({ port, host: "127.0.0.1" });
-}
-
-// --------------------------------------------------
-// App lifecycle
-// --------------------------------------------------
 app.whenReady().then(async () => {
 	try {
-		// 1. Determine data directory
-		const dataDir = getDataDir();
+		setRuntimeEnvironment();
+		configureLocalContentSecurityPolicy();
+		registerIpcHandlers();
 
-		// 2. Ensure data directory exists
-		mkdirSync(dataDir, { recursive: true });
-
-		// 3. Set environment variables for the server
-		process.env.ELECTRON = "true";
-		process.env.DATA_DIR = dataDir;
-		if (app.isPackaged) {
-			process.env.ELECTRON_PACKAGED = "true";
+		const state = readElectronState();
+		if (state.defaultMode === "cloud" && state.cloudBaseUrl && state.cloudToken) {
+			try {
+				await openCloudApp();
+				console.log(`[Electron] ChatCrystal cloud mode ready at ${state.cloudBaseUrl}`);
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				console.error("[Electron] Cloud mode startup failed:", err);
+				await openOnboarding(`云端连接失败：${message}`);
+			}
+			return;
 		}
 
-		// 4. Set Content Security Policy (C-2)
-		// Restricts script execution to prevent XSS from rendered AI conversation content.
-		// Skipped in dev mode — Vite's HMR injects inline scripts incompatible with strict CSP.
-		if (!process.env.VITE_DEV_URL) {
-			session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-				callback({
-					responseHeaders: {
-						...details.responseHeaders,
-						"Content-Security-Policy": [
-							"default-src 'self';" +
-							" script-src 'self';" +
-							" style-src 'self' 'unsafe-inline';" +
-							" img-src 'self' data: blob:;" +
-							" font-src 'self' data:;" +
-							" connect-src 'self' http://localhost:* ws://localhost:*;" +
-							" object-src 'none';" +
-							" base-uri 'self'",
-						],
-					},
-				});
-			});
+		if (state.defaultMode === "local") {
+			try {
+				const local = await openLocalApp();
+				console.log(`[Electron] ChatCrystal local mode ready at ${local.appUrl}`);
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				console.error("[Electron] Local mode startup failed:", err);
+				await openOnboarding(`本地核心启动失败：${message}`);
+			}
+			return;
 		}
 
-		// 5. Find free port
-		serverPort = await findFreePort(3721);
-		if (serverPort !== 3721) {
-			console.log(`[Electron] Port 3721 occupied, using port ${serverPort}`);
-		}
-
-		// 6. Start the Fastify server (skip in dev — server runs separately via tsx)
-		const devUrl = process.env.VITE_DEV_URL;
-		if (!devUrl) {
-			const server = await startServer(serverPort);
-			serverShutdown = server.shutdown;
-		}
-
-		// 7. Create window
-		mainWindow = createWindow();
-
-		// 8. Load the app
-		const url = devUrl || `http://localhost:${serverPort}`;
-		await mainWindow.loadURL(url);
-
-		// 9. Create tray
-		createTray(mainWindow, serverPort);
-
-		console.log(`[Electron] ChatCrystal ready at ${url}`);
+		await openOnboarding();
+		console.log("[Electron] ChatCrystal onboarding ready");
 	} catch (err) {
 		console.error("[Electron] Failed to start:", err);
 		const message = err instanceof Error ? err.message : String(err);
 
 		dialog.showErrorBox(
 			"ChatCrystal failed to start",
-			`An error occurred during startup:\n\n${message}\n\nPlease check if the port is in use or data directory permissions.`,
+			`An error occurred during startup:\n\n${message}\n\nPlease check the cloud URL, token, port availability, or data directory permissions.`,
 		);
 		app.quit();
 	}

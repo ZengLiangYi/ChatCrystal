@@ -304,6 +304,7 @@ export class CrystalClient {
     await this.ensureExpectedInstance('/api/import/scan/stream');
 
     const res = await fetch(`${this.baseUrl}/api/import/scan/stream`, {
+      method: 'POST',
       headers: { Accept: 'text/event-stream', ...this.authHeaders() },
     });
 

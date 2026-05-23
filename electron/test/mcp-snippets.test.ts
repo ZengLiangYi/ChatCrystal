@@ -4,10 +4,14 @@ import { buildMcpSnippet, isNonLocalHttpUrl } from "../mcp-snippets.js";
 
 test("local MCP snippet points crystal mcp at the active local core", () => {
 	assert.deepEqual(buildMcpSnippet({ mode: "local", baseUrl: "http://localhost:3721" }), {
-		command: "crystal",
-		args: ["mcp"],
-		env: {
-			CHATCRYSTAL_BASE_URL: "http://localhost:3721",
+		mcpServers: {
+			chatcrystal: {
+				command: "crystal",
+				args: ["mcp"],
+				env: {
+					CHATCRYSTAL_BASE_URL: "http://localhost:3721",
+				},
+			},
 		},
 	});
 });
@@ -18,11 +22,15 @@ test("cloud MCP snippet includes base URL and API token", () => {
 		baseUrl: "https://crystal.example.com",
 		token: "plain-token",
 	}), {
-		command: "crystal",
-		args: ["mcp"],
-		env: {
-			CHATCRYSTAL_BASE_URL: "https://crystal.example.com",
-			CHATCRYSTAL_API_TOKEN: "plain-token",
+		mcpServers: {
+			chatcrystal: {
+				command: "crystal",
+				args: ["mcp"],
+				env: {
+					CHATCRYSTAL_BASE_URL: "https://crystal.example.com",
+					CHATCRYSTAL_API_TOKEN: "plain-token",
+				},
+			},
 		},
 	});
 });
@@ -35,7 +43,7 @@ test("non-local HTTP cloud MCP snippet includes explicit insecure transport allo
 	});
 
 	assert.equal(isNonLocalHttpUrl("http://crystal.example.com"), true);
-	assert.deepEqual(snippet.env, {
+	assert.deepEqual(snippet.mcpServers.chatcrystal.env, {
 		CHATCRYSTAL_BASE_URL: "http://crystal.example.com",
 		CHATCRYSTAL_API_TOKEN: "plain-token",
 		CHATCRYSTAL_ALLOW_INSECURE_REMOTE_HTTP: "true",

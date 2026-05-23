@@ -2,10 +2,16 @@ export type McpSnippetInput =
 	| { mode: "local"; baseUrl: string }
 	| { mode: "cloud"; baseUrl: string; token: string };
 
-export type McpSnippet = {
+export type McpServerEntry = {
 	command: "crystal";
 	args: ["mcp"];
 	env: Record<string, string>;
+};
+
+export type McpSnippet = {
+	mcpServers: {
+		chatcrystal: McpServerEntry;
+	};
 };
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
@@ -28,8 +34,12 @@ export function buildMcpSnippet(input: McpSnippetInput): McpSnippet {
 	}
 
 	return {
-		command: "crystal",
-		args: ["mcp"],
-		env,
+		mcpServers: {
+			chatcrystal: {
+				command: "crystal",
+				args: ["mcp"],
+				env,
+			},
+		},
 	};
 }

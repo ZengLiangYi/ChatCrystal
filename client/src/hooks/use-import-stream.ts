@@ -46,6 +46,7 @@ export function useImportStream() {
     }
 
     fetch(`${API_BASE}/api/import/scan/stream`, {
+      method: 'POST',
       headers,
     })
       .then(async (res) => {

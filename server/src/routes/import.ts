@@ -1,8 +1,45 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { RemoteImportRequest } from '@chatcrystal/shared';
 import { isCloudMode } from '../runtime/cloud.js';
 import { ingestRemoteImport } from '../services/ingest.js';
 import { importAll } from '../services/import.js';
+
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
+
+type HeaderValue = string | string[] | undefined;
+
+function firstHeaderValue(value: HeaderValue): string | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value;
+}
+
+function isLocalOrigin(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return LOCAL_HOSTS.has(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+export function isLocalImportRequestOriginAllowed(origin: HeaderValue, referer: HeaderValue): boolean {
+  const originValue = firstHeaderValue(origin);
+  if (originValue) return isLocalOrigin(originValue);
+
+  const refererValue = firstHeaderValue(referer);
+  if (refererValue) return isLocalOrigin(refererValue);
+
+  return true;
+}
+
+function rejectNonLocalImportOrigin(req: FastifyRequest, reply: FastifyReply): boolean {
+  if (!isLocalImportRequestOriginAllowed(req.headers.origin, req.headers.referer)) {
+    reply.status(403).send({ success: false, error: 'Local import must be started from ChatCrystal.' });
+    return true;
+  }
+
+  return false;
+}
 
 export async function importRoutes(app: FastifyInstance) {
   app.post('/api/import/ingest', async (req, reply) => {
@@ -31,7 +68,7 @@ export async function importRoutes(app: FastifyInstance) {
   });
 
   // Trigger a full scan and import (JSON response, no progress)
-  app.post('/api/import/scan', async (_req, reply) => {
+  app.post('/api/import/scan', async (req, reply) => {
     if (isCloudMode()) {
       reply.status(400);
       return {
@@ -39,6 +76,7 @@ export async function importRoutes(app: FastifyInstance) {
         error: 'Server-side import scan is local-only and is disabled in cloud mode. Run crystal import from the device that has the source histories.',
       };
     }
+    if (rejectNonLocalImportOrigin(req, reply)) return;
 
     try {
       const result = await importAll();
@@ -51,7 +89,7 @@ export async function importRoutes(app: FastifyInstance) {
   });
 
   // SSE endpoint for import with real-time progress
-  app.get('/api/import/scan/stream', async (_req, reply) => {
+  app.post('/api/import/scan/stream', async (req, reply) => {
     if (isCloudMode()) {
       reply.status(400);
       return {
@@ -59,6 +97,7 @@ export async function importRoutes(app: FastifyInstance) {
         error: 'Server-side import scan stream is local-only and is disabled in cloud mode. Run crystal import from the device that has the source histories.',
       };
     }
+    if (rejectNonLocalImportOrigin(req, reply)) return;
 
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',

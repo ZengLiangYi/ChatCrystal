@@ -8,8 +8,8 @@ contextBridge.exposeInMainWorld("chatcrystalOnboarding", {
 	importLocalHistory: () => ipcRenderer.invoke("onboarding:import-local-history"),
 	uploadLocalHistory: () => ipcRenderer.invoke("onboarding:upload-local-history"),
 	testModel: (mode: "local" | "cloud") => ipcRenderer.invoke("onboarding:test-model", mode),
-	summarizeBatch: (conversationIds: string[]) =>
-		ipcRenderer.invoke("onboarding:summarize-batch", conversationIds),
+	summarizeBatch: (input: { mode: "local" | "cloud"; conversationIds: string[] }) =>
+		ipcRenderer.invoke("onboarding:summarize-batch", input),
 	getMcpSnippet: (mode: "local" | "cloud") =>
 		ipcRenderer.invoke("onboarding:get-mcp-snippet", mode),
 	openApp: (mode: "local" | "cloud") => ipcRenderer.invoke("onboarding:open-app", mode),
