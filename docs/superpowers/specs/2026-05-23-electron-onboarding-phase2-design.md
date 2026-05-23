@@ -51,6 +51,13 @@ Reasons:
 - Cloud UI updates do not require updating the Electron package.
 - It avoids duplicating API-base routing and CORS logic in the desktop shell.
 
+Trust boundary rules:
+
+- The cloud Web UI must not receive the high-privilege onboarding preload.
+- The cloud Web UI must not be able to call local source scanning, local parsing, local import, cloud upload, shell config writes, or token-read IPC.
+- Use a separate onboarding `webContents`/window/session, or recreate the main window when switching between onboarding/local app and cloud Web UI. Do not reuse a privileged preload for arbitrary remote content.
+- Cloud navigation is locked to the exact saved cloud origin. Block or externalize unexpected navigation and `window.open` targets.
+
 ### Cloud Auto Login
 
 Electron stores the cloud URL and API token, verifies them, and then injects the token only into the saved cloud origin before loading the cloud UI.
@@ -60,6 +67,7 @@ Rules:
 - When saving a new cloud connection, verify the cloud URL and token first via public/private cloud API calls. If verification fails, stay in onboarding and show a recoverable error.
 - On startup with a saved cloud connection, verify reachability and token validity before loading the cloud UI. If verification fails, show the Electron cloud connection error page.
 - Inject the token only for the exact saved origin.
+- Token injection uses the cloud Web UI session/origin storage only. It must not expose a token-read IPC to remote content.
 - If verification succeeds but token injection fails, load the cloud Web UI normally and let its existing auth gate handle login.
 - Never inject the token into an arbitrary navigation target.
 
@@ -73,6 +81,9 @@ Rules:
 - `http://localhost` and `http://127.0.0.1`: allowed for local tunnels and local testing.
 - Non-local `http://...`: allowed with an inline warning, not a blocking confirmation.
 - Warning copy should make the risk explicit: tokens travel over an unencrypted connection and public deployments should use HTTPS.
+- Existing CLI/Web transport guards refuse to send tokens over non-local HTTP by default. Phase 2 must add an explicit Electron cloud-session allowance for a user-saved non-local HTTP origin after the warning is shown.
+- That allowance is origin-scoped and Electron-only. A normal browser session should still block token auth over public HTTP unless the user deliberately opts into the existing CLI/env escape hatch.
+- MCP snippets for non-local HTTP targets must include `CHATCRYSTAL_ALLOW_INSECURE_REMOTE_HTTP=true` with a visible warning, otherwise `crystal mcp` will correctly refuse to send the token.
 
 ### Local And Cloud Import
 
@@ -112,6 +123,14 @@ Supported sources are the same five Phase 1 sources:
 
 The scan step may run automatically after the Core connection succeeds, but upload/import must require user confirmation.
 
+Scan/import service contract:
+
+- Add a shared core service such as `scanLocalSources()` that uses existing adapters' `detect()` and `scan()` methods and returns per-source availability, conversation counts, file counts, timestamps, and read errors.
+- The scan-only result must not parse full conversation content and must not write to the database or upload to cloud.
+- After user confirmation, import may re-scan before parsing because local histories can change. The UI should say the final count can differ from the preview.
+- Local import should reuse core import logic and return imported/replaced/skipped/error counts plus the conversation IDs affected by this confirmed batch.
+- Cloud import should reuse Phase 1 remote item construction, chunking, ingest validation, and dedupe. Electron must not reimplement source parsing.
+
 ### Summarization Prompt
 
 After import completes, Electron tests the active Core's LLM and embedding connectivity.
@@ -124,6 +143,9 @@ Rules:
 - If model connectivity is not usable, do not offer immediate summarization.
 - Show a message such as: `本机历史已导入。配置可用的模型后，即可将对话结晶成记忆。`
 - Provide an entry point to model settings.
+- The onboarding prompt summarizes only the current confirmed import batch by default.
+- If implementation reuses the existing all-unsummarized batch endpoint, it must add an explicit "all unsummarized conversations" choice. Do not silently queue old backlog during onboarding.
+- Preferred implementation is a batch-by-ids API using conversation IDs returned from the confirmed import/upload result.
 
 ### MCP Helper
 
@@ -147,7 +169,28 @@ Phase 2 MCP Helper scope:
 
 The default snippets include the token in plain text because the goal is copy-ready configuration. The UI must label this clearly: the snippet contains the user's access token and should only be copied into trusted AI tools.
 
+Snippet source-of-truth:
+
+- Cloud mode snippets always include `CHATCRYSTAL_BASE_URL` and `CHATCRYSTAL_API_TOKEN` from the saved Electron cloud connection.
+- Local mode snippets use the active local Core URL. If the embedded local Core is not on `3721`, the snippet must use the actual port and clearly state that MCP depends on this Electron instance staying open.
+- Electron does not assume `crystal mcp` can read Electron `userData`. CLI/MCP saved connection in `~/.chatcrystal/client.json` is a separate Phase 1 mechanism and is not silently synchronized in Phase 2.
+- A future "sync Electron cloud connection to CLI" action can be added later, but Phase 2 keeps snippets copy-ready instead of mutating CLI config.
+
 ## Architecture
+
+### Startup Matrix
+
+Electron startup must choose the active core before starting services:
+
+| Saved state | Embedded local Core | Window target | Notes |
+| --- | --- | --- | --- |
+| No onboarding/default mode | Not started | Onboarding Renderer | First screen is local/cloud choice. |
+| Local mode | Started | Local Web UI | Uses `~/.chatcrystal/data`. |
+| Cloud mode | Not started | Cloud Web UI | Verify cloud URL/token first. |
+| Cloud failure recovery | Not started | Electron error page | Retry/edit/open cloud login/temporary local actions. |
+| Temporary local recovery | Started | Local Web UI with clear temporary label | Does not change saved default mode. |
+
+Tray and menu actions must route through the active mode. In cloud mode, search/open actions target the cloud Web UI; local-only actions are hidden or relabeled. They must not silently jump the user back to a local memory library.
 
 ### Modules
 
@@ -156,7 +199,7 @@ The default snippets include the token in plain text because the goal is copy-re
 Responsible for:
 
 - Choosing whether to show onboarding, local Web UI, cloud Web UI, or an error page.
-- Starting and stopping the embedded local Core.
+- Starting and stopping the embedded local Core only when local mode or temporary local recovery requires it.
 - Loading the cloud Web UI after successful cloud verification.
 - Handling tray/menu entries for continuing onboarding, importing histories, MCP helper, and switching modes.
 - Displaying a cloud connection error page with recovery actions.
@@ -184,6 +227,8 @@ The Onboarding Renderer should be a real page, not a sequence of native dialogs.
 
 Renderer code must not directly read local files, mutate configuration, or call parser services. Preload exposes a narrow API over IPC.
 
+High-privilege preload is available only to the Electron-owned onboarding/local renderer. Remote cloud Web UI content gets no local filesystem/import/config IPC.
+
 Required API surface:
 
 - Read and write Electron onboarding state.
@@ -199,17 +244,26 @@ Required API surface:
 - Open local or cloud Web UI.
 - Clear or repair cloud connection state.
 
+IPC guard rules:
+
+- Every high-privilege `ipcMain` handler checks `event.senderFrame.origin`, the current onboarding state, and the active mode before doing work.
+- Source scanning/import/upload IPC is callable only from the onboarding renderer while the state machine is in a matching scan/import state.
+- Cloud Web UI cannot call scan/import/upload IPC even when it is loaded inside Electron.
+- Navigation and external-open handlers enforce the exact saved cloud origin for cloud mode.
+
 #### Core Reuse Layer
 
 Phase 2 must reuse Phase 1 server/core services:
 
 - Source adapters.
+- New scan-only local source summary service built on adapter `detect()`/`scan()`.
 - Local import logic.
 - Remote import item construction.
 - Remote upload chunking.
 - Cloud ingest validation and dedupe.
 - Config connection testing.
 - Summarization queue/API.
+- New or extended summarize-by-ids API for onboarding's current import batch.
 
 Do not reimplement parsing in Electron.
 
@@ -267,6 +321,8 @@ Rules:
 - Skipped steps remain available from menu/settings.
 - Onboarding state persists enough to resume after closing the app.
 - Persist only scan summaries and timestamps; re-scan before a later import because local histories can change.
+- If the app closes during `importing`, restart resumes to a safe retry state, not a stuck progress screen. The user can re-scan or retry the confirmed import.
+- If the app closes during `summarizing`, restart reads queue status from the active Core and shows background progress when available. It must not blindly enqueue the same batch again.
 
 ## Error Handling
 
