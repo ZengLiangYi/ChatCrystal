@@ -69,7 +69,7 @@ Rules:
 - Write the token to the cloud Web UI's `localStorage` key `chatcrystal.apiToken` only for the exact saved origin, for both HTTP and HTTPS cloud URLs.
 - After writing the token, trigger the existing `chatcrystal-auth-changed` event or an equivalent reload/refresh path so the Web UI observes the login state immediately.
 - Do not use Electron header injection as the normal login path. The cloud Web UI should behave like a regular logged-in session inside Electron.
-- If the existing Web HTTP guard needs an Electron-specific allowance, scope it to the Electron cloud session and exact saved origin. Normal browser behavior should not change.
+- Add an Electron-specific allowance for the existing Web HTTP guard, scoped to the Electron cloud session and exact saved origin. Normal browser behavior must not change.
 - If verification succeeds but token injection fails, load the cloud Web UI normally and let its existing auth gate handle login.
 - Never inject the token into an arbitrary navigation target.
 
