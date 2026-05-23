@@ -26,7 +26,7 @@ test('cloud mode rejects import scan stream as local-only', async () => {
   const app = Fastify();
   await app.register(importRoutes);
 
-  const response = await app.inject({ method: 'GET', url: '/api/import/scan/stream' });
+  const response = await app.inject({ method: 'POST', url: '/api/import/scan/stream' });
 
   assert.equal(response.statusCode, 400);
   assert.match(response.body, /local-only/i);

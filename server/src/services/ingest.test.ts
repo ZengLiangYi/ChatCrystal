@@ -144,6 +144,27 @@ test('ingestRemoteImport skips identical content hashes even when file metadata 
   ]);
 });
 
+test('ingestRemoteImport returns summary candidate ids only for imported and replaced items', () => {
+  resetDatabase(db);
+
+  const first = remoteItem('candidate-session');
+  const initial = ingest.ingestRemoteImport({ version: 1, items: [first] });
+  assert.deepEqual(initial.importedIds, [first.conversationId]);
+  assert.deepEqual(initial.replacedIds, []);
+  assert.deepEqual(initial.skippedIds, []);
+  assert.deepEqual(initial.summarizationCandidateIds, [first.conversationId]);
+
+  const skipped = ingest.ingestRemoteImport({ version: 1, items: [first] });
+  assert.deepEqual(skipped.importedIds, []);
+  assert.deepEqual(skipped.skippedIds, [first.conversationId]);
+  assert.deepEqual(skipped.summarizationCandidateIds, []);
+
+  const changed = remoteItem('candidate-session', 'changed assistant response');
+  const replaced = ingest.ingestRemoteImport({ version: 1, items: [changed] });
+  assert.deepEqual(replaced.replacedIds, [first.conversationId]);
+  assert.deepEqual(replaced.summarizationCandidateIds, [first.conversationId]);
+});
+
 test('ingestRemoteImport upgrades legacy local rows instead of duplicating them', () => {
   resetDatabase(db);
   db.run(

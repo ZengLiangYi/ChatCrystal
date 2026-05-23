@@ -428,6 +428,19 @@ export interface RemoteImportRequest {
   items: RemoteImportItem[];
 }
 
+export interface ImportBatchResult {
+  total: number;
+  imported: number;
+  replaced: number;
+  skipped: number;
+  errors: number;
+  importedIds: string[];
+  replacedIds: string[];
+  skippedIds: string[];
+  errorIds: string[];
+  summarizationCandidateIds: string[];
+}
+
 export type RemoteImportItemStatus = 'imported' | 'replaced' | 'skipped' | 'error';
 
 export interface RemoteImportItemResult {
@@ -444,5 +457,51 @@ export interface RemoteImportResponse {
   replaced: number;
   skipped: number;
   errors: number;
+  importedIds: string[];
+  replacedIds: string[];
+  skippedIds: string[];
+  errorIds: string[];
+  summarizationCandidateIds: string[];
   items: RemoteImportItemResult[];
+}
+
+export interface SummarizeByIdsRequest {
+  conversationIds: string[];
+}
+
+export interface SummarizeByIdsResponse {
+  queued: number;
+  skipped: string[];
+  unknown: string[];
+  queue: TaskSnapshot;
+}
+
+export interface ConversationSummaryStatus {
+  id: string;
+  status: ConversationStatus | 'unknown';
+}
+
+export type TaskStatus = 'queued' | 'processing' | 'completed' | 'failed';
+
+export interface TaskEntry {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  error?: string;
+  addedAt: number;
+  startedAt?: number;
+  finishedAt?: number;
+}
+
+export interface TaskSnapshot {
+  total: number;
+  completed: number;
+  failed: number;
+  active: number;
+  tasks: TaskEntry[];
+}
+
+export interface SummarizeStatusByIdsResponse {
+  items: ConversationSummaryStatus[];
+  queue: TaskSnapshot;
 }

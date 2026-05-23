@@ -21,6 +21,7 @@ import { healthRoutes } from './routes/health.js';
 import { authRoutes, registerCloudAuthHook } from './routes/setup.js';
 import { getOrCreateSetupCode, setupRequired } from './services/auth.js';
 import { isCloudMode } from './runtime/cloud.js';
+import { shouldStartWatcher } from './runtime/watcherPolicy.js';
 
 // Initialize parser adapters (registers built-in adapters)
 import './parser/index.js';
@@ -39,6 +40,7 @@ export interface ServerInstance {
 export async function createServer(options?: {
   port?: number;
   host?: string;
+  startWatcher?: boolean;
 }): Promise<ServerInstance> {
   const app = Fastify({ logger: true, bodyLimit: 25 * 1024 * 1024 });
 
@@ -98,8 +100,14 @@ export async function createServer(options?: {
   console.log(`[LLM] Provider: ${appConfig.llm.provider} / ${appConfig.llm.model}`);
   console.log(`[Embedding] Provider: ${appConfig.embedding.provider} / ${appConfig.embedding.model}`);
 
-  // Start file watcher only for local mode; cloud imports are pushed from clients.
-  const watcher = isCloudMode() ? null : startWatcher();
+  // Start file watcher only when the runtime mode explicitly allows local scans.
+  const cloudMode = isCloudMode();
+  const watcher = shouldStartWatcher({
+    cloudMode,
+    startWatcher: options?.startWatcher,
+  })
+    ? startWatcher()
+    : null;
 
   // Start server
   const port = options?.port ?? appConfig.port;

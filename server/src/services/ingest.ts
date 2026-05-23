@@ -349,6 +349,14 @@ function ingestOne(db: Database, item: RemoteImportItem): RemoteImportItemResult
   };
 }
 
+function readConversationStatus(db: Database, conversationId: string): string | null {
+  const row = db.exec(
+    'SELECT status FROM conversations WHERE id = ?',
+    [conversationId],
+  )[0]?.values[0];
+  return row ? String(row[0]) : null;
+}
+
 export function ingestRemoteImport(request: RemoteImportRequest): RemoteImportResponse {
   if (request.version !== 1) {
     throw new Error('Unsupported remote import payload version');
@@ -374,12 +382,34 @@ export function ingestRemoteImport(request: RemoteImportRequest): RemoteImportRe
 
   saveDatabase();
 
+  const importedIds = items
+    .filter((item) => item.status === 'imported')
+    .map((item) => item.conversationId);
+  const replacedIds = items
+    .filter((item) => item.status === 'replaced')
+    .map((item) => item.conversationId);
+  const skippedIds = items
+    .filter((item) => item.status === 'skipped')
+    .map((item) => item.conversationId);
+  const errorIds = items
+    .filter((item) => item.status === 'error')
+    .map((item) => item.conversationId)
+    .filter(Boolean);
+  const summarizationCandidateIds = [...importedIds, ...replacedIds].filter(
+    (id) => readConversationStatus(db, id) === 'imported',
+  );
+
   return {
     total: request.items.length,
-    imported: items.filter((item) => item.status === 'imported').length,
-    replaced: items.filter((item) => item.status === 'replaced').length,
-    skipped: items.filter((item) => item.status === 'skipped').length,
+    imported: importedIds.length,
+    replaced: replacedIds.length,
+    skipped: skippedIds.length,
     errors: items.filter((item) => item.status === 'error').length,
+    importedIds,
+    replacedIds,
+    skippedIds,
+    errorIds,
+    summarizationCandidateIds,
     items,
   };
 }

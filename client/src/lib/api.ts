@@ -25,8 +25,15 @@ export function isInsecureRemoteHttpLocation(location = window.location): boolea
 	return location.protocol === "http:" && !LOCAL_HOSTS.has(location.hostname);
 }
 
+export function isElectronCloudHttpAuthAllowed(location = window.location): boolean {
+	const marker = window.chatcrystalElectronCloud;
+	if (!marker?.allowInsecureHttpAuth) return false;
+	return marker.origin === location.origin;
+}
+
 export function assertSafeWebAuthTransport(): void {
 	if (!isInsecureRemoteHttpLocation()) return;
+	if (isElectronCloudHttpAuthAllowed()) return;
 	throw new Error(
 		"Refusing to send ChatCrystal access tokens over public HTTP. Use HTTPS or a local tunnel.",
 	);
