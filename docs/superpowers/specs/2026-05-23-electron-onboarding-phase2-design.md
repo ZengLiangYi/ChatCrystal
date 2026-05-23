@@ -60,15 +60,15 @@ Trust boundary rules:
 
 ### Cloud Auto Login
 
-Electron stores the cloud URL and API token, verifies them, and then injects the token only into the saved cloud origin before loading the cloud UI.
+Electron stores the cloud URL and API token, verifies them, and then writes the token into the saved cloud Web UI origin before loading the cloud UI.
 
 Rules:
 
 - When saving a new cloud connection, verify the cloud URL and token first via public/private cloud API calls. If verification fails, stay in onboarding and show a recoverable error.
 - On startup with a saved cloud connection, verify reachability and token validity before loading the cloud UI. If verification fails, show the Electron cloud connection error page.
-- Inject the token only for the exact saved origin.
-- For HTTPS cloud origins, token injection may use the cloud Web UI's exact-origin storage. It must not expose a token-read IPC to remote content.
-- For non-local HTTP cloud origins, do not write the token into Web `localStorage`. Use Electron session request interception for the exact saved origin to attach `Authorization` to `/api/*` and queue/SSE requests, so the normal Web guard still protects browser users.
+- Write the token to the cloud Web UI's `localStorage` only for the exact saved origin, for both HTTP and HTTPS cloud URLs.
+- Do not use Electron header injection as the normal login path. The cloud Web UI should behave like a regular logged-in session inside Electron.
+- If the existing Web HTTP guard needs an Electron-specific allowance, scope it to the Electron cloud session and exact saved origin. Normal browser behavior should not change.
 - If verification succeeds but token injection fails, load the cloud Web UI normally and let its existing auth gate handle login.
 - Never inject the token into an arbitrary navigation target.
 
@@ -80,12 +80,10 @@ Rules:
 
 - `https://...`: normal recommended path.
 - `http://localhost` and `http://127.0.0.1`: allowed for local tunnels and local testing.
-- Non-local `http://...`: allowed with an inline warning, not a blocking confirmation.
-- Warning copy should make the risk explicit: tokens travel over an unencrypted connection and public deployments should use HTTPS.
-- Existing CLI/Web transport guards refuse to send tokens over non-local HTTP by default. Phase 2 must add an explicit Electron cloud-session allowance for a user-saved non-local HTTP origin after the warning is shown.
-- That allowance is origin-scoped and Electron-only. A normal browser session should still block token auth over public HTTP unless the user deliberately opts into the existing CLI/env escape hatch.
-- The preferred Electron allowance is exact-origin `webRequest.onBeforeSendHeaders` token injection for cloud API requests, not weakening `client/src/lib/api.ts` or `AuthGate` for normal browsers.
-- MCP snippets for non-local HTTP targets must include `CHATCRYSTAL_ALLOW_INSECURE_REMOTE_HTTP=true` with a visible warning, otherwise `crystal mcp` will correctly refuse to send the token.
+- Non-local `http://...`: allowed with an inline recommendation to use HTTPS, not a blocking confirmation.
+- Keep the copy light: recommend HTTPS as safer for public deployments, but do not pressure the user with a second confirmation.
+- Electron cloud mode uses the same token-localStorage behavior for HTTP and HTTPS so the user gets one consistent login experience.
+- MCP snippets for non-local HTTP targets may include `CHATCRYSTAL_ALLOW_INSECURE_REMOTE_HTTP=true` automatically so `crystal mcp` works with the chosen URL. Do not add a second scary confirmation in the MCP step.
 
 ### Local And Cloud Import
 
@@ -95,25 +93,21 @@ Local mode flow:
 
 1. Start embedded local Core.
 2. Show `正在唤醒本机记忆核心`.
-3. Scan the five supported local sources.
-4. Show scan results.
-5. User confirms import.
-6. Import into the local database.
-7. Test model connectivity.
-8. Offer summarization if model connectivity passes.
-9. Enter the local Web UI.
+3. Show an import action for local AI conversation history.
+4. If the user starts import, scan, parse, and import into the local database as one complete operation.
+5. Test model connectivity.
+6. Offer summarization if model connectivity passes.
+7. Enter the local Web UI.
 
 Cloud mode flow:
 
 1. Verify cloud Core and token.
 2. Show `正在连接到您的超级大脑`.
-3. Scan the five supported local sources.
-4. Show scan results.
-5. User confirms upload.
-6. Parse locally and upload normalized payloads to the cloud ingest API.
-7. Test cloud model connectivity.
-8. Offer summarization if model connectivity passes.
-9. Enter the cloud Web UI.
+3. Show an upload action for local AI conversation history.
+4. If the user starts upload, scan, parse locally, and upload normalized payloads to the cloud ingest API as one complete operation.
+5. Test cloud model connectivity.
+6. Offer summarization if model connectivity passes.
+7. Enter the cloud Web UI.
 
 Supported sources are the same five Phase 1 sources:
 
@@ -123,18 +117,16 @@ Supported sources are the same five Phase 1 sources:
 - Trae
 - GitHub Copilot
 
-The scan step may run automatically after the Core connection succeeds, but upload/import must require user confirmation.
+Phase 2 does not include a preview/count layer. Avoid half-complete source discovery UI such as `count: unknown`; if a polished preview cannot be implemented, do not show one.
 
-Preview/import service contract:
+Import/upload service contract:
 
-- Add a shared core service such as `previewLocalSources()` for onboarding. This is a privacy-safe preview layer, not a wrapper around every current adapter `scan()` implementation.
-- Preview may use filesystem metadata, database keys, file counts, timestamps, and source availability. It must not materialize message text, assistant responses, prompts, or full conversation payloads before user confirmation.
-- Some existing adapters currently need content parsing to produce exact counts. For those sources, preview should return `count: unknown` or a coarse source-level availability summary until a dedicated metadata-only preview path exists.
-- Tests must prove preview does not call adapter `parse()` and does not read known message-content fields for Cursor/Trae-style stores.
-- The preview result must not write to the database or upload to cloud.
-- After user confirmation, import may re-scan before parsing because local histories can change. The UI should say the final count can differ from the preview.
-- Local import should reuse core import logic and return imported/replaced/skipped/error counts plus the conversation IDs affected by this confirmed batch.
+- Import or upload starts only after a deliberate user action.
+- Once started, the operation may scan, parse, and write/upload because the user has already chosen to import local history.
+- Local import should reuse core import logic and return structured result fields: `importedIds`, `replacedIds`, `skippedIds`, `errorIds`, and `summarizationCandidateIds`.
+- `summarizationCandidateIds` includes only conversations newly imported or content-replaced by the current confirmed operation. Skipped existing conversations are excluded by default.
 - Cloud import should reuse Phase 1 remote item construction, chunking, ingest validation, and dedupe. Electron must not reimplement source parsing.
+- Cloud ingest/upload should return the same structured ID categories when possible. If a server response cannot return IDs for a category yet, Phase 2 must add that contract before wiring onboarding summarization.
 
 ### Summarization Prompt
 
@@ -150,7 +142,8 @@ Rules:
 - Provide an entry point to model settings.
 - The onboarding prompt summarizes only the current confirmed import batch by default.
 - If implementation reuses the existing all-unsummarized batch endpoint, it must add an explicit "all unsummarized conversations" choice. Do not silently queue old backlog during onboarding.
-- Preferred implementation is a batch-by-ids API using conversation IDs returned from the confirmed import/upload result.
+- Preferred implementation is a batch-by-ids API using `summarizationCandidateIds` returned from the confirmed import/upload result.
+- Skipped existing conversations are not summarized by default, even if they are unsummarized. A separate explicit option may offer to summarize skipped-but-unsummarized conversations, with copy that distinguishes them from newly imported memory.
 - Persist the current onboarding summarization batch IDs and a local request ID in Electron state before queueing work.
 - Add or extend APIs so Electron can query summarization status for specific conversation IDs after restart. Do not rely only on the process-memory queue tracker.
 - If the embedded Core restarts with conversations left in `status = 'summarizing'`, onboarding must present resume/retry/skip for the persisted current batch. It must not automatically call the all-unsummarized endpoint.
@@ -204,6 +197,18 @@ Electron startup must choose the active core before starting services:
 
 Tray and menu actions must route through the active mode. In cloud mode, search/open actions target the cloud Web UI; local-only actions are hidden or relabeled. They must not silently jump the user back to a local memory library.
 
+### Watcher During Onboarding
+
+The existing local server watcher auto-imports changed files. During Electron onboarding this would bypass the user's explicit import action, so it is disabled by default.
+
+Rules:
+
+- Add a server option or environment switch such as `createServer({ startWatcher: false })` for Electron onboarding.
+- Local onboarding may start the embedded Core for API access, but it must not start the auto-import watcher until onboarding reaches `done` or the user explicitly enables automatic import.
+- While onboarding is active, file changes must not call `importAll()`.
+- Cloud mode does not start the embedded local Core and therefore does not start the local watcher.
+- Tests should cover that the explicit onboarding import/upload action remains the only import path while onboarding is incomplete.
+
 ### Modules
 
 #### Electron Shell
@@ -225,8 +230,7 @@ Responsible for:
 - Mode choice.
 - Cloud connection form.
 - Connection progress screens.
-- Scan results.
-- Import confirmation.
+- Import/upload action.
 - Import progress.
 - Model connectivity result.
 - Summarization prompt.
@@ -247,9 +251,8 @@ Required API surface:
 - Read and write cloud connection config.
 - Verify cloud Core URL and token.
 - Start local Core.
-- Scan local sources.
-- Import to local Core.
-- Import to cloud Core.
+- Run explicit local history import to local Core.
+- Run explicit local history upload to cloud Core.
 - Test model connectivity for the active Core.
 - Trigger batch summarization for the active Core.
 - Generate MCP snippets.
@@ -259,8 +262,8 @@ Required API surface:
 IPC guard rules:
 
 - Every high-privilege `ipcMain` handler checks `event.senderFrame.origin`, the current onboarding state, and the active mode before doing work.
-- Source scanning/import/upload IPC is callable only from the onboarding renderer while the state machine is in a matching scan/import state.
-- Cloud Web UI cannot call scan/import/upload IPC even when it is loaded inside Electron.
+- Import/upload IPC is callable only from the onboarding renderer while the state machine is in a matching import state.
+- Cloud Web UI cannot call import/upload IPC even when it is loaded inside Electron.
 - Navigation and external-open handlers enforce the exact saved cloud origin for cloud mode.
 
 #### Core Reuse Layer
@@ -268,7 +271,6 @@ IPC guard rules:
 Phase 2 must reuse Phase 1 server/core services:
 
 - Source adapters.
-- New privacy-safe local source preview service. It may reuse adapter metadata helpers, but it must not reuse adapter paths that parse or inspect message content before user confirmation.
 - Local import logic.
 - Remote import item construction.
 - Remote upload chunking.
@@ -278,6 +280,8 @@ Phase 2 must reuse Phase 1 server/core services:
 - New or extended summarize-by-ids API for onboarding's current import batch.
 
 Do not reimplement parsing in Electron.
+
+Cloud upload may reuse parser/import payload code from the server package inside Electron main, but it must not start the local Fastify Core or write to the local database just to upload to cloud.
 
 ### Storage
 
@@ -291,7 +295,15 @@ Electron `app.getPath("userData")` stores shell-only state:
 
 On Windows with the current app identity, this resolves to `%APPDATA%\ChatCrystal`.
 
-Cloud token storage is plain JSON for Phase 2. The app should write files with restrictive permissions where supported and hide the token in UI except where copy-ready snippets intentionally include it.
+Cloud token storage is plain JSON for Phase 2. This is an intentional product decision: users can inspect, change, and copy the token easily, and MCP snippets can be generated without credential-manager coupling.
+
+Plaintext-token constraints:
+
+- Store the token only in Electron `userData`, not in ChatCrystal's conversation database.
+- Write files with restrictive permissions where supported.
+- Redact tokens from logs, status views, diagnostics, screenshots, and error reports.
+- Hide the token in normal UI, but allow deliberate reveal/copy in cloud settings and MCP snippet flows.
+- Label the risk clearly: anyone who can read the user's local Electron config can use the cloud token.
 
 ChatCrystal data remains separate:
 
@@ -311,8 +323,7 @@ Core states:
 - `connecting-cloud`
 - `starting-local`
 - `connection-error`
-- `scan-sources`
-- `scan-results`
+- `import-choice`
 - `importing`
 - `import-complete`
 - `model-test`
@@ -326,14 +337,12 @@ Rules:
 - Mode choice cannot be skipped.
 - Cloud users cannot enter cloud Web UI until cloud connection succeeds. If saved-token verification fails, they see the Electron recovery page first; opening the cloud Web UI login page is an explicit recovery action.
 - Local users cannot enter local Web UI until local Core starts successfully.
-- Scanning can be skipped.
-- Import can be skipped.
+- Import/upload can be skipped.
 - Summarization can be skipped.
 - MCP Helper can be skipped.
 - Skipped steps remain available from menu/settings.
 - Onboarding state persists enough to resume after closing the app.
-- Persist only scan summaries and timestamps; re-scan before a later import because local histories can change.
-- If the app closes during `importing`, restart resumes to a safe retry state, not a stuck progress screen. The user can re-scan or retry the confirmed import.
+- If the app closes during `importing`, restart resumes to a safe retry state, not a stuck progress screen. The user can retry the confirmed import/upload action.
 - If the app closes during `summarizing`, restart loads the persisted onboarding batch IDs/request ID, queries per-conversation status from the active Core, and shows resume/retry/skip. It must not blindly enqueue the same batch again or call the all-unsummarized endpoint.
 
 ## Error Handling
@@ -401,7 +410,7 @@ Copy:
 Actions:
 
 - Skip.
-- Re-scan.
+- Retry import/upload.
 - View supported sources.
 
 ### Partial Source Read Failure
