@@ -67,7 +67,8 @@ Rules:
 - When saving a new cloud connection, verify the cloud URL and token first via public/private cloud API calls. If verification fails, stay in onboarding and show a recoverable error.
 - On startup with a saved cloud connection, verify reachability and token validity before loading the cloud UI. If verification fails, show the Electron cloud connection error page.
 - Inject the token only for the exact saved origin.
-- Token injection uses the cloud Web UI session/origin storage only. It must not expose a token-read IPC to remote content.
+- For HTTPS cloud origins, token injection may use the cloud Web UI's exact-origin storage. It must not expose a token-read IPC to remote content.
+- For non-local HTTP cloud origins, do not write the token into Web `localStorage`. Use Electron session request interception for the exact saved origin to attach `Authorization` to `/api/*` and queue/SSE requests, so the normal Web guard still protects browser users.
 - If verification succeeds but token injection fails, load the cloud Web UI normally and let its existing auth gate handle login.
 - Never inject the token into an arbitrary navigation target.
 
@@ -83,6 +84,7 @@ Rules:
 - Warning copy should make the risk explicit: tokens travel over an unencrypted connection and public deployments should use HTTPS.
 - Existing CLI/Web transport guards refuse to send tokens over non-local HTTP by default. Phase 2 must add an explicit Electron cloud-session allowance for a user-saved non-local HTTP origin after the warning is shown.
 - That allowance is origin-scoped and Electron-only. A normal browser session should still block token auth over public HTTP unless the user deliberately opts into the existing CLI/env escape hatch.
+- The preferred Electron allowance is exact-origin `webRequest.onBeforeSendHeaders` token injection for cloud API requests, not weakening `client/src/lib/api.ts` or `AuthGate` for normal browsers.
 - MCP snippets for non-local HTTP targets must include `CHATCRYSTAL_ALLOW_INSECURE_REMOTE_HTTP=true` with a visible warning, otherwise `crystal mcp` will correctly refuse to send the token.
 
 ### Local And Cloud Import
@@ -123,10 +125,13 @@ Supported sources are the same five Phase 1 sources:
 
 The scan step may run automatically after the Core connection succeeds, but upload/import must require user confirmation.
 
-Scan/import service contract:
+Preview/import service contract:
 
-- Add a shared core service such as `scanLocalSources()` that uses existing adapters' `detect()` and `scan()` methods and returns per-source availability, conversation counts, file counts, timestamps, and read errors.
-- The scan-only result must not parse full conversation content and must not write to the database or upload to cloud.
+- Add a shared core service such as `previewLocalSources()` for onboarding. This is a privacy-safe preview layer, not a wrapper around every current adapter `scan()` implementation.
+- Preview may use filesystem metadata, database keys, file counts, timestamps, and source availability. It must not materialize message text, assistant responses, prompts, or full conversation payloads before user confirmation.
+- Some existing adapters currently need content parsing to produce exact counts. For those sources, preview should return `count: unknown` or a coarse source-level availability summary until a dedicated metadata-only preview path exists.
+- Tests must prove preview does not call adapter `parse()` and does not read known message-content fields for Cursor/Trae-style stores.
+- The preview result must not write to the database or upload to cloud.
 - After user confirmation, import may re-scan before parsing because local histories can change. The UI should say the final count can differ from the preview.
 - Local import should reuse core import logic and return imported/replaced/skipped/error counts plus the conversation IDs affected by this confirmed batch.
 - Cloud import should reuse Phase 1 remote item construction, chunking, ingest validation, and dedupe. Electron must not reimplement source parsing.
@@ -146,6 +151,9 @@ Rules:
 - The onboarding prompt summarizes only the current confirmed import batch by default.
 - If implementation reuses the existing all-unsummarized batch endpoint, it must add an explicit "all unsummarized conversations" choice. Do not silently queue old backlog during onboarding.
 - Preferred implementation is a batch-by-ids API using conversation IDs returned from the confirmed import/upload result.
+- Persist the current onboarding summarization batch IDs and a local request ID in Electron state before queueing work.
+- Add or extend APIs so Electron can query summarization status for specific conversation IDs after restart. Do not rely only on the process-memory queue tracker.
+- If the embedded Core restarts with conversations left in `status = 'summarizing'`, onboarding must present resume/retry/skip for the persisted current batch. It must not automatically call the all-unsummarized endpoint.
 
 ### MCP Helper
 
@@ -156,18 +164,22 @@ Phase 2 MCP Helper scope:
 - Show `npm install -g chatcrystal`.
 - Explain that AI tools usually start MCP automatically from their MCP config.
 - Generate copy-ready MCP snippets for the supported AI tools whose MCP config format is known: Codex, Claude Code, Cursor, Trae, and VS Code/GitHub Copilot where applicable.
-- Snippets include:
+- Cloud snippets include:
   - `command: crystal`
   - `args: ["mcp"]`
   - `CHATCRYSTAL_BASE_URL`
   - `CHATCRYSTAL_API_TOKEN`
+- Local snippets include:
+  - `command: crystal`
+  - `args: ["mcp"]`
+  - `CHATCRYSTAL_BASE_URL` only when the active local Core is not the CLI default or when clarity helps the user.
 - Do not require `crystal connect`.
 - Do not automatically write AI tool config files.
 - Do not automatically start MCP.
 - Do not bundle a dedicated `chatcrystal-mcp.exe` in Phase 2.
 - Do not automatically install npm CLI in Phase 2.
 
-The default snippets include the token in plain text because the goal is copy-ready configuration. The UI must label this clearly: the snippet contains the user's access token and should only be copied into trusted AI tools.
+Cloud snippets include the token in plain text because the goal is copy-ready configuration. The UI must label this clearly: the snippet contains the user's access token and should only be copied into trusted AI tools. Local snippets do not include a token unless local auth is introduced in a future phase.
 
 Snippet source-of-truth:
 
@@ -256,7 +268,7 @@ IPC guard rules:
 Phase 2 must reuse Phase 1 server/core services:
 
 - Source adapters.
-- New scan-only local source summary service built on adapter `detect()`/`scan()`.
+- New privacy-safe local source preview service. It may reuse adapter metadata helpers, but it must not reuse adapter paths that parse or inspect message content before user confirmation.
 - Local import logic.
 - Remote import item construction.
 - Remote upload chunking.
@@ -322,7 +334,7 @@ Rules:
 - Onboarding state persists enough to resume after closing the app.
 - Persist only scan summaries and timestamps; re-scan before a later import because local histories can change.
 - If the app closes during `importing`, restart resumes to a safe retry state, not a stuck progress screen. The user can re-scan or retry the confirmed import.
-- If the app closes during `summarizing`, restart reads queue status from the active Core and shows background progress when available. It must not blindly enqueue the same batch again.
+- If the app closes during `summarizing`, restart loads the persisted onboarding batch IDs/request ID, queries per-conversation status from the active Core, and shows resume/retry/skip. It must not blindly enqueue the same batch again or call the all-unsummarized endpoint.
 
 ## Error Handling
 
