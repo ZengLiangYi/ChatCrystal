@@ -66,7 +66,8 @@ Rules:
 
 - When saving a new cloud connection, verify the cloud URL and token first via public/private cloud API calls. If verification fails, stay in onboarding and show a recoverable error.
 - On startup with a saved cloud connection, verify reachability and token validity before loading the cloud UI. If verification fails, show the Electron cloud connection error page.
-- Write the token to the cloud Web UI's `localStorage` only for the exact saved origin, for both HTTP and HTTPS cloud URLs.
+- Write the token to the cloud Web UI's `localStorage` key `chatcrystal.apiToken` only for the exact saved origin, for both HTTP and HTTPS cloud URLs.
+- After writing the token, trigger the existing `chatcrystal-auth-changed` event or an equivalent reload/refresh path so the Web UI observes the login state immediately.
 - Do not use Electron header injection as the normal login path. The cloud Web UI should behave like a regular logged-in session inside Electron.
 - If the existing Web HTTP guard needs an Electron-specific allowance, scope it to the Electron cloud session and exact saved origin. Normal browser behavior should not change.
 - If verification succeeds but token injection fails, load the cloud Web UI normally and let its existing auth gate handle login.
@@ -83,7 +84,7 @@ Rules:
 - Non-local `http://...`: allowed with an inline recommendation to use HTTPS, not a blocking confirmation.
 - Keep the copy light: recommend HTTPS as safer for public deployments, but do not pressure the user with a second confirmation.
 - Electron cloud mode uses the same token-localStorage behavior for HTTP and HTTPS so the user gets one consistent login experience.
-- MCP snippets for non-local HTTP targets may include `CHATCRYSTAL_ALLOW_INSECURE_REMOTE_HTTP=true` automatically so `crystal mcp` works with the chosen URL. Do not add a second scary confirmation in the MCP step.
+- MCP snippets for non-local HTTP targets must include `CHATCRYSTAL_ALLOW_INSECURE_REMOTE_HTTP=true` automatically so `crystal mcp` works with the chosen URL. Do not add a second scary confirmation in the MCP step.
 
 ### Local And Cloud Import
 
@@ -162,10 +163,11 @@ Phase 2 MCP Helper scope:
   - `args: ["mcp"]`
   - `CHATCRYSTAL_BASE_URL`
   - `CHATCRYSTAL_API_TOKEN`
+  - `CHATCRYSTAL_ALLOW_INSECURE_REMOTE_HTTP=true` when the saved cloud URL is non-local HTTP.
 - Local snippets include:
   - `command: crystal`
   - `args: ["mcp"]`
-  - `CHATCRYSTAL_BASE_URL` only when the active local Core is not the CLI default or when clarity helps the user.
+  - `CHATCRYSTAL_BASE_URL`
 - Do not require `crystal connect`.
 - Do not automatically write AI tool config files.
 - Do not automatically start MCP.
@@ -177,7 +179,8 @@ Cloud snippets include the token in plain text because the goal is copy-ready co
 Snippet source-of-truth:
 
 - Cloud mode snippets always include `CHATCRYSTAL_BASE_URL` and `CHATCRYSTAL_API_TOKEN` from the saved Electron cloud connection.
-- Local mode snippets use the active local Core URL. If the embedded local Core is not on `3721`, the snippet must use the actual port and clearly state that MCP depends on this Electron instance staying open.
+- Local mode snippets always include `CHATCRYSTAL_BASE_URL` with the active local Core URL. This prevents `crystal mcp` from silently using a saved cloud connection from `~/.chatcrystal/client.json`.
+- If the embedded local Core is not on `3721`, the snippet must use the actual port and clearly state that MCP depends on this Electron instance staying open.
 - Electron does not assume `crystal mcp` can read Electron `userData`. CLI/MCP saved connection in `~/.chatcrystal/client.json` is a separate Phase 1 mechanism and is not silently synchronized in Phase 2.
 - A future "sync Electron cloud connection to CLI" action can be added later, but Phase 2 keeps snippets copy-ready instead of mutating CLI config.
 
@@ -204,7 +207,8 @@ The existing local server watcher auto-imports changed files. During Electron on
 Rules:
 
 - Add a server option or environment switch such as `createServer({ startWatcher: false })` for Electron onboarding.
-- Local onboarding may start the embedded Core for API access, but it must not start the auto-import watcher until onboarding reaches `done` or the user explicitly enables automatic import.
+- Local onboarding may start the embedded Core for API access, but Electron Phase 2 keeps the auto-import watcher off by default even after onboarding reaches `done`.
+- The watcher starts only after the user explicitly enables automatic import/sync in a dedicated control.
 - While onboarding is active, file changes must not call `importAll()`.
 - Cloud mode does not start the embedded local Core and therefore does not start the local watcher.
 - Tests should cover that the explicit onboarding import/upload action remains the only import path while onboarding is incomplete.
