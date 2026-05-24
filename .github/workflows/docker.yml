@@ -95,7 +95,7 @@ jobs:
         run: docker rm -f chatcrystal-smoke || true
 
   publish:
-    if: github.event_name != 'pull_request'
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: validate
     runs-on: ubuntu-latest
     permissions:
@@ -113,19 +113,13 @@ jobs:
       - name: Verify publish ref
         run: |
           git fetch --no-tags origin main
-          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
-            remote_sha="$(git rev-parse origin/main)"
-            if [ "${GITHUB_SHA}" != "${remote_sha}" ]; then
-              echo "::error::Refusing to publish because ${GITHUB_SHA} is not the current origin/main (${remote_sha})."
-              exit 1
-            fi
-          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
               echo "::error::Refusing to publish tag ${GITHUB_REF_NAME} because ${GITHUB_SHA} is not reachable from origin/main."
               exit 1
             fi
           else
-            echo "::error::Docker image publishing is limited to main and v* tags."
+            echo "::error::Docker image publishing is limited to v* tags."
             exit 1
           fi
 
@@ -148,7 +142,7 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             type=sha,prefix=sha-
             type=ref,event=tag
             type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
@@ -170,6 +164,4 @@ jobs:
             echo "::error::GHCR image is not publicly pullable. Open the package settings for ghcr.io/zengliangyi/chatcrystal, change visibility to Public, then rerun this workflow."
             exit 1
           fi
-          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
-            docker pull "${IMAGE_NAME}:latest"
-          fi
+          docker pull "${IMAGE_NAME}:latest"
