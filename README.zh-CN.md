@@ -157,6 +157,9 @@ npm run dev
 
 架构、测试、构建和发布说明见[开发者指南](docs/DEVELOPMENT.zh-CN.md)。
 
+## 欢迎提问
+微信号: Yizel1
+
 ## License
 
 [Apache License 2.0](LICENSE)
