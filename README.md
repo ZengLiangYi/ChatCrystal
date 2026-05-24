@@ -157,6 +157,9 @@ Development server ports:
 
 See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for architecture, testing, build, and release details.
 
+## Wechat
+Wechat: Yizel1
+
 ## License
 
 [Apache License 2.0](LICENSE)
