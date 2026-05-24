@@ -525,7 +525,7 @@ export class CrystalClient {
   }
 
   async verifyToken() {
-    return this.request<{ authenticated: boolean }>('POST', '/api/auth/verify');
+    return this.request<{ authenticated: boolean }>('POST', '/api/auth/verify', {});
   }
 
   async rotateToken(currentToken: string, nextToken: string) {

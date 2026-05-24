@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { shouldUseRemoteImport } from './import.js';
 
@@ -28,4 +29,10 @@ test('shouldUseRemoteImport fails closed for non-loopback targets that are not c
     () => shouldUseRemoteImport('https://chatcrystal.example.com', {}, 'saved'),
     /did not report cloud mode/,
   );
+});
+
+test('import command lets successful imports exit naturally', () => {
+  const source = readFileSync(new URL('./import.ts', import.meta.url), 'utf-8');
+
+  assert.equal(source.includes('process.exit(0)'), false);
 });

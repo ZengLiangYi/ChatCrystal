@@ -199,3 +199,53 @@ test('CrystalClient checks expected instance before rotating tokens on configure
     globalThis.fetch = originalFetch;
   }
 });
+
+test('CrystalClient sends an explicit JSON body for token verification', async () => {
+  const calls: Array<{
+    url: string;
+    method?: string;
+    headers: Headers;
+    body?: BodyInit | null;
+  }> = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input, init) => {
+    const url = String(input);
+    calls.push({
+      url,
+      method: init?.method,
+      headers: new Headers(init?.headers),
+      body: init?.body,
+    });
+
+    if (url.endsWith('/api/health')) {
+      return Response.json({ success: true, data: { ok: true, cloudMode: true } });
+    }
+    if (url.endsWith('/api/auth/verify')) {
+      return Response.json({ success: true, data: { authenticated: true } });
+    }
+
+    throw new Error(`Unexpected URL ${url}`);
+  }) as typeof fetch;
+
+  try {
+    const client = new CrystalClient({
+      baseUrl: 'https://chatcrystal.example.com',
+      token: 'secret-token',
+      connectionSource: 'explicit',
+    });
+
+    const result = await client.verifyToken();
+
+    assert.deepEqual(result, { authenticated: true });
+    assert.deepEqual(calls.map((call) => call.url), [
+      'https://chatcrystal.example.com/api/health',
+      'https://chatcrystal.example.com/api/auth/verify',
+    ]);
+    assert.equal(calls[1].method, 'POST');
+    assert.equal(calls[1].headers.get('authorization'), 'Bearer secret-token');
+    assert.equal(calls[1].headers.get('content-type'), 'application/json');
+    assert.equal(calls[1].body, '{}');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

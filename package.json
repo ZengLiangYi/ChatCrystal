@@ -30,6 +30,7 @@
     "dev:server": "npm run dev -w server",
     "dev:client": "npm run dev -w client",
     "build": "npm run build -w server && npm run build -w client",
+    "check:npm-package": "npm run check:npm-package -w server",
     "start": "npm run start -w server",
     "lint": "biome check . --diagnostic-level=error && npm run lint -w client",
     "lint:fix": "biome check --fix . && npm run lint -w client -- --fix",

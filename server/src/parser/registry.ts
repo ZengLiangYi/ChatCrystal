@@ -9,7 +9,6 @@ export function registerAdapter(adapter: SourceAdapter): void {
     );
   }
   adapters.set(adapter.name, adapter);
-  console.log(`[Parser] Registered adapter: ${adapter.displayName}`);
 }
 
 export function getAdapter(name: string): SourceAdapter | undefined {

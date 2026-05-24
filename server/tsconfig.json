@@ -3,10 +3,13 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "..",
+    "declarationMap": false,
+    "sourceMap": false,
     "jsx": "react-jsx",
     "paths": {
       "@chatcrystal/shared": ["../shared/types/index.ts"]
     }
   },
-  "include": ["src/**/*", "../shared/types/**/*"]
+  "include": ["src/**/*", "../shared/types/**/*"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

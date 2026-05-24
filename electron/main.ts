@@ -405,7 +405,11 @@ async function verifyCloudConnection(baseUrl: string, token: string): Promise<vo
 	const verify = await requestApi<{ authenticated: boolean }>(
 		baseUrl,
 		"/api/auth/verify",
-		{ method: "POST", headers: withAuth(token) },
+		{
+			method: "POST",
+			headers: withAuth(token),
+			body: JSON.stringify({}),
+		},
 	);
 	if (!verify.authenticated) {
 		throw new Error("Token 验证失败");

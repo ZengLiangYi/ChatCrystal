@@ -69,6 +69,24 @@ test('setup completion stores token and protected routes require bearer token', 
   await app.close();
 });
 
+test('auth verify accepts bearer token with an explicit empty JSON body', async () => {
+  await auth.resetStoredAuthForLocalAdmin();
+  await auth.setStoredToken('verify-route-secret');
+  const app = Fastify();
+  await app.register(authRoutes);
+
+  const response = await app.inject({
+    method: 'POST',
+    url: '/api/auth/verify',
+    headers: { authorization: 'Bearer verify-route-secret' },
+    payload: {},
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.json().data.authenticated, true);
+  await app.close();
+});
+
 test('setup complete rejects oversized and overlong public bodies without consuming setup code', async () => {
   await auth.resetStoredAuthForLocalAdmin();
   const setupCode = auth.getOrCreateSetupCode();

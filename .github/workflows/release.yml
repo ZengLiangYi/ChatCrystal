@@ -104,6 +104,9 @@ jobs:
       - name: Build server
         run: npm run build -w server
 
+      - name: Validate npm package contents
+        run: npm run check:npm-package -w server
+
       - name: Publish to npm
         working-directory: server
         run: |

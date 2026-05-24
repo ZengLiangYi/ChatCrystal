@@ -95,7 +95,10 @@ export const api = {
 		}),
 
 	verifyToken: () =>
-		request<{ authenticated: boolean }>("/auth/verify", { method: "POST" }),
+		request<{ authenticated: boolean }>("/auth/verify", {
+			method: "POST",
+			body: JSON.stringify({}),
+		}),
 
 	triggerImport: () =>
 		request<{

@@ -90,7 +90,6 @@ export function registerImportCommand(program: Command) {
             printKeyValue('Local parse errors', data.localErrors);
             console.log();
           }
-          process.exit(0);
           return;
         }
 
@@ -98,7 +97,6 @@ export function registerImportCommand(program: Command) {
           // TTY: Ink panel
           const { renderImportPanel } = await import('../ui/ImportPanel.js');
           await renderImportPanel(client);
-          process.exit(0);
           return;
         }
 
@@ -127,10 +125,9 @@ export function registerImportCommand(program: Command) {
           printKeyValue('Errors', data.errors);
           console.log();
         }
-        process.exit(0);
       } catch (err) {
         printError(err instanceof Error ? err.message : 'Import failed');
-        process.exit(1);
+        process.exitCode = 1;
       }
     });
 }

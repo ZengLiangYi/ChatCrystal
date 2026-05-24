@@ -52,6 +52,7 @@ server/src/**/*.js.map
 
 # Design specs and plans
 docs/superpowers/
+.superpowers/
 
 # Launch posts (personal, not code)
 docs/launch/
