@@ -151,8 +151,7 @@
     "setup_code": "Setup code",
     "token": "访问 token",
     "submit": "继续",
-    "error": "认证失败",
-    "insecure_http": "拒绝通过公网 HTTP 发送 ChatCrystal 访问 token。请使用 HTTPS 或本地隧道。"
+    "error": "认证失败"
   },
   "guide": {
     "step1": "1. 点击左侧「导入对话」扫描 AI 对话记录",

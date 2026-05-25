@@ -3,7 +3,6 @@ import type { DeleteNoteReviewRequest, DeleteNoteReviewResponse } from "@chatcry
 const BASE = "/api";
 const TOKEN_KEY = "chatcrystal.apiToken";
 export const AUTH_CHANGED_EVENT = "chatcrystal-auth-changed";
-const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 
 type DeleteNoteWebRequest = Omit<DeleteNoteReviewRequest, "source"> & { source: "web" };
 
@@ -21,24 +20,6 @@ export function clearStoredToken(): void {
 	window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
 }
 
-export function isInsecureRemoteHttpLocation(location = window.location): boolean {
-	return location.protocol === "http:" && !LOCAL_HOSTS.has(location.hostname);
-}
-
-export function isElectronCloudHttpAuthAllowed(location = window.location): boolean {
-	const marker = window.chatcrystalElectronCloud;
-	if (!marker?.allowInsecureHttpAuth) return false;
-	return marker.origin === location.origin;
-}
-
-export function assertSafeWebAuthTransport(): void {
-	if (!isInsecureRemoteHttpLocation()) return;
-	if (isElectronCloudHttpAuthAllowed()) return;
-	throw new Error(
-		"Refusing to send ChatCrystal access tokens over public HTTP. Use HTTPS or a local tunnel.",
-	);
-}
-
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
 	const headers = new Headers(options?.headers);
 	// Only set Content-Type for requests with body
@@ -47,7 +28,6 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 	}
 	const token = getStoredToken();
 	if (token) {
-		assertSafeWebAuthTransport();
 		headers.set("Authorization", `Bearer ${token}`);
 	}
 	const res = await fetch(`${BASE}${path}`, {

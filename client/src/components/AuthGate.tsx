@@ -3,10 +3,7 @@ import { useTranslation } from "react-i18next";
 import {
 	AUTH_CHANGED_EVENT,
 	api,
-	assertSafeWebAuthTransport,
 	getStoredToken,
-	isElectronCloudHttpAuthAllowed,
-	isInsecureRemoteHttpLocation,
 	setStoredToken,
 } from "@/lib/api.ts";
 
@@ -27,11 +24,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
 	const refresh = useCallback(async () => {
 		setError(null);
 		setState((current) => ({ status: "loading", providerWarnings: current.providerWarnings }));
-		if (getStoredToken() && isInsecureRemoteHttpLocation() && !isElectronCloudHttpAuthAllowed()) {
-			setError(t("auth.insecure_http"));
-			setState({ status: "token", providerWarnings: [] });
-			return;
-		}
 		try {
 			const status = await api.getSetupStatus();
 			if (!status.cloudMode || status.authenticated) {
@@ -64,11 +56,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
 		setSubmitting(true);
 		setError(null);
 		try {
-			if (isInsecureRemoteHttpLocation() && !isElectronCloudHttpAuthAllowed()) {
-				setError(t("auth.insecure_http"));
-				return;
-			}
-			assertSafeWebAuthTransport();
 			if (state.status === "setup") {
 				await api.completeSetup({ setupCode, token });
 			} else {

@@ -151,8 +151,7 @@
     "setup_code": "Setup code",
     "token": "Access token",
     "submit": "Continue",
-    "error": "Authentication failed",
-    "insecure_http": "Refusing to send ChatCrystal access tokens over public HTTP. Use HTTPS or a local tunnel."
+    "error": "Authentication failed"
   },
   "guide": {
     "step1": "1. Click \"Import\" in the sidebar to scan AI conversations",
