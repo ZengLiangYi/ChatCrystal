@@ -110,6 +110,24 @@ test('setup complete rejects oversized and overlong public bodies without consum
   await app.close();
 });
 
+test('setup complete returns a clear error for short tokens without consuming setup code', async () => {
+  await auth.resetStoredAuthForLocalAdmin();
+  const setupCode = auth.getOrCreateSetupCode();
+  const app = Fastify();
+  await app.register(authRoutes);
+
+  const response = await app.inject({
+    method: 'POST',
+    url: '/api/setup/complete',
+    payload: { setupCode, token: 'short' },
+  });
+
+  assert.equal(response.statusCode, 400);
+  assert.equal(response.json().error, `Token must be at least ${auth.TOKEN_MIN_LENGTH} characters long`);
+  assert.equal(await auth.completeSetup(setupCode, 'valid-route-secret'), true);
+  await app.close();
+});
+
 test('token rotation rejects oversized and overlong public bodies before verification', async () => {
   await auth.resetStoredAuthForLocalAdmin();
   await auth.setStoredToken('current-route-secret');

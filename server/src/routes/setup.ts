@@ -54,7 +54,7 @@ const setupCompleteRouteOptions = {
       additionalProperties: false,
       properties: {
         setupCode: { type: 'string', minLength: 1, maxLength: 128 },
-        token: { type: 'string', minLength: TOKEN_MIN_LENGTH, maxLength: TOKEN_MAX_LENGTH },
+        token: { type: 'string', minLength: 1, maxLength: TOKEN_MAX_LENGTH },
       },
     },
   },
@@ -69,11 +69,15 @@ const rotateTokenRouteOptions = {
       additionalProperties: false,
       properties: {
         currentToken: { type: 'string', minLength: 1, maxLength: TOKEN_MAX_LENGTH },
-        nextToken: { type: 'string', minLength: TOKEN_MIN_LENGTH, maxLength: TOKEN_MAX_LENGTH },
+        nextToken: { type: 'string', minLength: 1, maxLength: TOKEN_MAX_LENGTH },
       },
     },
   },
 } as const;
+
+function isTokenValidationError(err: unknown): boolean {
+  return err instanceof Error && /^Token must be /.test(err.message);
+}
 
 export async function authRoutes(app: FastifyInstance) {
   app.get('/api/setup/status', async (req) => {
@@ -115,7 +119,7 @@ export async function authRoutes(app: FastifyInstance) {
       }
       return { success: true, data: { authenticated: true } };
     } catch (err) {
-      reply.status(429);
+      reply.status(isTokenValidationError(err) ? 400 : 429);
       return { success: false, error: err instanceof Error ? err.message : 'Setup failed' };
     }
   });
@@ -149,7 +153,7 @@ export async function authRoutes(app: FastifyInstance) {
         return { success: false, error: 'Current token is invalid' };
       }
     } catch (err) {
-      reply.status(409);
+      reply.status(isTokenValidationError(err) ? 400 : 409);
       return { success: false, error: err instanceof Error ? err.message : 'Token rotation failed' };
     }
     return { success: true, data: { rotated: true } };
