@@ -8,6 +8,9 @@ import { clearEmbeddingIndex } from "../services/embedding.js";
 import { getLanguageModel } from "../services/llm.js";
 import { getProvider, listProviders } from "../services/providers.js";
 
+// OpenAI Responses-compatible gateways such as NewAPI reject lower values.
+const CONFIG_TEST_MAX_OUTPUT_TOKENS = 16;
+
 export async function configRoutes(app: FastifyInstance) {
 	// List available providers
 	app.get("/api/providers", async () => {
@@ -149,7 +152,7 @@ export async function configRoutes(app: FastifyInstance) {
 			const llmResult = await generateText({
 				model,
 				prompt: "Reply with exactly: OK",
-				maxOutputTokens: 5,
+				maxOutputTokens: CONFIG_TEST_MAX_OUTPUT_TOKENS,
 			});
 			result.llm = { connected: true, response: llmResult.text.trim() };
 		} catch (err) {
