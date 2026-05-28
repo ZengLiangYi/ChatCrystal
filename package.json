@@ -1,6 +1,6 @@
 {
   "name": "chatcrystal",
-  "version": "0.4.15",
+  "version": "0.4.16",
   "private": true,
   "license": "Apache-2.0",
   "description": "Turn your AI conversations into searchable knowledge — supports Claude Code, Cursor, Codex CLI, Trae, GitHub Copilot",
