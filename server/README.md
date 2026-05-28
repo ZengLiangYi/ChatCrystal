@@ -45,7 +45,7 @@ crystal import --yes
 
 `crystal import` still scans and parses histories on the local device, then uploads normalized conversations to the cloud instance. The cloud server does not scan your local filesystem. `crystal mcp` reuses the same saved connection and token.
 
-Use HTTPS for cloud connections. CLI commands refuse to send ChatCrystal API tokens to non-local `http://` URLs by default.
+HTTPS is recommended for cloud connections, but HTTP works when that is the deployment you choose.
 
 ## CLI Commands
 

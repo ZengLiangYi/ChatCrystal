@@ -95,16 +95,10 @@ export function isInsecureRemoteHttp(baseUrl: string): boolean {
   }
 }
 
-export function allowInsecureRemoteHttp(): boolean {
-  return process.env.CHATCRYSTAL_ALLOW_INSECURE_REMOTE_HTTP === 'true';
-}
-
-export function assertSafeAuthTransport(baseUrl: string, token?: string): void {
-  if (!token?.trim()) return;
-  if (!isInsecureRemoteHttp(baseUrl) || allowInsecureRemoteHttp()) return;
-  throw new Error(
-    'Refusing to send a ChatCrystal API token over non-local HTTP. Use HTTPS for cloud access, connect through a local tunnel, or set CHATCRYSTAL_ALLOW_INSECURE_REMOTE_HTTP=true only on a trusted private network.',
-  );
+export function assertSafeAuthTransport(_baseUrl: string, _token?: string): void {
+  // HTTPS is recommended for cloud deployments, but the CLI does not enforce transport policy.
+  void _baseUrl;
+  void _token;
 }
 
 export function isUserConfiguredLoopback(baseUrl: string, connectionSource: ConnectionSource | 'direct' | string): boolean {

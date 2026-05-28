@@ -59,7 +59,7 @@ The default `docker-compose.yml` pulls `ghcr.io/zengliangyi/chatcrystal:latest` 
 
 To update an existing Docker deployment, run `docker compose pull && docker compose up -d`. Maintainers only: after the first GHCR publish, make the `ghcr.io/zengliangyi/chatcrystal` package public in GitHub Packages; the release workflow verifies anonymous pull access before passing.
 
-Compose binds ChatCrystal to `127.0.0.1:3721` by default. Set `CHATCRYSTAL_HOST_PORT` to change the host port. For public cloud access, put an HTTPS reverse proxy in front of it and connect to the HTTPS URL. Do not expose bearer-token traffic over plain HTTP.
+Compose binds ChatCrystal to `127.0.0.1:3721` by default. Set `CHATCRYSTAL_HOST_PORT` to change the host port. For public cloud access, an HTTPS reverse proxy is recommended for safer token transport.
 
 On first start without `CHATCRYSTAL_API_TOKEN`, open the Web UI and enter the setup code printed in container logs or stored at `/data/setup-code`, then choose one shared API token for your devices.
 
@@ -74,7 +74,7 @@ crystal connect https://chatcrystal.example.com --token "your-long-token"
 crystal import --yes
 ```
 
-The CLI scans local histories, parses them locally, and uploads normalized conversations to the cloud. The cloud never scans your local filesystem. Imported conversations are not summarized automatically; use the Web UI or `crystal summarize --all` when you are ready. CLI commands refuse to send ChatCrystal API tokens to non-local `http://` URLs by default; use HTTPS for cloud access.
+The CLI scans local histories, parses them locally, and uploads normalized conversations to the cloud. The cloud never scans your local filesystem. Imported conversations are not summarized automatically; use the Web UI or `crystal summarize --all` when you are ready. HTTPS is recommended for cloud access, but HTTP works when that is the deployment you choose.
 
 ## What It Does
 

@@ -32,23 +32,62 @@ test('normalizeBaseUrl preserves explicit ports and non-loopback defaults', () =
   assert.equal(normalizeBaseUrl('https://chatcrystal.local'), 'https://chatcrystal.local');
 });
 
-test('CrystalClient refuses to send tokens over non-local HTTP by default', () => {
+test('CrystalClient allows tokens over non-local HTTP', async () => {
   assert.equal(isInsecureRemoteHttp('http://chatcrystal.example.com'), true);
   assert.equal(isInsecureRemoteHttp('http://localhost:3721'), false);
   assert.equal(isInsecureRemoteHttp('http://0.0.0.0:3721'), true);
-  assert.throws(
-    () => assertSafeAuthTransport('http://chatcrystal.example.com', 'secret-token'),
-    /Refusing to send a ChatCrystal API token over non-local HTTP/,
-  );
-  assert.throws(
-    () => new CrystalClient({
+  assert.doesNotThrow(() => assertSafeAuthTransport('http://chatcrystal.example.com', 'secret-token'));
+  assert.doesNotThrow(() => new CrystalClient({
+    baseUrl: 'http://chatcrystal.example.com',
+    token: 'secret-token',
+    connectionSource: 'explicit',
+  }));
+  assert.doesNotThrow(() => assertSafeAuthTransport('http://localhost:3721', 'secret-token'));
+
+  const calls: Array<{ url: string; headers: Headers }> = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input, init) => {
+    const url = String(input);
+    calls.push({ url, headers: new Headers(init?.headers) });
+
+    if (url.endsWith('/api/health')) {
+      return Response.json({ success: true, data: { ok: true, cloudMode: true } });
+    }
+    if (url.endsWith('/api/status')) {
+      return Response.json({
+        success: true,
+        data: {
+          server: true,
+          database: true,
+          cloudMode: true,
+          providerWarnings: [],
+          stats: { totalConversations: 0, totalNotes: 0, totalTags: 0 },
+          recentNotes: [],
+        },
+      });
+    }
+
+    throw new Error(`Unexpected URL ${url}`);
+  }) as typeof fetch;
+
+  try {
+    const client = new CrystalClient({
       baseUrl: 'http://chatcrystal.example.com',
       token: 'secret-token',
       connectionSource: 'explicit',
-    }),
-    /Refusing to send a ChatCrystal API token over non-local HTTP/,
-  );
-  assert.doesNotThrow(() => assertSafeAuthTransport('http://localhost:3721', 'secret-token'));
+    });
+
+    await client.status();
+
+    assert.deepEqual(calls.map((call) => call.url), [
+      'http://chatcrystal.example.com/api/health',
+      'http://chatcrystal.example.com/api/status',
+    ]);
+    assert.equal(calls[0].headers.get('authorization'), null);
+    assert.equal(calls[1].headers.get('authorization'), 'Bearer secret-token');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('normalizeBaseUrl rejects unsupported base URL schemes', () => {

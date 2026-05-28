@@ -9,10 +9,12 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { app, BrowserWindow, dialog, Menu, screen, session } from "electron";
+import { buildApplicationMenuTemplate } from "./app-menu";
 import { registerOnboardingIpc } from "./ipc";
 import { buildMcpSnippet } from "./mcp-snippets";
 import { getOnboardingDataUrl } from "./onboarding-page";
 import {
+	DEFAULT_ELECTRON_STATE,
 	readElectronState,
 	redactToken,
 	writeElectronState,
@@ -226,6 +228,26 @@ function replaceMainWindow(mode: WindowMode): BrowserWindow {
 	}
 	mainWindow = createWindow(mode);
 	return mainWindow;
+}
+
+function showMainWindow(): void {
+	if (!mainWindow || mainWindow.isDestroyed()) return;
+	if (mainWindow.isMinimized()) mainWindow.restore();
+	mainWindow.show();
+	mainWindow.focus();
+}
+
+function requestQuit(): void {
+	app.quit();
+}
+
+function updateApplicationMenu(mode: WindowMode): void {
+	const template = buildApplicationMenuTemplate(mode, {
+		showMainWindow,
+		reconnect: reconnectFromMenu,
+		quit: requestQuit,
+	});
+	Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
 function isLocalHttpUrl(rawUrl: string): boolean {
@@ -618,6 +640,7 @@ async function openLocalApp(): Promise<{ mode: "local"; appUrl: string }> {
 	await win.loadURL(local.appUrl);
 	createTray({ win, mode: "local", localBaseUrl: local.appUrl });
 	writeModeState("local");
+	updateApplicationMenu("local");
 	return { mode: "local", appUrl: local.appUrl };
 }
 
@@ -632,6 +655,7 @@ async function openCloudApp(): Promise<{ mode: "cloud"; cloudBaseUrl: string }> 
 	await injectCloudToken(win, state.cloudToken!);
 	createTray({ win, mode: "cloud", cloudBaseUrl });
 	writeModeState("cloud");
+	updateApplicationMenu("cloud");
 	return { mode: "cloud", cloudBaseUrl };
 }
 
@@ -641,6 +665,7 @@ async function openOnboarding(initialError?: string): Promise<void> {
 	lockNavigationToUrl(win, currentOnboardingUrl);
 	await win.loadURL(currentOnboardingUrl);
 	createTray({ win, mode: "onboarding" });
+	updateApplicationMenu("onboarding");
 }
 
 async function openApp(mode: "local" | "cloud"): Promise<unknown> {
@@ -652,6 +677,11 @@ async function useTemporaryLocal(): Promise<unknown> {
 	const local = await ensureLocalCoreStarted();
 	writeModeState("local", { defaultMode: null });
 	return local;
+}
+
+async function reconnectFromMenu(): Promise<void> {
+	writeElectronState(DEFAULT_ELECTRON_STATE);
+	await openOnboarding("请重新连接 ChatCrystal。");
 }
 
 function getRedactedState(): ElectronOnboardingState {
