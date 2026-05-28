@@ -27,8 +27,6 @@ if (!gotLock) {
 	app.quit();
 }
 
-Menu.setApplicationMenu(null);
-
 type WindowMode = "onboarding" | "local" | "cloud";
 
 interface WindowState {
@@ -242,11 +240,7 @@ function requestQuit(): void {
 }
 
 function updateApplicationMenu(mode: WindowMode): void {
-	const template = buildApplicationMenuTemplate(mode, {
-		showMainWindow,
-		reconnect: reconnectFromMenu,
-		quit: requestQuit,
-	});
+	const template = buildApplicationMenuTemplate(mode);
 	Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
@@ -638,7 +632,14 @@ async function openLocalApp(): Promise<{ mode: "local"; appUrl: string }> {
 	const local = await ensureLocalCoreStarted();
 	const win = replaceMainWindow("local");
 	await win.loadURL(local.appUrl);
-	createTray({ win, mode: "local", localBaseUrl: local.appUrl });
+	createTray({
+		win,
+		mode: "local",
+		localBaseUrl: local.appUrl,
+		showMainWindow,
+		reconnect: reconnectFromTray,
+		quit: requestQuit,
+	});
 	writeModeState("local");
 	updateApplicationMenu("local");
 	return { mode: "local", appUrl: local.appUrl };
@@ -653,7 +654,14 @@ async function openCloudApp(): Promise<{ mode: "cloud"; cloudBaseUrl: string }> 
 	await win.loadURL(cloudBaseUrl);
 	assertWindowOrigin(win, expectedOrigin);
 	await injectCloudToken(win, state.cloudToken!);
-	createTray({ win, mode: "cloud", cloudBaseUrl });
+	createTray({
+		win,
+		mode: "cloud",
+		cloudBaseUrl,
+		showMainWindow,
+		reconnect: reconnectFromTray,
+		quit: requestQuit,
+	});
 	writeModeState("cloud");
 	updateApplicationMenu("cloud");
 	return { mode: "cloud", cloudBaseUrl };
@@ -664,7 +672,13 @@ async function openOnboarding(initialError?: string): Promise<void> {
 	currentOnboardingUrl = getOnboardingDataUrl(initialError);
 	lockNavigationToUrl(win, currentOnboardingUrl);
 	await win.loadURL(currentOnboardingUrl);
-	createTray({ win, mode: "onboarding" });
+	createTray({
+		win,
+		mode: "onboarding",
+		showMainWindow,
+		reconnect: reconnectFromTray,
+		quit: requestQuit,
+	});
 	updateApplicationMenu("onboarding");
 }
 
@@ -679,7 +693,7 @@ async function useTemporaryLocal(): Promise<unknown> {
 	return local;
 }
 
-async function reconnectFromMenu(): Promise<void> {
+async function reconnectFromTray(): Promise<void> {
 	writeElectronState(DEFAULT_ELECTRON_STATE);
 	await openOnboarding("请重新连接 ChatCrystal。");
 }

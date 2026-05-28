@@ -1,12 +1,29 @@
-import { app, type BrowserWindow, Menu, nativeImage, shell, Tray } from "electron";
+import { type BrowserWindow, Menu, nativeImage, shell, Tray } from "electron";
 import path from "node:path";
 
 let tray: Tray | null = null;
 
 export type TrayOptions =
-	| { win: BrowserWindow; mode: "onboarding" }
-	| { win: BrowserWindow; mode: "local"; localBaseUrl: string }
-	| { win: BrowserWindow; mode: "cloud"; cloudBaseUrl: string };
+	| ({
+			win: BrowserWindow;
+			mode: "onboarding";
+	  } & TrayActions)
+	| ({
+			win: BrowserWindow;
+			mode: "local";
+			localBaseUrl: string;
+	  } & TrayActions)
+	| ({
+			win: BrowserWindow;
+			mode: "cloud";
+			cloudBaseUrl: string;
+	  } & TrayActions);
+
+type TrayActions = {
+	showMainWindow: () => void;
+	reconnect: () => Promise<void> | void;
+	quit: () => void;
+};
 
 export function createTray(options: TrayOptions): Tray {
 	if (tray) {
@@ -37,10 +54,13 @@ export function createTray(options: TrayOptions): Tray {
 		},
 		{ type: "separator" },
 		{
-			label: "Open Window",
+			label: "显示 ChatCrystal",
+			click: options.showMainWindow,
+		},
+		{
+			label: "重新连接...",
 			click: () => {
-				options.win.show();
-				options.win.focus();
+				void options.reconnect();
 			},
 		},
 	];
@@ -48,7 +68,7 @@ export function createTray(options: TrayOptions): Tray {
 	if (openTarget) {
 		menuItems.push(
 			{
-				label: "Search Knowledge",
+				label: "搜索知识",
 				click: () => {
 					options.win.show();
 					options.win.focus();
@@ -56,7 +76,7 @@ export function createTray(options: TrayOptions): Tray {
 				},
 			},
 			{
-				label: "Open in Browser",
+				label: "在浏览器中打开",
 				click: () => {
 					shell.openExternal(openTarget);
 				},
@@ -67,11 +87,8 @@ export function createTray(options: TrayOptions): Tray {
 	menuItems.push(
 		{ type: "separator" },
 		{
-			label: "Quit",
-			click: () => {
-				// I-5: app.quit() triggers before-quit which sets isQuitting in main.ts
-				app.quit();
-			},
+			label: "退出",
+			click: options.quit,
 		},
 	);
 
@@ -81,8 +98,7 @@ export function createTray(options: TrayOptions): Tray {
 
 	// Double-click to show window
 	tray.on("double-click", () => {
-		options.win.show();
-		options.win.focus();
+		options.showMainWindow();
 	});
 
 	return tray;
