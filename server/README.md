@@ -47,6 +47,19 @@ crystal import --yes
 
 HTTPS is recommended for cloud connections, but HTTP works when that is the deployment you choose.
 
+To manage a Docker cloud token:
+
+```bash
+# Rotate when you still know the current token.
+crystal --base-url https://chatcrystal.example.com token rotate "new-long-token-at-least-16-chars" --current "old-token"
+
+# Reset stored auth from the Docker host when the token is lost.
+docker compose exec chatcrystal crystal token reset --yes
+docker compose exec chatcrystal cat /data/setup-code
+```
+
+If `CHATCRYSTAL_API_TOKEN` is set in the deployment environment, change that environment variable and recreate the container instead of using `token reset`.
+
 ## CLI Commands
 
 ```bash

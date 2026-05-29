@@ -63,6 +63,21 @@ Compose 默认只绑定到宿主机 `127.0.0.1:3721`。如需调整宿主机端�
 
 首次启动且没有设置 `CHATCRYSTAL_API_TOKEN` 时，打开 Web UI，输入容器日志或 `/data/setup-code` 中的 setup code，然后设置一个供所有设备共享的 API token。
 
+Docker 云端 token 的轮换和重置方式如下：
+
+```bash
+# 如果还知道当前 token，可以在线轮换。
+crystal --base-url https://chatcrystal.example.com token rotate "new-long-token-at-least-16-chars" --current "old-token"
+crystal connect https://chatcrystal.example.com --token "new-long-token-at-least-16-chars"
+
+# 如果忘记 token，且没有设置 CHATCRYSTAL_API_TOKEN，可以在容器内重置 stored auth。
+docker compose exec chatcrystal crystal token reset --yes
+docker compose logs chatcrystal --tail=80
+docker compose exec chatcrystal cat /data/setup-code
+```
+
+如果部署时设置了 `CHATCRYSTAL_API_TOKEN`，实际生效的 token 来自环境变量，而不是 `/data/auth.json`。这时需要修改 `.env` 或 Compose 环境变量，然后用 `docker compose up -d --force-recreate` 重建容器。
+
 如果使用已有 Ollama 或外部 API，可在 Web UI 或环境变量中配置 provider URL。在 Docker 中，`localhost` 指向容器内部；Compose 场景请用 `CHATCRYSTAL_DOCKER_LLM_BASE_URL` 和 `CHATCRYSTAL_DOCKER_EMBEDDING_BASE_URL` 覆盖 provider URL。Docker Desktop 上访问宿主机 Ollama 可用 `http://host.docker.internal:11434`，也可以使用远程 HTTPS / OpenAI-compatible API。
 
 ### 从本机设备导入到云端实例

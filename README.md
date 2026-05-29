@@ -63,6 +63,21 @@ Compose binds ChatCrystal to `127.0.0.1:3721` by default. Set `CHATCRYSTAL_HOST_
 
 On first start without `CHATCRYSTAL_API_TOKEN`, open the Web UI and enter the setup code printed in container logs or stored at `/data/setup-code`, then choose one shared API token for your devices.
 
+To rotate or reset the Docker cloud token:
+
+```bash
+# If you still know the current token, rotate it online.
+crystal --base-url https://chatcrystal.example.com token rotate "new-long-token-at-least-16-chars" --current "old-token"
+crystal connect https://chatcrystal.example.com --token "new-long-token-at-least-16-chars"
+
+# If you forgot the token and did not set CHATCRYSTAL_API_TOKEN, reset stored auth in the container.
+docker compose exec chatcrystal crystal token reset --yes
+docker compose logs chatcrystal --tail=80
+docker compose exec chatcrystal cat /data/setup-code
+```
+
+If your deployment sets `CHATCRYSTAL_API_TOKEN`, that environment variable is the active token source. Change it in your `.env` or Compose environment and recreate the container with `docker compose up -d --force-recreate`.
+
 To use an existing Ollama or external API, configure provider URLs in the Web UI or environment. In Docker, `localhost` means inside the container; use `CHATCRYSTAL_DOCKER_LLM_BASE_URL` and `CHATCRYSTAL_DOCKER_EMBEDDING_BASE_URL` for Compose-time provider URL overrides. Docker Desktop can reach host Ollama at `http://host.docker.internal:11434`, or you can use a remote HTTPS/OpenAI-compatible API.
 
 ### Import from a Device into the Cloud Instance
