@@ -2,11 +2,30 @@
 
 ## Unreleased
 
-- Added Docker cloud deployment for a personal single-instance ChatCrystal server.
-- Added GHCR publishing workflow and Compose defaults for pulling the published image.
-- Added first-run setup mode and shared bearer token authentication for Web, API, CLI, and MCP.
-- Added CLI cloud connection commands and remote import from local AI tool histories.
-- Disabled server-side local scan import in cloud mode to avoid scanning container paths.
+## [0.4.18] - 2026-06-03
+
+### Desktop & UI
+
+- **Modern Electron shell** — Added a frameless desktop window, custom title bar controls, refreshed sidebar styling, theme-aware top chrome, and browser-safe external link handling.
+- **shadcn/ui foundation** — Added the first shadcn/ui component set for buttons, inputs, dialogs, popovers, commands, badges, toggles, checkboxes, radio groups, scroll areas, and tooltips while preserving ChatCrystal's runtime theme system.
+- **Notes and search polish** — Reworked the Notes filter toolbar, tag search popover, selected tag chips, delete feedback dialog, and semantic search controls with consistent component primitives.
+- **Bilingual UI cleanup** — Centralized new Simplified Chinese and English copy in locale files, removed awkward mixed-language labels, and fixed route/title duplication in the desktop shell.
+
+### Notes & Memory Sources
+
+- **Source-aware notes API** — Notes list/detail responses now expose source metadata and `can_open_original_conversation`, so synthetic task memories no longer show a broken original-conversation entry.
+- **Task memory filtering** — Notes default to conversation summaries, task memory can be toggled as a tag-like filter, and repeated `tag` query parameters now keep intersection semantics.
+- **Large tag sets** — Replaced the always-expanded tag cloud with searchable tag selection so databases with hundreds of tags remain usable.
+
+### Cloud & Authentication
+
+- **Personal cloud deployment** — Added Docker cloud deployment for a single-instance ChatCrystal server, GHCR publishing, and Compose defaults for pulling the published image.
+- **Shared access token flow** — Added first-run setup mode and bearer token authentication for Web, API, CLI, and MCP, plus CLI cloud connection commands and remote import from local AI tool histories.
+- **Cloud-safe imports** — Disabled server-side local scan import in cloud mode to avoid scanning container paths.
+
+### Quality
+
+- Added regression coverage for auth refresh stability, i18n key parity, theme token safety, Electron external navigation, note source filtering, and task-memory note behavior.
 
 ## [0.4.9] - 2026-04-29
 
