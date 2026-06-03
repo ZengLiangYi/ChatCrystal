@@ -76,6 +76,8 @@ export interface Note {
   created_at: string;
   updated_at: string;
   tags?: string[];
+  project_name?: string;
+  can_open_original_conversation?: boolean;
 }
 
 export interface CodeSnippet {

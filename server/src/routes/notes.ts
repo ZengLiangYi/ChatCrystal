@@ -12,15 +12,27 @@ import {
 } from '../services/experience/reviews.js';
 
 function hydrateNote(row: Record<string, unknown>): Record<string, unknown> {
+  const { tags_csv: tagsCsv, conversation_source: conversationSource, ...rest } = row;
+
   return {
-    ...row,
+    ...rest,
     key_conclusions: row.key_conclusions ? JSON.parse(row.key_conclusions as string) : [],
     code_snippets: row.code_snippets ? JSON.parse(row.code_snippets as string) : [],
     error_signatures: row.error_signatures ? JSON.parse(row.error_signatures as string) : [],
     files_touched: row.files_touched ? JSON.parse(row.files_touched as string) : [],
-    tags: row.tags_csv ? (row.tags_csv as string).split(',') : [],
+    tags: tagsCsv ? (tagsCsv as string).split(',') : [],
     is_edited: Boolean(row.is_edited),
+    can_open_original_conversation: conversationSource !== 'chatcrystal-memory',
   };
+}
+
+function queryValues(value: string | string[] | undefined): string[] {
+  const values = Array.isArray(value) ? value : value ? [value] : [];
+  return [...new Set(values.map((item) => item.trim()).filter(Boolean))];
+}
+
+function firstQueryValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
 }
 
 export async function noteRoutes(app: FastifyInstance) {
@@ -145,21 +157,37 @@ export async function noteRoutes(app: FastifyInstance) {
 
   // List notes
   app.get('/api/notes', async (req) => {
-    const { tag, search, offset = '0', limit = '50' } = req.query as Record<string, string>;
+    const {
+      tag,
+      search,
+      sourceKind,
+      offset,
+      limit,
+    } = req.query as Record<string, string | string[] | undefined>;
     const db = getDatabase();
 
     const conditions: string[] = [];
     const params: (string | number)[] = [];
+    const tagFilters = queryValues(tag);
+    const searchFilter = firstQueryValue(search);
+    const sourceKindFilter = firstQueryValue(sourceKind);
+    const offsetValue = firstQueryValue(offset) ?? '0';
+    const limitValue = firstQueryValue(limit) ?? '50';
 
-    if (tag) {
+    for (const tagName of tagFilters) {
       conditions.push(
         'n.id IN (SELECT nt.note_id FROM note_tags nt JOIN tags t ON t.id = nt.tag_id WHERE t.name = ?)',
       );
-      params.push(tag);
+      params.push(tagName);
     }
-    if (search) {
+    if (searchFilter) {
       conditions.push('(n.title LIKE ? OR n.summary LIKE ?)');
-      params.push(`%${search}%`, `%${search}%`);
+      params.push(`%${searchFilter}%`, `%${searchFilter}%`);
+    }
+    if (sourceKindFilter === 'conversation') {
+      conditions.push("coalesce(n.source_type, 'imported-conversation') = 'imported-conversation'");
+    } else if (sourceKindFilter === 'memory') {
+      conditions.push("coalesce(n.source_type, 'imported-conversation') IN ('agent-writeback', 'manual-note')");
     }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -167,11 +195,11 @@ export async function noteRoutes(app: FastifyInstance) {
     const countResult = db.exec(`SELECT COUNT(*) FROM notes n ${where}`, params);
     const total = Number(countResult[0]?.values[0]?.[0] ?? 0);
 
-    const offsetNum = Number(offset);
-    const limitNum = Math.min(Number(limit), 100);
+    const offsetNum = Number(offsetValue);
+    const limitNum = Math.min(Number(limitValue), 100);
 
     const dataResult = db.exec(
-      `SELECT n.*, c.project_name,
+      `SELECT n.*, c.project_name, c.source as conversation_source,
         (SELECT GROUP_CONCAT(t.name) FROM note_tags nt
          JOIN tags t ON t.id = nt.tag_id
          WHERE nt.note_id = n.id) as tags_csv
@@ -213,7 +241,7 @@ export async function noteRoutes(app: FastifyInstance) {
     const db = getDatabase();
 
     const result = db.exec(
-      `SELECT n.*, c.project_name, c.project_dir,
+      `SELECT n.*, c.project_name, c.project_dir, c.source as conversation_source,
         (SELECT GROUP_CONCAT(t.name) FROM note_tags nt
          JOIN tags t ON t.id = nt.tag_id
          WHERE nt.note_id = n.id) as tags_csv

@@ -1,4 +1,28 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--accent);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-4xl: 999px;
+}
 
 /* ========================================
    ChatCrystal — CSS Variable Theme System
@@ -6,6 +30,24 @@
    ======================================== */
 
 @layer base {
+  :root {
+    --background: var(--bg-primary);
+    --foreground: var(--text-primary);
+    --card: var(--bg-secondary);
+    --card-foreground: var(--text-primary);
+    --popover: var(--bg-secondary);
+    --popover-foreground: var(--text-primary);
+    --primary-foreground: #17120a;
+    --secondary: var(--bg-tertiary);
+    --secondary-foreground: var(--text-primary);
+    --muted: var(--bg-tertiary);
+    --muted-foreground: var(--text-muted);
+    --accent-foreground: #17120a;
+    --destructive: var(--error);
+    --input: var(--border);
+    --ring: var(--accent);
+  }
+
   * {
     border-color: var(--border);
     box-sizing: border-box;
@@ -20,7 +62,14 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  html,
+  body {
+    height: 100%;
+  }
+
   #root {
+    width: 100%;
+    height: 100vh;
     min-height: 100vh;
     display: flex;
   }
@@ -51,10 +100,70 @@
   }
 }
 
+.app-titlebar {
+  background-color: color-mix(in srgb, var(--bg-secondary) 94%, transparent);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.app-drag-region {
+  -webkit-app-region: drag;
+}
+
+.app-no-drag,
+.app-no-drag * {
+  -webkit-app-region: no-drag;
+}
+
+.window-control-button {
+  display: inline-flex;
+  width: 46px;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.window-control-button:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.window-control-close:hover {
+  background: var(--error);
+  color: #ffffff;
+}
+
+.cc-sidebar {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0)),
+    var(--bg-secondary);
+}
+
+.app-content-surface {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0) 88px),
+    var(--bg-primary);
+}
+
+.cc-primary-action {
+  background: var(--accent);
+  color: #17120a;
+  box-shadow: 0 10px 28px rgba(231, 182, 95, 0.16);
+}
+
+.cc-primary-action:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
 /* Utility classes referencing theme tokens */
 @utility bg-primary { background-color: var(--bg-primary); }
 @utility bg-secondary { background-color: var(--bg-secondary); }
 @utility bg-tertiary { background-color: var(--bg-tertiary); }
+@utility bg-muted { background-color: var(--bg-tertiary); }
 @utility bg-code { background-color: var(--code-bg); }
 @utility text-primary { color: var(--text-primary); }
 @utility text-secondary { color: var(--text-secondary); }

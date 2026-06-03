@@ -1,7 +1,6 @@
 {
   "brand": {
-    "name": "ChatCrystal",
-    "tagline": "知识结晶"
+    "name": "ChatCrystal"
   },
   "nav": {
     "dashboard": "仪表盘",
@@ -11,8 +10,14 @@
     "graph": "图谱",
     "settings": "设置"
   },
+  "window": {
+    "minimize": "最小化",
+    "maximize": "最大化",
+    "restore": "还原窗口",
+    "close": "关闭"
+  },
   "title": {
-    "dashboard": "Dashboard",
+    "dashboard": "仪表盘",
     "conversations": "对话列表",
     "notes": "笔记",
     "semantic_search": "语义搜索",
@@ -45,6 +50,7 @@
     "search": "搜索",
     "save": "保存",
     "cancel": "取消",
+    "close": "关闭",
     "confirm": "确认",
     "test_connection": "测试连接",
     "collapse": "收起",
@@ -125,6 +131,24 @@
     "tool_use_indicator": "此消息使用了工具"
   },
   "notes_total": "共 {{count}} 条笔记",
+  "notes": {
+    "filter": {
+      "all": "全部",
+      "conversation": "对话摘要",
+      "memory": "任务记忆",
+      "task_memory": "任务记忆",
+      "tag_search": "搜索标签...",
+      "tags_selected": "已选 {{count}} 个标签",
+      "type_tag_to_search": "输入关键词搜索标签",
+      "clear": "清空筛选",
+      "remove_tag": "移除标签 {{tag}}",
+      "no_tag_matches": "没有匹配的标签"
+    },
+    "source": {
+      "conversation": "对话摘要",
+      "memory": "任务记忆"
+    }
+  },
   "conversations_total": "共 {{count}} 条对话",
   "search_results_count": "找到 {{count}} 条相关结果",
   "import_success": "导入 {{count}} 条",
@@ -160,6 +184,84 @@
   },
   "dialog": {
     "config_change": "配置变更"
+  },
+  "delete_note": {
+    "title": "删除笔记并记录反馈",
+    "description": "将删除笔记「{{title}}」，把原始对话标记为已过滤，并记录一次误收反馈用于后续审查。",
+    "reason_required": "删除原因（必选）",
+    "comment_optional": "补充说明（可选）",
+    "comment_placeholder": "例如：结论不成立、上下文不足或已经有更好的笔记。",
+    "delete": "删除笔记",
+    "deleting": "删除中...",
+    "reason": {
+      "not-experience": "不是可复用经验",
+      "low-value": "价值较低",
+      "inaccurate": "内容不准确",
+      "duplicate": "重复笔记",
+      "other": "其他原因"
+    }
+  },
+  "relation": {
+    "label": {
+      "CAUSED_BY": "由此引起",
+      "LEADS_TO": "导致",
+      "RESOLVED_BY": "被解决",
+      "SIMILAR_TO": "相似",
+      "CONTRADICTS": "矛盾",
+      "DEPENDS_ON": "依赖",
+      "EXTENDS": "扩展",
+      "REFERENCES": "引用"
+    },
+    "inverse": {
+      "CAUSED_BY": "引起了",
+      "LEADS_TO": "由此导致",
+      "RESOLVED_BY": "解决了",
+      "SIMILAR_TO": "相似",
+      "CONTRADICTS": "矛盾",
+      "DEPENDS_ON": "被依赖",
+      "EXTENDS": "被扩展",
+      "REFERENCES": "被引用"
+    },
+    "search": {
+      "CAUSED_BY": "因果",
+      "LEADS_TO": "导致",
+      "RESOLVED_BY": "解决",
+      "SIMILAR_TO": "相似",
+      "CONTRADICTS": "矛盾",
+      "DEPENDS_ON": "依赖",
+      "EXTENDS": "扩展",
+      "REFERENCES": "引用"
+    },
+    "short": {
+      "CAUSED_BY": "因果",
+      "LEADS_TO": "导致",
+      "RESOLVED_BY": "解决",
+      "SIMILAR_TO": "相似",
+      "CONTRADICTS": "矛盾",
+      "DEPENDS_ON": "依赖",
+      "EXTENDS": "扩展",
+      "REFERENCES": "引用"
+    }
+  },
+  "related_notes": {
+    "title": "相关笔记",
+    "discover_title": "AI 发现关联",
+    "discover": "发现",
+    "add": "添加",
+    "search_placeholder": "搜索笔记标题...",
+    "description_placeholder": "描述（可选）",
+    "empty": "暂无关联笔记，点击「发现」让 AI 自动分析"
+  },
+  "graph": {
+    "title": "知识图谱",
+    "empty": "暂无数据，请先生成笔记并发现关联",
+    "nodes": "节点",
+    "edges": "关系",
+    "fit_to_view": "适应画面",
+    "loading_graph": "加载图谱中..."
+  },
+  "search_page": {
+    "expand_related_notes": "展开关联笔记"
   },
   "theme_name": {
     "dark-workshop": "暗室",

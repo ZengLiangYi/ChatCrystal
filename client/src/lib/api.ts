@@ -115,14 +115,19 @@ export const api = {
 
 	// Notes
 	getNotes: (params?: {
-		tag?: string;
+		tag?: string | string[];
 		search?: string;
+		sourceKind?: "all" | "conversation" | "memory";
 		offset?: number;
 		limit?: number;
 	}) => {
 		const query = new URLSearchParams();
-		if (params?.tag) query.set("tag", params.tag);
+		const tags = Array.isArray(params?.tag) ? params?.tag : params?.tag ? [params.tag] : [];
+		for (const tag of tags) query.append("tag", tag);
 		if (params?.search) query.set("search", params.search);
+		if (params?.sourceKind && params.sourceKind !== "all") {
+			query.set("sourceKind", params.sourceKind);
+		}
 		if (params?.offset != null) query.set("offset", String(params.offset));
 		if (params?.limit != null) query.set("limit", String(params.limit));
 		const qs = query.toString();

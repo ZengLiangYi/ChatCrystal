@@ -1,26 +1,43 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Tag, FolderGit2, Sparkles, ChevronDown, ChevronUp, Search, Trash2 } from 'lucide-react';
+import { Check, FileText, FolderGit2, Search, Sparkles, Tag, Trash2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { DeleteNoteDialog } from '@/components/DeleteNoteDialog.tsx';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from '@/components/ui/command';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useDeleteNote, useNotes, useTags, useSummarizeBatch } from '@/hooks/use-notes.ts';
+import { cn } from '@/lib/cn';
+
+const MEMORY_SOURCE_TYPES = new Set(['agent-writeback', 'manual-note']);
+const TAG_OPTION_LIMIT = 14;
 
 export function Notes() {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
-  const [activeTag, setActiveTag] = useState('');
-  const [page, setPage] = useState(0);
+  const [includeTaskMemory, setIncludeTaskMemory] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagSearch, setTagSearch] = useState('');
-  const [tagsExpanded, setTagsExpanded] = useState(false);
+  const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
+  const [page, setPage] = useState(0);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string } | null>(null);
   const limit = 20;
   const navigate = useNavigate();
-  const tagsContainerRef = useRef<HTMLDivElement>(null);
-  const [isOverflowing, setIsOverflowing] = useState(false);
 
   const { data, isLoading } = useNotes({
     search: search || undefined,
-    tag: activeTag || undefined,
+    tag: selectedTags.length > 0 ? selectedTags : undefined,
+    sourceKind: includeTaskMemory ? 'memory' : 'conversation',
     offset: page * limit,
     limit,
   });
@@ -29,174 +46,250 @@ export function Notes() {
   const summarizeBatch = useSummarizeBatch();
   const deleteNote = useDeleteNote();
 
-  const filteredTags = useMemo(() => {
+  const tagOptions = useMemo(() => {
     if (!tags) return [];
-    if (!tagSearch) return tags;
-    const kw = tagSearch.toLowerCase();
-    return tags.filter((t) => t.name.toLowerCase().includes(kw));
-  }, [tags, tagSearch]);
+    const selected = new Set(selectedTags);
+    const keyword = tagSearch.trim().toLowerCase();
+    if (!keyword) return [];
+    return [...tags]
+      .filter((tag) => !selected.has(tag.name))
+      .filter((tag) => tag.name.toLowerCase().includes(keyword))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+      .slice(0, TAG_OPTION_LIMIT);
+  }, [tags, selectedTags, tagSearch]);
 
-  useEffect(() => {
-    const el = tagsContainerRef.current;
-    if (!el) return;
-    setIsOverflowing(el.scrollHeight > 60);
-  }, [filteredTags]);
+  const hasActiveFilters = Boolean(search.trim()) || includeTaskMemory || selectedTags.length > 0;
+
+  function resetPage() {
+    setPage(0);
+  }
+
+  function selectTag(tagName: string) {
+    setSelectedTags((current) => current.includes(tagName) ? current : [...current, tagName]);
+    setTagSearch('');
+    resetPage();
+  }
+
+  function removeTag(tagName: string) {
+    setSelectedTags((current) => current.filter((tag) => tag !== tagName));
+    resetPage();
+  }
+
+  function clearFilters() {
+    setSearch('');
+    setIncludeTaskMemory(false);
+    setSelectedTags([]);
+    setTagSearch('');
+    resetPage();
+  }
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-bold">{t('title.notes')}</h2>
         <div className="flex items-center gap-3">
           <span className="text-sm text-muted">{t('notes_total', { count: data?.total ?? 0 })}</span>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => summarizeBatch.mutate()}
             disabled={summarizeBatch.isPending}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-tertiary border border-theme hover:border-[var(--accent)] transition-colors"
-            style={{ borderRadius: 'var(--radius)', color: 'var(--accent)' }}
+            className="text-accent hover:bg-muted"
           >
-            <Sparkles size={12} />
+            <Sparkles data-icon="inline-start" />
             {summarizeBatch.isPending ? t('status.processing') : t('action.batch_generate')}
-          </button>
+          </Button>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="mb-4">
-        <input
-          type="text"
-          placeholder={t('placeholder.search_notes')}
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-          className="w-full bg-secondary border border-theme px-3 py-2 text-sm text-primary placeholder:text-muted outline-none focus:border-[var(--accent)]"
-          style={{ borderRadius: 'var(--radius)' }}
-        />
-      </div>
+      <div className="mb-4 rounded-md border border-border bg-secondary px-3 py-3">
+        <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
+          <label htmlFor="notes-search-input" className="relative min-w-[220px] flex-1">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
+            <Input
+              id="notes-search-input"
+              type="text"
+              placeholder={t('placeholder.search_notes')}
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                resetPage();
+              }}
+              className="bg-primary pl-8"
+            />
+          </label>
 
-      {/* Tags */}
-      {tags && tags.length > 0 && (
-        <div className="mb-4">
-          {tags.length >= 15 && (
-            <div className="relative mb-2">
-              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
-              <input
-                type="text"
-                placeholder={t('placeholder.filter_tags')}
-                value={tagSearch}
-                onChange={(e) => setTagSearch(e.target.value)}
-                className="w-48 bg-secondary border border-theme pl-7 pr-2 py-1 text-xs text-primary placeholder:text-muted outline-none focus:border-[var(--accent)]"
-                style={{ borderRadius: '999px' }}
-              />
-            </div>
+          <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="min-w-[220px] justify-start text-muted xl:w-72"
+              >
+                <Tag data-icon="inline-start" />
+                {selectedTags.length > 0
+                  ? t('notes.filter.tags_selected', { count: selectedTags.length })
+                  : t('notes.filter.tag_search')}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-80 p-1">
+              <Command shouldFilter={false}>
+                <CommandInput
+                  value={tagSearch}
+                  onValueChange={setTagSearch}
+                  placeholder={t('notes.filter.tag_search')}
+                />
+                <CommandList>
+                  <CommandEmpty>
+                    {tagSearch.trim()
+                      ? t('notes.filter.no_tag_matches')
+                      : t('notes.filter.type_tag_to_search')}
+                  </CommandEmpty>
+                  {tagOptions.length > 0 && (
+                    <CommandGroup>
+                      {tagOptions.map((tag) => (
+                        <CommandItem
+                          key={tag.id}
+                          value={tag.name}
+                          onSelect={() => selectTag(tag.name)}
+                          className="cursor-pointer"
+                        >
+                          <Tag className="text-muted" />
+                          <span className="truncate">{tag.name}</span>
+                          <CommandShortcut>{tag.count}</CommandShortcut>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          {hasActiveFilters && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={clearFilters}
+              className="shrink-0 text-muted"
+            >
+              <X data-icon="inline-start" />
+              {t('notes.filter.clear')}
+            </Button>
           )}
-          <div
-            ref={tagsContainerRef}
-            className="flex flex-wrap gap-1.5 overflow-hidden transition-[max-height] duration-200"
-            style={{ maxHeight: tagsExpanded ? '1000px' : '56px' }}
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <Badge
+            asChild
+            variant={includeTaskMemory ? 'secondary' : 'outline'}
+            className={cn(
+              'cursor-pointer select-none',
+              includeTaskMemory
+                ? 'border-[var(--accent)] text-accent'
+                : 'text-muted hover:border-ring hover:text-secondary',
+            )}
           >
             <button
               type="button"
-              onClick={() => { setActiveTag(''); setPage(0); }}
-              className={`px-2 py-0.5 text-xs border transition-colors ${
-                !activeTag ? 'border-[var(--accent)] text-accent' : 'border-theme text-muted hover:text-secondary'
-              }`}
-              style={{ borderRadius: '999px' }}
+              aria-pressed={includeTaskMemory}
+              onClick={() => {
+                setIncludeTaskMemory((value) => !value);
+                resetPage();
+              }}
             >
-              {t('filter.all')}
+              {includeTaskMemory && <Check data-icon="inline-start" />}
+              {t('notes.filter.task_memory')}
+              {includeTaskMemory && <X data-icon="inline-end" />}
             </button>
-            {filteredTags.map((tag) => (
-              <button
-                key={tag.id}
-                type="button"
-                onClick={() => { setActiveTag(tag.name); setPage(0); }}
-                className={`px-2 py-0.5 text-xs border transition-colors ${
-                  activeTag === tag.name ? 'border-[var(--accent)] text-accent' : 'border-theme text-muted hover:text-secondary'
-                }`}
-                style={{ borderRadius: '999px' }}
-              >
-                {tag.name}
-                <span className="ml-1 opacity-50">{tag.count}</span>
-              </button>
-            ))}
-          </div>
-          {isOverflowing && !tagSearch && (
-            <button
-              type="button"
-              onClick={() => setTagsExpanded((v) => !v)}
-              className="flex items-center gap-1 mt-1.5 text-xs text-muted hover:text-secondary transition-colors"
-            >
-              {tagsExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-              {tagsExpanded ? t('action.collapse') : t('action.expand_all_tags', { count: tags.length })}
-            </button>
-          )}
-        </div>
-      )}
+          </Badge>
 
-      {/* Notes grid */}
+          {selectedTags.map((tag) => (
+            <Badge
+              key={tag}
+              asChild
+              variant="secondary"
+              className="cursor-pointer border-[var(--accent)] text-accent"
+            >
+              <button
+                type="button"
+                onClick={() => removeTag(tag)}
+                aria-label={t('notes.filter.remove_tag', { tag })}
+              >
+                {tag}
+                <X data-icon="inline-end" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      </div>
+
       {isLoading ? (
-        <p className="text-muted text-sm">{t('status.loading')}</p>
+        <p className="text-sm text-muted">{t('status.loading')}</p>
       ) : data?.items.length === 0 ? (
-        <div className="text-center py-12 text-muted text-sm">
-          <FileText size={32} className="mx-auto mb-3 opacity-30" />
+        <div className="py-12 text-center text-sm text-muted">
+          <FileText className="mx-auto mb-3 size-8 opacity-30" />
           <p>{t('empty_state.no_notes')}</p>
           <p className="mt-1 text-xs">{t('empty_state.no_notes_hint')}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {data?.items.map((note) => (
-            <div
-              key={note.id as number}
-              onClick={() => navigate(`/notes/${note.id}`)}
-              className="bg-secondary border border-theme p-4 hover:border-[var(--accent)] cursor-pointer transition-colors"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              <div className="flex items-start gap-2 mb-1.5">
-                <h3 className="text-sm font-bold truncate flex-1">{note.title as string}</h3>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setDeleteTarget({ id: note.id as number, title: note.title as string });
-                  }}
-                  className="shrink-0 inline-flex items-center justify-center w-7 h-7 text-muted border border-transparent hover:text-[var(--warning)] hover:border-[var(--warning)] transition-colors"
-                  style={{ borderRadius: 'var(--radius)' }}
-                  title="删除笔记"
-                  aria-label="删除笔记"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-              <div className="flex items-center gap-1.5 text-xs text-muted mb-2">
-                <FolderGit2 size={11} />
-                <span>{note.project_name as string}</span>
-              </div>
-              <p className="text-xs text-secondary line-clamp-3 mb-3">
-                {(note.summary as string).slice(0, 200)}
-              </p>
-              {(note.tags as string[])?.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {(note.tags as string[]).slice(0, 5).map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-1.5 py-0.5 text-xs bg-tertiary text-muted"
-                      style={{ borderRadius: '3px' }}
-                    >
-                      <Tag size={9} className="inline mr-0.5 -mt-px" />
-                      {tag}
-                    </span>
-                  ))}
-                  {(note.tags as string[]).length > 5 && (
-                    <span
-                      className="px-1.5 py-0.5 text-xs bg-tertiary text-muted"
-                      style={{ borderRadius: '3px' }}
-                    >
-                      +{(note.tags as string[]).length - 5}
-                    </span>
-                  )}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {data?.items.map((note) => {
+            const isMemoryNote = MEMORY_SOURCE_TYPES.has(String(note.source_type));
+
+            return (
+              <div
+                key={note.id as number}
+                onClick={() => navigate(`/notes/${note.id}`)}
+                className="cursor-pointer rounded-md border border-border bg-secondary p-4 transition-colors hover:border-[var(--accent)]"
+              >
+                <div className="mb-1.5 flex items-start gap-2">
+                  <h3 className="flex-1 truncate text-sm font-bold">{note.title as string}</h3>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setDeleteTarget({ id: note.id as number, title: note.title as string });
+                    }}
+                    className="shrink-0 text-muted hover:text-warning"
+                    title={t('delete_note.delete')}
+                    aria-label={t('delete_note.delete')}
+                  >
+                    <Trash2 />
+                  </Button>
                 </div>
-              )}
-            </div>
-          ))}
+                <div className="mb-2 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+                  <FolderGit2 className="size-3" />
+                  <span>{note.project_name as string}</span>
+                  <Badge variant="outline">
+                    {t(isMemoryNote ? 'notes.source.memory' : 'notes.source.conversation')}
+                  </Badge>
+                </div>
+                <p className="mb-3 line-clamp-3 text-xs text-secondary">
+                  {(note.summary as string).slice(0, 200)}
+                </p>
+                {(note.tags as string[])?.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {(note.tags as string[]).slice(0, 5).map((tag) => (
+                      <Badge key={tag} variant="secondary">
+                        <Tag className="size-3" />
+                        {tag}
+                      </Badge>
+                    ))}
+                    {(note.tags as string[]).length > 5 && (
+                      <Badge variant="secondary">
+                        +{(note.tags as string[]).length - 5}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -215,28 +308,31 @@ export function Notes() {
         />
       )}
 
-      {/* Pagination */}
       {data && data.total > limit && (
-        <div className="flex items-center justify-center gap-4 mt-4">
-          <button
+        <div className="mt-4 flex items-center justify-center gap-4">
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             disabled={page === 0}
             onClick={() => setPage((p) => p - 1)}
-            className="text-sm text-secondary hover:text-primary disabled:opacity-30"
+            className="text-secondary"
           >
             {t('pagination.previous')}
-          </button>
+          </Button>
           <span className="text-xs text-muted">
             {page + 1} / {Math.ceil(data.total / limit)}
           </span>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             disabled={(page + 1) * limit >= data.total}
             onClick={() => setPage((p) => p + 1)}
-            className="text-sm text-secondary hover:text-primary disabled:opacity-30"
+            className="text-secondary"
           >
             {t('pagination.next')}
-          </button>
+          </Button>
         </div>
       )}
     </div>

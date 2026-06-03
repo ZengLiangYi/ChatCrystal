@@ -1,4 +1,14 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 export function getOnboardingDataUrl(initialError = ""): string {
+	const iconPath = path.join(__dirname, "..", "icon.png");
+	let iconUrl = "";
+	try {
+		iconUrl = `data:image/png;base64,${readFileSync(iconPath).toString("base64")}`;
+	} catch {
+		// The title still renders if an unpacked/package layout omits the icon.
+	}
 	const html = `<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -8,33 +18,90 @@ export function getOnboardingDataUrl(initialError = ""): string {
 	<style>
 		:root {
 			color-scheme: dark;
-			font-family: "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
-			background: #111827;
-			color: #f8fafc;
+			font-family: "Aptos", "HarmonyOS Sans SC", "Microsoft YaHei UI", "Segoe UI", system-ui, sans-serif;
+			background: #101113;
+			color: #f2f0ea;
 		}
-		body { margin: 0; min-width: 320px; background: #111827; }
-		main { min-height: 100vh; display: grid; place-items: center; padding: 32px; box-sizing: border-box; }
-		section { width: min(840px, 100%); border: 1px solid #334155; background: #182235; padding: 28px; border-radius: 8px; box-sizing: border-box; }
+		body { margin: 0; min-width: 320px; background: #101113; }
+		.titlebar {
+			height: 44px;
+			display: flex;
+			align-items: center;
+			border-bottom: 1px solid #2a2d31;
+			background: rgba(16, 17, 19, 0.94);
+			-webkit-app-region: drag;
+			box-sizing: border-box;
+		}
+		.titlebar-brand {
+			width: 224px;
+			height: 100%;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 0 12px;
+			border-right: 1px solid #2a2d31;
+			box-sizing: border-box;
+		}
+		.titlebar-brand img { width: 20px; height: 20px; }
+		.titlebar-name { font-size: 13px; font-weight: 700; line-height: 1.2; }
+		.titlebar-title { flex: 1; min-width: 0; padding: 0 16px; color: #a7a29a; font-size: 12px; }
+		.titlebar-controls { height: 100%; display: flex; -webkit-app-region: no-drag; }
+		.titlebar-controls button {
+			width: 46px;
+			height: 100%;
+			border: 0;
+			border-radius: 0;
+			background: transparent;
+			color: #a7a29a;
+			font-size: 15px;
+			font-weight: 400;
+			padding: 0;
+			cursor: default;
+		}
+		.titlebar-controls button:hover { background: #202329; color: #f2f0ea; }
+		.titlebar-controls button.close:hover { background: #ef4444; color: #ffffff; }
+		main { min-height: calc(100vh - 44px); display: grid; place-items: center; padding: 32px; box-sizing: border-box; background: linear-gradient(180deg, rgba(255,255,255,.015), rgba(255,255,255,0) 96px), #101113; }
+		section { width: min(840px, 100%); border: 1px solid #2a2d31; background: #15171a; padding: 28px; border-radius: 8px; box-sizing: border-box; box-shadow: 0 24px 80px rgba(0,0,0,.24); }
 		h1 { margin: 0 0 10px; font-size: 30px; line-height: 1.2; letter-spacing: 0; }
-		p { margin: 8px 0 18px; color: #cbd5e1; line-height: 1.7; }
+		p { margin: 8px 0 18px; color: #a7a29a; line-height: 1.7; }
 		.row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
-		button { border: 0; border-radius: 6px; padding: 11px 14px; background: #38bdf8; color: #082f49; font-weight: 700; cursor: pointer; }
-		button.secondary { background: #334155; color: #e2e8f0; }
+		button { border: 0; border-radius: 6px; padding: 11px 14px; background: #e7b65f; color: #17120a; font-weight: 700; cursor: pointer; }
+		button.secondary { background: #202329; color: #f2f0ea; }
 		button:disabled { cursor: not-allowed; opacity: .6; }
-		label { display: block; color: #cbd5e1; font-size: 14px; margin-top: 12px; }
-		input { width: 100%; box-sizing: border-box; margin-top: 6px; padding: 11px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #f8fafc; }
-		pre { white-space: pre-wrap; overflow: auto; background: #0f172a; padding: 14px; border-radius: 6px; border: 1px solid #334155; max-height: 320px; }
-		.hint { color: #93c5fd; }
+		label { display: block; color: #a7a29a; font-size: 14px; margin-top: 12px; }
+		input { width: 100%; box-sizing: border-box; margin-top: 6px; padding: 11px; border-radius: 6px; border: 1px solid #2a2d31; background: #0b0c0e; color: #f2f0ea; }
+		pre { white-space: pre-wrap; overflow: auto; background: #0b0c0e; padding: 14px; border-radius: 6px; border: 1px solid #2a2d31; max-height: 320px; }
+		.hint { color: #80a7ff; }
 		.error { color: #fca5a5; }
-		.ok { color: #86efac; }
+		.ok { color: #63d297; }
 	</style>
 </head>
 <body>
+	<div class="titlebar">
+		<div class="titlebar-brand">
+			${iconUrl ? `<img src="${iconUrl}" alt="" />` : ""}
+			<div>
+				<div class="titlebar-name">ChatCrystal</div>
+			</div>
+		</div>
+		<div class="titlebar-title"></div>
+		<div class="titlebar-controls">
+			<button id="window-minimize" title="最小化" aria-label="最小化">-</button>
+			<button id="window-maximize" title="最大化" aria-label="最大化">□</button>
+			<button id="window-close" class="close" title="关闭" aria-label="关闭">×</button>
+		</div>
+	</div>
 	<main><section id="app"><h1>正在唤醒您的超级大脑</h1></section></main>
 	<script>
 		const api = window.chatcrystalOnboarding;
+		const controls = window.electronAPI && window.electronAPI.windowControls;
 		const app = document.getElementById("app");
 		const initialError = ${JSON.stringify(initialError)};
+		if (controls) {
+			document.getElementById("window-minimize").onclick = () => controls.minimize();
+			document.getElementById("window-maximize").onclick = () => controls.toggleMaximize();
+			document.getElementById("window-close").onclick = () => controls.close();
+		}
 		const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[ch]));
 		const initialErrorHtml = () => initialError ? "<p class='error'>" + escapeHtml(initialError) + "</p>" : "";
 		const showError = (err, fallback = "操作失败") => {

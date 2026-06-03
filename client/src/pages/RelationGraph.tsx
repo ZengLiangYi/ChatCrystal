@@ -22,17 +22,6 @@ const EDGE_COLORS: Record<string, string> = {
   REFERENCES:  '#6b7280',
 };
 
-const RELATION_LABELS: Record<string, { zh: string; en: string }> = {
-  CAUSED_BY:   { zh: '因果', en: 'Caused' },
-  LEADS_TO:    { zh: '导致', en: 'Leads' },
-  RESOLVED_BY: { zh: '解决', en: 'Resolved' },
-  SIMILAR_TO:  { zh: '相似', en: 'Similar' },
-  CONTRADICTS: { zh: '矛盾', en: 'Contra' },
-  DEPENDS_ON:  { zh: '依赖', en: 'Depends' },
-  EXTENDS:     { zh: '扩展', en: 'Extends' },
-  REFERENCES:  { zh: '引用', en: 'Refs' },
-};
-
 const PROJECT_COLORS = [
   '#3b82f6', '#22c55e', '#f97316', '#a855f7', '#ef4444',
   '#06b6d4', '#eab308', '#ec4899', '#14b8a6', '#8b5cf6',
@@ -49,8 +38,7 @@ const RelationGraphCanvas = lazy(() =>
 // =============================================
 
 export function RelationGraph() {
-  const { i18n } = useTranslation();
-  const isZh = i18n.language?.startsWith('zh');
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const graphRef = useRef<ForceGraphMethods<GraphNode, GraphLink>>(undefined);
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
@@ -175,7 +163,7 @@ export function RelationGraph() {
     return (
       <div className="flex items-center justify-center h-full text-muted">
         <Loader2 size={20} className="animate-spin mr-2" />
-        {isZh ? '加载中...' : 'Loading...'}
+        {t('status.loading')}
       </div>
     );
   }
@@ -187,10 +175,10 @@ export function RelationGraph() {
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center px-4 py-3 border-b border-theme bg-secondary shrink-0">
-          <h2 className="text-sm font-bold">{isZh ? '知识图谱' : 'Knowledge Graph'}</h2>
+          <h2 className="text-sm font-bold">{t('graph.title')}</h2>
         </div>
         <div className="flex-1 flex items-center justify-center text-muted text-sm">
-          {isZh ? '暂无数据，请先生成笔记并发现关联' : 'No data. Generate notes and discover relations first.'}
+          {t('graph.empty')}
         </div>
       </div>
     );
@@ -201,11 +189,11 @@ export function RelationGraph() {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-theme bg-secondary shrink-0">
         <h2 className="text-sm font-bold">
-          {isZh ? '知识图谱' : 'Knowledge Graph'}
+          {t('graph.title')}
         </h2>
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted">
-            {nodeCount} {isZh ? '节点' : 'nodes'} · {edgeCount} {isZh ? '关系' : 'edges'}
+            {nodeCount} {t('graph.nodes')} · {edgeCount} {t('graph.edges')}
           </span>
           {/* Zoom controls */}
           <div className="flex items-center gap-1">
@@ -213,7 +201,7 @@ export function RelationGraph() {
               type="button"
               onClick={() => graphRef.current?.zoomToFit(400, 60)}
               className="p-1 text-muted hover:text-accent transition-colors"
-              title={isZh ? '适应画面' : 'Fit to view'}
+              title={t('graph.fit_to_view')}
             >
               <Maximize size={14} />
             </button>
@@ -247,7 +235,7 @@ export function RelationGraph() {
           fallback={
             <div className="flex h-full items-center justify-center text-muted">
               <Loader2 size={18} className="animate-spin mr-2" />
-              {isZh ? '加载图谱中...' : 'Loading graph...'}
+              {t('graph.loading_graph')}
             </div>
           }
         >
@@ -293,7 +281,7 @@ export function RelationGraph() {
               className={`flex items-center gap-1 px-1 py-0.5 transition-colors ${!selectedType ? 'text-accent' : 'text-muted hover:text-primary'}`}
               style={{ borderRadius: '3px' }}
             >
-              {isZh ? '全部' : 'All'}
+              {t('filter.all')}
             </button>
             {Object.entries(EDGE_COLORS).map(([type, color]) => (
               <button
@@ -304,7 +292,7 @@ export function RelationGraph() {
                 style={{ borderRadius: '3px' }}
               >
                 <span className="inline-block w-2.5 h-0.5" style={{ background: color }} />
-                {RELATION_LABELS[type] ? (isZh ? RELATION_LABELS[type].zh : RELATION_LABELS[type].en) : type}
+                {t(`relation.short.${type}`, { defaultValue: type })}
               </button>
             ))}
           </div>

@@ -5,27 +5,15 @@ import { useTranslation } from 'react-i18next';
 import { useNoteRelations, useDeleteRelation, useDiscoverRelations, useCreateRelation } from '@/hooks/use-relations.ts';
 import { api } from '@/lib/api.ts';
 
-// Relation type display config
-const RELATION_CONFIG: Record<string, { label_zh: string; label_en: string; color: string }> = {
-  CAUSED_BY:   { label_zh: '由此引起', label_en: 'Caused by',   color: 'bg-red-500/20 text-red-400 border-red-500/30' },
-  LEADS_TO:    { label_zh: '导致',     label_en: 'Leads to',    color: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
-  RESOLVED_BY: { label_zh: '被解决',   label_en: 'Resolved by', color: 'bg-green-500/20 text-green-400 border-green-500/30' },
-  SIMILAR_TO:  { label_zh: '相似',     label_en: 'Similar to',  color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-  CONTRADICTS: { label_zh: '矛盾',     label_en: 'Contradicts', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
-  DEPENDS_ON:  { label_zh: '依赖',     label_en: 'Depends on',  color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
-  EXTENDS:     { label_zh: '扩展',     label_en: 'Extends',     color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
-  REFERENCES:  { label_zh: '引用',     label_en: 'References',  color: 'bg-gray-500/20 text-gray-400 border-gray-500/30' },
-};
-
-const INVERSE_LABELS: Record<string, { zh: string; en: string }> = {
-  CAUSED_BY:   { zh: '引起了',   en: 'Caused' },
-  LEADS_TO:    { zh: '由此导致', en: 'Led from' },
-  RESOLVED_BY: { zh: '解决了',   en: 'Resolved' },
-  SIMILAR_TO:  { zh: '相似',     en: 'Similar to' },
-  CONTRADICTS: { zh: '矛盾',     en: 'Contradicts' },
-  DEPENDS_ON:  { zh: '被依赖',   en: 'Depended by' },
-  EXTENDS:     { zh: '被扩展',   en: 'Extended by' },
-  REFERENCES:  { zh: '被引用',   en: 'Referenced by' },
+const RELATION_CONFIG: Record<string, { color: string }> = {
+  CAUSED_BY:   { color: 'bg-red-500/20 text-red-400 border-red-500/30' },
+  LEADS_TO:    { color: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
+  RESOLVED_BY: { color: 'bg-green-500/20 text-green-400 border-green-500/30' },
+  SIMILAR_TO:  { color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+  CONTRADICTS: { color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
+  DEPENDS_ON:  { color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
+  EXTENDS:     { color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
+  REFERENCES:  { color: 'bg-gray-500/20 text-gray-400 border-gray-500/30' },
 };
 
 const RELATION_TYPES = Object.keys(RELATION_CONFIG);
@@ -44,13 +32,12 @@ function NoteSearchInput({
   excludeId,
   value,
   onChange,
-  isZh,
 }: {
   excludeId: number;
   value: NoteOption | null;
   onChange: (note: NoteOption | null) => void;
-  isZh: boolean;
 }) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [options, setOptions] = useState<NoteOption[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -115,7 +102,7 @@ function NoteSearchInput({
         <Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted" />
         <input
           type="text"
-          placeholder={isZh ? '搜索笔记标题...' : 'Search notes...'}
+          placeholder={t('related_notes.search_placeholder')}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -166,9 +153,8 @@ interface RelatedNotesProps {
 }
 
 export function RelatedNotes({ noteId }: RelatedNotesProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
-  const isZh = i18n.language?.startsWith('zh');
 
   const { data: relations, isLoading } = useNoteRelations(noteId);
   const deleteMutation = useDeleteRelation(noteId);
@@ -185,12 +171,8 @@ export function RelatedNotes({ noteId }: RelatedNotesProps) {
   const relationList = relations ?? [];
 
   function getRelationLabel(relType: string, isInverse: boolean) {
-    if (isInverse) {
-      const inv = INVERSE_LABELS[relType];
-      return inv ? (isZh ? inv.zh : inv.en) : relType;
-    }
-    const cfg = RELATION_CONFIG[relType];
-    return cfg ? (isZh ? cfg.label_zh : cfg.label_en) : relType;
+    const group = isInverse ? 'inverse' : 'label';
+    return t(`relation.${group}.${relType}`, { defaultValue: relType });
   }
 
   function handleAdd() {
@@ -217,7 +199,7 @@ export function RelatedNotes({ noteId }: RelatedNotesProps) {
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-xs font-bold text-muted uppercase tracking-wider flex items-center gap-1.5">
           <Network size={12} />
-          {isZh ? '相关笔记' : 'Related Notes'}
+          {t('related_notes.title')}
         </h3>
         <div className="flex items-center gap-1">
           <button
@@ -225,14 +207,14 @@ export function RelatedNotes({ noteId }: RelatedNotesProps) {
             onClick={() => discoverMutation.mutate()}
             disabled={discoverMutation.isPending}
             className="flex items-center gap-1 px-2 py-0.5 text-xs text-muted hover:text-accent transition-colors disabled:opacity-50"
-            title={isZh ? 'AI 发现关联' : 'AI Discover'}
+            title={t('related_notes.discover_title')}
           >
             {discoverMutation.isPending ? (
               <Loader2 size={11} className="animate-spin" />
             ) : (
               <Sparkles size={11} />
             )}
-            {isZh ? '发现' : 'Discover'}
+            {t('related_notes.discover')}
           </button>
           <button
             type="button"
@@ -240,7 +222,7 @@ export function RelatedNotes({ noteId }: RelatedNotesProps) {
             className="flex items-center gap-1 px-2 py-0.5 text-xs text-muted hover:text-accent transition-colors"
           >
             <Plus size={11} />
-            {isZh ? '添加' : 'Add'}
+            {t('related_notes.add')}
           </button>
         </div>
       </div>
@@ -253,7 +235,6 @@ export function RelatedNotes({ noteId }: RelatedNotesProps) {
               excludeId={noteId}
               value={selectedNote}
               onChange={setSelectedNote}
-              isZh={!!isZh}
             />
             <div className="relative">
               <select
@@ -273,7 +254,7 @@ export function RelatedNotes({ noteId }: RelatedNotesProps) {
           </div>
           <input
             type="text"
-            placeholder={isZh ? '描述（可选）' : 'Description (optional)'}
+            placeholder={t('related_notes.description_placeholder')}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             className="w-full px-2 py-1 bg-primary border border-theme text-primary text-xs"
@@ -307,7 +288,7 @@ export function RelatedNotes({ noteId }: RelatedNotesProps) {
       {/* Relations list */}
       {relationList.length === 0 ? (
         <p className="text-xs text-muted opacity-60">
-          {isZh ? '暂无关联笔记，点击「发现」让 AI 自动分析' : 'No related notes yet. Click "Discover" to analyze.'}
+          {t('related_notes.empty')}
         </p>
       ) : (
         <div className="space-y-1.5">

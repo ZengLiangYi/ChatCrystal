@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	AUTH_CHANGED_EVENT,
@@ -15,11 +15,16 @@ type GateState =
 
 export function AuthGate({ children }: { children: ReactNode }) {
 	const { t } = useTranslation();
+	const authErrorFallbackRef = useRef(t("auth.error"));
 	const [state, setState] = useState<GateState>({ status: "loading", providerWarnings: [] });
 	const [setupCode, setSetupCode] = useState("");
 	const [token, setToken] = useState("");
 	const [error, setError] = useState<string | null>(null);
 	const [submitting, setSubmitting] = useState(false);
+
+	useEffect(() => {
+		authErrorFallbackRef.current = t("auth.error");
+	}, [t]);
 
 	const refresh = useCallback(async () => {
 		setError(null);
@@ -41,10 +46,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
 				setState({ status: "token", providerWarnings: status.providerWarnings });
 			}
 		} catch (err) {
-			setError(err instanceof Error ? err.message : t("auth.error"));
+			setError(err instanceof Error ? err.message : authErrorFallbackRef.current);
 			setState({ status: "token", providerWarnings: [] });
 		}
-	}, [t]);
+	}, []);
 
 	useEffect(() => {
 		refresh();
@@ -77,8 +82,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 		<div className="flex min-h-screen w-screen items-center justify-center bg-primary px-4 py-8">
 			<div className="w-full max-w-md rounded-md border border-theme bg-secondary p-5 shadow-xl">
 				<div className="mb-5">
-					<p className="text-sm text-muted">{t("brand.tagline")}</p>
-					<h1 className="mt-1 text-2xl font-semibold text-primary">{t("auth.title")}</h1>
+					<h1 className="text-2xl font-semibold text-primary">{t("auth.title")}</h1>
 					<p className="mt-2 text-sm leading-6 text-secondary">
 						{state.status === "setup" ? t("auth.setup_hint") : t("auth.token_hint")}
 					</p>

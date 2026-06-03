@@ -26,6 +26,7 @@ export function NoteDetail() {
   const conclusions = (note.key_conclusions as string[]) ?? [];
   const snippets = (note.code_snippets as { language: string; code: string; description: string }[]) ?? [];
   const tags = (note.tags as string[]) ?? [];
+  const canOpenOriginalConversation = note.can_open_original_conversation === true;
 
   return (
     <div className="flex flex-col h-full">
@@ -43,14 +44,18 @@ export function NoteDetail() {
           <div className="flex items-center gap-2 text-xs text-muted">
             <FolderGit2 size={11} />
             <span>{note.project_name as string}</span>
-            <span className="opacity-30">·</span>
-            <button
-              type="button"
-              onClick={() => navigate(`/conversations/${note.conversation_id}`)}
-              className="hover:text-accent transition-colors"
-            >
-              {t('action.view_original_conversation')}
-            </button>
+            {canOpenOriginalConversation && (
+              <>
+                <span className="opacity-30">·</span>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/conversations/${note.conversation_id}`)}
+                  className="hover:text-accent transition-colors"
+                >
+                  {t('action.view_original_conversation')}
+                </button>
+              </>
+            )}
           </div>
         </div>
         <button
@@ -60,7 +65,7 @@ export function NoteDetail() {
           style={{ borderRadius: 'var(--radius)' }}
         >
           <Trash2 size={13} />
-          删除
+          {t('delete_note.delete')}
         </button>
       </div>
 

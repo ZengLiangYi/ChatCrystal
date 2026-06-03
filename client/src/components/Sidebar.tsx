@@ -25,7 +25,11 @@ const navItems = [
   { to: '/settings', icon: Settings, labelKey: 'nav.settings' },
 ] as const;
 
-export function Sidebar() {
+type SidebarProps = {
+  showBrand?: boolean;
+};
+
+export function Sidebar({ showBrand = true }: SidebarProps) {
   const { t } = useTranslation();
   const { data: status } = useStatus();
   const { state: importState, start: startImport, reset: resetImport } = useImportStream();
@@ -41,40 +45,47 @@ export function Sidebar() {
 
   return (
     <aside
-      className="flex flex-col w-52 shrink-0 border-r border-theme bg-secondary"
-      style={{ minHeight: '100vh' }}
+      className="cc-sidebar flex h-full w-56 shrink-0 flex-col border-r border-theme"
     >
       {/* Brand */}
-      <div className="px-4 py-4 border-b border-theme">
-        <h1
-          className="text-base font-bold tracking-tight text-accent m-0 flex items-center gap-2"
-          style={{ fontFamily: 'var(--font-display)' }}
-        >
-          <img src="/icon.png" alt="ChatCrystal" className="w-5 h-5" />
-          {t('brand.name')}
-        </h1>
-        <p className="text-xs text-muted mt-1">{t('brand.tagline')}</p>
-      </div>
+      {showBrand && (
+        <div className="px-4 py-4 border-b border-theme">
+          <h1
+            className="text-base font-bold text-accent m-0 flex items-center gap-2"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            <img src="/icon.png" alt="" className="w-5 h-5" />
+            {t('brand.name')}
+          </h1>
+        </div>
+      )}
 
       {/* Navigation */}
-      <nav className="flex-1 py-2">
+      <nav className="flex-1 space-y-1 p-2">
         {navItems.map(({ to, icon: Icon, labelKey }) => (
           <NavLink
             key={to}
             to={to}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+              `group flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
                 isActive
-                  ? 'text-accent bg-tertiary border-r-2'
-                  : 'text-secondary hover:text-primary hover:bg-tertiary'
+                  ? 'bg-tertiary text-primary shadow-[inset_0_0_0_1px_var(--border)]'
+                  : 'text-secondary hover:bg-tertiary hover:text-primary'
               }`
             }
-            style={({ isActive }) =>
-              isActive ? { borderRightColor: 'var(--accent)' } : undefined
-            }
           >
-            <Icon size={16} />
-            {t(labelKey)}
+            {({ isActive }) => (
+              <>
+                <span
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${
+                    isActive ? 'text-accent' : 'text-muted group-hover:text-secondary'
+                  }`}
+                >
+                  <Icon size={16} />
+                </span>
+                <span className="truncate">{t(labelKey)}</span>
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
@@ -86,11 +97,7 @@ export function Sidebar() {
           type="button"
           onClick={startImport}
           disabled={importState.status === 'running'}
-          className="flex items-center justify-center gap-2 w-full px-3 py-2 text-sm rounded transition-colors accent-bg hover:opacity-90 disabled:opacity-50"
-          style={{
-            color: 'var(--bg-primary)',
-            borderRadius: 'var(--radius)',
-          }}
+          className="cc-primary-action flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50"
         >
           {importState.status === 'running' ? (
             <Loader2 size={14} className="animate-spin" />
@@ -141,7 +148,7 @@ export function Sidebar() {
       )}
       {cloudMode && (
         <div className="px-3 py-3 border-t border-theme">
-          <div className="text-xs text-muted leading-relaxed">
+          <div className="rounded-md border border-theme bg-tertiary px-3 py-2 text-xs text-muted leading-relaxed">
             <div className="font-medium text-primary">{t('import.cloud_mode')}</div>
             <div className="mt-1">{t('import.cloud_import_hint')}</div>
           </div>
@@ -150,16 +157,16 @@ export function Sidebar() {
 
       {/* Stats footer */}
       {status && (
-        <div className="px-4 py-3 border-t border-theme text-xs text-muted">
+        <div className="space-y-2 border-t border-theme px-3 py-3 text-xs text-muted">
           <div className="flex justify-between">
             <span>{t('stat.conversations')}</span>
-            <span className="text-primary">
+            <span className="rounded bg-tertiary px-1.5 py-0.5 text-primary">
               {status.stats.totalConversations}
             </span>
           </div>
           <div className="flex justify-between mt-1">
             <span>{t('stat.notes')}</span>
-            <span className="text-primary">{status.stats.totalNotes}</span>
+            <span className="rounded bg-tertiary px-1.5 py-0.5 text-primary">{status.stats.totalNotes}</span>
           </div>
         </div>
       )}

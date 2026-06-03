@@ -1,7 +1,6 @@
 {
   "brand": {
-    "name": "ChatCrystal",
-    "tagline": "Knowledge Crystallized"
+    "name": "ChatCrystal"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -10,6 +9,12 @@
     "search": "Search",
     "graph": "Graph",
     "settings": "Settings"
+  },
+  "window": {
+    "minimize": "Minimize",
+    "maximize": "Maximize",
+    "restore": "Restore",
+    "close": "Close"
   },
   "title": {
     "dashboard": "Dashboard",
@@ -45,6 +50,7 @@
     "search": "Search",
     "save": "Save",
     "cancel": "Cancel",
+    "close": "Close",
     "confirm": "Confirm",
     "test_connection": "Test Connection",
     "collapse": "Collapse",
@@ -125,6 +131,24 @@
     "tool_use_indicator": "This message used tools"
   },
   "notes_total": "{{count}} notes total",
+  "notes": {
+    "filter": {
+      "all": "All",
+      "conversation": "Conversation Notes",
+      "memory": "Task Memory",
+      "task_memory": "Task Memory",
+      "tag_search": "Search tags...",
+      "tags_selected": "{{count}} tags selected",
+      "type_tag_to_search": "Type to search tags",
+      "clear": "Clear filters",
+      "remove_tag": "Remove tag {{tag}}",
+      "no_tag_matches": "No matching tags"
+    },
+    "source": {
+      "conversation": "Conversation",
+      "memory": "Memory"
+    }
+  },
   "conversations_total": "{{count}} conversations total",
   "search_results_count": "{{count}} results found",
   "import_success": "Imported {{count}}",
@@ -160,6 +184,84 @@
   },
   "dialog": {
     "config_change": "Configuration Change"
+  },
+  "delete_note": {
+    "title": "Delete note and record feedback",
+    "description": "This deletes \"{{title}}\", marks the original conversation as filtered, and records feedback for later review.",
+    "reason_required": "Reason for deletion (required)",
+    "comment_optional": "Additional details (optional)",
+    "comment_placeholder": "For example: the conclusion is unsupported, lacks context, or a better note already exists.",
+    "delete": "Delete note",
+    "deleting": "Deleting...",
+    "reason": {
+      "not-experience": "Not reusable experience",
+      "low-value": "Low value",
+      "inaccurate": "Inaccurate content",
+      "duplicate": "Duplicate note",
+      "other": "Other reason"
+    }
+  },
+  "relation": {
+    "label": {
+      "CAUSED_BY": "Caused by",
+      "LEADS_TO": "Leads to",
+      "RESOLVED_BY": "Resolved by",
+      "SIMILAR_TO": "Similar to",
+      "CONTRADICTS": "Contradicts",
+      "DEPENDS_ON": "Depends on",
+      "EXTENDS": "Extends",
+      "REFERENCES": "References"
+    },
+    "inverse": {
+      "CAUSED_BY": "Caused",
+      "LEADS_TO": "Led from",
+      "RESOLVED_BY": "Resolved",
+      "SIMILAR_TO": "Similar to",
+      "CONTRADICTS": "Contradicts",
+      "DEPENDS_ON": "Depended by",
+      "EXTENDS": "Extended by",
+      "REFERENCES": "Referenced by"
+    },
+    "search": {
+      "CAUSED_BY": "Caused by",
+      "LEADS_TO": "Leads to",
+      "RESOLVED_BY": "Resolved by",
+      "SIMILAR_TO": "Similar",
+      "CONTRADICTS": "Contradicts",
+      "DEPENDS_ON": "Depends on",
+      "EXTENDS": "Extends",
+      "REFERENCES": "References"
+    },
+    "short": {
+      "CAUSED_BY": "Caused",
+      "LEADS_TO": "Leads",
+      "RESOLVED_BY": "Resolved",
+      "SIMILAR_TO": "Similar",
+      "CONTRADICTS": "Contra",
+      "DEPENDS_ON": "Depends",
+      "EXTENDS": "Extends",
+      "REFERENCES": "Refs"
+    }
+  },
+  "related_notes": {
+    "title": "Related Notes",
+    "discover_title": "AI Discover",
+    "discover": "Discover",
+    "add": "Add",
+    "search_placeholder": "Search notes...",
+    "description_placeholder": "Description (optional)",
+    "empty": "No related notes yet. Click \"Discover\" to analyze."
+  },
+  "graph": {
+    "title": "Knowledge Graph",
+    "empty": "No data. Generate notes and discover relations first.",
+    "nodes": "nodes",
+    "edges": "edges",
+    "fit_to_view": "Fit to view",
+    "loading_graph": "Loading graph..."
+  },
+  "search_page": {
+    "expand_related_notes": "Expand related notes"
   },
   "theme_name": {
     "dark-workshop": "Dark Workshop",

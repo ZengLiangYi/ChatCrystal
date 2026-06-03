@@ -3,8 +3,9 @@ import type { ExperienceReviewReason } from '@chatcrystal/shared';
 import { api } from '@/lib/api.ts';
 
 export function useNotes(params?: {
-  tag?: string;
+  tag?: string | string[];
   search?: string;
+  sourceKind?: 'all' | 'conversation' | 'memory';
   offset?: number;
   limit?: number;
 }) {

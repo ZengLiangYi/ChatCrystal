@@ -1,13 +1,26 @@
 import { useState, type FormEvent } from 'react';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 import type { ExperienceReviewReason } from '@chatcrystal/shared';
+import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/cn';
 
-const REASONS: { value: ExperienceReviewReason; label: string }[] = [
-  { value: 'not-experience', label: '不是可复用经验' },
-  { value: 'low-value', label: '价值较低' },
-  { value: 'inaccurate', label: '内容不准确' },
-  { value: 'duplicate', label: '重复笔记' },
-  { value: 'other', label: '其他原因' },
+const REASONS: ExperienceReviewReason[] = [
+  'not-experience',
+  'low-value',
+  'inaccurate',
+  'duplicate',
+  'other',
 ];
 
 interface DeleteNoteDialogProps {
@@ -25,6 +38,7 @@ export function DeleteNoteDialog({
   onCancel,
   onConfirm,
 }: DeleteNoteDialogProps) {
+  const { t } = useTranslation();
   const [reason, setReason] = useState<ExperienceReviewReason | ''>('');
   const [comment, setComment] = useState('');
 
@@ -40,93 +54,107 @@ export function DeleteNoteDialog({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
-      style={{ background: 'rgba(0,0,0,0.6)' }}
-      onClick={() => {
-        if (!isPending) onCancel();
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !isPending) onCancel();
       }}
     >
-      <form
-        className="bg-secondary border border-theme w-full max-w-lg p-5"
-        style={{ borderRadius: 'var(--radius)' }}
-        onClick={(event) => event.stopPropagation()}
-        onSubmit={handleSubmit}
+      <DialogContent
+        className="max-w-lg border-border bg-popover p-5"
+        closeLabel={t('action.close')}
+        showCloseButton={!isPending}
+        onEscapeKeyDown={(event) => {
+          if (isPending) event.preventDefault();
+        }}
+        onInteractOutside={(event) => {
+          if (isPending) event.preventDefault();
+        }}
       >
-        <div className="flex items-start gap-3 mb-4">
-          <AlertTriangle size={20} style={{ color: 'var(--warning)', marginTop: 2 }} className="shrink-0" />
-          <div className="min-w-0">
-            <h3 className="text-sm font-bold mb-1">删除笔记并记录反馈</h3>
-            <p className="text-xs text-secondary leading-relaxed">
-              将删除笔记“{noteTitle}”，把原始对话标记为已过滤，并记录一次 false accept 反馈用于后续审查。
-            </p>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <DialogHeader className="flex-row items-start gap-3">
+            <AlertTriangle
+              data-icon="inline-start"
+              className="mt-0.5 shrink-0 text-warning"
+            />
+            <div className="min-w-0">
+              <DialogTitle className="mb-1 text-sm font-bold">
+                {t('delete_note.title')}
+              </DialogTitle>
+              <DialogDescription className="text-xs leading-relaxed text-secondary">
+                {t('delete_note.description', { title: noteTitle })}
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-medium text-muted">{t('delete_note.reason_required')}</p>
+            <RadioGroup
+              value={reason}
+              onValueChange={(value) => setReason(value as ExperienceReviewReason)}
+              className="grid grid-cols-1 gap-2 sm:grid-cols-2"
+            >
+              {REASONS.map((item) => (
+                <label
+                  key={item}
+                  htmlFor={`delete-note-reason-${item}`}
+                  className={cn(
+                    'flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-xs transition-colors',
+                    reason === item
+                      ? 'border-[var(--warning)] text-primary'
+                      : 'border-border text-secondary hover:border-ring hover:text-primary',
+                  )}
+                >
+                  <RadioGroupItem
+                    id={`delete-note-reason-${item}`}
+                    value={item}
+                    className="data-checked:border-[var(--warning)] data-checked:bg-[var(--warning)]"
+                  />
+                  <span>{t(`delete_note.reason.${item}`)}</span>
+                </label>
+              ))}
+            </RadioGroup>
           </div>
-        </div>
 
-        <fieldset className="mb-4">
-          <legend className="text-xs font-medium text-muted mb-2">删除原因（必选）</legend>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {REASONS.map((item) => (
-              <label
-                key={item.value}
-                className={`flex items-center gap-2 px-3 py-2 text-xs border cursor-pointer transition-colors ${
-                  reason === item.value
-                    ? 'border-[var(--warning)] text-primary'
-                    : 'border-theme text-secondary hover:text-primary hover:border-[var(--accent)]'
-                }`}
-                style={{ borderRadius: 'var(--radius)' }}
-              >
-                <input
-                  type="radio"
-                  name="delete-note-reason"
-                  value={item.value}
-                  checked={reason === item.value}
-                  onChange={() => setReason(item.value)}
-                  className="accent-[var(--warning)]"
-                />
-                <span>{item.label}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
+          <label htmlFor="delete-note-comment" className="flex flex-col gap-2">
+            <span className="text-xs font-medium text-muted">{t('delete_note.comment_optional')}</span>
+            <Textarea
+              id="delete-note-comment"
+              value={comment}
+              onChange={(event) => setComment(event.target.value)}
+              rows={3}
+              className="resize-none bg-tertiary"
+              placeholder={t('delete_note.comment_placeholder')}
+            />
+          </label>
 
-        <label className="block mb-4">
-          <span className="block text-xs font-medium text-muted mb-2">补充说明（可选）</span>
-          <textarea
-            value={comment}
-            onChange={(event) => setComment(event.target.value)}
-            rows={3}
-            className="w-full bg-tertiary border border-theme px-3 py-2 text-sm text-primary placeholder:text-muted outline-none focus:border-[var(--accent)] resize-none"
-            style={{ borderRadius: 'var(--radius)' }}
-            placeholder="例如：结论不成立、上下文不足或已经有更好的笔记。"
-          />
-        </label>
+          {errorMessage && (
+            <p className="text-xs text-error">{errorMessage}</p>
+          )}
 
-        {errorMessage && (
-          <p className="mb-3 text-xs text-error">{errorMessage}</p>
-        )}
-
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={isPending}
-            className="px-4 py-1.5 text-xs text-muted border border-theme hover:text-primary transition-colors disabled:opacity-50"
-            style={{ borderRadius: 'var(--radius)' }}
-          >
-            取消
-          </button>
-          <button
-            type="submit"
-            disabled={!reason || isPending}
-            className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-medium border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ borderRadius: 'var(--radius)', color: 'var(--warning)', borderColor: 'var(--warning)' }}
-          >
-            <Trash2 size={12} />
-            {isPending ? '删除中...' : '删除笔记'}
-          </button>
-        </div>
-      </form>
-    </div>
+          <DialogFooter className="-mx-5 -mb-5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onCancel}
+              disabled={isPending}
+            >
+              {t('action.cancel')}
+            </Button>
+            <Button
+              type="submit"
+              variant="outline"
+              size="sm"
+              disabled={!reason || isPending}
+              className="border-[var(--warning)] text-warning hover:bg-muted"
+            >
+              <Trash2 data-icon="inline-start" />
+              {isPending ? t('delete_note.deleting') : t('delete_note.delete')}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

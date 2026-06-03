@@ -8,10 +8,22 @@ import net from "node:net";
 import { homedir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { app, BrowserWindow, dialog, Menu, screen, session } from "electron";
+import {
+	app,
+	BrowserWindow,
+	dialog,
+	ipcMain,
+	Menu,
+	nativeTheme,
+	screen,
+	session,
+	shell,
+	type IpcMainInvokeEvent,
+} from "electron";
 import { buildApplicationMenuTemplate } from "./app-menu";
 import { registerOnboardingIpc } from "./ipc";
 import { buildMcpSnippet } from "./mcp-snippets";
+import { isAllowedOriginUrl, isExternalBrowserUrl } from "./navigation";
 import { getOnboardingDataUrl } from "./onboarding-page";
 import {
 	DEFAULT_ELECTRON_STATE,
@@ -138,6 +150,7 @@ function setRuntimeEnvironment(): void {
 	mkdirSync(dataDir, { recursive: true });
 	process.env.ELECTRON = "true";
 	process.env.DATA_DIR = dataDir;
+	nativeTheme.themeSource = "dark";
 	if (app.isPackaged) {
 		process.env.ELECTRON_PACKAGED = "true";
 	}
@@ -181,6 +194,9 @@ function createWindow(mode: WindowMode): BrowserWindow {
 		minWidth: 900,
 		minHeight: 600,
 		show: false,
+		frame: false,
+		autoHideMenuBar: true,
+		backgroundColor: "#101113",
 		title: "ChatCrystal",
 		icon: path.join(__dirname, "..", "icon.png"),
 		webPreferences: {
@@ -205,8 +221,11 @@ function createWindow(mode: WindowMode): BrowserWindow {
 			lastNormalBounds = win.getBounds();
 		}
 	});
+	win.on("maximize", () => sendWindowMaximizedState(win));
+	win.on("unmaximize", () => sendWindowMaximizedState(win));
 	win.once("ready-to-show", () => {
 		win.show();
+		sendWindowMaximizedState(win);
 	});
 	win.on("close", (event) => {
 		saveWindowState(win);
@@ -217,6 +236,40 @@ function createWindow(mode: WindowMode): BrowserWindow {
 	});
 
 	return win;
+}
+
+function getWindowForIpc(event: IpcMainInvokeEvent): BrowserWindow {
+	const win = BrowserWindow.fromWebContents(event.sender);
+	if (!win || win.isDestroyed()) {
+		throw new Error("Window is no longer available");
+	}
+	return win;
+}
+
+function sendWindowMaximizedState(win: BrowserWindow): void {
+	if (win.isDestroyed() || win.webContents.isDestroyed()) return;
+	win.webContents.send("window:maximized-change", win.isMaximized());
+}
+
+function registerWindowControlIpc(): void {
+	ipcMain.handle("window:minimize", (event) => {
+		getWindowForIpc(event).minimize();
+	});
+	ipcMain.handle("window:toggle-maximize", (event) => {
+		const win = getWindowForIpc(event);
+		if (win.isMaximized()) {
+			win.unmaximize();
+		} else {
+			win.maximize();
+		}
+		sendWindowMaximizedState(win);
+	});
+	ipcMain.handle("window:close", (event) => {
+		getWindowForIpc(event).close();
+	});
+	ipcMain.handle("window:is-maximized", (event) => {
+		return getWindowForIpc(event).isMaximized();
+	});
 }
 
 function replaceMainWindow(mode: WindowMode): BrowserWindow {
@@ -576,20 +629,30 @@ async function getMcpSnippet(mode: "local" | "cloud"): Promise<unknown> {
 }
 
 function lockNavigationToOrigin(win: BrowserWindow, origin: string): void {
-	const isAllowed = (url: string) => new URL(url).origin === origin;
 	win.webContents.on("will-navigate", (event, url) => {
-		if (!isAllowed(url)) {
+		if (isAllowedOriginUrl(url, origin)) return;
+		if (isExternalBrowserUrl(url, origin)) {
 			event.preventDefault();
+			void shell.openExternal(url);
+			return;
 		}
+		event.preventDefault();
 	});
 	win.webContents.on("will-redirect", (event, url) => {
-		if (!isAllowed(url)) {
+		if (isAllowedOriginUrl(url, origin)) return;
+		if (isExternalBrowserUrl(url, origin)) {
 			event.preventDefault();
+			void shell.openExternal(url);
+			return;
 		}
+		event.preventDefault();
 	});
 	win.webContents.setWindowOpenHandler(({ url }) => {
-		if (isAllowed(url)) {
+		if (isAllowedOriginUrl(url, origin)) {
 			return { action: "allow" };
+		}
+		if (isExternalBrowserUrl(url, origin)) {
+			void shell.openExternal(url);
 		}
 		return { action: "deny" };
 	});
@@ -631,6 +694,7 @@ window.dispatchEvent(new Event(${JSON.stringify(AUTH_CHANGED_EVENT)}));`,
 async function openLocalApp(): Promise<{ mode: "local"; appUrl: string }> {
 	const local = await ensureLocalCoreStarted();
 	const win = replaceMainWindow("local");
+	lockNavigationToOrigin(win, new URL(local.appUrl).origin);
 	await win.loadURL(local.appUrl);
 	createTray({
 		win,
@@ -704,6 +768,7 @@ function getRedactedState(): ElectronOnboardingState {
 }
 
 function registerIpcHandlers(): void {
+	registerWindowControlIpc();
 	registerOnboardingIpc({
 		getOnboardingOrigin: () => ONBOARDING_ORIGIN,
 		getOnboardingUrl: () => currentOnboardingUrl,
