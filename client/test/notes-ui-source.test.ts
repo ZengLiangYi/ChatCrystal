@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
@@ -66,4 +66,30 @@ test("DeleteNoteDialog uses shadcn dialog form primitives and still requires a r
 	assert.match(source, /<Textarea/);
 	assert.match(source, /disabled=\{!reason \|\| isPending\}/);
 	assert.doesNotMatch(source, /fixed inset-0/);
+});
+
+test("Settings page uses shadcn controls instead of native form primitives", () => {
+	const source = readSource("src/pages/SettingsPage.tsx");
+
+	assert.match(source, /@\/components\/ui\/select/);
+	assert.match(source, /@\/components\/ui\/field/);
+	assert.match(source, /@\/components\/ui\/input/);
+	assert.match(source, /@\/components\/ui\/button/);
+	assert.match(source, /@\/components\/ui\/switch/);
+	assert.match(source, /@\/components\/ui\/alert-dialog/);
+	assert.match(source, /<Select/);
+	assert.match(source, /<SelectGroup/);
+	assert.match(source, /<FieldGroup/);
+	assert.match(source, /<Input/);
+	assert.match(source, /<Button/);
+	assert.match(source, /<Switch/);
+	assert.match(source, /<AlertDialog/);
+	assert.doesNotMatch(source, /<select\b/);
+	assert.doesNotMatch(source, /<input\b/);
+	assert.doesNotMatch(source, /<button\b/);
+	assert.doesNotMatch(source, /ConfirmDialog/);
+	assert.equal(
+		existsSync(path.join(root, "src/components/ConfirmDialog.tsx")),
+		false,
+	);
 });
