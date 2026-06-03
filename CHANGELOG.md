@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Security
+
+- Updated transitive npm dependencies through the lockfile to clear npm audit vulnerabilities without changing direct dependency ranges.
+
 ## [0.4.18] - 2026-06-03
 
 ### Desktop & UI
