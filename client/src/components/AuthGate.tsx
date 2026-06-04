@@ -122,7 +122,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 				<div className="flex items-center gap-3">
 					<button
 						type="button"
-						className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--bg-primary)] disabled:cursor-not-allowed disabled:opacity-60"
+						className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-foreground)] disabled:cursor-not-allowed disabled:opacity-60"
 						disabled={submitting || token.trim().length === 0 || (state.status === "setup" && setupCode.trim().length === 0)}
 						onClick={submit}
 					>

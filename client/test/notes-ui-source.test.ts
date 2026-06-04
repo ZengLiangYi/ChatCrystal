@@ -84,6 +84,9 @@ test("Settings page uses shadcn controls instead of native form primitives", () 
 	assert.match(source, /<Button/);
 	assert.match(source, /<Switch/);
 	assert.match(source, /<AlertDialog/);
+	assert.match(source, /\[&>\[data-slot=field-label\]\]:flex-none/);
+	assert.match(source, /justify-start/);
+	assert.doesNotMatch(source, /justify-end text-xs text-muted-foreground/);
 	assert.doesNotMatch(source, /<select\b/);
 	assert.doesNotMatch(source, /<input\b/);
 	assert.doesNotMatch(source, /<button\b/);
@@ -92,4 +95,21 @@ test("Settings page uses shadcn controls instead of native form primitives", () 
 		existsSync(path.join(root, "src/components/ConfirmDialog.tsx")),
 		false,
 	);
+});
+
+test("source colors are centralized behind theme variables", () => {
+	const settingsSource = readSource("src/pages/SettingsPage.tsx");
+	const conversationsSource = readSource("src/pages/Conversations.tsx");
+	const sourceColors = readSource("src/lib/source-colors.ts");
+
+	assert.match(settingsSource, /getSourceColor/);
+	assert.match(conversationsSource, /SOURCE_CONFIG/);
+	assert.match(conversationsSource, /getSourceColor/);
+	assert.match(sourceColors, /var\(--source-claude-code\)/);
+	assert.match(sourceColors, /var\(--source-codex\)/);
+	assert.match(sourceColors, /var\(--source-cursor\)/);
+	assert.match(sourceColors, /var\(--source-trae\)/);
+	assert.match(sourceColors, /var\(--source-copilot\)/);
+	assert.doesNotMatch(settingsSource, /SOURCE_COLORS/);
+	assert.doesNotMatch(conversationsSource, /#[0-9a-fA-F]{6}/);
 });

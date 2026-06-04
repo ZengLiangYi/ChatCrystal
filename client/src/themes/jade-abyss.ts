@@ -19,11 +19,18 @@ export const jadeAbyss: ThemeDefinition = {
     textMuted:    '#4E5563',   // recessed label
     accent:       '#3DBDA0',   // jade indicator
     accentHover:  '#50D4B6',   // active jade
+    accentForeground: '#0C0E12',
     info:         '#5A9CF5',   // signal blue
     success:      '#45C882',   // status green
     warning:      '#E5A84B',   // caution amber
     error:        '#E85454',   // alert red
+    errorForeground: '#0C0E12',
     codeBg:       '#090B0F',   // terminal black
+    sourceClaudeCode: '#E9845D',
+    sourceCodex:     '#3DBDA0',
+    sourceCursor:    '#A78BFA',
+    sourceTrae:      '#7C8CF8',
+    sourceCopilot:   '#5A9CF5',
   },
   fonts: {
     display: '"IBM Plex Mono", "JetBrains Mono", monospace',

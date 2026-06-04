@@ -3,6 +3,11 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useConversations } from "@/hooks/use-conversations.ts";
+import {
+	getSourceColor,
+	getSourceLabel,
+	SOURCE_CONFIG,
+} from "@/lib/source-colors.ts";
 
 export function Conversations() {
 	const { t } = useTranslation();
@@ -47,9 +52,9 @@ export function Conversations() {
 				<span className="text-xs text-muted">{t('label.source')}</span>
 				{[
 					{ key: "", label: t('filter.all') },
-					...Object.entries(SOURCE_CONFIG).map(([key, cfg]) => ({
+					...Object.keys(SOURCE_CONFIG).map((key) => ({
 						key,
-						label: cfg.label,
+						label: getSourceLabel(key),
 					})),
 				].map(({ key, label }) => (
 					<button
@@ -159,29 +164,18 @@ export function Conversations() {
 	);
 }
 
-const SOURCE_CONFIG: Record<string, { label: string; color: string }> = {
-	"claude-code": { label: "Claude", color: "var(--accent)" },
-	codex: { label: "Codex", color: "#10a37f" },
-	cursor: { label: "Cursor", color: "#a855f7" },
-	trae: { label: "Trae", color: "#6366f1" },
-	copilot: { label: "Copilot", color: "#1f6feb" },
-};
-
 function SourceBadge({ source }: { source: string }) {
-	const cfg = SOURCE_CONFIG[source] || {
-		label: source,
-		color: "var(--text-muted)",
-	};
+	const color = getSourceColor(source);
 	return (
 		<span
 			className="inline-block text-[10px] font-medium px-1.5 py-0.5 border"
 			style={{
-				borderColor: cfg.color,
-				color: cfg.color,
+				borderColor: color,
+				color,
 				borderRadius: "var(--radius)",
 			}}
 		>
-			{cfg.label}
+			{getSourceLabel(source)}
 		</span>
 	);
 }

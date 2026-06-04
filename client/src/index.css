@@ -14,6 +14,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--accent);
@@ -37,15 +38,24 @@
     --card-foreground: var(--text-primary);
     --popover: var(--bg-secondary);
     --popover-foreground: var(--text-primary);
-    --primary-foreground: #17120a;
+    --primary-foreground: var(--accent-foreground);
     --secondary: var(--bg-tertiary);
     --secondary-foreground: var(--text-primary);
     --muted: var(--bg-tertiary);
     --muted-foreground: var(--text-muted);
     --accent-foreground: #17120a;
     --destructive: var(--error);
+    --error-foreground: #17120a;
+    --destructive-foreground: var(--error-foreground);
     --input: var(--border);
     --ring: var(--accent);
+    --control-checked-foreground: light-dark(var(--bg-primary), var(--text-primary));
+    --control-unchecked-foreground: var(--text-secondary);
+    --source-claude-code: #e8784a;
+    --source-codex: #10a37f;
+    --source-cursor: #a855f7;
+    --source-trae: #6366f1;
+    --source-copilot: #1f6feb;
   }
 
   * {
@@ -134,7 +144,7 @@
 
 .window-control-close:hover {
   background: var(--error);
-  color: #ffffff;
+  color: var(--error-foreground);
 }
 
 .cc-sidebar {
@@ -151,7 +161,7 @@
 
 .cc-primary-action {
   background: var(--accent);
-  color: #17120a;
+  color: var(--accent-foreground);
   box-shadow: 0 10px 28px rgba(231, 182, 95, 0.16);
 }
 

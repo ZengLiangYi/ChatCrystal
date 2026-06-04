@@ -23,6 +23,10 @@ test("shadcn semantic tokens are bridged to ChatCrystal runtime theme variables"
 	assert.match(css, /--foreground:\s*var\(--text-primary\)/);
 	assert.match(css, /--color-border:\s*var\(--border\)/);
 	assert.match(css, /--color-ring:\s*var\(--accent\)/);
+	assert.match(css, /--primary-foreground:\s*var\(--accent-foreground\)/);
+	assert.match(css, /--destructive-foreground:\s*var\(--error-foreground\)/);
+	assert.match(css, /--control-checked-foreground:/);
+	assert.match(css, /--control-unchecked-foreground:\s*var\(--text-secondary\)/);
 });
 
 test("shadcn theme tokens do not override ChatCrystal legacy color utilities", () => {
@@ -36,4 +40,22 @@ test("shadcn theme tokens do not override ChatCrystal legacy color utilities", (
 	assert.match(css, /@utility text-muted \{ color: var\(--text-muted\); \}/);
 	assert.match(css, /@utility bg-primary \{ background-color: var\(--bg-primary\); \}/);
 	assert.match(css, /@utility bg-secondary \{ background-color: var\(--bg-secondary\); \}/);
+});
+
+test("theme definitions provide foreground and source color tokens", () => {
+	for (const file of [
+		"src/themes/dark-workshop.ts",
+		"src/themes/dawn-haze.ts",
+		"src/themes/jade-abyss.ts",
+	]) {
+		const source = readFileSync(path.join(root, file), "utf-8");
+
+		assert.match(source, /accentForeground:/, file);
+		assert.match(source, /errorForeground:/, file);
+		assert.match(source, /sourceClaudeCode:/, file);
+		assert.match(source, /sourceCodex:/, file);
+		assert.match(source, /sourceCursor:/, file);
+		assert.match(source, /sourceTrae:/, file);
+		assert.match(source, /sourceCopilot:/, file);
+	}
 });

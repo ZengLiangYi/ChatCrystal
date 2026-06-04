@@ -56,7 +56,7 @@ export function Dashboard() {
             <button
               type="button"
               onClick={() => navigate('/settings')}
-              className="px-3 py-1.5 text-xs border border-[var(--accent)] text-accent hover:bg-[var(--accent)] hover:text-[var(--bg-primary)] transition-colors"
+              className="px-3 py-1.5 text-xs border border-[var(--accent)] text-accent hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)] transition-colors"
               style={{ borderRadius: 'var(--radius)' }}
             >
               {t('onboarding.configure_llm')}

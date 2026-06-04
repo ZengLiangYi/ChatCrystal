@@ -19,11 +19,18 @@ export const dawnHaze: ThemeDefinition = {
     textMuted:    '#9E978A',   // faded brush stroke
     accent:       '#B8584B',   // cinnabar red — seal stamp
     accentHover:  '#CC6558',   // warmer cinnabar
+    accentForeground: '#FFFDF8', // warm paper highlight
     info:         '#4A7FA5',   // indigo wash
     success:      '#5A8A5C',   // moss green
     warning:      '#C4883A',   // ochre
     error:        '#C44B4B',   // vermillion
+    errorForeground: '#FFFDF8',
     codeBg:       '#ECE8E1',   // vellum
+    sourceClaudeCode: '#C45E39',
+    sourceCodex:     '#087A60',
+    sourceCursor:    '#7C3DBA',
+    sourceTrae:      '#4C57BF',
+    sourceCopilot:   '#1F5EBD',
   },
   fonts: {
     display: '"IBM Plex Sans", "Noto Serif SC", serif',

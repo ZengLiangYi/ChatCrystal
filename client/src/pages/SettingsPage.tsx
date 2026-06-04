@@ -56,15 +56,8 @@ import {
 } from "@/i18n/language.ts";
 import { api } from "@/lib/api.ts";
 import { cn } from "@/lib/cn.ts";
+import { getSourceColor } from "@/lib/source-colors.ts";
 import { useTheme } from "@/providers/useTheme.ts";
-
-const SOURCE_COLORS: Record<string, string> = {
-	"claude-code": "#e8784a",
-	codex: "#10a37f",
-	cursor: "#a855f7",
-	trae: "#6366f1",
-	copilot: "#1f6feb",
-};
 
 type ProviderOption = {
 	name: string;
@@ -191,7 +184,7 @@ export function SettingsPage() {
 	const loading = !config || !providers || !initialized;
 
 	return (
-		<div className="flex max-w-3xl flex-col gap-6 p-6">
+		<div className="flex w-full max-w-3xl flex-col gap-6 p-6">
 			<h2 className="text-xl font-bold">{t("title.settings")}</h2>
 
 			{loading ? (
@@ -347,8 +340,7 @@ export function SettingsPage() {
 											<span
 												className="inline-block size-2 rounded-full shrink-0"
 												style={{
-													backgroundColor:
-														SOURCE_COLORS[src.name] || "var(--text-muted)",
+													backgroundColor: getSourceColor(src.name),
 													opacity: enabled ? 1 : 0.3,
 												}}
 											/>
@@ -511,11 +503,14 @@ function FieldRow({
 	children: React.ReactNode;
 }) {
 	return (
-		<Field orientation="horizontal" className="items-center gap-4">
-			<FieldLabel className="w-24 shrink-0 justify-end text-xs text-muted-foreground">
+		<Field
+			orientation="horizontal"
+			className="w-fit max-w-full items-center gap-3 [&>[data-slot=field-label]]:flex-none"
+		>
+			<FieldLabel className="w-24 shrink-0 justify-start text-xs text-muted-foreground">
 				{label}
 			</FieldLabel>
-			<div className="min-w-0">{children}</div>
+			<div className="min-w-0 flex-none">{children}</div>
 		</Field>
 	);
 }

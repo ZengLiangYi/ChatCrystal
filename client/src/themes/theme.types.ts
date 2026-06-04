@@ -11,11 +11,18 @@ export interface ThemeDefinition {
     textMuted: string;
     accent: string;
     accentHover: string;
+    accentForeground: string;
     info: string;
     success: string;
     warning: string;
     error: string;
+    errorForeground: string;
     codeBg: string;
+    sourceClaudeCode: string;
+    sourceCodex: string;
+    sourceCursor: string;
+    sourceTrae: string;
+    sourceCopilot: string;
   };
   fonts: {
     display: string;
