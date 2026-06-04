@@ -113,3 +113,16 @@ test("source colors are centralized behind theme variables", () => {
 	assert.doesNotMatch(settingsSource, /SOURCE_COLORS/);
 	assert.doesNotMatch(conversationsSource, /#[0-9a-fA-F]{6}/);
 });
+
+test("RelationGraph uses graph color helpers instead of page-level hardcoded palettes", () => {
+	const graphSource = readSource("src/pages/RelationGraph.tsx");
+
+	assert.match(graphSource, /@\/lib\/graph-colors/);
+	assert.match(graphSource, /GRAPH_RELATION_TYPES/);
+	assert.match(graphSource, /getGraphEdgeColor/);
+	assert.match(graphSource, /getGraphProjectColor/);
+	assert.match(graphSource, /withAlpha/);
+	assert.doesNotMatch(graphSource, /EDGE_COLORS/);
+	assert.doesNotMatch(graphSource, /PROJECT_COLORS/);
+	assert.doesNotMatch(graphSource, /#[0-9a-fA-F]{6}/);
+});

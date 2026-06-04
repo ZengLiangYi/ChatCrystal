@@ -258,6 +258,8 @@
     "nodes": "nodes",
     "edges": "edges",
     "fit_to_view": "Fit to view",
+    "zoom_in": "Zoom in",
+    "zoom_out": "Zoom out",
     "loading_graph": "Loading graph..."
   },
   "search_page": {

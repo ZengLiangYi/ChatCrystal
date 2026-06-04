@@ -258,6 +258,8 @@
     "nodes": "节点",
     "edges": "关系",
     "fit_to_view": "适应画面",
+    "zoom_in": "放大",
+    "zoom_out": "缩小",
     "loading_graph": "加载图谱中..."
   },
   "search_page": {

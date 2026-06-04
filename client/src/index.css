@@ -56,6 +56,24 @@
     --source-cursor: #a855f7;
     --source-trae: #6366f1;
     --source-copilot: #1f6feb;
+    --graph-edge-caused-by: #d96b57;
+    --graph-edge-leads-to: #d89a55;
+    --graph-edge-resolved-by: #63d297;
+    --graph-edge-similar-to: #80a7ff;
+    --graph-edge-contradicts: #e7b65f;
+    --graph-edge-depends-on: #a78bfa;
+    --graph-edge-extends: #5ec8c3;
+    --graph-edge-references: #8b8d87;
+    --graph-project-1: #d68b66;
+    --graph-project-2: #cda75e;
+    --graph-project-3: #7dbb8f;
+    --graph-project-4: #77aaa5;
+    --graph-project-5: #7fa5d8;
+    --graph-project-6: #998dd1;
+    --graph-project-7: #c28cc0;
+    --graph-project-8: #aa9f87;
+    --graph-project-9: #879aa7;
+    --graph-project-10: #c97979;
   }
 
   * {

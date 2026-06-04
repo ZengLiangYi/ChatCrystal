@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { themeToCSSVars } from "../src/themes/theme.types.ts";
+import { dawnHaze } from "../src/themes/dawn-haze.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
 
@@ -58,4 +60,48 @@ test("theme definitions provide foreground and source color tokens", () => {
 		assert.match(source, /sourceTrae:/, file);
 		assert.match(source, /sourceCopilot:/, file);
 	}
+});
+
+test("theme definitions provide graph relation and project palette tokens", () => {
+	const graphTokens = [
+		"graphEdgeCausedBy",
+		"graphEdgeLeadsTo",
+		"graphEdgeResolvedBy",
+		"graphEdgeSimilarTo",
+		"graphEdgeContradicts",
+		"graphEdgeDependsOn",
+		"graphEdgeExtends",
+		"graphEdgeReferences",
+		"graphProject1",
+		"graphProject2",
+		"graphProject3",
+		"graphProject4",
+		"graphProject5",
+		"graphProject6",
+		"graphProject7",
+		"graphProject8",
+		"graphProject9",
+		"graphProject10",
+	];
+
+	for (const file of [
+		"src/themes/dark-workshop.ts",
+		"src/themes/dawn-haze.ts",
+		"src/themes/jade-abyss.ts",
+	]) {
+		const source = readFileSync(path.join(root, file), "utf-8");
+
+		for (const token of graphTokens) {
+			assert.match(source, new RegExp(`${token}:`), `${file} missing ${token}`);
+		}
+	}
+});
+
+test("theme css variable conversion preserves numbered graph palette token names", () => {
+	const vars = themeToCSSVars(dawnHaze);
+
+	assert.equal(vars["--graph-project-1"], dawnHaze.colors.graphProject1);
+	assert.equal(vars["--graph-project-10"], dawnHaze.colors.graphProject10);
+	assert.equal(vars["--graph-project1"], undefined);
+	assert.equal(vars["--graph-project10"], undefined);
 });
