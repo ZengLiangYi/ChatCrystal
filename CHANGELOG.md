@@ -2,9 +2,27 @@
 
 ## Unreleased
 
+## [0.4.19] - 2026-06-04
+
+### Desktop & Access Layer
+
+- **React access layer** — Rebuilt Electron onboarding as a dedicated Vite React entry and aligned it with `AuthGateScreen` through a shared `AccessShell`, removing the duplicated handwritten onboarding HTML/CSS/JS path.
+- **Unified onboarding entry** — Electron and browser preview now use `/electron-onboarding/index.html`, while the main SPA no longer carries a separate `/onboarding` preview route.
+- **Dawn Haze defaults** — Set the Electron main-process shell to a light native theme with the Dawn Haze startup background, and made Dawn Haze the client fallback when no saved theme preference exists.
+
+### UI Foundation
+
+- **Settings shadcn/ui migration** — Modernized Settings controls with shared select, input, switch, toggle, button, alert, and dialog primitives while keeping the compact desktop settings layout.
+- **Notes filter polish** — Kept task memory as a tag-like filter, integrated clear-filter behavior into the tag search control, and stabilized dense toolbar layout when tags are selected.
+- **Relation graph polish** — Moved graph relation and project colors into semantic theme tokens and refreshed graph controls, legend, tooltip, and canvas styling for theme-consistent visuals.
+
 ### Security
 
 - Updated transitive npm dependencies through the lockfile to clear npm audit vulnerabilities without changing direct dependency ranges.
+
+### Quality
+
+- Added regression coverage for the React onboarding entry, shared access shell, Electron onboarding URL helper, Settings control migration, graph semantic colors, notes filter behavior, and Dawn Haze default theme behavior.
 
 ## [0.4.18] - 2026-06-03
 

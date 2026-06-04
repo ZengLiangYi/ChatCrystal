@@ -24,7 +24,7 @@ import { buildApplicationMenuTemplate } from "./app-menu";
 import { registerOnboardingIpc } from "./ipc";
 import { buildMcpSnippet } from "./mcp-snippets";
 import { isAllowedOriginUrl, isExternalBrowserUrl } from "./navigation";
-import { getOnboardingDataUrl } from "./onboarding-page";
+import { getOnboardingUrl } from "./onboarding-page";
 import {
 	DEFAULT_ELECTRON_STATE,
 	readElectronState,
@@ -73,9 +73,9 @@ type ApiEnvelope<T> =
 	| { success: true; data: T }
 	| { success: false; error?: string };
 
-const ONBOARDING_ORIGIN = "null";
 const API_TOKEN_LOCAL_STORAGE_KEY = "chatcrystal.apiToken";
 const AUTH_CHANGED_EVENT = "chatcrystal-auth-changed";
+const DAWN_HAZE_WINDOW_BACKGROUND = "#F6F4F0";
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 
 let mainWindow: BrowserWindow | null = null;
@@ -84,6 +84,7 @@ let isQuitting = false;
 let serverPort = 3721;
 let lastNormalBounds: Electron.Rectangle | null = null;
 let currentOnboardingUrl = "";
+let currentOnboardingOrigin = "null";
 
 function getWindowStatePath(): string {
 	return path.join(app.getPath("userData"), "window-state.json");
@@ -150,7 +151,7 @@ function setRuntimeEnvironment(): void {
 	mkdirSync(dataDir, { recursive: true });
 	process.env.ELECTRON = "true";
 	process.env.DATA_DIR = dataDir;
-	nativeTheme.themeSource = "dark";
+	nativeTheme.themeSource = "light";
 	if (app.isPackaged) {
 		process.env.ELECTRON_PACKAGED = "true";
 	}
@@ -196,7 +197,7 @@ function createWindow(mode: WindowMode): BrowserWindow {
 		show: false,
 		frame: false,
 		autoHideMenuBar: true,
-		backgroundColor: "#101113",
+		backgroundColor: DAWN_HAZE_WINDOW_BACKGROUND,
 		title: "ChatCrystal",
 		icon: path.join(__dirname, "..", "icon.png"),
 		webPreferences: {
@@ -293,7 +294,11 @@ function requestQuit(): void {
 }
 
 function updateApplicationMenu(mode: WindowMode): void {
-	const template = buildApplicationMenuTemplate(mode);
+	const template = buildApplicationMenuTemplate(mode, {
+		showMainWindow,
+		reconnect: reconnectFromTray,
+		quit: requestQuit,
+	});
 	Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
@@ -733,7 +738,12 @@ async function openCloudApp(): Promise<{ mode: "cloud"; cloudBaseUrl: string }> 
 
 async function openOnboarding(initialError?: string): Promise<void> {
 	const win = replaceMainWindow("onboarding");
-	currentOnboardingUrl = getOnboardingDataUrl(initialError);
+	currentOnboardingUrl = getOnboardingUrl({
+		appPath: app.getAppPath(),
+		devBaseUrl: process.env.VITE_DEV_URL,
+		initialError,
+	});
+	currentOnboardingOrigin = new URL(currentOnboardingUrl).origin;
 	lockNavigationToUrl(win, currentOnboardingUrl);
 	await win.loadURL(currentOnboardingUrl);
 	createTray({
@@ -770,7 +780,7 @@ function getRedactedState(): ElectronOnboardingState {
 function registerIpcHandlers(): void {
 	registerWindowControlIpc();
 	registerOnboardingIpc({
-		getOnboardingOrigin: () => ONBOARDING_ORIGIN,
+		getOnboardingOrigin: () => currentOnboardingOrigin,
 		getOnboardingUrl: () => currentOnboardingUrl,
 		getState: getRedactedState,
 		saveCloudConnection,

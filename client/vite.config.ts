@@ -10,6 +10,14 @@ export default defineConfig({
       '@': resolve(__dirname, 'src'),
     },
   },
+  build: {
+    rollupOptions: {
+      input: {
+        index: resolve(__dirname, 'index.html'),
+        onboarding: resolve(__dirname, 'electron-onboarding/index.html'),
+      },
+    },
+  },
   server: {
     port: 13721,
     host: '127.0.0.1',

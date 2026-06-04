@@ -6,6 +6,7 @@ import {
 	getStoredToken,
 	setStoredToken,
 } from "@/lib/api.ts";
+import { AuthGateScreen } from "@/components/AuthGateScreen.tsx";
 
 type GateState =
 	| { status: "loading"; providerWarnings: string[] }
@@ -79,64 +80,17 @@ export function AuthGate({ children }: { children: ReactNode }) {
 	if (state.status === "ready") return <>{children}</>;
 
 	return (
-		<div className="flex min-h-screen w-screen items-center justify-center bg-primary px-4 py-8">
-			<div className="w-full max-w-md rounded-md border border-theme bg-secondary p-5 shadow-xl">
-				<div className="mb-5">
-					<h1 className="text-2xl font-semibold text-primary">{t("auth.title")}</h1>
-					<p className="mt-2 text-sm leading-6 text-secondary">
-						{state.status === "setup" ? t("auth.setup_hint") : t("auth.token_hint")}
-					</p>
-				</div>
-
-				{state.providerWarnings.length > 0 && (
-					<div className="mb-4 rounded-md border border-theme bg-tertiary p-3 text-sm text-warning">
-						{state.providerWarnings.map((warning) => <p key={warning}>{warning}</p>)}
-					</div>
-				)}
-
-				{state.status === "setup" && (
-					<label className="mb-3 block">
-						<span className="mb-1 block text-sm text-secondary">{t("auth.setup_code")}</span>
-						<input
-							className="w-full rounded-md border border-theme bg-primary px-3 py-2 text-primary outline-none focus:border-[var(--accent)]"
-							value={setupCode}
-							onChange={(event) => setSetupCode(event.target.value)}
-							autoComplete="one-time-code"
-						/>
-					</label>
-				)}
-
-				<label className="mb-4 block">
-					<span className="mb-1 block text-sm text-secondary">{t("auth.token")}</span>
-					<input
-						className="w-full rounded-md border border-theme bg-primary px-3 py-2 text-primary outline-none focus:border-[var(--accent)]"
-						type="password"
-						value={token}
-						onChange={(event) => setToken(event.target.value)}
-						autoComplete="current-password"
-					/>
-				</label>
-
-				{error && <p className="mb-4 text-sm text-error">{error}</p>}
-
-				<div className="flex items-center gap-3">
-					<button
-						type="button"
-						className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-foreground)] disabled:cursor-not-allowed disabled:opacity-60"
-						disabled={submitting || token.trim().length === 0 || (state.status === "setup" && setupCode.trim().length === 0)}
-						onClick={submit}
-					>
-						{submitting ? t("status.submitting") : t("auth.submit")}
-					</button>
-					<button
-						type="button"
-						className="rounded-md border border-theme px-4 py-2 text-sm text-secondary"
-						onClick={refresh}
-					>
-						{t("action.retry")}
-					</button>
-				</div>
-			</div>
-		</div>
+		<AuthGateScreen
+			status={state.status}
+			providerWarnings={state.providerWarnings}
+			setupCode={setupCode}
+			token={token}
+			error={error}
+			submitting={submitting}
+			onSetupCodeChange={setSetupCode}
+			onTokenChange={setToken}
+			onSubmit={submit}
+			onRetry={refresh}
+		/>
 	);
 }

@@ -105,3 +105,15 @@ test("theme css variable conversion preserves numbered graph palette token names
 	assert.equal(vars["--graph-project1"], undefined);
 	assert.equal(vars["--graph-project10"], undefined);
 });
+
+test("client falls back to Dawn Haze when no theme preference is saved", () => {
+	const source = readFileSync(
+		path.join(root, "src/providers/ThemeProvider.tsx"),
+		"utf-8",
+	);
+
+	assert.match(source, /const DEFAULT_THEME = ['"]dawn-haze['"]/);
+	assert.match(source, /if \(!raw\) return DEFAULT_THEME/);
+	assert.match(source, /return DEFAULT_THEME/);
+	assert.doesNotMatch(source, /if \(!raw\) return ['"]dark-workshop['"]/);
+});

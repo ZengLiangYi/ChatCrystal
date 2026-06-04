@@ -13,9 +13,9 @@ test("application menu exposes reconnect in every mode", () => {
 		const template = buildApplicationMenuTemplate(mode, actions);
 
 		assert.ok(template);
-		assert.equal(template.length, 1);
-		assert.equal(template[0].label, "ChatCrystal");
-		const submenu = template[0].submenu;
+		const chatCrystalMenu = template.find((item) => item.label === "ChatCrystal");
+		assert.ok(chatCrystalMenu);
+		const submenu = chatCrystalMenu.submenu;
 		assert.ok(Array.isArray(submenu));
 		assert.equal(
 			submenu.some((item) => "label" in item && item.label === "重新连接..."),

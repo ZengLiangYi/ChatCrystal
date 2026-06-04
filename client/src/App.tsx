@@ -40,10 +40,9 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <TooltipProvider>
-          <AuthGate>
-            <BrowserRouter>
-              <Routes>
-                <Route element={<Layout />}>
+          <BrowserRouter>
+            <Routes>
+              <Route element={<AuthGate><Layout /></AuthGate>}>
                   <Route path="/" element={<RouteSuspense><DashboardPage /></RouteSuspense>} />
                   <Route path="/conversations" element={<RouteSuspense><ConversationsPage /></RouteSuspense>} />
                   <Route path="/conversations/:id" element={<RouteSuspense><ConversationDetailPage /></RouteSuspense>} />
@@ -52,10 +51,9 @@ export default function App() {
                   <Route path="/search" element={<RouteSuspense><SearchPage /></RouteSuspense>} />
                   <Route path="/graph" element={<RouteSuspense><RelationGraphPage /></RouteSuspense>} />
                   <Route path="/settings" element={<RouteSuspense><SettingsPage /></RouteSuspense>} />
-                </Route>
-              </Routes>
-            </BrowserRouter>
-          </AuthGate>
+              </Route>
+            </Routes>
+          </BrowserRouter>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>

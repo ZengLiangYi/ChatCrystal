@@ -15,17 +15,18 @@ const themes: Record<string, ThemeDefinition> = {
 
 const STORAGE_KEY = 'chatcrystal-theme';
 const STORAGE_VERSION = 1;
+const DEFAULT_THEME = 'dawn-haze';
 
 function loadSavedTheme(): string {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return 'dark-workshop';
+    if (!raw) return DEFAULT_THEME;
     const parsed = JSON.parse(raw);
     if (parsed.version === STORAGE_VERSION && themes[parsed.theme]) {
       return parsed.theme;
     }
   } catch { /* ignore */ }
-  return 'dark-workshop';
+  return DEFAULT_THEME;
 }
 
 function saveTheme(name: string) {
@@ -49,7 +50,7 @@ function detectColorScheme(bgHex: string): 'dark' | 'light' {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [themeName, setThemeName] = useState(loadSavedTheme);
 
-  const theme = themes[themeName] ?? darkWorkshop;
+  const theme = themes[themeName] ?? themes[DEFAULT_THEME] ?? dawnHaze;
 
   useEffect(() => {
     const vars = themeToCSSVars(theme);
