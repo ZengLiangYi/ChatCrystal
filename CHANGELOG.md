@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## [0.4.20] - 2026-06-04
+
+### Security
+
+- Updated the React Router lockfile resolution to `7.16.0` to address the high-severity `__manifest` path expansion DoS advisory reported by npm audit.
+
 ## [0.4.19] - 2026-06-04
 
 ### Desktop & Access Layer
