@@ -346,7 +346,7 @@ export function SettingsPage() {
 											/>
 											<span
 												className={cn(
-													"w-24 font-medium",
+													"w-32 whitespace-nowrap font-medium",
 													enabled ? "text-foreground" : "text-muted-foreground",
 												)}
 											>
@@ -444,10 +444,14 @@ function ModelProviderFields({
 		<FieldGroup className="gap-3">
 			<FieldRow label={t("label.provider")}>
 				<Select value={provider} onValueChange={onProviderChange}>
-					<SelectTrigger className="w-52" size="sm">
+					<SelectTrigger className="w-72" size="sm">
 						<SelectValue placeholder={t("label.provider")} />
 					</SelectTrigger>
-					<SelectContent>
+					<SelectContent
+						position="popper"
+						align="start"
+						className="w-(--radix-select-trigger-width) min-w-(--radix-select-trigger-width)"
+					>
 						<SelectGroup>
 							{providers.map((p) => (
 								<SelectItem key={p.name} value={p.name}>

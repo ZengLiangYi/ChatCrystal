@@ -42,6 +42,16 @@ test("Notes page uses shadcn primitives for the dense filter toolbar", () => {
 	assert.match(source, /tag: selectedTags\.length > 0 \? selectedTags : undefined/);
 });
 
+test("Notes page keeps clear filters inside the tag search control", () => {
+	const source = readSource("src/pages/Notes.tsx");
+
+	assert.match(source, /className="flex min-w-\[220px\] xl:w-80"/);
+	assert.match(source, /disabled=\{!hasActiveFilters\}/);
+	assert.match(source, /aria-label=\{t\('notes\.filter\.clear'\)\}/);
+	assert.match(source, /title=\{t\('notes\.filter\.clear'\)\}/);
+	assert.doesNotMatch(source, /\{hasActiveFilters && \(/);
+});
+
 test("Search page uses shadcn search controls", () => {
 	const source = readSource("src/pages/SearchPage.tsx");
 
@@ -95,6 +105,20 @@ test("Settings page uses shadcn controls instead of native form primitives", () 
 		existsSync(path.join(root, "src/components/ConfirmDialog.tsx")),
 		false,
 	);
+});
+
+test("Settings provider select dropdown width is locked to the trigger width", () => {
+	const source = readSource("src/pages/SettingsPage.tsx");
+
+	assert.match(source, /<SelectTrigger className="w-72" size="sm">/);
+	assert.match(source, /<SelectContent\s+position="popper"\s+align="start"\s+className="w-\(--radix-select-trigger-width\) min-w-\(--radix-select-trigger-width\)"/);
+});
+
+test("Settings data source names stay on one line", () => {
+	const source = readSource("src/pages/SettingsPage.tsx");
+
+	assert.match(source, /"w-32 whitespace-nowrap font-medium"/);
+	assert.doesNotMatch(source, /"w-24 font-medium"/);
 });
 
 test("source colors are centralized behind theme variables", () => {

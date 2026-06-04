@@ -120,65 +120,68 @@ export function Notes() {
             />
           </label>
 
-          <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className="min-w-[220px] justify-start text-muted xl:w-72"
-              >
-                <Tag data-icon="inline-start" />
-                {selectedTags.length > 0
-                  ? t('notes.filter.tags_selected', { count: selectedTags.length })
-                  : t('notes.filter.tag_search')}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-80 p-1">
-              <Command shouldFilter={false}>
-                <CommandInput
-                  value={tagSearch}
-                  onValueChange={setTagSearch}
-                  placeholder={t('notes.filter.tag_search')}
-                />
-                <CommandList>
-                  <CommandEmpty>
-                    {tagSearch.trim()
-                      ? t('notes.filter.no_tag_matches')
-                      : t('notes.filter.type_tag_to_search')}
-                  </CommandEmpty>
-                  {tagOptions.length > 0 && (
-                    <CommandGroup>
-                      {tagOptions.map((tag) => (
-                        <CommandItem
-                          key={tag.id}
-                          value={tag.name}
-                          onSelect={() => selectTag(tag.name)}
-                          className="cursor-pointer"
-                        >
-                          <Tag className="text-muted" />
-                          <span className="truncate">{tag.name}</span>
-                          <CommandShortcut>{tag.count}</CommandShortcut>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  )}
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-
-          {hasActiveFilters && (
+          <div className="flex min-w-[220px] xl:w-80">
+            <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-w-0 flex-1 justify-start rounded-r-none border-r-0 text-muted"
+                >
+                  <Tag data-icon="inline-start" />
+                  <span className="truncate">
+                    {selectedTags.length > 0
+                      ? t('notes.filter.tags_selected', { count: selectedTags.length })
+                      : t('notes.filter.tag_search')}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-80 p-1">
+                <Command shouldFilter={false}>
+                  <CommandInput
+                    value={tagSearch}
+                    onValueChange={setTagSearch}
+                    placeholder={t('notes.filter.tag_search')}
+                  />
+                  <CommandList>
+                    <CommandEmpty>
+                      {tagSearch.trim()
+                        ? t('notes.filter.no_tag_matches')
+                        : t('notes.filter.type_tag_to_search')}
+                    </CommandEmpty>
+                    {tagOptions.length > 0 && (
+                      <CommandGroup>
+                        {tagOptions.map((tag) => (
+                          <CommandItem
+                            key={tag.id}
+                            value={tag.name}
+                            onSelect={() => selectTag(tag.name)}
+                            className="cursor-pointer"
+                          >
+                            <Tag className="text-muted" />
+                            <span className="truncate">{tag.name}</span>
+                            <CommandShortcut>{tag.count}</CommandShortcut>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    )}
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="icon"
               onClick={clearFilters}
-              className="shrink-0 text-muted"
+              disabled={!hasActiveFilters}
+              className="shrink-0 rounded-l-none text-muted"
+              aria-label={t('notes.filter.clear')}
+              title={t('notes.filter.clear')}
             >
-              <X data-icon="inline-start" />
-              {t('notes.filter.clear')}
+              <X />
             </Button>
-          )}
+          </div>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
