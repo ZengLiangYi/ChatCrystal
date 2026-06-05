@@ -8,7 +8,7 @@
  */
 
 import initSqlJs from 'sql.js';
-import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
@@ -16,6 +16,7 @@ import { randomUUID } from 'node:crypto';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = resolve(__dirname, '..', 'data-demo');
 const DB_PATH = resolve(OUT_DIR, 'chatcrystal.db');
+const VECTRA_INDEX_PATH = resolve(OUT_DIR, 'vectra-index');
 
 // ── Schema (copied from server/src/db/schema.ts) ───────────────────────
 const SCHEMA_SQL = `
@@ -316,6 +317,9 @@ async function main() {
   // Ensure output directory
   if (!existsSync(OUT_DIR)) {
     mkdirSync(OUT_DIR, { recursive: true });
+  }
+  if (existsSync(VECTRA_INDEX_PATH)) {
+    rmSync(VECTRA_INDEX_PATH, { recursive: true, force: true });
   }
 
   const SQL = await initSqlJs();

@@ -157,7 +157,12 @@
     "skipped": "已跳过",
     "complete": "完成：导入 {{imported}} 条 / 共扫描 {{total}} 条",
     "cloud_mode": "云端模式",
-    "cloud_import_hint": "在保存历史记录的设备上运行 crystal import --yes"
+    "cloud_import_hint": "在保存历史记录的设备上运行 crystal import --yes",
+    "cloud_upload_hint": "将这台设备的 AI 对话上传到当前云端核心。",
+    "cloud_upload_action": "上传本机历史",
+    "cloud_uploading": "上传中",
+    "cloud_upload_complete": "完成：上传 {{uploaded}} 条 / 新增 {{imported}} 条 / 更新 {{replaced}} 条",
+    "cloud_upload_error": "上传失败"
   },
   "data_source_conversations": "{{count}} 个对话",
   "key_conclusions": "关键结论",
@@ -328,7 +333,8 @@
     "loading_graph": "加载图谱中..."
   },
   "search_page": {
-    "expand_related_notes": "展开关联笔记"
+    "expand_related_notes": "展开关联笔记",
+    "relevance_score": "相关度 {{score}}%"
   },
   "theme_name": {
     "dark-workshop": "暗室",

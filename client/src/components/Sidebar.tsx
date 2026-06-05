@@ -12,9 +12,10 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import { useStatus } from '@/hooks/use-conversations.ts';
 import { useImportStream } from '@/hooks/use-import-stream.ts';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
@@ -29,11 +30,32 @@ type SidebarProps = {
   showBrand?: boolean;
 };
 
+type CloudUploadState =
+  | { status: 'idle' }
+  | { status: 'running' }
+  | {
+      status: 'done';
+      result: {
+        scanned?: number;
+        uploaded?: number;
+        imported?: number;
+        replaced?: number;
+        skipped?: number;
+        errors?: number;
+      };
+    }
+  | { status: 'error'; error: string };
+
 export function Sidebar({ showBrand = true }: SidebarProps) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const { data: status } = useStatus();
   const { state: importState, start: startImport, reset: resetImport } = useImportStream();
+  const [cloudUploadState, setCloudUploadState] = useState<CloudUploadState>({ status: 'idle' });
   const cloudMode = status?.cloudMode === true;
+  const uploadLocalHistoryToCloud =
+    typeof window !== 'undefined' ? window.chatcrystalElectronCloud?.uploadLocalHistory : undefined;
+  const canUploadLocalHistoryToCloud = cloudMode && Boolean(uploadLocalHistoryToCloud);
 
   // Auto-dismiss done/error state after 5 seconds
   useEffect(() => {
@@ -42,6 +64,31 @@ export function Sidebar({ showBrand = true }: SidebarProps) {
       return () => clearTimeout(timer);
     }
   }, [importState.status, resetImport]);
+
+  useEffect(() => {
+    if (cloudUploadState.status === 'done' || cloudUploadState.status === 'error') {
+      const timer = setTimeout(() => setCloudUploadState({ status: 'idle' }), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [cloudUploadState.status]);
+
+  const startCloudUpload = useCallback(async () => {
+    if (!uploadLocalHistoryToCloud) return;
+    setCloudUploadState({ status: 'running' });
+    try {
+      const result = await uploadLocalHistoryToCloud();
+      setCloudUploadState({ status: 'done', result });
+      queryClient.invalidateQueries({ queryKey: ['status'] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
+    } catch (error) {
+      setCloudUploadState({
+        status: 'error',
+        error: error instanceof Error ? error.message : t('import.cloud_upload_error'),
+      });
+    }
+  }, [queryClient, t, uploadLocalHistoryToCloud]);
 
   return (
     <aside
@@ -150,7 +197,42 @@ export function Sidebar({ showBrand = true }: SidebarProps) {
         <div className="px-3 py-3 border-t border-theme">
           <div className="rounded-md border border-theme bg-tertiary px-3 py-2 text-xs text-muted leading-relaxed">
             <div className="font-medium text-primary">{t('import.cloud_mode')}</div>
-            <div className="mt-1">{t('import.cloud_import_hint')}</div>
+            <div className="mt-1">
+              {canUploadLocalHistoryToCloud ? t('import.cloud_upload_hint') : t('import.cloud_import_hint')}
+            </div>
+            {canUploadLocalHistoryToCloud && (
+              <button
+                type="button"
+                onClick={() => void startCloudUpload()}
+                disabled={cloudUploadState.status === 'running'}
+                className="cc-primary-action mt-2 flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                {cloudUploadState.status === 'running' ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Import size={14} />
+                )}
+                {cloudUploadState.status === 'running'
+                  ? t('import.cloud_uploading')
+                  : t('import.cloud_upload_action')}
+              </button>
+            )}
+            {cloudUploadState.status === 'done' && (
+              <p className="mt-2 flex items-center justify-center gap-1 text-xs" style={{ color: 'var(--success)' }}>
+                <CheckCircle size={12} />
+                {t('import.cloud_upload_complete', {
+                  uploaded: cloudUploadState.result.uploaded ?? 0,
+                  imported: cloudUploadState.result.imported ?? 0,
+                  replaced: cloudUploadState.result.replaced ?? 0,
+                })}
+              </p>
+            )}
+            {cloudUploadState.status === 'error' && (
+              <p className="mt-2 flex items-center justify-center gap-1 text-xs" style={{ color: 'var(--error)' }}>
+                <XCircle size={12} />
+                {cloudUploadState.error}
+              </p>
+            )}
           </div>
         </div>
       )}

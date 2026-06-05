@@ -409,6 +409,114 @@ test('semanticSearch overfetches when stale vectra hits fill the requested topK'
   assert.deepEqual(queryTopKs, [1, 2]);
 });
 
+test('semanticSearch filters weak vector hits missing required query terms', async () => {
+  const weakDeploymentHit = {
+    item: {
+      metadata: {
+        noteId: 51,
+        chunkIndex: 0,
+        conversationId: 'conv-deploy',
+        title: 'GitHub Actions deployment',
+        projectName: 'DevOps',
+      },
+    },
+    score: 0.55,
+  };
+  const index = {
+    async isIndexCreated() {
+      return true;
+    },
+    async getIndexStats() {
+      return { version: 1, metadata_config: {}, items: 1 };
+    },
+    async queryItems(_embedding: number[], _query: string, _topK: number) {
+      return [weakDeploymentHit];
+    },
+  };
+  const db = {
+    exec(sql: string, params: unknown[]) {
+      if (sql.includes('FROM embeddings e')) {
+        assert.deepEqual(params, [51, 0]);
+        return [{ values: [['staging 自动部署 checklist']] }];
+      }
+      throw new Error(`Unexpected query: ${sql}`);
+    },
+  };
+
+  const results = await semanticSearch('K8s 部署', 1, false, {
+    getIndex: async () => index as never,
+    embedQuery: async () => [1, 0, 0],
+    cleanupPreflight: async () => {},
+    getDb: () => db as never,
+  });
+
+  assert.deepEqual(results, []);
+});
+
+test('semanticSearch overfetches and promotes exact lexical matches above weak vector neighbors', async () => {
+  const queryTopKs: number[] = [];
+  const dockerHit = {
+    item: {
+      metadata: {
+        noteId: 61,
+        chunkIndex: 0,
+        conversationId: 'conv-docker',
+        title: 'Docker 镜像优化',
+        projectName: 'DevOps',
+      },
+    },
+    score: 0.57,
+  };
+  const jwtHit = {
+    item: {
+      metadata: {
+        noteId: 62,
+        chunkIndex: 0,
+        conversationId: 'conv-jwt',
+        title: 'JWT 认证中间件',
+        projectName: 'API',
+      },
+    },
+    score: 0.55,
+  };
+  const index = {
+    async isIndexCreated() {
+      return true;
+    },
+    async getIndexStats() {
+      return { version: 1, metadata_config: {}, items: 2 };
+    },
+    async queryItems(_embedding: number[], _query: string, topK: number) {
+      queryTopKs.push(topK);
+      return topK === 1 ? [dockerHit] : [dockerHit, jwtHit];
+    },
+  };
+  const db = {
+    exec(sql: string, params: unknown[]) {
+      if (sql.includes('FROM embeddings e')) {
+        if (params[0] === 61) {
+          return [{ values: [['container image build notes']] }];
+        }
+        assert.deepEqual(params, [62, 0]);
+        return [{ values: [['JWT 认证 middleware with JWKS cache']] }];
+      }
+      throw new Error(`Unexpected query: ${sql}`);
+    },
+  };
+
+  const results = await semanticSearch('JWT 认证', 1, false, {
+    getIndex: async () => index as never,
+    embedQuery: async () => [1, 0, 0],
+    cleanupPreflight: async () => {},
+    getDb: () => db as never,
+  });
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0].noteId, 62);
+  assert.ok(results[0].score > dockerHit.score);
+  assert.deepEqual(queryTopKs, [1, 2]);
+});
+
 test('semanticSearch returns early for non-positive topK without cleanup or embedding', async () => {
   const calls: string[] = [];
 

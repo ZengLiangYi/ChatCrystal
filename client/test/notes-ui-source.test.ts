@@ -63,6 +63,13 @@ test("Search page uses shadcn search controls", () => {
 	assert.match(source, /<Checkbox/);
 });
 
+test("Search page labels semantic scores as relevance", () => {
+	const source = readSource("src/pages/SearchPage.tsx");
+
+	assert.match(source, /search_page\.relevance_score/);
+	assert.doesNotMatch(source, /\(result\.score \* 100\)\.toFixed\(0\)\}%/);
+});
+
 test("DeleteNoteDialog uses shadcn dialog form primitives and still requires a reason", () => {
 	const source = readSource("src/components/DeleteNoteDialog.tsx");
 
@@ -136,6 +143,19 @@ test("source colors are centralized behind theme variables", () => {
 	assert.match(sourceColors, /var\(--source-copilot\)/);
 	assert.doesNotMatch(settingsSource, /SOURCE_COLORS/);
 	assert.doesNotMatch(conversationsSource, /#[0-9a-fA-F]{6}/);
+});
+
+test("Sidebar lets Electron cloud mode upload local history without CLI instructions", () => {
+	const source = readSource("src/components/Sidebar.tsx");
+
+	assert.match(source, /chatcrystalElectronCloud\?\.uploadLocalHistory/);
+	assert.match(source, /canUploadLocalHistoryToCloud/);
+	assert.match(source, /startCloudUpload/);
+	assert.match(source, /import\.cloud_upload_action/);
+	assert.match(source, /import\.cloud_import_hint/);
+	assert.match(source, /\['status'\]/);
+	assert.match(source, /\['conversations'\]/);
+	assert.match(source, /\['notes'\]/);
 });
 
 test("RelationGraph uses graph color helpers instead of page-level hardcoded palettes", () => {

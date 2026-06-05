@@ -237,6 +237,88 @@ type SemanticSearchDeps = {
   getDb?: () => Pick<DatabaseLike, 'exec'>;
 };
 
+const MIN_SEMANTIC_SEARCH_SCORE = 0.58;
+const EXACT_LEXICAL_MATCH_SCORE_FLOOR = 0.82;
+
+type SearchTerms = {
+  ascii: string[];
+  cjk: string[];
+  all: string[];
+};
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values)];
+}
+
+function normalizeSearchText(value: string): string {
+  return value.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function extractSearchTerms(query: string): SearchTerms {
+  const normalized = normalizeSearchText(query);
+  const ascii = uniqueStrings(normalized.match(/[a-z0-9][a-z0-9+#._-]*/g) ?? [])
+    .filter((term) => term.length >= 2);
+
+  const cjk: string[] = [];
+  for (const match of normalized.matchAll(/[\p{Script=Han}]+/gu)) {
+    const term = match[0];
+    if (term.length <= 2) {
+      cjk.push(term);
+      continue;
+    }
+
+    for (let index = 0; index < term.length - 1; index++) {
+      cjk.push(term.slice(index, index + 2));
+    }
+  }
+
+  const cjkUnique = uniqueStrings(cjk);
+  return {
+    ascii,
+    cjk: cjkUnique,
+    all: uniqueStrings([...ascii, ...cjkUnique]),
+  };
+}
+
+function searchHitText(hit: DirectSearchHit): string {
+  return normalizeSearchText([
+    hit.title,
+    hit.projectName,
+    hit.chunkText,
+  ].join('\n'));
+}
+
+function hasExactLexicalMatch(terms: SearchTerms, hit: DirectSearchHit): boolean {
+  if (terms.all.length === 0) return false;
+
+  const text = searchHitText(hit);
+  return terms.all.every((term) => text.includes(term));
+}
+
+function rankDirectSearchHits(query: string, hits: DirectSearchHit[], topK: number): DirectSearchHit[] {
+  const terms = extractSearchTerms(query);
+
+  return hits
+    .map((hit) => {
+      const exactLexicalMatch = hasExactLexicalMatch(terms, hit);
+      if (exactLexicalMatch) {
+        return {
+          ...hit,
+          score: Math.max(hit.score, EXACT_LEXICAL_MATCH_SCORE_FLOOR),
+        };
+      }
+
+      if (hit.score < MIN_SEMANTIC_SEARCH_SCORE) {
+        return null;
+      }
+
+      return hit;
+    })
+    .filter((hit): hit is DirectSearchHit => Boolean(hit))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK);
+}
+
 async function embedSearchQuery(query: string): Promise<number[]> {
   const model = getEmbeddingModel();
   const { embedding } = await embed({ model, value: query });
@@ -536,12 +618,14 @@ export async function semanticSearch(
     ? requestedTopK
     : Math.min(requestedTopK, candidateLimit);
   let directResults: DirectSearchHit[] = [];
+  let rankedResults: DirectSearchHit[] = [];
 
   while (candidateK > 0) {
     const results = await index.queryItems<NoteChunkMeta>(embedding, query, candidateK);
     directResults = await materializeDirectSearchHits(db, results);
+    rankedResults = rankDirectSearchHits(query, directResults, requestedTopK);
 
-    if (directResults.length >= requestedTopK || results.length < candidateK) {
+    if (rankedResults.length >= requestedTopK || results.length < candidateK) {
       break;
     }
 
@@ -556,7 +640,7 @@ export async function semanticSearch(
   }
 
   // Deduplicate by noteId, keeping highest score, then cap direct hits before relation expansion.
-  directResults = directResults.slice(0, requestedTopK);
+  directResults = rankedResults;
 
   if (!expandRelations || directResults.length === 0) {
     return directResults;

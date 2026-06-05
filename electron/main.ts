@@ -4,6 +4,7 @@ import {
 	readFileSync,
 	writeFileSync,
 } from "node:fs";
+import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import net from "node:net";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -21,9 +22,10 @@ import {
 	type IpcMainInvokeEvent,
 } from "electron";
 import { buildApplicationMenuTemplate } from "./app-menu";
-import { registerOnboardingIpc } from "./ipc";
+import { registerCloudIpc, registerOnboardingIpc } from "./ipc";
 import { buildMcpSnippet } from "./mcp-snippets";
 import { isAllowedOriginUrl, isExternalBrowserUrl } from "./navigation";
+import { formatConnectionError } from "./network-errors";
 import { getOnboardingUrl } from "./onboarding-page";
 import {
 	DEFAULT_ELECTRON_STATE,
@@ -63,12 +65,6 @@ type ServerModule = {
 	}) => Promise<ServerInstance>;
 };
 
-type RemoteImportModule = {
-	runRemoteImport: (client: {
-		ingestConversations: (request: unknown) => Promise<unknown>;
-	}) => Promise<unknown>;
-};
-
 type ApiEnvelope<T> =
 	| { success: true; data: T }
 	| { success: false; error?: string };
@@ -76,6 +72,10 @@ type ApiEnvelope<T> =
 const API_TOKEN_LOCAL_STORAGE_KEY = "chatcrystal.apiToken";
 const AUTH_CHANGED_EVENT = "chatcrystal-auth-changed";
 const DAWN_HAZE_WINDOW_BACKGROUND = "#F6F4F0";
+const DEFAULT_WINDOW_WIDTH = 1280;
+const DEFAULT_WINDOW_HEIGHT = 800;
+const MIN_WINDOW_WIDTH = 1280;
+const MIN_WINDOW_HEIGHT = 800;
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 
 let mainWindow: BrowserWindow | null = null;
@@ -85,17 +85,40 @@ let serverPort = 3721;
 let lastNormalBounds: Electron.Rectangle | null = null;
 let currentOnboardingUrl = "";
 let currentOnboardingOrigin = "null";
+let currentCloudOrigin = "";
+let activeRemoteImportWorker: ChildProcessWithoutNullStreams | null = null;
 
 function getWindowStatePath(): string {
 	return path.join(app.getPath("userData"), "window-state.json");
 }
 
+function defaultWindowState(): WindowState {
+	return {
+		width: DEFAULT_WINDOW_WIDTH,
+		height: DEFAULT_WINDOW_HEIGHT,
+		isMaximized: false,
+	};
+}
+
+function normalizeWindowState(state: WindowState): WindowState {
+	const width = Number.isFinite(state.width) ? state.width : DEFAULT_WINDOW_WIDTH;
+	const height = Number.isFinite(state.height)
+		? state.height
+		: DEFAULT_WINDOW_HEIGHT;
+
+	return {
+		...state,
+		width: Math.max(width, MIN_WINDOW_WIDTH),
+		height: Math.max(height, MIN_WINDOW_HEIGHT),
+	};
+}
+
 function loadWindowState(): WindowState {
 	try {
 		const data = readFileSync(getWindowStatePath(), "utf-8");
-		return JSON.parse(data) as WindowState;
+		return normalizeWindowState(JSON.parse(data) as WindowState);
 	} catch {
-		return { width: 1280, height: 800, isMaximized: false };
+		return defaultWindowState();
 	}
 }
 
@@ -192,8 +215,8 @@ function createWindow(mode: WindowMode): BrowserWindow {
 		height: state.height,
 		x: state.x,
 		y: state.y,
-		minWidth: 900,
-		minHeight: 600,
+		minWidth: MIN_WINDOW_WIDTH,
+		minHeight: MIN_WINDOW_HEIGHT,
 		show: false,
 		frame: false,
 		autoHideMenuBar: true,
@@ -430,10 +453,15 @@ async function requestApi<T>(
 		headers.set("Content-Type", "application/json");
 	}
 
-	const response = await fetch(`${baseUrl}${apiPath}`, {
-		...options,
-		headers,
-	});
+	let response: Response;
+	try {
+		response = await fetch(`${baseUrl}${apiPath}`, {
+			...options,
+			headers,
+		});
+	} catch (error) {
+		throw new Error(formatConnectionError(baseUrl, error), { cause: error });
+	}
 	const text = await response.text();
 	let payload: ApiEnvelope<T> | null = null;
 	if (text.trim()) {
@@ -584,19 +612,78 @@ async function importLocalHistory(): Promise<unknown> {
 	return callModeApi("local", "/api/import/scan", { method: "POST" });
 }
 
+function runRemoteImportWorker(input: {
+	cloudBaseUrl: string;
+	cloudToken: string;
+}): Promise<unknown> {
+	if (activeRemoteImportWorker) {
+		throw new Error("本机历史上传正在进行中，请稍后再试");
+	}
+
+	const workerPath = path.join(__dirname, "remote-import-worker.js");
+	if (!existsSync(workerPath)) {
+		throw new Error(`Missing remote import worker: ${workerPath}`);
+	}
+
+	return new Promise((resolve, reject) => {
+		let stdout = "";
+		let stderr = "";
+		const worker = spawn(
+			process.execPath,
+			[
+				workerPath,
+				JSON.stringify({
+					appPath: app.getAppPath(),
+					cloudBaseUrl: input.cloudBaseUrl,
+					cloudToken: input.cloudToken,
+				}),
+			],
+			{
+				env: {
+					...process.env,
+					ELECTRON_RUN_AS_NODE: "1",
+				},
+			},
+		);
+		activeRemoteImportWorker = worker;
+
+		worker.stdout.on("data", (chunk) => {
+			stdout += chunk.toString("utf-8");
+		});
+		worker.stderr.on("data", (chunk) => {
+			stderr += chunk.toString("utf-8");
+		});
+		worker.on("error", (error) => {
+			activeRemoteImportWorker = null;
+			reject(error);
+		});
+		worker.on("close", (code) => {
+			activeRemoteImportWorker = null;
+			let payload: ApiEnvelope<unknown> | null = null;
+			try {
+				payload = JSON.parse(stdout) as ApiEnvelope<unknown>;
+			} catch {
+				payload = null;
+			}
+
+			if (payload?.success) {
+				resolve(payload.data);
+				return;
+			}
+
+			const message = payload?.success === false
+				? payload.error || "上传失败"
+				: stderr.trim() || `上传进程退出：${code ?? "unknown"}`;
+			reject(new Error(message));
+		});
+	});
+}
+
 async function uploadLocalHistory(): Promise<unknown> {
 	const state = readConfiguredCloudState();
-	const remoteImport = await importServerModule<RemoteImportModule>(
-		path.join("services", "remoteImport.js"),
-	);
-
-	return remoteImport.runRemoteImport({
-		ingestConversations: (request) =>
-			requestApi(state.cloudBaseUrl!, "/api/import/ingest", {
-				method: "POST",
-				headers: withAuth(state.cloudToken!),
-				body: JSON.stringify(request),
-			}),
+	return runRemoteImportWorker({
+		cloudBaseUrl: state.cloudBaseUrl!,
+		cloudToken: state.cloudToken!,
 	});
 }
 
@@ -699,6 +786,7 @@ window.dispatchEvent(new Event(${JSON.stringify(AUTH_CHANGED_EVENT)}));`,
 async function openLocalApp(): Promise<{ mode: "local"; appUrl: string }> {
 	const local = await ensureLocalCoreStarted();
 	const win = replaceMainWindow("local");
+	currentCloudOrigin = "";
 	lockNavigationToOrigin(win, new URL(local.appUrl).origin);
 	await win.loadURL(local.appUrl);
 	createTray({
@@ -719,6 +807,7 @@ async function openCloudApp(): Promise<{ mode: "cloud"; cloudBaseUrl: string }> 
 	const cloudBaseUrl = state.cloudBaseUrl!;
 	const win = replaceMainWindow("cloud");
 	const expectedOrigin = new URL(cloudBaseUrl).origin;
+	currentCloudOrigin = expectedOrigin;
 	lockNavigationToOrigin(win, expectedOrigin);
 	await win.loadURL(cloudBaseUrl);
 	assertWindowOrigin(win, expectedOrigin);
@@ -738,6 +827,7 @@ async function openCloudApp(): Promise<{ mode: "cloud"; cloudBaseUrl: string }> 
 
 async function openOnboarding(initialError?: string): Promise<void> {
 	const win = replaceMainWindow("onboarding");
+	currentCloudOrigin = "";
 	currentOnboardingUrl = getOnboardingUrl({
 		appPath: app.getAppPath(),
 		devBaseUrl: process.env.VITE_DEV_URL,
@@ -793,10 +883,18 @@ function registerIpcHandlers(): void {
 		openApp,
 		useTemporaryLocal,
 	});
+	registerCloudIpc({
+		getCloudOrigin: () => currentCloudOrigin,
+		uploadLocalHistory,
+	});
 }
 
 async function gracefulShutdown(): Promise<void> {
 	console.log("[Electron] Shutting down...");
+	if (activeRemoteImportWorker) {
+		activeRemoteImportWorker.kill();
+		activeRemoteImportWorker = null;
+	}
 	if (serverShutdown) {
 		await serverShutdown();
 		serverShutdown = null;

@@ -59,7 +59,9 @@ The default `docker-compose.yml` pulls `ghcr.io/zengliangyi/chatcrystal:latest` 
 
 To update an existing Docker deployment, run `docker compose pull && docker compose up -d`. Maintainers only: after the first GHCR publish, make the `ghcr.io/zengliangyi/chatcrystal` package public in GitHub Packages; the release workflow verifies anonymous pull access before passing.
 
-Compose binds ChatCrystal to `127.0.0.1:3721` by default. Set `CHATCRYSTAL_HOST_PORT` to change the host port. For public cloud access, an HTTPS reverse proxy is recommended for safer token transport.
+Compose binds ChatCrystal to `0.0.0.0:3721` by default so other devices can reach the cloud core through the host IP. Set `CHATCRYSTAL_HOST_PORT` to change the host port, or set `BIND_ADDRESS=127.0.0.1` when a local-only reverse proxy fronts it. For public cloud access, an HTTPS reverse proxy is recommended for safer token transport.
+
+On Windows Docker Desktop, a published port may still need extra host networking configuration before it is reachable through the host LAN IP. For cloud-mode testing, verify `http://<host-ip>:<host-port>/api/health` from the client device first; if it cannot connect, configure Windows port forwarding/firewall rules or deploy the cloud core on a real remote host.
 
 On first start without `CHATCRYSTAL_API_TOKEN`, open the Web UI and enter the setup code printed in container logs or stored at `/data/setup-code`, then choose one shared API token for your devices.
 

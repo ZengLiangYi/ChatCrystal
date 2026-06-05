@@ -59,7 +59,9 @@ docker compose up -d
 
 如果要更新已有 Docker 部署，运行 `docker compose pull && docker compose up -d`。维护者注意：GHCR 首次发布后，需要在 GitHub Packages 中将 `ghcr.io/zengliangyi/chatcrystal` 设为 Public；发布 workflow 会验证匿名拉取权限，未公开时不会通过。
 
-Compose 默认只绑定到宿主机 `127.0.0.1:3721`。如需调整宿主机端口，设置 `CHATCRYSTAL_HOST_PORT`。如果要公网访问，请在前面放一个 HTTPS 反向代理，并让 CLI / 浏览器连接 HTTPS 地址。不要让 bearer token 走明文 HTTP。
+Compose 默认绑定到宿主机 `0.0.0.0:3721`，这样局域网设备可以通过宿主机 IP 访问云端核心。如需调整宿主机端口，设置 `CHATCRYSTAL_HOST_PORT`；如果只想让本机反向代理访问，可设置 `BIND_ADDRESS=127.0.0.1`。如果要公网访问，请在前面放一个 HTTPS 反向代理，并让 CLI / 浏览器连接 HTTPS 地址。不要让 bearer token 走明文 HTTP。
+
+在 Windows Docker Desktop 上，published port 可能仍需要额外宿主机网络配置，才能通过宿主机局域网 IP 访问。云端模式测试时，请先在客户端设备上验证 `http://<host-ip>:<host-port>/api/health` 是否能连通；如果不能连通，需要配置 Windows 端口转发/防火墙规则，或把云端核心部署到真正的远程主机。
 
 首次启动且没有设置 `CHATCRYSTAL_API_TOKEN` 时，打开 Web UI，输入容器日志或 `/data/setup-code` 中的 setup code，然后设置一个供所有设备共享的 API token。
 

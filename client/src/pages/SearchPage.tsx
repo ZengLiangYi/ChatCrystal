@@ -127,14 +127,14 @@ export function SearchPage() {
               <Badge
                 variant="secondary"
                 className={
-                  result.score > 0.7
+                  result.score > 0.75
                     ? 'font-mono text-success'
-                    : result.score > 0.4
+                    : result.score > 0.58
                       ? 'font-mono text-warning'
                       : 'font-mono text-muted'
                 }
               >
-                {(result.score * 100).toFixed(0)}%
+                {t('search_page.relevance_score', { score: (result.score * 100).toFixed(0) })}
               </Badge>
             </div>
           ))}

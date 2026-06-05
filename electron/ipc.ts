@@ -15,6 +15,11 @@ export type IpcDeps = {
 	useTemporaryLocal(): Promise<unknown>;
 };
 
+export type CloudIpcDeps = {
+	getCloudOrigin: () => string;
+	uploadLocalHistory(): Promise<unknown>;
+};
+
 function assertOnboardingSender(
 	event: IpcMainInvokeEvent,
 	expectedOrigin: string,
@@ -26,6 +31,12 @@ function assertOnboardingSender(
 		event.senderFrame.url !== expectedUrl
 	) {
 		throw new Error("Rejected onboarding IPC from unexpected origin");
+	}
+}
+
+function assertCloudSender(event: IpcMainInvokeEvent, expectedOrigin: string): void {
+	if (!event.senderFrame || event.senderFrame.origin !== expectedOrigin) {
+		throw new Error("Rejected cloud IPC from unexpected origin");
 	}
 }
 
@@ -91,5 +102,12 @@ export function registerOnboardingIpc(deps: IpcDeps): void {
 	ipcMain.handle("onboarding:use-temporary-local", (event) => {
 		guard(event);
 		return deps.useTemporaryLocal();
+	});
+}
+
+export function registerCloudIpc(deps: CloudIpcDeps): void {
+	ipcMain.handle("cloud:upload-local-history", (event) => {
+		assertCloudSender(event, deps.getCloudOrigin());
+		return deps.uploadLocalHistory();
 	});
 }

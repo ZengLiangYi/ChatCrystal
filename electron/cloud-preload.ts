@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from "electron";
 contextBridge.exposeInMainWorld("chatcrystalElectronCloud", {
 	allowInsecureHttpAuth: true,
 	origin: window.location.origin,
+	uploadLocalHistory: () => ipcRenderer.invoke("cloud:upload-local-history"),
 });
 
 contextBridge.exposeInMainWorld("electronAPI", {

@@ -57,6 +57,15 @@ declare global {
 		chatcrystalElectronCloud?: {
 			allowInsecureHttpAuth: boolean;
 			origin: string;
+			uploadLocalHistory: () => Promise<{
+				scanned?: number;
+				uploaded?: number;
+				imported?: number;
+				replaced?: number;
+				skipped?: number;
+				errors?: number;
+				summarizationCandidateIds?: string[];
+			}>;
 		};
 	}
 }

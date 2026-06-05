@@ -2,7 +2,7 @@ services:
   chatcrystal:
     image: ghcr.io/zengliangyi/chatcrystal:${CHATCRYSTAL_IMAGE_TAG:-latest}
     ports:
-      - "${BIND_ADDRESS:-127.0.0.1}:${CHATCRYSTAL_HOST_PORT:-3721}:3721"
+      - "${BIND_ADDRESS:-0.0.0.0}:${CHATCRYSTAL_HOST_PORT:-3721}:3721"
     environment:
       NODE_ENV: production
       PORT: 3721

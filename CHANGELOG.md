@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## [0.4.21] - 2026-06-05
+
+### Desktop & Cloud
+
+- Improved Electron cloud connection diagnostics so network-level failures explain invalid `0.0.0.0` client addresses and Windows Docker Desktop host/LAN port caveats instead of surfacing raw `TypeError: fetch failed`.
+- Moved Electron cloud local-history upload into a worker process so scanning and uploading local AI histories no longer blocks the Electron main process.
+- Added an Electron cloud-mode sidebar action for uploading local histories directly from the desktop app without showing CLI instructions.
+- Unified the Electron default and minimum window size at `1280x800` so reconnect/onboarding layouts do not reopen in a too-narrow saved window.
+- Changed the Docker Compose cloud binding default to `0.0.0.0` while documenting when to use loopback behind a local reverse proxy.
+- Documented Windows Docker Desktop host-port caveats for LAN IP testing of Docker cloud deployments.
+
+### Search & Demo
+
+- Reduced misleading semantic-search confidence by filtering weak vector hits that miss required query terms and promoting strong lexical matches above weak vector neighbors.
+- Relabeled search result percentages as relevance and refreshed demo screenshots with the current UI.
+- Made demo seeding clear the demo vector index so screenshot/demo data does not reuse stale semantic-search results.
+
 ## [0.4.20] - 2026-06-04
 
 ### Security

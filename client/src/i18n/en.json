@@ -157,7 +157,12 @@
     "skipped": "Skipped",
     "complete": "Done: {{imported}} imported / {{total}} scanned",
     "cloud_mode": "Cloud mode",
-    "cloud_import_hint": "Run crystal import --yes on the device with local histories"
+    "cloud_import_hint": "Run crystal import --yes on the device with local histories",
+    "cloud_upload_hint": "Upload this device's AI conversations to the current cloud core.",
+    "cloud_upload_action": "Upload local history",
+    "cloud_uploading": "Uploading",
+    "cloud_upload_complete": "Done: {{uploaded}} uploaded / {{imported}} new / {{replaced}} updated",
+    "cloud_upload_error": "Upload failed"
   },
   "data_source_conversations": "{{count}} conversations",
   "key_conclusions": "Key Conclusions",
@@ -328,7 +333,8 @@
     "loading_graph": "Loading graph..."
   },
   "search_page": {
-    "expand_related_notes": "Expand related notes"
+    "expand_related_notes": "Expand related notes",
+    "relevance_score": "Relevance {{score}}%"
   },
   "theme_name": {
     "dark-workshop": "Dark Workshop",
