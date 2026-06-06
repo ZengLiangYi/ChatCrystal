@@ -42,7 +42,7 @@ The installer is generated under `release/`. The desktop app uses the same defau
 2. Browse raw conversations on the **Conversations** page.
 3. Click **Summarize** or run batch summarization to create notes.
 4. Search on the **Search** page; enable related-note expansion when you want broader context.
-5. Open the graph view to explore relationships between notes.
+5. Open the graph view to explore tag-based knowledge points and the notes behind each tag.
 6. Use the **Settings** page to switch LLM and embedding providers.
 
 ## CLI Commands
@@ -158,5 +158,4 @@ Check the source paths in the Settings page or `config.json`. If you still use `
 
 ### The knowledge graph is empty
 
-Generate notes first. Then click relation discovery on a note detail page or run batch relation discovery through the API.
-
+Generate notes first. The default graph is built from note tags, so it appears after summarized notes have tags. If the graph is still empty, check that your notes include tags or lower the graph strength filter.

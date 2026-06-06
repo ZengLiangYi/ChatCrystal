@@ -259,6 +259,62 @@ export const api = {
 		}>(`/relations/graph${qs}`);
 	},
 
+	getGraphProjection: (params?: {
+		level?: "tag" | "note";
+		limit?: number;
+		relationType?: string;
+		project?: string;
+		minConfidence?: number;
+		minScore?: number;
+	}) => {
+		const query = new URLSearchParams();
+		query.set("level", params?.level ?? "tag");
+		if (params?.limit != null) query.set("limit", String(params.limit));
+		if (params?.relationType) query.set("relationType", params.relationType);
+		if (params?.project) query.set("project", params.project);
+		if (params?.minConfidence != null) {
+			query.set("minConfidence", String(params.minConfidence));
+		}
+		if (params?.minScore != null) query.set("minScore", String(params.minScore));
+		return request<{
+			nodes: {
+				id: number;
+				kind: "tag" | "note";
+				title: string;
+				name?: string;
+				note_count?: number;
+				project_count?: number;
+				project_name?: string;
+				tags?: string[];
+				degree: number;
+				source_type?: string | null;
+				outcome_type?: string | null;
+				task_kind?: string | null;
+			}[];
+			edges: {
+				id: number | string;
+				source: number;
+				target: number;
+				type: string;
+				confidence?: number;
+				score?: number;
+				cooccurrence_count?: number;
+				description?: string | null;
+				created_by?: string;
+			}[];
+			stats: {
+				totalNodes: number;
+				totalEdges: number;
+				visibleNodes: number;
+				visibleEdges: number;
+				limit: number;
+				minConfidence?: number;
+				minScore?: number;
+			};
+			truncated: boolean;
+		}>(`/graph/projection?${query.toString()}`);
+	},
+
 	getConfig: () =>
 		request<{
 			llm: {

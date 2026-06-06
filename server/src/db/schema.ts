@@ -126,6 +126,7 @@ CREATE INDEX IF NOT EXISTS idx_conversations_status ON conversations(status);
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_messages_type ON messages(type);
 CREATE INDEX IF NOT EXISTS idx_note_tags_tag ON note_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_note_tags_note ON note_tags(note_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_note ON embeddings(note_id);
 CREATE INDEX IF NOT EXISTS idx_project_key_aliases_canonical ON project_key_aliases(canonical_key);
 
@@ -160,6 +161,8 @@ CREATE TABLE IF NOT EXISTS note_relations (
 
 CREATE INDEX IF NOT EXISTS idx_note_relations_source ON note_relations(source_note_id);
 CREATE INDEX IF NOT EXISTS idx_note_relations_target ON note_relations(target_note_id);
+CREATE INDEX IF NOT EXISTS idx_note_relations_type_confidence ON note_relations(relation_type, confidence);
+CREATE INDEX IF NOT EXISTS idx_note_relations_confidence ON note_relations(confidence);
 
 CREATE TABLE IF NOT EXISTS experience_reviews (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -100,6 +100,14 @@ export function applySchemaMigrations(db: Database): void {
       ON conversations(source, source_conversation_id);
     CREATE INDEX IF NOT EXISTS idx_conversations_content_hash
       ON conversations(content_hash);
+    CREATE INDEX IF NOT EXISTS idx_note_relations_type_confidence
+      ON note_relations(relation_type, confidence);
+    CREATE INDEX IF NOT EXISTS idx_note_relations_confidence
+      ON note_relations(confidence);
+    CREATE INDEX IF NOT EXISTS idx_note_tags_note
+      ON note_tags(note_id);
+    CREATE INDEX IF NOT EXISTS idx_notes_graph_metadata
+      ON notes(source_type, outcome_type, task_kind);
   `);
   ensureIndexColumns(
     db,

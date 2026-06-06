@@ -324,13 +324,29 @@
   },
   "graph": {
     "title": "知识图谱",
-    "empty": "暂无数据，请先生成笔记并发现关联",
+    "empty": "暂无标签数据，请先生成带标签的笔记",
     "nodes": "节点",
     "edges": "关系",
+    "knowledge_points": "知识点",
+    "connections": "关联",
     "fit_to_view": "适应画面",
     "zoom_in": "放大",
     "zoom_out": "缩小",
-    "loading_graph": "加载图谱中..."
+    "loading_graph": "加载图谱中...",
+    "truncated": "显示高关联节点 {{visible}} / 共 {{total}} 条笔记",
+    "truncated_tags": "显示高频知识点 {{visible}} / 共 {{total}} 个标签",
+    "degree": "{{count}} 个连接",
+    "tag_notes": "{{count}} 篇笔记",
+    "tag_projects": "{{count}} 个项目",
+    "tag_detail": "知识点详情",
+    "tag_detail_notes": "笔记",
+    "tag_detail_empty": "这个知识点下暂无笔记",
+    "strength": {
+      "all": "全部",
+      "strong": "强关联",
+      "medium": "中关联",
+      "weak": "弱关联"
+    }
   },
   "search_page": {
     "expand_related_notes": "展开关联笔记",

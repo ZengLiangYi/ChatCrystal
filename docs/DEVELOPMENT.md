@@ -133,10 +133,15 @@ Key REST endpoints:
 | GET | `/api/notes` | List notes |
 | GET | `/api/notes/:id` | Note detail |
 | GET | `/api/search?q=...&expand=true` | Semantic search |
-| GET | `/api/relations/graph` | Knowledge graph data |
+| GET | `/api/graph/projection` | Bounded graph projection for the UI |
+| GET | `/api/relations/graph` | Legacy note relation graph data |
 | GET | `/api/queue/status` | Queue status |
 
 ## Knowledge Graph
+
+The default graph UI uses `/api/graph/projection?level=tag`. It renders tags as knowledge-point nodes and connects tags that co-occur in the same note. Tag edge strength is normalized as `cooccurrence_count / sqrt(tagA_note_count * tagB_note_count)`, then filtered and capped before it reaches the client.
+
+The note relation graph remains available through `/api/relations/graph` and `/api/graph/projection?level=note` for compatibility and relation-aware workflows.
 
 The relation system supports these relation types:
 
@@ -176,4 +181,3 @@ npm run release -- 1.0.0
 ```
 
 The release script bumps version, creates a git tag, and pushes so CI can build and publish artifacts.
-

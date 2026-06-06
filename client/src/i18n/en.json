@@ -324,13 +324,29 @@
   },
   "graph": {
     "title": "Knowledge Graph",
-    "empty": "No data. Generate notes and discover relations first.",
+    "empty": "No tag data yet. Generate tagged notes first.",
     "nodes": "nodes",
     "edges": "edges",
+    "knowledge_points": "knowledge points",
+    "connections": "connections",
     "fit_to_view": "Fit to view",
     "zoom_in": "Zoom in",
     "zoom_out": "Zoom out",
-    "loading_graph": "Loading graph..."
+    "loading_graph": "Loading graph...",
+    "truncated": "Showing top connected nodes {{visible}} / {{total}} notes",
+    "truncated_tags": "Showing frequent knowledge points {{visible}} / {{total}} tags",
+    "degree": "{{count}} connections",
+    "tag_notes": "{{count}} notes",
+    "tag_projects": "{{count}} projects",
+    "tag_detail": "Knowledge Point",
+    "tag_detail_notes": "Notes",
+    "tag_detail_empty": "No notes under this tag yet.",
+    "strength": {
+      "all": "All",
+      "strong": "Strong",
+      "medium": "Medium",
+      "weak": "Weak"
+    }
   },
   "search_page": {
     "expand_related_notes": "Expand related notes",

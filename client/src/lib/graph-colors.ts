@@ -61,6 +61,14 @@ export function getGraphCanvasColors() {
 		muted: readThemeColor("--text-muted", "rgb(111, 113, 110)"),
 		border: readThemeColor("--border", "rgb(42, 45, 49)"),
 		accent: readThemeColor("--accent", "rgb(231, 182, 95)"),
+		activeEdge: readThemeColor("--accent-hover", "rgb(241, 201, 120)"),
+		edge: readThemeColor("--graph-edge-references", readThemeColor("--text-muted", "rgb(139, 141, 135)")),
+		dimmedNode: readThemeColor("--text-muted", "rgb(111, 113, 110)"),
+		dimmedEdge: readThemeColor("--border", "rgb(42, 45, 49)"),
+		hoverBackground: readThemeColor("--bg-secondary", "rgb(21, 23, 26)"),
+		hoverForeground: readThemeColor("--text-primary", "rgb(242, 240, 234)"),
+		hoverBorder: readThemeColor("--border", "rgb(42, 45, 49)"),
+		hoverShadow: withAlpha(readThemeColor("--bg-primary", "rgb(16, 17, 19)"), 0.5),
 	};
 }
 

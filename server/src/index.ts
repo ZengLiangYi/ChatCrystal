@@ -83,7 +83,6 @@ export async function createServer(options?: {
     await app.register(fastifyStatic, {
       root: clientDist,
       prefix: '/',
-      wildcard: false,
     });
     // SPA fallback: serve index.html for non-API routes
     app.setNotFoundHandler((req, reply) => {

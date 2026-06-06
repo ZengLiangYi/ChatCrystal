@@ -133,10 +133,15 @@ interface SourceAdapter {
 | GET | `/api/notes` | 笔记列表 |
 | GET | `/api/notes/:id` | 笔记详情 |
 | GET | `/api/search?q=...&expand=true` | 语义搜索 |
-| GET | `/api/relations/graph` | 知识图谱数据 |
+| GET | `/api/graph/projection` | 面向 UI 的有界图谱投影 |
+| GET | `/api/relations/graph` | 旧版笔记关系图数据 |
 | GET | `/api/queue/status` | 队列状态 |
 
 ## 知识图谱
+
+默认图谱 UI 使用 `/api/graph/projection?level=tag`。它以 tag 作为知识点节点，并连接出现在同一篇笔记中的 tag。Tag 边强度使用 `cooccurrence_count / sqrt(tagA_note_count * tagB_note_count)` 归一化，然后在返回前完成过滤和数量限制。
+
+笔记关系图仍通过 `/api/relations/graph` 和 `/api/graph/projection?level=note` 保留，用于兼容旧能力和关联笔记工作流。
 
 关系系统支持以下类型：
 
@@ -176,4 +181,3 @@ npm run release -- 1.0.0
 ```
 
 发布脚本会更新版本、创建 git tag 并 push，随后由 CI 构建和发布产物。
-

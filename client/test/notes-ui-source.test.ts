@@ -9,6 +9,14 @@ function readSource(relativePath: string) {
 	return readFileSync(path.join(root, relativePath), "utf-8");
 }
 
+function readFunctionBlock(source: string, startPattern: string, endPattern: string) {
+	const start = source.indexOf(startPattern);
+	const end = source.indexOf(endPattern, start);
+	assert.notEqual(start, -1, `Missing source block start: ${startPattern}`);
+	assert.notEqual(end, -1, `Missing source block end: ${endPattern}`);
+	return source.slice(start, end);
+}
+
 test("NoteDetail gates original conversation navigation on API availability", () => {
 	const source = readSource("src/pages/NoteDetail.tsx");
 
@@ -162,11 +170,182 @@ test("RelationGraph uses graph color helpers instead of page-level hardcoded pal
 	const graphSource = readSource("src/pages/RelationGraph.tsx");
 
 	assert.match(graphSource, /@\/lib\/graph-colors/);
-	assert.match(graphSource, /GRAPH_RELATION_TYPES/);
-	assert.match(graphSource, /getGraphEdgeColor/);
 	assert.match(graphSource, /getGraphProjectColor/);
 	assert.match(graphSource, /withAlpha/);
 	assert.doesNotMatch(graphSource, /EDGE_COLORS/);
 	assert.doesNotMatch(graphSource, /PROJECT_COLORS/);
 	assert.doesNotMatch(graphSource, /#[0-9a-fA-F]{6}/);
+});
+
+test("RelationGraph uses Sigma and Graphology instead of react-force-graph", () => {
+	const graphSource = readSource("src/pages/RelationGraph.tsx");
+	const canvasSource = readSource("src/components/RelationGraphCanvas.tsx");
+
+	assert.match(canvasSource, /@react-sigma\/core/);
+	assert.match(canvasSource, /graphology/);
+	assert.match(canvasSource, /graphology-layout/);
+	assert.match(canvasSource, /graphology-layout-forceatlas2/);
+	assert.doesNotMatch(graphSource, /react-force-graph-2d/);
+	assert.doesNotMatch(canvasSource, /react-force-graph-2d/);
+});
+
+test("RelationGraph keeps Sigma stable while node hover updates the tooltip", () => {
+	const graphSource = readSource("src/pages/RelationGraph.tsx");
+	const canvasSource = readSource("src/components/RelationGraphCanvas.tsx");
+
+	assert.match(graphSource, /useCallback/);
+	assert.match(graphSource, /handleNodeHover/);
+	assert.match(graphSource, /handleNodeClick/);
+	assert.match(canvasSource, /const sigmaSettings = useMemo/);
+	assert.match(canvasSource, /settings=\{sigmaSettings\}/);
+	assert.match(canvasSource, /memo\(RelationGraphCanvasComponent\)/);
+});
+
+test("RelationGraph defaults to a tag knowledge graph projection", () => {
+	const graphSource = readSource("src/pages/RelationGraph.tsx");
+	const apiSource = readSource("src/lib/api.ts");
+
+	assert.match(graphSource, /level: 'tag'/);
+	assert.match(graphSource, /GRAPH_TAG_PROJECTION_LIMIT/);
+	assert.match(graphSource, /minScore/);
+	assert.doesNotMatch(graphSource, /relationType: selectedType/);
+	assert.match(apiSource, /level\?: "tag" \| "note"/);
+});
+
+test("RelationGraph keeps the previous projection visible while strength filters refetch", () => {
+	const graphSource = readSource("src/pages/RelationGraph.tsx");
+
+	assert.match(graphSource, /queryKey: \['relation-graph', 'tag', selectedStrengthConfig\.minScore\]/);
+	assert.match(graphSource, /placeholderData: \(previousData\) => previousData/);
+});
+
+test("RelationGraph opens a tag detail panel using notes filtered by tag", () => {
+	const graphSource = readSource("src/pages/RelationGraph.tsx");
+
+	assert.match(graphSource, /selectedTag/);
+	assert.match(graphSource, /api\.getNotes\(\{/);
+	assert.match(graphSource, /tag: selectedTag\.name/);
+	assert.match(graphSource, new RegExp("navigate\\(`/notes/\\$\\{note\\.id\\}`\\)"));
+	assert.match(graphSource, /graph\.tag_detail/);
+});
+
+test("RelationGraph separates hover preview from the right-side tag detail panel", () => {
+	const graphSource = readSource("src/pages/RelationGraph.tsx");
+
+	assert.match(graphSource, /data-graph-hover-card/);
+	assert.match(graphSource, /absolute top-4 left-4/);
+	assert.match(graphSource, /data-graph-hover-tag-pill/);
+	assert.match(graphSource, /data-graph-hover-tag-pill[\s\S]*border border-border/);
+	assert.doesNotMatch(graphSource, /right-\[calc\(22\.5rem\+1\.5rem\)\]/);
+});
+
+test("RelationGraph keeps tag detail metrics compact in the panel header", () => {
+	const graphSource = readSource("src/pages/RelationGraph.tsx");
+
+	assert.match(graphSource, /data-graph-detail-metrics/);
+	assert.match(graphSource, /data-graph-detail-metrics[\s\S]*graph\.tag_detail_notes/);
+	assert.match(graphSource, /data-graph-detail-metrics[\s\S]*graph\.connections/);
+	assert.doesNotMatch(graphSource, /grid shrink-0 grid-cols-2 gap-2 border-b border-border px-4 py-3 text-xs/);
+});
+
+test("RelationGraph gives hover and detail overlays directional reduced-motion-safe entrance feedback", () => {
+	const graphSource = readSource("src/pages/RelationGraph.tsx");
+
+	assert.match(graphSource, /data-graph-hover-card[\s\S]*motion-safe:animate-in/);
+	assert.match(graphSource, /data-graph-hover-card[\s\S]*motion-safe:fade-in/);
+	assert.match(graphSource, /data-graph-hover-card[\s\S]*motion-safe:slide-in-from-left-2/);
+	assert.match(graphSource, /data-graph-hover-card[\s\S]*motion-reduce:animate-none/);
+	assert.match(graphSource, /data-graph-detail-panel[\s\S]*motion-safe:animate-in/);
+	assert.match(graphSource, /data-graph-detail-panel[\s\S]*motion-safe:fade-in/);
+	assert.match(graphSource, /data-graph-detail-panel[\s\S]*motion-safe:slide-in-from-right-3/);
+	assert.match(graphSource, /data-graph-detail-panel[\s\S]*motion-reduce:animate-none/);
+});
+
+test("RelationGraph uses a theme-specific neutral tag edge color instead of the accent color", () => {
+	const graphSource = readSource("src/pages/RelationGraph.tsx");
+	const colorSource = readSource("src/lib/graph-colors.ts");
+
+	assert.match(colorSource, /edge: readThemeColor\("--graph-edge-references"/);
+	assert.match(colorSource, /activeEdge: readThemeColor\("--accent-hover"/);
+	assert.match(graphSource, /canvasColors\.edge/);
+	assert.match(graphSource, /TAG_EDGE_ALPHA_BASE = 0\.065/);
+	assert.match(graphSource, /TAG_EDGE_ALPHA_SCALE = 0\.12/);
+	assert.match(graphSource, /TAG_EDGE_SIZE_BASE = 0\.36/);
+	assert.match(graphSource, /TAG_EDGE_SIZE_SCALE = 1\.65/);
+	assert.match(graphSource, /withAlpha\(canvasColors\.edge, TAG_EDGE_ALPHA_BASE \+ score \* TAG_EDGE_ALPHA_SCALE\)/);
+	assert.match(graphSource, /size: TAG_EDGE_SIZE_BASE \+ score \* TAG_EDGE_SIZE_SCALE/);
+	assert.doesNotMatch(graphSource, /canvasColors\.accent, 0\.1 \+ score \* 0\.28/);
+	assert.doesNotMatch(graphSource, /withAlpha\(canvasColors\.edge, 0\.1 \+ score \* 0\.16\)/);
+	assert.doesNotMatch(graphSource, /size: 0\.45 \+ score \* 2\.3/);
+});
+
+test("RelationGraph keeps hover and selected tag focus active in the Sigma canvas", () => {
+	const graphSource = readSource("src/pages/RelationGraph.tsx");
+
+	assert.match(graphSource, /const focusedGraphNode = hoveredNode \?\? selectedTag/);
+	assert.match(graphSource, /focusedNodeKey=\{focusedGraphNode \? `\$\{focusedGraphNode\.kind\}:\$\{focusedGraphNode\.id\}` : null\}/);
+});
+
+test("RelationGraphCanvas dims unrelated graph items and highlights the focused neighborhood", () => {
+	const canvasSource = readSource("src/components/RelationGraphCanvas.tsx");
+	const hoverRendererSource = readFunctionBlock(
+		canvasSource,
+		"function drawThemeNodeHover",
+		"function SigmaGraphReducers",
+	);
+
+	assert.match(canvasSource, /useSetSettings/);
+	assert.match(canvasSource, /focusedNodeKey/);
+	assert.match(canvasSource, /focusedNeighborKeys/);
+	assert.match(canvasSource, /focusedEdgeKeys/);
+	assert.match(canvasSource, /graph\.edges\(focusedNodeKey\)/);
+	assert.match(canvasSource, /graph\.extremities\(edge\)/);
+	assert.match(canvasSource, /const isFocused = hasFocus && node === focusedNodeKey/);
+	assert.match(canvasSource, /const isRelated = hasFocus && focusedNeighborKeys\.has\(node\)/);
+	assert.match(canvasSource, /isDimmed/);
+	assert.match(canvasSource, /withAlpha\(colors\.dimmedNode/);
+	assert.match(canvasSource, /withAlpha\(colors\.dimmedEdge/);
+	assert.match(canvasSource, /withAlpha\(colors\.activeEdge/);
+	assert.match(canvasSource, /highlighted: isFocused/);
+	assert.match(canvasSource, /forceLabel: !isDimmed && \(isFocused \|\| shouldShowLabel\)/);
+	assert.match(canvasSource, /label: isDimmed \? null : data\.title/);
+	assert.match(canvasSource, /defaultDrawNodeHover/);
+	assert.match(canvasSource, /defaultDrawNodeLabel/);
+	assert.match(canvasSource, /drawThemeNodeHover/);
+	assert.match(canvasSource, /drawThemeNodeLabel/);
+	assert.match(canvasSource, /colors\.hoverBackground/);
+	assert.match(canvasSource, /measureText/);
+	assert.match(canvasSource, /fillText/);
+	assert.doesNotMatch(hoverRendererSource, /measureText/);
+	assert.doesNotMatch(hoverRendererSource, /fillText/);
+});
+
+test("RelationGraph removes the top header and moves tools to the lower left canvas controls", () => {
+	const graphSource = readSource("src/pages/RelationGraph.tsx");
+
+	assert.doesNotMatch(graphSource, /border-b border-theme bg-secondary px-4 py-3/);
+	assert.match(graphSource, /data-graph-control-panel/);
+	assert.match(graphSource, /data-graph-stats-panel/);
+	assert.match(graphSource, /data-graph-action-row/);
+	assert.match(graphSource, /data-graph-view-controls/);
+	assert.match(graphSource, /data-graph-strength-filters/);
+	assert.match(graphSource, /absolute bottom-3 left-3 flex w-fit max-w-\[calc\(100%-1\.5rem\)\] flex-col gap-2/);
+	assert.match(graphSource, /data-graph-stats-panel[\s\S]*w-full/);
+	assert.match(graphSource, /data-graph-action-row[\s\S]*flex w-fit max-w-full items-center gap-2/);
+	assert.match(graphSource, /data-graph-action-row[\s\S]*data-graph-view-controls[\s\S]*data-graph-strength-filters/);
+	assert.match(graphSource, /data-graph-view-controls[\s\S]*shrink-0/);
+	assert.match(graphSource, /data-graph-strength-filters[\s\S]*w-fit/);
+	assert.doesNotMatch(graphSource, /w-\[22rem\]/);
+	assert.doesNotMatch(graphSource, /data-graph-strength-filters[\s\S]*flex-1/);
+	assert.match(graphSource, /graph\.strength\./);
+	assert.doesNotMatch(graphSource, /GRAPH_RELATION_TYPES/);
+});
+
+test("RelationGraphCanvas renders full tag labels instead of truncated note titles", () => {
+	const canvasSource = readSource("src/components/RelationGraphCanvas.tsx");
+
+	assert.match(canvasSource, /kind: 'tag'/);
+	assert.match(canvasSource, /label: isDimmed \? null : data\.title/);
+	assert.doesNotMatch(canvasSource, /formatNodeLabel/);
+	assert.doesNotMatch(canvasSource, /slice\(0,/);
 });

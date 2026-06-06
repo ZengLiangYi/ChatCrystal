@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## [0.5.0] - 2026-06-06
+
+### Knowledge Graph
+
+- **Tag knowledge graph** - Rebuilt the default graph experience around tags as knowledge-point nodes, with normalized co-occurrence edges so the graph remains useful without explicit note-relation analysis.
+- **Scalable graph projection** - Added `/api/graph/projection` as a bounded render-ready graph API, while keeping the legacy note relation graph API for compatibility.
+- **Sigma graph engine** - Migrated the graph canvas from `react-force-graph-2d` to Sigma.js and Graphology for a stronger foundation as note collections grow.
+- **Knowledge-point details** - Clicking a tag now opens a right-side detail panel with related notes, project metadata, and direct note navigation.
+- **Graph readability polish** - Refined light/dark theme contrast, label rendering, hover cards, zoom controls, neighborhood highlighting, and lower-left graph controls for a clearer workspace.
+
+### Documentation
+
+- Updated README screenshots, user guides, and development docs to describe the tag-based knowledge graph and the graph projection API.
+
 ## [0.4.21] - 2026-06-05
 
 ### Desktop & Cloud

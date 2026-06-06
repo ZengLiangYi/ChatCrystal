@@ -98,7 +98,7 @@ The CLI scans local histories, parses them locally, and uploads normalized conve
 - **Imports AI coding conversations** from local tool data directories.
 - **Distills conversations into structured notes** with titles, summaries, conclusions, snippets, and tags.
 - **Searches knowledge semantically** with embeddings and relation-aware result expansion.
-- **Builds a knowledge graph** across related notes and decisions.
+- **Builds a tag knowledge graph** where knowledge points are tags and edges show normalized co-occurrence.
 - **Exposes CLI and MCP tools** so agents can recall and write back reusable experience.
 - **Runs locally** with configurable LLM and embedding providers.
 

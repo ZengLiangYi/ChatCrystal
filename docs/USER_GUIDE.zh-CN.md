@@ -42,7 +42,7 @@ npm run build:electron
 2. 在 **Conversations** 页面浏览原始对话。
 3. 点击 **Summarize** 或批量摘要，生成结构化笔记。
 4. 在 **Search** 页面搜索知识；需要更完整上下文时开启关联笔记扩展。
-5. 打开图谱视图，浏览笔记之间的关系。
+5. 打开图谱视图，浏览 tag 形成的知识点，以及每个知识点下的笔记。
 6. 在 **Settings** 页面切换 LLM 和 Embedding Provider。
 
 ## CLI 命令
@@ -158,5 +158,4 @@ ollama pull nomic-embed-text
 
 ### 知识图谱为空
 
-需要先生成笔记。然后在笔记详情页触发关系发现，或通过 API 执行批量关系发现。
-
+需要先生成带 tag 的笔记。默认图谱基于笔记 tag 构建；如果仍然为空，请检查笔记是否有 tag，或调低图谱关联强度筛选。
