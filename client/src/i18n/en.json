@@ -36,6 +36,7 @@
     "task_queue": "Task Queue",
     "theme": "Theme",
     "language": "Language",
+    "updates": "Updates",
     "llm": "LLM",
     "embedding": "Embedding",
     "data_source": "Data Source"
@@ -367,5 +368,18 @@
   },
   "star": {
     "message": "If you find ChatCrystal useful, consider starring it on GitHub!"
+  },
+  "update": {
+    "available_banner": "New version v{{version}} is available",
+    "available_title": "New version v{{version}} is available",
+    "check": "Check for Updates",
+    "check_failed": "Update check failed",
+    "current_version": "Current version v{{version}}",
+    "open_releases": "Download",
+    "published_at": "Published {{date}}",
+    "remind_later": "Remind me later",
+    "skip_version": "Skip this version",
+    "up_to_date": "You're up to date",
+    "view_release_notes": "View v{{version}} release notes"
   }
 }

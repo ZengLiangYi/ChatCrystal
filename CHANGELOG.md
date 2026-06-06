@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## [0.5.1] - 2026-06-06
+
+### Desktop Updates
+
+- Added a manual Electron update check backed by GitHub Releases, with support for `v*` and `electron-v*` release tags.
+- Added update entry points in the tray menu and Settings page while keeping the application menu unchanged.
+- Reused the existing bottom prompt area so available-update copy can replace the GitHub Star prompt without adding another banner.
+- Kept automatic update checks non-disruptive: failures stay silent, while manual failures show a release-page fallback.
+- Added persisted update reminder and skipped-version state so users can defer or skip a version without repeated prompts.
+
 ## [0.5.0] - 2026-06-06
 
 ### Knowledge Graph

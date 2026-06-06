@@ -11,6 +11,39 @@ declare global {
 		onMaximizedChange: (callback: (isMaximized: boolean) => void) => () => void;
 	};
 
+	type ChatCrystalUpdateCheckResult =
+		| {
+				status: "available";
+				currentVersion: string;
+				latestVersion: string;
+				releaseUrl: string;
+				publishedAt?: string | null;
+		  }
+		| {
+				status: "not-available";
+				currentVersion: string;
+				latestVersion: string;
+				releaseUrl: string;
+		  }
+		| {
+				status: "error";
+				currentVersion: string;
+				message: string;
+				releaseUrl: string;
+		  }
+		| {
+				status: "silent-error" | "skipped";
+				currentVersion: string;
+		  };
+
+	type ChatCrystalUpdatesApi = {
+		check: (input: { manual: boolean }) => Promise<ChatCrystalUpdateCheckResult>;
+		openReleasePage: (url: string) => Promise<void>;
+		skipVersion: (version: string) => Promise<void>;
+		remindLater: (version: string) => Promise<void>;
+		onManualCheckRequested: (callback: () => void) => () => void;
+	};
+
 	type ChatCrystalOnboardingApi = {
 		getState: () => Promise<{
 			mode: ChatCrystalOnboardingMode | null;
@@ -53,6 +86,7 @@ declare global {
 				chrome?: string;
 			};
 			windowControls?: ChatCrystalWindowControls;
+			updates?: ChatCrystalUpdatesApi;
 		};
 		chatcrystalElectronCloud?: {
 			allowInsecureHttpAuth: boolean;

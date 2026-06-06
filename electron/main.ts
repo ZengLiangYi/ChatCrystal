@@ -35,6 +35,12 @@ import {
 	type ElectronOnboardingState,
 } from "./state";
 import { createTray, destroyTray } from "./tray";
+import {
+	checkForUpdates,
+	openUpdateReleasePage,
+	remindUpdateLater,
+	skipUpdateVersion,
+} from "./updates";
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
@@ -314,6 +320,27 @@ function showMainWindow(): void {
 
 function requestQuit(): void {
 	app.quit();
+}
+
+function requestManualUpdateCheck(): void {
+	if (!mainWindow || mainWindow.isDestroyed()) return;
+	showMainWindow();
+	mainWindow.webContents.send("updates:manual-check-requested");
+}
+
+async function openSettingsForManualUpdateCheck(): Promise<void> {
+	if (!mainWindow || mainWindow.isDestroyed()) return;
+	showMainWindow();
+	const currentUrl = mainWindow.webContents.getURL();
+	try {
+		const url = new URL(currentUrl);
+		if (url.protocol === "http:" || url.protocol === "https:") {
+			await mainWindow.loadURL(`${url.origin}/settings`);
+		}
+	} catch {
+		// Keep the current window visible and still request the check.
+	}
+	requestManualUpdateCheck();
 }
 
 function updateApplicationMenu(mode: WindowMode): void {
@@ -795,6 +822,7 @@ async function openLocalApp(): Promise<{ mode: "local"; appUrl: string }> {
 		localBaseUrl: local.appUrl,
 		showMainWindow,
 		reconnect: reconnectFromTray,
+		checkForUpdates: openSettingsForManualUpdateCheck,
 		quit: requestQuit,
 	});
 	writeModeState("local");
@@ -818,6 +846,7 @@ async function openCloudApp(): Promise<{ mode: "cloud"; cloudBaseUrl: string }> 
 		cloudBaseUrl,
 		showMainWindow,
 		reconnect: reconnectFromTray,
+		checkForUpdates: openSettingsForManualUpdateCheck,
 		quit: requestQuit,
 	});
 	writeModeState("cloud");
@@ -841,6 +870,7 @@ async function openOnboarding(initialError?: string): Promise<void> {
 		mode: "onboarding",
 		showMainWindow,
 		reconnect: reconnectFromTray,
+		checkForUpdates: openSettingsForManualUpdateCheck,
 		quit: requestQuit,
 	});
 	updateApplicationMenu("onboarding");
@@ -869,6 +899,7 @@ function getRedactedState(): ElectronOnboardingState {
 
 function registerIpcHandlers(): void {
 	registerWindowControlIpc();
+	registerUpdateIpc();
 	registerOnboardingIpc({
 		getOnboardingOrigin: () => currentOnboardingOrigin,
 		getOnboardingUrl: () => currentOnboardingUrl,
@@ -886,6 +917,23 @@ function registerIpcHandlers(): void {
 	registerCloudIpc({
 		getCloudOrigin: () => currentCloudOrigin,
 		uploadLocalHistory,
+	});
+}
+
+function registerUpdateIpc(): void {
+	ipcMain.handle(
+		"updates:check",
+		(_event, input: { manual?: boolean } = {}) =>
+			checkForUpdates({ manual: input.manual === true }),
+	);
+	ipcMain.handle("updates:open-release-page", (_event, url: string) =>
+		openUpdateReleasePage(url),
+	);
+	ipcMain.handle("updates:skip-version", (_event, version: string) => {
+		skipUpdateVersion(version);
+	});
+	ipcMain.handle("updates:remind-later", (_event, version: string) => {
+		remindUpdateLater(version);
 	});
 }
 

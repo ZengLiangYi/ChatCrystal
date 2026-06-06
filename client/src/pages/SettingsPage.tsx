@@ -3,6 +3,8 @@ import {
 	AlertTriangle,
 	Brain,
 	CheckCircle,
+	Download,
+	ExternalLink,
 	FolderSearch,
 	Globe,
 	Loader2,
@@ -10,7 +12,7 @@ import {
 	Server,
 	XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	Alert,
@@ -84,6 +86,7 @@ export function SettingsPage() {
 	const { data: config } = useConfig();
 	const { data: providers } = useProviders();
 	const queryClient = useQueryClient();
+	const updates = window.electronAPI?.updates;
 
 	const [llmProvider, setLlmProvider] = useState("");
 	const [llmBaseURL, setLlmBaseURL] = useState("");
@@ -103,6 +106,27 @@ export function SettingsPage() {
 	> | null>(null);
 
 	const testMutation = useMutation({ mutationFn: () => api.testConfig() });
+	const [updateResult, setUpdateResult] =
+		useState<ChatCrystalUpdateCheckResult | null>(null);
+	const [checkingUpdates, setCheckingUpdates] = useState(false);
+
+	const checkUpdates = useCallback(async () => {
+		if (!updates) return;
+		setCheckingUpdates(true);
+		try {
+			const result = await updates.check({ manual: true });
+			setUpdateResult(result);
+		} finally {
+			setCheckingUpdates(false);
+		}
+	}, [updates]);
+
+	useEffect(() => {
+		if (!updates) return;
+		return updates.onManualCheckRequested(() => {
+			void checkUpdates();
+		});
+	}, [updates, checkUpdates]);
 
 	const [initialized, setInitialized] = useState(false);
 	useEffect(() => {
@@ -370,6 +394,17 @@ export function SettingsPage() {
 							</p>
 						)}
 					</Section>
+
+					{updates && (
+						<Section title={t("section.updates")} icon={<Download />}>
+							<UpdateSettingsPanel
+								result={updateResult}
+								checking={checkingUpdates}
+								onCheck={() => void checkUpdates()}
+								onOpen={(url) => void updates.openReleasePage(url)}
+							/>
+						</Section>
+					)}
 				</>
 			)}
 
@@ -407,6 +442,105 @@ function Section({
 			<Separator />
 		</section>
 	);
+}
+
+function UpdateSettingsPanel({
+	result,
+	checking,
+	onCheck,
+	onOpen,
+}: {
+	result: ChatCrystalUpdateCheckResult | null;
+	checking: boolean;
+	onCheck: () => void;
+	onOpen: (url: string) => void;
+}) {
+	const { t } = useTranslation();
+	const currentVersion =
+		result && "currentVersion" in result ? result.currentVersion : null;
+
+	return (
+		<div className="flex flex-col gap-3">
+			<div className="flex flex-wrap items-center gap-3">
+				<Button type="button" variant="outline" onClick={onCheck} disabled={checking}>
+					{checking ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
+					{t("update.check")}
+				</Button>
+				{currentVersion && (
+					<span className="text-xs text-muted-foreground">
+						{t("update.current_version", { version: currentVersion })}
+					</span>
+				)}
+			</div>
+
+			{result?.status === "available" && (
+				<Alert className="max-w-xl py-3">
+					<Download />
+					<AlertTitle className="text-sm">
+						{t("update.available_title", { version: result.latestVersion })}
+					</AlertTitle>
+					<AlertDescription className="flex flex-col gap-2 text-xs">
+						<span>
+							{t("update.current_version", { version: result.currentVersion })}
+						</span>
+						{result.publishedAt ? (
+							<span>{t("update.published_at", { date: formatUpdateDate(result.publishedAt) })}</span>
+						) : null}
+						<div className="flex flex-wrap items-center gap-2">
+							<Button type="button" size="sm" onClick={() => onOpen(result.releaseUrl)}>
+								<ExternalLink data-icon="inline-start" />
+								{t("update.open_releases")}
+							</Button>
+							<Button
+								type="button"
+								size="sm"
+								variant="ghost"
+								onClick={() => onOpen(result.releaseUrl)}
+							>
+								{t("update.view_release_notes", { version: result.latestVersion })}
+							</Button>
+						</div>
+					</AlertDescription>
+				</Alert>
+			)}
+
+			{result?.status === "not-available" && (
+				<Alert className="max-w-xl py-3">
+					<CheckCircle className="text-success" />
+					<AlertTitle className="text-sm">{t("update.up_to_date")}</AlertTitle>
+					<AlertDescription className="text-xs">
+						{t("update.current_version", { version: result.currentVersion })}
+					</AlertDescription>
+				</Alert>
+			)}
+
+			{result?.status === "error" && (
+				<Alert variant="destructive" className="max-w-xl py-3">
+					<XCircle />
+					<AlertTitle className="text-sm">{t("update.check_failed")}</AlertTitle>
+					<AlertDescription className="flex flex-col gap-2 text-xs">
+						<span>{result.message}</span>
+						<Button
+							type="button"
+							size="sm"
+							variant="outline"
+							onClick={() => onOpen(result.releaseUrl)}
+							className="w-fit"
+						>
+							<ExternalLink data-icon="inline-start" />
+							{t("update.open_releases")}
+						</Button>
+					</AlertDescription>
+				</Alert>
+			)}
+		</div>
+	);
+}
+
+function formatUpdateDate(value: string): string {
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return value;
+	return date.toLocaleDateString();
 }
 
 function ModelProviderFields({

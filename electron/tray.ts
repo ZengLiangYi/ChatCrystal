@@ -22,6 +22,7 @@ export type TrayOptions =
 type TrayActions = {
 	showMainWindow: () => void;
 	reconnect: () => Promise<void> | void;
+	checkForUpdates: () => Promise<void> | void;
 	quit: () => void;
 };
 
@@ -61,6 +62,12 @@ export function createTray(options: TrayOptions): Tray {
 			label: "重新连接...",
 			click: () => {
 				void options.reconnect();
+			},
+		},
+		{
+			label: "检查更新...",
+			click: () => {
+				void options.checkForUpdates();
 			},
 		},
 	];

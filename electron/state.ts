@@ -17,7 +17,22 @@ export type ElectronOnboardingState = {
 	mcpSkipped: boolean;
 	summarizationBatchIds: string[];
 	summarizationRequestId: string | null;
+	update: ElectronUpdateState;
 	updatedAt: string;
+};
+
+export type ElectronUpdateState = {
+	lastCheckedAt: string | null;
+	lastSeenVersion: string | null;
+	skippedVersion: string | null;
+	remindAfter: string | null;
+};
+
+export const DEFAULT_UPDATE_STATE: ElectronUpdateState = {
+	lastCheckedAt: null,
+	lastSeenVersion: null,
+	skippedVersion: null,
+	remindAfter: null,
 };
 
 export const DEFAULT_ELECTRON_STATE: ElectronOnboardingState = {
@@ -30,6 +45,7 @@ export const DEFAULT_ELECTRON_STATE: ElectronOnboardingState = {
 	mcpSkipped: false,
 	summarizationBatchIds: [],
 	summarizationRequestId: null,
+	update: DEFAULT_UPDATE_STATE,
 	updatedAt: new Date(0).toISOString(),
 };
 
@@ -60,6 +76,10 @@ export function readElectronState(userDataDir?: string): ElectronOnboardingState
 		return {
 			...DEFAULT_ELECTRON_STATE,
 			...parsed,
+			update: {
+				...DEFAULT_UPDATE_STATE,
+				...(parsed.update ?? {}),
+			},
 			updatedAt: parsed.updatedAt ?? new Date().toISOString(),
 		};
 	} catch {
