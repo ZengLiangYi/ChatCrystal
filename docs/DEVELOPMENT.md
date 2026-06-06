@@ -174,10 +174,19 @@ Use focused server tests while iterating, then run the full commands before comm
 ## Release
 
 ```bash
-npm run release
+npm run release                    # Full release: npm + Electron, tag v*
 npm run release -- minor
 npm run release -- major
 npm run release -- 1.0.0
+npm run release:electron -- 1.0.1  # Electron-only release, tag electron-v*
+npm run release:npm -- 1.0.1       # npm-only release, tag npm-v*
 ```
 
-The release script bumps version, creates a git tag, and pushes so CI can build and publish artifacts.
+Use `scripts/release.mjs` for releases. Avoid manually bumping versions, committing, tagging, and pushing unless you are doing an explicit recovery flow.
+
+Release tag behavior:
+
+- `v*` tags trigger both npm publishing and Electron GitHub Release builds. Use this only when both root `package.json` and `server/package.json` should move together.
+- `electron-v*` tags trigger Electron-only GitHub Release builds. Use this for desktop-only changes, including Electron main/preload/tray/packaging changes and Electron-gated client UI.
+- `npm-v*` tags publish only the npm package. Use this for CLI, server, MCP, or package-content changes.
+- The npm package version comes from `server/package.json`, not the root package. A `v*` release will fail with npm `E403` if `server/package.json` still points to an already-published version.

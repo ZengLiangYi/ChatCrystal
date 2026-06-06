@@ -28,11 +28,23 @@ npm run release             # patch bump (0.1.0 → 0.1.1)
 npm run release -- minor    # minor bump
 npm run release -- major    # major bump
 npm run release -- 1.0.0    # explicit version
+npm run release:electron -- 1.0.1  # Electron-only release → electron-v*
+npm run release:npm -- 1.0.1       # npm-only release → npm-v*
 
 # Lint
 npm run lint
 npm run lint:fix
 ```
+
+### Release Tag Semantics
+
+Use `scripts/release.mjs` for releases; do not manually bump versions, commit, tag, and push unless the user explicitly asks for a custom recovery flow.
+
+- `v*` tags are full releases and trigger both npm publishing and Electron GitHub Release builds. Use this only when both root `package.json` and `server/package.json` should move together.
+- `electron-v*` tags are Electron-only releases. Use `npm run release:electron -- <version>` for desktop-only changes, including Electron main/preload/tray/packaging changes and Electron-gated client UI.
+- `npm-v*` tags are npm-only releases. Use `npm run release:npm -- <version>` for CLI/server/MCP package changes.
+- The published npm package version comes from `server/package.json`, not the root package. If a `v*` tag is pushed while `server/package.json` still points at an already-published version, the npm job will fail with `E403 You cannot publish over the previously published versions`.
+- If an Electron-only release is accidentally published with a `v*` tag and the Electron job succeeds but npm fails because the server version already exists, do not delete or re-tag the release by default. Treat the GitHub Release as usable, document the cause, and use `electron-v*` for the next Electron-only release.
 
 ### CLI (`crystal`)
 

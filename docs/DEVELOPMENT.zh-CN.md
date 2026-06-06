@@ -174,10 +174,19 @@ npm run eval:experience -w server
 ## 发布
 
 ```bash
-npm run release
+npm run release                    # 完整发布：npm + Electron，tag v*
 npm run release -- minor
 npm run release -- major
 npm run release -- 1.0.0
+npm run release:electron -- 1.0.1  # 仅 Electron 发布，tag electron-v*
+npm run release:npm -- 1.0.1       # 仅 npm 发布，tag npm-v*
 ```
 
-发布脚本会更新版本、创建 git tag 并 push，随后由 CI 构建和发布产物。
+发布应使用 `scripts/release.mjs`。除非是在明确的恢复流程中，不要手动改版本、提交、打 tag 再 push。
+
+发布 tag 语义：
+
+- `v*` 会同时触发 npm 发布和 Electron GitHub Release 构建。只有 root `package.json` 和 `server/package.json` 都需要一起升级时才使用。
+- `electron-v*` 只触发 Electron GitHub Release 构建。桌面端专属变更应使用它，包括 Electron main/preload/tray/packaging 变更，以及只有 Electron 会启用的 client UI。
+- `npm-v*` 只发布 npm 包。CLI、server、MCP 或 npm 包内容变更应使用它。
+- npm 包版本来自 `server/package.json`，不是 root `package.json`。如果 `v*` 发布时 `server/package.json` 仍指向已经发布过的版本，npm job 会因 `E403` 失败。
