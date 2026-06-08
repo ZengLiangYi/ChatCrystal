@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FolderGit2, Tag, Lightbulb, Trash2 } from 'lucide-react';
+import { ArrowLeft, Download, FolderGit2, Tag, Lightbulb, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDeleteNote, useNote } from '@/hooks/use-notes.ts';
 import { DeleteNoteDialog } from '@/components/DeleteNoteDialog.tsx';
 import { MarkdownRenderer } from '@/components/MarkdownRenderer.tsx';
 import { RelatedNotes } from '@/components/RelatedNotes.tsx';
+import { Button } from '@/components/ui/button.tsx';
+import { createNoteMarkdownExport, downloadMarkdownFile } from '@/lib/markdown-export.ts';
+import { notify } from '@/lib/notify.ts';
 
 export function NoteDetail() {
   const { t } = useTranslation();
@@ -27,18 +30,34 @@ export function NoteDetail() {
   const snippets = (note.code_snippets as { language: string; code: string; description: string }[]) ?? [];
   const tags = (note.tags as string[]) ?? [];
   const canOpenOriginalConversation = note.can_open_original_conversation === true;
+  const handleExportMarkdown = () => {
+    try {
+      downloadMarkdownFile(createNoteMarkdownExport(note, {
+        labels: {
+          summary: t('note_detail.markdown_section.summary'),
+          keyConclusions: t('note_detail.markdown_section.key_conclusions'),
+          codeSnippets: t('note_detail.markdown_section.code_snippets'),
+        },
+      }));
+    } catch {
+      notify.error(t('note_detail.export_failed'));
+    }
+  };
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-theme bg-secondary shrink-0">
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t('note_detail.back_to_notes')}
+          title={t('note_detail.back_to_notes')}
           onClick={() => navigate('/notes')}
-          className="text-muted hover:text-primary"
         >
-          <ArrowLeft size={18} />
-        </button>
+          <ArrowLeft data-icon="inline-start" />
+        </Button>
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-bold truncate">{note.title as string}</h2>
           <div className="flex items-center gap-2 text-xs text-muted">
@@ -47,26 +66,37 @@ export function NoteDetail() {
             {canOpenOriginalConversation && (
               <>
                 <span className="opacity-30">·</span>
-                <button
+                <Button
                   type="button"
+                  variant="link"
+                  size="xs"
                   onClick={() => navigate(`/conversations/${note.conversation_id}`)}
-                  className="hover:text-accent transition-colors"
+                  className="h-auto p-0 text-xs"
                 >
                   {t('action.view_original_conversation')}
-                </button>
+                </Button>
               </>
             )}
           </div>
         </div>
-        <button
+        <Button
           type="button"
-          onClick={() => setIsDeleteDialogOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-theme text-muted hover:text-[var(--warning)] hover:border-[var(--warning)] transition-colors"
-          style={{ borderRadius: 'var(--radius)' }}
+          variant="outline"
+          size="sm"
+          onClick={handleExportMarkdown}
         >
-          <Trash2 size={13} />
+          <Download data-icon="inline-start" />
+          {t('note_detail.export_markdown')}
+        </Button>
+        <Button
+          type="button"
+          variant="destructive"
+          size="sm"
+          onClick={() => setIsDeleteDialogOpen(true)}
+        >
+          <Trash2 data-icon="inline-start" />
           {t('delete_note.delete')}
-        </button>
+        </Button>
       </div>
 
       {/* Content */}

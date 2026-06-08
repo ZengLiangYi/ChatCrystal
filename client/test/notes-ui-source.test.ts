@@ -24,6 +24,28 @@ test("NoteDetail gates original conversation navigation on API availability", ()
 	assert.match(source, /\{canOpenOriginalConversation && \(/);
 });
 
+test("NoteDetail exports markdown through the shared shadcn Button", () => {
+	const source = readSource("src/pages/NoteDetail.tsx");
+	const appSource = readSource("src/App.tsx");
+
+	assert.match(source, /@\/components\/ui\/button/);
+	assert.match(source, /@\/lib\/markdown-export/);
+	assert.match(source, /@\/lib\/notify/);
+	assert.match(source, /Download/);
+	assert.match(source, /note_detail\.export_markdown/);
+	assert.match(source, /note_detail\.markdown_section\.summary/);
+	assert.match(source, /note_detail\.markdown_section\.key_conclusions/);
+	assert.match(source, /note_detail\.markdown_section\.code_snippets/);
+	assert.match(source, /<Button/);
+	assert.match(source, /variant="outline"/);
+	assert.match(source, /data-icon="inline-start"/);
+	assert.match(source, /notify\.error/);
+	assert.match(appSource, /@\/components\/ui\/sonner/);
+	assert.match(appSource, /<Toaster/);
+	assert.doesNotMatch(source, /<button\b/);
+	assert.doesNotMatch(source, /window\.alert/);
+});
+
 test("Notes page treats task memory as a tag-like filter and hides it by default", () => {
 	const source = readSource("src/pages/Notes.tsx");
 

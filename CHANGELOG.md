@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## [0.5.2] - 2026-06-08
+
+### Markdown Export
+
+- Added single-note Markdown export from the note detail page for readable backup and sharing.
+- Exported notes now use minimal frontmatter with title, optional tags, optional source type, and local export time only.
+- Localized exported Markdown section headings so Simplified Chinese and English UI modes generate matching document labels.
+- Added a shared Markdown export helper with filename sanitization, safe YAML values, and robust code fence handling.
+- Reused shadcn/ui Button primitives for note detail actions and added shadcn/sonner-based export failure feedback.
+- Added regression coverage for Markdown generation, localized export labels, i18n coverage, and note detail UI wiring.
+
 ## [0.5.1] - 2026-06-06
 
 ### Desktop Updates

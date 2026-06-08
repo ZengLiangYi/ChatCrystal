@@ -150,6 +150,16 @@
       "memory": "Memory"
     }
   },
+  "note_detail": {
+    "back_to_notes": "Back to notes",
+    "export_markdown": "Export Markdown",
+    "export_failed": "Markdown export failed",
+    "markdown_section": {
+      "summary": "Summary",
+      "key_conclusions": "Key Conclusions",
+      "code_snippets": "Code Snippets"
+    }
+  },
   "conversations_total": "{{count}} conversations total",
   "search_results_count": "{{count}} results found",
   "import_success": "Imported {{count}}",

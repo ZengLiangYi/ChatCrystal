@@ -6,6 +6,7 @@ import { ThemeProvider } from '@/providers/ThemeProvider.tsx';
 import '@/i18n';
 import { Layout } from '@/components/Layout.tsx';
 import { AuthGate } from '@/components/AuthGate.tsx';
+import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 const DashboardPage = lazy(() => import('@/pages/Dashboard.tsx').then((module) => ({ default: module.Dashboard })));
@@ -54,6 +55,7 @@ export default function App() {
               </Route>
             </Routes>
           </BrowserRouter>
+          <Toaster position="top-right" richColors />
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>

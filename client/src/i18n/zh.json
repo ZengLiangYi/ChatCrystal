@@ -150,6 +150,16 @@
       "memory": "任务记忆"
     }
   },
+  "note_detail": {
+    "back_to_notes": "返回笔记列表",
+    "export_markdown": "导出 Markdown",
+    "export_failed": "导出 Markdown 失败",
+    "markdown_section": {
+      "summary": "摘要",
+      "key_conclusions": "关键结论",
+      "code_snippets": "代码片段"
+    }
+  },
   "conversations_total": "共 {{count}} 条对话",
   "search_results_count": "找到 {{count}} 条相关结果",
   "import_success": "导入 {{count}} 条",
