@@ -26,6 +26,10 @@ on:
         description: 'Electron version override (leave empty to use package.json)'
         required: false
         type: string
+      release_tag:
+        description: 'GitHub Release tag override for manual Electron recovery'
+        required: false
+        type: string
 
 jobs:
   # ── Determine what to build ────────────────────────────────
@@ -133,21 +137,33 @@ jobs:
           node-version: 22
           cache: npm
 
-      # Cache Electron binary (~90MB, avoids re-download each build)
-      - name: Cache Electron binary
-        uses: actions/cache@v5
+      - name: Resolve Electron cache keys
+        id: electron_cache
+        shell: bash
+        run: |
+          ELECTRON_VERSION=$(node -p "require('./package-lock.json').packages['node_modules/electron'].version")
+          echo "version=${ELECTRON_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "binary_key=electron-${{ runner.os }}-x64-v${ELECTRON_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "builder_key=electron-builder-${{ runner.os }}-${{ hashFiles('electron-builder.yml') }}" >> "$GITHUB_OUTPUT"
+
+      # Cache Electron binary (~90MB) by Electron version, not by the whole lockfile.
+      - name: Restore Electron binary cache
+        id: electron_binary_cache
+        uses: actions/cache/restore@v5
         with:
           path: ${{ github.workspace }}/.cache/electron
-          key: electron-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          key: ${{ steps.electron_cache.outputs.binary_key }}
           restore-keys: |
+            electron-${{ runner.os }}-x64-
             electron-${{ runner.os }}-
 
       # Cache electron-builder tools (NSIS, nsis-resources, etc.)
-      - name: Cache electron-builder tools
-        uses: actions/cache@v5
+      - name: Restore electron-builder tools cache
+        id: electron_builder_cache
+        uses: actions/cache/restore@v5
         with:
           path: ${{ github.workspace }}/.cache/electron-builder
-          key: electron-builder-${{ runner.os }}-${{ hashFiles('electron-builder.yml') }}
+          key: ${{ steps.electron_cache.outputs.builder_key }}
           restore-keys: |
             electron-builder-${{ runner.os }}-
 
@@ -169,9 +185,38 @@ jobs:
         run: npm version "${{ needs.prepare.outputs.electron_version }}" --no-git-tag-version --allow-same-version
 
       - name: Package Electron app
-        run: npx electron-builder --win --publish never
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if npx electron-builder --win --publish never; then
+              exit 0
+            fi
+
+            status=$?
+            if [ "$attempt" -eq 3 ]; then
+              exit "$status"
+            fi
+
+            sleep_seconds=$((attempt * 45))
+            echo "::warning::Electron packaging failed on attempt ${attempt}/3. Retrying in ${sleep_seconds}s."
+            sleep "$sleep_seconds"
+          done
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Save Electron binary cache
+        if: steps.electron_binary_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ github.workspace }}/.cache/electron
+          key: ${{ steps.electron_cache.outputs.binary_key }}
+
+      - name: Save electron-builder tools cache
+        if: steps.electron_builder_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ github.workspace }}/.cache/electron-builder
+          key: ${{ steps.electron_cache.outputs.builder_key }}
 
       - name: Extract changelog
         id: changelog
@@ -192,7 +237,9 @@ jobs:
         run: |
           # Use the original push tag if available (v* for full release),
           # otherwise fall back to electron-v* prefix
-          if [[ "${{ github.ref_name }}" == v* ]]; then
+          if [[ "${{ github.event_name }}" != "push" && -n "${{ inputs.release_tag }}" ]]; then
+            echo "tag=${{ inputs.release_tag }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref_name }}" == v* ]]; then
             echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           else
             echo "tag=electron-v${{ needs.prepare.outputs.electron_version }}" >> $GITHUB_OUTPUT
