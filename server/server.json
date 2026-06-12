@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.zengliangyi/chatcrystal",
+  "name": "io.github.ZengLiangYi/chatcrystal",
   "title": "ChatCrystal",
   "description": "Local-first AI PKM memory for coding conversations.",
   "version": "0.5.2",

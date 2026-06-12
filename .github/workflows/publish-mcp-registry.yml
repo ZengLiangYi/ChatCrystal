@@ -29,7 +29,7 @@ jobs:
           VERSION="$(node -p "require('./server.json').version")"
           for attempt in {1..30}; do
             MCP_NAME="$(npm view "chatcrystal@$VERSION" mcpName --json 2>/dev/null | tr -d '"\r\n' || true)"
-            if [ "$MCP_NAME" = "io.github.zengliangyi/chatcrystal" ]; then
+            if [ "$MCP_NAME" = "io.github.ZengLiangYi/chatcrystal" ]; then
               echo "Found chatcrystal@$VERSION with MCP ownership metadata."
               exit 0
             fi
