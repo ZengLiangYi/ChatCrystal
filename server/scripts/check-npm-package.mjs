@@ -1,8 +1,12 @@
 import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import process from 'node:process';
 import { resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '../..');
+const serverRoot = resolve(root, 'server');
+const packageJson = JSON.parse(readFileSync(resolve(serverRoot, 'package.json'), 'utf-8'));
+const serverJson = JSON.parse(readFileSync(resolve(serverRoot, 'server.json'), 'utf-8'));
 
 const output = execSync('npm pack -w server --dry-run --json', {
   cwd: root,
@@ -16,6 +20,7 @@ const files = pack.files.map((file) => file.path).sort();
 const requiredFiles = [
   'README.md',
   'package.json',
+  'server.json',
   'dist/server/src/index.js',
   'dist/server/src/cli/index.js',
   'dist/server/src/data/seed-notes.json',
@@ -46,6 +51,30 @@ for (const { name, pattern } of forbiddenPatterns) {
         .map((file) => `  - ${file}`)
         .join('\n')}${matches.length > 20 ? '\n  ...' : ''}`,
     );
+  }
+}
+
+if (serverJson.name !== packageJson.mcpName) {
+  failures.push(`server.json name (${serverJson.name}) must match package.json mcpName (${packageJson.mcpName}).`);
+}
+
+if (serverJson.version !== packageJson.version) {
+  failures.push(`server.json version (${serverJson.version}) must match package.json version (${packageJson.version}).`);
+}
+
+const npmPackage = Array.isArray(serverJson.packages)
+  ? serverJson.packages.find((pkg) => pkg.registryType === 'npm' && pkg.identifier === packageJson.name)
+  : undefined;
+
+if (!npmPackage) {
+  failures.push(`server.json must include an npm package entry for ${packageJson.name}.`);
+} else {
+  if (npmPackage.version !== packageJson.version) {
+    failures.push(`server.json npm package version (${npmPackage.version}) must match package.json version (${packageJson.version}).`);
+  }
+
+  if (npmPackage.transport?.type !== 'stdio') {
+    failures.push('server.json npm package transport must be stdio.');
   }
 }
 

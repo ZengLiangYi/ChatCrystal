@@ -16,13 +16,34 @@ The Core layer is the trusted boundary. Skills can provide guidance, but MCP/Cor
 
 ## Start the MCP Server
 
+Recommended for registry and zero-install setups:
+
+```bash
+npx -y chatcrystal mcp
+```
+
+If ChatCrystal is installed globally, you can also run:
+
 ```bash
 crystal mcp
 ```
 
 ChatCrystal MCP uses stdio transport. Configure it with `command` and `args`, not as an HTTP/SSE MCP URL.
 
-Example agent configuration:
+Recommended agent configuration:
+
+```json
+{
+  "mcpServers": {
+    "chatcrystal": {
+      "command": "npx",
+      "args": ["-y", "chatcrystal", "mcp"]
+    }
+  }
+}
+```
+
+Global install configuration:
 
 ```json
 {
@@ -35,7 +56,7 @@ Example agent configuration:
 }
 ```
 
-If a tool separately asks for an HTTP API endpoint, use `http://localhost:3721`. Do not use a bare `http://127.0.0.1` URL without a port because HTTP defaults to port 80.
+Local mode connects to or auto-starts ChatCrystal Core at `http://localhost:3721` and uses `~/.chatcrystal/data` by default. If a tool separately asks for an HTTP API endpoint, use `http://localhost:3721`. Do not use a bare `http://127.0.0.1` URL without a port because HTTP defaults to port 80.
 
 ### Cloud Mode
 
@@ -52,14 +73,14 @@ If a tool separately asks for an HTTP API endpoint, use `http://localhost:3721`.
 }
 ```
 
-You can also pass environment variables from the MCP client:
+You can also pass environment variables from the MCP client. Set `CHATCRYSTAL_BASE_URL` for a cloud or remote instance, and set `CHATCRYSTAL_API_TOKEN` when that instance requires authentication:
 
 ```json
 {
   "mcpServers": {
     "chatcrystal": {
-      "command": "crystal",
-      "args": ["mcp"],
+      "command": "npx",
+      "args": ["-y", "chatcrystal", "mcp"],
       "env": {
         "CHATCRYSTAL_BASE_URL": "https://chatcrystal.example.com",
         "CHATCRYSTAL_API_TOKEN": "your-long-token"
@@ -71,7 +92,7 @@ You can also pass environment variables from the MCP client:
 
 ## MCP Tools
 
-ChatCrystal exposes six MCP tools:
+ChatCrystal exposes seven MCP tools:
 
 | Tool | Purpose |
 |---|---|
@@ -80,6 +101,7 @@ ChatCrystal exposes six MCP tools:
 | `list_notes` | Browse notes with optional filters |
 | `get_relations` | Read related notes and relation metadata |
 | `recall_for_task` | Recall project-first memories before substantive work |
+| `validate_task_memory` | Preflight a task memory candidate without side effects |
 | `write_task_memory` | Persist reusable task experience after meaningful work |
 
 ## Memory Loop
@@ -88,8 +110,9 @@ The intended loop is:
 
 1. Before substantive implementation, debugging, migration, configuration, or optimization work, the agent calls `recall_for_task`.
 2. The agent applies relevant prior patterns, pitfalls, and decisions.
-3. After meaningful work completes, the agent calls `write_task_memory`.
-4. Core validates the candidate, filters low-signal content, and creates or merges a memory.
+3. After meaningful work completes, the agent calls `validate_task_memory` when available.
+4. If the candidate passes validation, the agent calls `write_task_memory`.
+5. Core validates again, filters low-signal content, and creates or merges a memory.
 
 The loop prioritizes reusable experience over raw conversation storage.
 

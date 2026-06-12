@@ -58,8 +58,22 @@ function writePkgVersion(path, version) {
 	writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`);
 }
 
+function writeServerJsonVersion(path, version) {
+	const serverJson = readPkg(path);
+	serverJson.version = version;
+	if (Array.isArray(serverJson.packages)) {
+		for (const pkg of serverJson.packages) {
+			if (pkg.registryType === "npm" && pkg.identifier === "chatcrystal") {
+				pkg.version = version;
+			}
+		}
+	}
+	writeFileSync(path, `${JSON.stringify(serverJson, null, 2)}\n`);
+}
+
 const rootPkgPath = resolve(root, "package.json");
 const serverPkgPath = resolve(root, "server/package.json");
+const serverJsonPath = resolve(root, "server/server.json");
 const filesToStage = [];
 let tag;
 
@@ -67,7 +81,9 @@ if (target === "npm" || target === "all") {
 	const serverPkg = readPkg(serverPkgPath);
 	const npmVersion = bumpVersion(serverPkg.version, arg);
 	writePkgVersion(serverPkgPath, npmVersion);
+	writeServerJsonVersion(serverJsonPath, npmVersion);
 	filesToStage.push("server/package.json");
+	filesToStage.push("server/server.json");
 	console.log(`  npm: ${serverPkg.version} → ${npmVersion}`);
 
 	if (target === "npm") {

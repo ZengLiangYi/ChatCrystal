@@ -16,13 +16,34 @@ Core 层是可信边界。Skill 可以提供指导，但 MCP/Core 必须执行�
 
 ## 启动 MCP Server
 
+推荐用于 Registry 和免安装场景：
+
+```bash
+npx -y chatcrystal mcp
+```
+
+如果已经全局安装 ChatCrystal，也可以运行：
+
 ```bash
 crystal mcp
 ```
 
 ChatCrystal MCP 使用 stdio transport。请用 `command` 和 `args` 配置，不要配置成 HTTP/SSE MCP URL。
 
-Agent 配置示例：
+推荐的 Agent 配置：
+
+```json
+{
+  "mcpServers": {
+    "chatcrystal": {
+      "command": "npx",
+      "args": ["-y", "chatcrystal", "mcp"]
+    }
+  }
+}
+```
+
+全局安装后的配置：
 
 ```json
 {
@@ -35,7 +56,7 @@ Agent 配置示例：
 }
 ```
 
-如果某个工具另外要求填写 HTTP API endpoint，请使用 `http://localhost:3721`。不要填写没有端口的裸 `http://127.0.0.1`，因为 HTTP 会默认落到 80 端口。
+本地模式会连接或自动启动 `http://localhost:3721` 上的 ChatCrystal Core，默认数据目录为 `~/.chatcrystal/data`。如果某个工具另外要求填写 HTTP API endpoint，请使用 `http://localhost:3721`。不要填写没有端口的裸 `http://127.0.0.1`，因为 HTTP 会默认落到 80 端口。
 
 ### 云端模式
 
@@ -52,14 +73,14 @@ Agent 配置示例：
 }
 ```
 
-也可以在 MCP 客户端配置中直接传入环境变量：
+也可以在 MCP 客户端配置中直接传入环境变量。连接云端或远程实例时设置 `CHATCRYSTAL_BASE_URL`，如果该实例需要认证，再设置 `CHATCRYSTAL_API_TOKEN`：
 
 ```json
 {
   "mcpServers": {
     "chatcrystal": {
-      "command": "crystal",
-      "args": ["mcp"],
+      "command": "npx",
+      "args": ["-y", "chatcrystal", "mcp"],
       "env": {
         "CHATCRYSTAL_BASE_URL": "https://chatcrystal.example.com",
         "CHATCRYSTAL_API_TOKEN": "your-long-token"
@@ -71,7 +92,7 @@ Agent 配置示例：
 
 ## MCP 工具
 
-ChatCrystal 暴露六个 MCP 工具：
+ChatCrystal 暴露七个 MCP 工具：
 
 | Tool | 用途 |
 |---|---|
@@ -80,6 +101,7 @@ ChatCrystal 暴露六个 MCP 工具：
 | `list_notes` | 浏览笔记，可带过滤条件 |
 | `get_relations` | 读取关联笔记和关系元数据 |
 | `recall_for_task` | 在实质任务前召回项目优先的经验 |
+| `validate_task_memory` | 无副作用预检待写入的任务记忆候选 |
 | `write_task_memory` | 在有结果的任务后持久化可复用经验 |
 
 ## Memory Loop
@@ -88,8 +110,9 @@ ChatCrystal 暴露六个 MCP 工具：
 
 1. 在实质性的实现、调试、迁移、配置或优化任务前，Agent 调用 `recall_for_task`。
 2. Agent 应用相关的历史模式、坑点和决策。
-3. 有意义的工作完成后，Agent 调用 `write_task_memory`。
-4. Core 校验候选内容，过滤低信号内容，并创建或合并记忆。
+3. 有意义的工作完成后，如果可用，Agent 先调用 `validate_task_memory`。
+4. 如果候选内容通过预检，Agent 再调用 `write_task_memory`。
+5. Core 再次校验候选内容，过滤低信号内容，并创建或合并记忆。
 
 这个循环优先沉淀可复用经验，而不是保存原始对话。
 

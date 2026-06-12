@@ -1,0 +1,49 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.zengliangyi/chatcrystal",
+  "title": "ChatCrystal",
+  "description": "Local-first AI PKM memory for coding conversations.",
+  "version": "0.5.1",
+  "websiteUrl": "https://zengliangyi.github.io/ChatCrystal/",
+  "repository": {
+    "url": "https://github.com/ZengLiangYi/ChatCrystal",
+    "source": "github",
+    "id": "1193284630",
+    "subfolder": "server"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "chatcrystal",
+      "version": "0.5.1",
+      "runtimeHint": "npx",
+      "runtimeArguments": [
+        {
+          "type": "positional",
+          "value": "-y"
+        }
+      ],
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "CHATCRYSTAL_BASE_URL",
+          "description": "Optional ChatCrystal Core URL. Leave empty to use the local default at http://localhost:3721.",
+          "placeholder": "https://chatcrystal.example.com"
+        },
+        {
+          "name": "CHATCRYSTAL_API_TOKEN",
+          "description": "Optional token for a protected ChatCrystal Cloud or remote instance.",
+          "isSecret": true
+        }
+      ],
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
