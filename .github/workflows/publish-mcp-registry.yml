@@ -1,0 +1,52 @@
+name: Publish MCP Registry
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "npm-v*"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Wait for npm package metadata
+        working-directory: server
+        run: |
+          VERSION="$(node -p "require('./server.json').version")"
+          for attempt in {1..30}; do
+            MCP_NAME="$(npm view "chatcrystal@$VERSION" mcpName --json 2>/dev/null | tr -d '"\r\n' || true)"
+            if [ "$MCP_NAME" = "io.github.zengliangyi/chatcrystal" ]; then
+              echo "Found chatcrystal@$VERSION with MCP ownership metadata."
+              exit 0
+            fi
+            echo "Waiting for chatcrystal@$VERSION on npm (attempt $attempt/30)..."
+            sleep 10
+          done
+          echo "chatcrystal@$VERSION did not expose the expected mcpName on npm." >&2
+          exit 1
+
+      - name: Install mcp-publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+          chmod +x mcp-publisher
+
+      - name: Authenticate to MCP Registry
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish to MCP Registry
+        working-directory: server
+        run: ../mcp-publisher publish
