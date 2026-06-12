@@ -1,7 +1,8 @@
 export const en = {
   meta: {
     title: 'ChatCrystal — Turn AI Conversations into Searchable Knowledge',
-    description: 'Open-source, local-first tool that crystallizes your AI coding conversations (Claude Code, Cursor, Codex CLI, Trae, GitHub Copilot) into structured, searchable knowledge.',
+    description: 'Open-source, local-first AI PKM and personal knowledge management app that turns Claude Code, Cursor, Codex CLI, Trae, and GitHub Copilot conversations into searchable notes, a tag graph, and MCP memory.',
+    keywords: 'AI PKM, personal knowledge management, personal knowledge base, local-first, semantic search, MCP, Claude Code, Cursor, Codex CLI, AI memory',
   },
   nav: {
     features: 'Features',
@@ -10,12 +11,17 @@ export const en = {
     github: 'GitHub',
   },
   hero: {
-    badge: 'Open Source · Local First',
-    title: 'Turn AI Conversations into Searchable Knowledge',
-    subtitle: 'Import conversations from your favorite AI coding tools. AI crystallizes them into structured notes with semantic search. Everything stays on your machine.',
+    badge: '0.5.2 · Dawn Haze UI refresh',
+    title: 'ChatCrystal',
+    subtitle: 'A calm local workspace that turns AI coding conversations into notes, tag graphs, Markdown exports, and reusable context for your next agent session.',
     installCmd: 'npm i -g chatcrystal',
     copied: 'Copied!',
     downloadDesktop: 'Download Desktop App',
+    highlights: [
+      { value: '5', label: 'AI coding sources' },
+      { value: 'Local', label: 'SQLite + vector index' },
+      { value: 'MCP', label: 'Recall knowledge from agents' },
+    ],
   },
   integrations: {
     heading: 'Works with your favorite AI coding tools',
@@ -26,22 +32,24 @@ export const en = {
     copilot: { name: 'GitHub Copilot', desc: 'Chat sessions' },
   },
   howItWorks: {
-    heading: 'How It Works',
+    heading: 'From chat history to reusable knowledge',
     steps: [
-      { title: 'Import', desc: 'Auto-scan your local AI conversation history' },
-      { title: 'Crystallize', desc: 'LLM generates structured notes: title, summary, key conclusions, code snippets, tags' },
-      { title: 'Search', desc: 'Semantic search your knowledge base — find anything, anytime' },
+      { title: 'Import', desc: 'Scan Claude Code, Cursor, Codex CLI, Trae, and Copilot histories from your machine.' },
+      { title: 'Crystallize', desc: 'LLMs extract summaries, decisions, code snippets, source metadata, and tags.' },
+      { title: 'Explore', desc: 'Search semantically, browse notes, and inspect the tag-based knowledge graph.' },
+      { title: 'Reuse', desc: 'Export Markdown or let MCP recall the right memories inside your agent workflow.' },
     ],
   },
   features: {
-    heading: 'Everything you need',
+    eyebrow: 'What changed in 0.5.x',
+    heading: 'A brighter workspace for serious recall',
     items: [
-      { title: 'Semantic Search', desc: 'Search with natural language, not just keywords' },
-      { title: 'Structured Notes', desc: 'Auto-extract titles, summaries, key conclusions, and code snippets' },
-      { title: 'MCP Integration', desc: 'AI tools query your knowledge base directly' },
-      { title: 'Smart Tags', desc: 'Auto-categorize and browse by tags' },
-      { title: 'CLI Toolkit', desc: 'One set of commands to manage all your knowledge' },
-      { title: 'Desktop App', desc: 'Runs in system tray, auto-imports in the background' },
+      { title: 'Dawn Haze interface', desc: 'A light desktop workspace with warm paper surfaces, compact controls, and shadcn/ui polish.' },
+      { title: 'Tag knowledge graph', desc: 'Tags become knowledge-point nodes with readable neighborhoods, details, and project context.' },
+      { title: 'Sharper semantic search', desc: 'Natural-language results now balance embeddings with lexical signal so weak hits stay out.' },
+      { title: 'Markdown export', desc: 'Save a note as clean Markdown with localized headings and minimal frontmatter.' },
+      { title: 'Agent memory loop', desc: 'MCP tools recall and write reusable task memories from the same local knowledge base.' },
+      { title: 'Desktop and cloud controls', desc: 'Use the tray app, manual update checks, token access, and optional personal cloud deployment.' },
     ],
   },
   localFirst: {
@@ -54,7 +62,14 @@ export const en = {
     ],
   },
   cli: {
-    heading: 'Powerful CLI',
+    eyebrow: 'CLI + MCP',
+    heading: 'Keep the workflow close to the terminal',
+    subheading: 'The same local server powers the desktop app, REST API, CLI, and MCP memory tools.',
+    commands: [
+      { command: 'crystal import --source codex', note: 'scan local sessions' },
+      { command: 'crystal search "jwt cache strategy"', note: 'semantic recall' },
+      { command: 'crystal mcp', note: 'serve agent tools' },
+    ],
   },
   footer: {
     tagline: 'Crystallize your AI knowledge',

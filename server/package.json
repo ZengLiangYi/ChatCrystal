@@ -7,7 +7,7 @@
     "type": "git",
     "url": "https://github.com/ZengLiangYi/ChatCrystal"
   },
-  "description": "Turn your AI conversations into searchable knowledge — supports Claude Code, Cursor, Codex CLI, Trae, GitHub Copilot",
+  "description": "Local-first AI PKM for coding conversations — supports Claude Code, Cursor, Codex CLI, Trae, GitHub Copilot",
   "keywords": [
     "claude",
     "claude-code",
@@ -15,6 +15,10 @@
     "conversation",
     "knowledge",
     "knowledge-base",
+    "pkm",
+    "personal-knowledge-management",
+    "personal-knowledge-base",
+    "note-taking",
     "mcp",
     "semantic-search",
     "notes",

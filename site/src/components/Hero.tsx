@@ -19,6 +19,8 @@ const stagger = {
 
 export default function Hero({ t, lang, basePath }: Props) {
   const [copied, setCopied] = useState(false);
+  const heroScreenshot = lang === 'zh' ? 'dashboard' : 'conversations';
+  const secondaryScreenshot = lang === 'zh' ? 'conversations' : 'graph';
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(t.hero.installCmd);
@@ -27,9 +29,8 @@ export default function Hero({ t, lang, basePath }: Props) {
   };
 
   return (
-    <section className="min-h-[80vh] flex items-center py-20">
-      <div className="mx-auto max-w-6xl px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-        {/* Left: copy */}
+    <section className="relative overflow-hidden pt-24 pb-16 sm:pt-28 lg:pb-20">
+      <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 lg:grid-cols-[0.9fr_1.1fr]">
         <motion.div
           variants={stagger}
           initial="hidden"
@@ -38,34 +39,42 @@ export default function Hero({ t, lang, basePath }: Props) {
         >
           <motion.span
             variants={fadeUp}
-            className="inline-flex self-start rounded-full border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 px-4 py-1.5 text-xs font-medium text-[var(--color-accent)]"
+            className="inline-flex self-start rounded-full border border-[var(--color-primary)]/25 bg-[var(--color-paper)] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-primary)] shadow-sm"
           >
             {t.hero.badge}
           </motion.span>
 
           <motion.h1
             variants={fadeUp}
-            className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight tracking-tight"
+            className="font-display text-5xl font-bold leading-none text-[var(--color-primary-deep)] sm:text-6xl lg:text-7xl"
           >
             {t.hero.title}
           </motion.h1>
 
           <motion.p
             variants={fadeUp}
-            className="text-lg text-[var(--color-dim-white)] leading-relaxed max-w-lg"
+            className="max-w-xl text-lg leading-8 text-[var(--color-dim-white)]"
           >
             {t.hero.subtitle}
           </motion.p>
 
-          {/* CTA group */}
-          <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-3">
+          <motion.div variants={fadeUp} className="grid max-w-xl grid-cols-3 gap-3">
+            {t.hero.highlights.map((item) => (
+              <div key={item.label} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-paper)] px-4 py-3 shadow-sm">
+                <div className="font-display text-2xl font-bold text-[var(--color-primary)]">{item.value}</div>
+                <div className="mt-1 text-xs font-medium leading-snug text-[var(--color-dim-white)]">{item.label}</div>
+              </div>
+            ))}
+          </motion.div>
+
+          <motion.div variants={fadeUp} className="flex flex-col gap-3 sm:flex-row">
             <button
               onClick={handleCopy}
-              className="group inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-5 py-3 font-mono text-sm font-medium text-white hover:bg-[var(--color-primary-deep)] transition-colors cursor-pointer"
+              className="group inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-lg bg-[var(--color-primary)] px-5 py-3 font-mono text-sm font-semibold text-[#FFFDF8] shadow-[0_14px_30px_rgba(184,88,75,0.22)] transition-colors hover:bg-[var(--color-primary-hover)]"
             >
               <span className="opacity-50">$</span>
               <span>{t.hero.installCmd}</span>
-              <span className="ml-1 text-white/60 group-hover:text-white transition-colors">
+              <span className="ml-1 text-[#FFFDF8]/65 transition-colors group-hover:text-[#FFFDF8]">
                 {copied ? (
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 ) : (
@@ -78,17 +87,16 @@ export default function Hero({ t, lang, basePath }: Props) {
               href="https://github.com/ZengLiangYi/ChatCrystal/releases"
               target="_blank"
               rel="noopener"
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 px-5 py-3 text-sm font-medium text-[var(--color-white)] hover:bg-white/10 transition-colors"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-paper)] px-5 py-3 text-sm font-semibold text-[var(--color-primary-deep)] shadow-sm transition-colors hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
             >
               {t.hero.downloadDesktop}
             </a>
           </motion.div>
 
-          {/* GitHub stars badge */}
           <motion.div variants={fadeUp}>
             <a href="https://github.com/ZengLiangYi/ChatCrystal" target="_blank" rel="noopener">
               <img
-                src="https://img.shields.io/github/stars/ZengLiangYi/ChatCrystal?style=flat&logo=github&color=5A5FD6"
+                src="https://img.shields.io/github/stars/ZengLiangYi/ChatCrystal?style=flat&logo=github&color=B8584B"
                 alt="GitHub stars"
                 loading="lazy"
               />
@@ -96,25 +104,41 @@ export default function Hero({ t, lang, basePath }: Props) {
           </motion.div>
         </motion.div>
 
-        {/* Right: product demo video */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.4, duration: 0.6 }}
-          className="relative rounded-xl overflow-hidden border border-white/10 bg-[var(--color-terminal-bg)]"
+          className="relative"
         >
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            poster={`${basePath}/screenshots/${lang}/conversations.png`}
-            className="w-full"
-          >
-            <source src={`${basePath}/demos/hero.webm`} type="video/webm" />
-            <source src={`${basePath}/demos/hero.mp4`} type="video/mp4" />
-            <img src={`${basePath}/screenshots/${lang}/conversations.png`} alt="ChatCrystal" />
-          </video>
+          <div className="paper-panel overflow-hidden rounded-lg">
+            <div className="flex h-10 items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-paper-soft)] px-4">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-primary)]" />
+                <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-warning)]" />
+                <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-success)]" />
+              </div>
+              <span className="font-mono text-xs text-[var(--color-muted)]">localhost:3721</span>
+            </div>
+            <img
+              src={`${basePath}/screenshots/${lang}/${heroScreenshot}.png`}
+              alt="ChatCrystal workspace"
+              className="w-full"
+            />
+          </div>
+
+          <div className="mt-4 grid grid-cols-[0.7fr_1fr] gap-4">
+            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-paper)] p-4 shadow-sm">
+              <p className="font-mono text-xs uppercase tracking-[0.12em] text-[var(--color-muted)]">Dawn Haze</p>
+              <p className="mt-2 text-sm font-semibold text-[var(--color-primary-deep)]">SQLite · Vector · MCP</p>
+            </div>
+            <div className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-paper)] shadow-sm">
+              <img
+                src={`${basePath}/screenshots/${lang}/${secondaryScreenshot}.png`}
+                alt="ChatCrystal secondary view"
+                className="h-full w-full object-cover object-top"
+              />
+            </div>
+          </div>
         </motion.div>
       </div>
     </section>

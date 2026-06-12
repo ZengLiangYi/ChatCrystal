@@ -15,7 +15,7 @@ const t = getTranslations(lang);
 const basePath = '/ChatCrystal';
 ---
 
-<Layout lang={lang} title={t.meta.title} description={t.meta.description}>
+<Layout lang={lang} title={t.meta.title} description={t.meta.description} keywords={t.meta.keywords}>
   <Header t={t} lang={lang} basePath={basePath} />
   <main class="pt-14">
     <Hero client:load t={t} lang={lang} basePath={basePath} />

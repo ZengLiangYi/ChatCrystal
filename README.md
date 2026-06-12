@@ -4,16 +4,20 @@
 
 # ChatCrystal
 
-**Turn your AI conversations into searchable knowledge**
+**Local-first AI PKM for coding conversations**
 
 [![GitHub release](https://img.shields.io/github/v/release/ZengLiangYi/ChatCrystal?style=flat-square)](https://github.com/ZengLiangYi/ChatCrystal/releases)
 [![npm](https://img.shields.io/npm/v/chatcrystal?style=flat-square)](https://www.npmjs.com/package/chatcrystal)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen?style=flat-square)](https://nodejs.org/)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey?style=flat-square)](#)
-[![Website](https://img.shields.io/badge/website-ChatCrystal-5A5FD6?style=flat-square)](https://zengliangyi.github.io/ChatCrystal/)
+[![Website](https://img.shields.io/badge/website-ChatCrystal-B8584B?style=flat-square)](https://zengliangyi.github.io/ChatCrystal/)
 
-English | [简体中文](README.zh-CN.md)
+[Website](https://zengliangyi.github.io/ChatCrystal/) ·
+[Download Desktop](https://github.com/ZengLiangYi/ChatCrystal/releases) ·
+[npm](https://www.npmjs.com/package/chatcrystal) ·
+[Docs](docs/USER_GUIDE.md) ·
+[简体中文](README.zh-CN.md)
 
 </div>
 
@@ -25,9 +29,9 @@ English | [简体中文](README.zh-CN.md)
 
 <br>
 
-ChatCrystal collects conversations from AI coding tools, distills them into structured notes with LLMs, and builds a local searchable knowledge base from your real problem-solving history.
+ChatCrystal is a local-first AI PKM app for developers who solve real problems with Claude Code, Cursor, Codex CLI, Trae, and GitHub Copilot.
 
-Supported sources: Claude Code, Cursor, Codex CLI, Trae, and GitHub Copilot.
+It turns scattered AI coding conversations into structured notes, semantic search, a tag knowledge graph, Markdown exports, and MCP memory your agents can reuse. If this fits your workflow, a star helps more builders find a private, local-first way to keep their AI work memory.
 
 ## Quick Start
 
@@ -47,51 +51,7 @@ Then open http://localhost:3721 in your browser.
 
 ### Docker Cloud
 
-The default Compose deployment runs only the ChatCrystal service. It stores data in the `chatcrystal-data` volume mounted at `/data` inside the container.
-
-```bash
-git clone https://github.com/ZengLiangYi/ChatCrystal.git
-cd ChatCrystal
-docker compose up -d
-```
-
-The default `docker-compose.yml` pulls `ghcr.io/zengliangyi/chatcrystal:latest` from GitHub Container Registry. Set `CHATCRYSTAL_IMAGE_TAG` to pin a published version. To build from source instead, run `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`.
-
-To update an existing Docker deployment, run `docker compose pull && docker compose up -d`. Maintainers only: after the first GHCR publish, make the `ghcr.io/zengliangyi/chatcrystal` package public in GitHub Packages; the release workflow verifies anonymous pull access before passing.
-
-Compose binds ChatCrystal to `0.0.0.0:3721` by default so other devices can reach the cloud core through the host IP. Set `CHATCRYSTAL_HOST_PORT` to change the host port, or set `BIND_ADDRESS=127.0.0.1` when a local-only reverse proxy fronts it. For public cloud access, an HTTPS reverse proxy is recommended for safer token transport.
-
-On Windows Docker Desktop, a published port may still need extra host networking configuration before it is reachable through the host LAN IP. For cloud-mode testing, verify `http://<host-ip>:<host-port>/api/health` from the client device first; if it cannot connect, configure Windows port forwarding/firewall rules or deploy the cloud core on a real remote host.
-
-On first start without `CHATCRYSTAL_API_TOKEN`, open the Web UI and enter the setup code printed in container logs or stored at `/data/setup-code`, then choose one shared API token for your devices.
-
-To rotate or reset the Docker cloud token:
-
-```bash
-# If you still know the current token, rotate it online.
-crystal --base-url https://chatcrystal.example.com token rotate "new-long-token-at-least-16-chars" --current "old-token"
-crystal connect https://chatcrystal.example.com --token "new-long-token-at-least-16-chars"
-
-# If you forgot the token and did not set CHATCRYSTAL_API_TOKEN, reset stored auth in the container.
-docker compose exec chatcrystal crystal token reset --yes
-docker compose logs chatcrystal --tail=80
-docker compose exec chatcrystal cat /data/setup-code
-```
-
-If your deployment sets `CHATCRYSTAL_API_TOKEN`, that environment variable is the active token source. Change it in your `.env` or Compose environment and recreate the container with `docker compose up -d --force-recreate`.
-
-To use an existing Ollama or external API, configure provider URLs in the Web UI or environment. In Docker, `localhost` means inside the container; use `CHATCRYSTAL_DOCKER_LLM_BASE_URL` and `CHATCRYSTAL_DOCKER_EMBEDDING_BASE_URL` for Compose-time provider URL overrides. Docker Desktop can reach host Ollama at `http://host.docker.internal:11434`, or you can use a remote HTTPS/OpenAI-compatible API.
-
-### Import from a Device into the Cloud Instance
-
-Install or run the CLI on the device that has Claude Code, Cursor, Codex CLI, Trae, or GitHub Copilot history:
-
-```bash
-crystal connect https://chatcrystal.example.com --token "your-long-token"
-crystal import --yes
-```
-
-The CLI scans local histories, parses them locally, and uploads normalized conversations to the cloud. The cloud never scans your local filesystem. Imported conversations are not summarized automatically; use the Web UI or `crystal summarize --all` when you are ready. HTTPS is recommended for cloud access, but HTTP works when that is the deployment you choose.
+Prefer self-hosting ChatCrystal for multiple devices? See [Docker Cloud Deployment](#docker-cloud-deployment) after the product overview.
 
 ## What It Does
 
@@ -174,8 +134,57 @@ Development server ports:
 
 See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for architecture, testing, build, and release details.
 
-## Wechat
-Wechat: Yizel1
+## Docker Cloud Deployment
+
+The default Compose deployment runs only the ChatCrystal service. It stores data in the `chatcrystal-data` volume mounted at `/data` inside the container.
+
+```bash
+git clone https://github.com/ZengLiangYi/ChatCrystal.git
+cd ChatCrystal
+docker compose up -d
+```
+
+The default `docker-compose.yml` pulls `ghcr.io/zengliangyi/chatcrystal:latest` from GitHub Container Registry. Set `CHATCRYSTAL_IMAGE_TAG` to pin a published version. To build from source instead, run `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`.
+
+To update an existing Docker deployment, run `docker compose pull && docker compose up -d`. Maintainers only: after the first GHCR publish, make the `ghcr.io/zengliangyi/chatcrystal` package public in GitHub Packages; the release workflow verifies anonymous pull access before passing.
+
+Compose binds ChatCrystal to `0.0.0.0:3721` by default so other devices can reach the cloud core through the host IP. Set `CHATCRYSTAL_HOST_PORT` to change the host port, or set `BIND_ADDRESS=127.0.0.1` when a local-only reverse proxy fronts it. For public cloud access, an HTTPS reverse proxy is recommended for safer token transport.
+
+On Windows Docker Desktop, a published port may still need extra host networking configuration before it is reachable through the host LAN IP. For cloud-mode testing, verify `http://<host-ip>:<host-port>/api/health` from the client device first; if it cannot connect, configure Windows port forwarding/firewall rules or deploy the cloud core on a real remote host.
+
+On first start without `CHATCRYSTAL_API_TOKEN`, open the Web UI and enter the setup code printed in container logs or stored at `/data/setup-code`, then choose one shared API token for your devices.
+
+To rotate or reset the Docker cloud token:
+
+```bash
+# If you still know the current token, rotate it online.
+crystal --base-url https://chatcrystal.example.com token rotate "new-long-token-at-least-16-chars" --current "old-token"
+crystal connect https://chatcrystal.example.com --token "new-long-token-at-least-16-chars"
+
+# If you forgot the token and did not set CHATCRYSTAL_API_TOKEN, reset stored auth in the container.
+docker compose exec chatcrystal crystal token reset --yes
+docker compose logs chatcrystal --tail=80
+docker compose exec chatcrystal cat /data/setup-code
+```
+
+If your deployment sets `CHATCRYSTAL_API_TOKEN`, that environment variable is the active token source. Change it in your `.env` or Compose environment and recreate the container with `docker compose up -d --force-recreate`.
+
+To use an existing Ollama or external API, configure provider URLs in the Web UI or environment. In Docker, `localhost` means inside the container; use `CHATCRYSTAL_DOCKER_LLM_BASE_URL` and `CHATCRYSTAL_DOCKER_EMBEDDING_BASE_URL` for Compose-time provider URL overrides. Docker Desktop can reach host Ollama at `http://host.docker.internal:11434`, or you can use a remote HTTPS/OpenAI-compatible API.
+
+### Import from a Device into the Cloud Instance
+
+Install or run the CLI on the device that has Claude Code, Cursor, Codex CLI, Trae, or GitHub Copilot history:
+
+```bash
+crystal connect https://chatcrystal.example.com --token "your-long-token"
+crystal import --yes
+```
+
+The CLI scans local histories, parses them locally, and uploads normalized conversations to the cloud. The cloud never scans your local filesystem. Imported conversations are not summarized automatically; use the Web UI or `crystal summarize --all` when you are ready. HTTPS is recommended for cloud access, but HTTP works when that is the deployment you choose.
+
+## Contact Us
+
+<img src="docs/wechat.png" alt="WeChat QR code" width="220" />
 
 ## License
 

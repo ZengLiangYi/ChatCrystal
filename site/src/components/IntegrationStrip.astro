@@ -16,16 +16,16 @@ const sources = [
 ];
 ---
 
-<section class="py-16">
-  <div class="mx-auto max-w-4xl px-6 text-center">
-    <p class="text-[var(--color-dim-white)] text-sm mb-8 animate-on-scroll">
+<section class="py-14">
+  <div class="mx-auto max-w-6xl px-6">
+    <p class="mb-6 text-center text-sm font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)] animate-on-scroll">
       {t.integrations.heading}
     </p>
-    <div class="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 stagger-children">
+    <div class="stagger-children grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {sources.map((s) => {
         const source = t.integrations[s.key];
         return (
-          <div class="flex items-center gap-2">
+          <div class="group flex min-h-20 items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-paper)] px-4 py-3 shadow-sm transition-transform duration-200 hover:-translate-y-0.5">
             <div class="w-5 h-5 flex-shrink-0" style={`color: ${s.color}`}>
               {/* Claude — official spark mark */}
               {s.key === 'claudeCode' && (
@@ -58,7 +58,10 @@ const sources = [
                 </svg>
               )}
             </div>
-            <span class="text-sm font-medium text-[var(--color-white)]">{source.name}</span>
+            <div>
+              <span class="block text-sm font-semibold text-[var(--color-primary-deep)]">{source.name}</span>
+              <span class="mt-0.5 block text-xs text-[var(--color-muted)]">{source.desc}</span>
+            </div>
           </div>
         );
       })}

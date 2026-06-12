@@ -5,9 +5,10 @@ interface Props {
   lang: 'en' | 'zh';
   title: string;
   description: string;
+  keywords?: string;
 }
 
-const { lang, title, description } = Astro.props;
+const { lang, title, description, keywords } = Astro.props;
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 const ogImage = new URL('/ChatCrystal/og-image.png', Astro.site);
 const altLang = lang === 'en' ? 'zh' : 'en';
@@ -20,11 +21,12 @@ const altURL = new URL(altPath, Astro.site);
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="light" />
     <link rel="icon" type="image/svg+xml" href="/ChatCrystal/favicon.svg" />
 
     <title>{title}</title>
     <meta name="description" content={description} />
+    {keywords && <meta name="keywords" content={keywords} />}
     <link rel="canonical" href={canonicalURL} />
 
     <!-- i18n alternates -->
@@ -49,7 +51,7 @@ const altURL = new URL(altPath, Astro.site);
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet" />
   </head>
   <body class="min-h-screen antialiased">
     <slot />

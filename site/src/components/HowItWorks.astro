@@ -12,26 +12,32 @@ const steps = t.howItWorks.steps;
 
 <section id="how-it-works" class="py-24">
   <div class="mx-auto max-w-5xl px-6">
-    <h2 class="text-3xl font-bold text-center mb-16 animate-on-scroll">
+    <h2 class="font-display text-3xl font-bold text-center mb-14 text-[var(--color-primary-deep)] animate-on-scroll sm:text-4xl">
       {t.howItWorks.heading}
     </h2>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative stagger-children">
+    <div class="relative grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 stagger-children">
       {steps.map((step, i) => (
-        <div class="relative text-center">
-          <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-primary-deep)]">
+        <div class="relative rounded-lg border border-[var(--color-border)] bg-[var(--color-paper)] p-5 shadow-sm">
+          <div class="mb-5 flex items-center justify-between">
+            <span class="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">{`0${i + 1}`}</span>
+            <div class="flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-paper-soft)]">
             {i === 0 && (
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             )}
             {i === 1 && (
               <img src={`${basePath}/logo.png`} alt="Crystallize" class="w-7 h-7" />
             )}
             {i === 2 && (
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             )}
+            {i === 3 && (
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m17 10-5 5-5-5"/><path d="M5 21h14"/></svg>
+            )}
+            </div>
           </div>
 
-          <h3 class="text-xl font-semibold mb-2 text-[var(--color-white)]">
+          <h3 class="text-lg font-semibold mb-2 text-[var(--color-primary-deep)]">
             {step.title}
           </h3>
           <p class="text-sm text-[var(--color-dim-white)] leading-relaxed">
@@ -39,7 +45,7 @@ const steps = t.howItWorks.steps;
           </p>
 
           {i < steps.length - 1 && (
-            <div class="hidden md:block absolute top-7 -right-4 text-[var(--color-muted)]">
+            <div class="hidden lg:block absolute top-1/2 -right-3 z-10 -translate-y-1/2 rounded-full bg-[var(--color-bg)] p-1 text-[var(--color-muted)]">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
             </div>
           )}

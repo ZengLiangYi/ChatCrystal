@@ -1,31 +1,65 @@
 @import "tailwindcss";
 
 :root {
-  --color-bg: #0A0C10;
-  --color-terminal-bg: #0D0F14;
-  --color-primary-deep: #2A1B5E;
-  --color-primary: #5A5FD6;
-  --color-accent: #C4ADF0;
-  --color-cobalt-blue: #3B6DC6;
-  --color-blue: #5B8DEF;
-  --color-white: #E8E9ED;
-  --color-dim-white: #8B8FA3;
-  --color-muted: #5C5F6E;
-  --color-claude-code: #D97757;
-  --color-codex: #E8E9ED;
-  --color-cursor: #E8E9ED;
-  --color-trae: #32F08C;
-  --color-copilot: #E8E9ED;
+  --color-bg: #F6F4F0;
+  --color-paper: #FFFDF8;
+  --color-paper-soft: #EDEAE4;
+  --color-paper-deep: #E2DED6;
+  --color-terminal-bg: #2C2A26;
+  --color-primary-deep: #2C2A26;
+  --color-primary: #B8584B;
+  --color-primary-hover: #CC6558;
+  --color-accent: #4A7FA5;
+  --color-cobalt-blue: #527C9B;
+  --color-blue: #4A7FA5;
+  --color-success: #5A8A5C;
+  --color-warning: #C4883A;
+  --color-white: #2C2A26;
+  --color-dim-white: #6B665C;
+  --color-muted: #9E978A;
+  --color-border: #D4CFC6;
+  --color-claude-code: #C45E39;
+  --color-codex: #087A60;
+  --color-cursor: #7C3DBA;
+  --color-trae: #4C57BF;
+  --color-copilot: #1F5EBD;
+  --shadow-soft: 0 18px 50px rgba(44, 42, 38, 0.11);
+  --shadow-line: 0 1px 0 rgba(255, 255, 255, 0.62) inset;
 }
 
 html {
   scroll-behavior: smooth;
+  background: var(--color-bg);
 }
 
 body {
-  background-color: var(--color-bg);
+  position: relative;
+  overflow-x: hidden;
+  background:
+    linear-gradient(115deg, rgba(184, 88, 75, 0.08), transparent 28%),
+    linear-gradient(245deg, rgba(74, 127, 165, 0.1), transparent 34%),
+    repeating-linear-gradient(0deg, rgba(44, 42, 38, 0.025) 0 1px, transparent 1px 5px),
+    var(--color-bg);
   color: var(--color-white);
-  font-family: 'Inter', system-ui, -apple-system, 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  font-family: 'IBM Plex Sans', 'Noto Sans SC', system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+  background:
+    linear-gradient(90deg, rgba(212, 207, 198, 0.18) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(212, 207, 198, 0.16) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), transparent 76%);
+}
+
+::selection {
+  color: #FFFDF8;
+  background: var(--color-primary);
 }
 
 @keyframes fade-up {
@@ -72,4 +106,15 @@ body {
 
 .font-mono {
   font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+.font-display {
+  font-family: 'Noto Serif SC', 'IBM Plex Sans', serif;
+}
+
+.paper-panel {
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-paper) 82%, transparent);
+  box-shadow: var(--shadow-soft), var(--shadow-line);
+  backdrop-filter: blur(18px);
 }
