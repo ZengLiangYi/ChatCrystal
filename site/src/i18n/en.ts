@@ -17,6 +17,7 @@ export const en = {
     installCmd: 'npm i -g chatcrystal',
     copied: 'Copied!',
     downloadDesktop: 'Download Desktop App',
+    starOnGitHub: 'Star on GitHub',
     highlights: [
       { value: '5', label: 'AI coding sources' },
       { value: 'Local', label: 'SQLite + vector index' },

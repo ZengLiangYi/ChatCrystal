@@ -19,6 +19,7 @@ export const zh: Translations = {
     installCmd: 'npm i -g chatcrystal',
     copied: '已复制！',
     downloadDesktop: '下载桌面应用',
+    starOnGitHub: '在 GitHub 上 Star',
     highlights: [
       { value: '5', label: 'AI 编程来源' },
       { value: '本地', label: 'SQLite + 向量索引' },
