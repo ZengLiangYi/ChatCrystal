@@ -8,6 +8,7 @@
     "type": "git",
     "url": "https://github.com/ZengLiangYi/ChatCrystal"
   },
+  "homepage": "https://zengliangyi.github.io/ChatCrystal/",
   "description": "Local-first AI PKM for coding conversations — supports Claude Code, Cursor, Codex CLI, Trae, GitHub Copilot",
   "keywords": [
     "claude",
