@@ -43,6 +43,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "node scripts/clean-dist.mjs && tsc && node scripts/copy-seed-data.mjs",
     "check:npm-package": "node scripts/check-npm-package.mjs",
+    "smoke:mcp": "node scripts/smoke-mcp.mjs",
     "start": "node dist/server/src/index.js",
     "test": "tsx --test src/**/*.test.ts",
     "eval:experience": "tsx scripts/evaluate-experience-gate.ts"

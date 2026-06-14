@@ -1,19 +1,14 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
-// Read version from package.json
-const pkgPath = resolve(import.meta.dirname, '../../../../package.json');
-const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+import { readCliPackageVersion } from './version.js';
 
 const program = new Command();
 
 program
   .name('crystal')
   .description('ChatCrystal — AI conversation knowledge crystallization tool')
-  .version(pkg.version)
+  .version(readCliPackageVersion())
   .option('-b, --base-url <url>', 'Server base URL')
   .option('--token <token>', 'ChatCrystal API token for cloud mode')
   .option('--json', 'Force JSON output (override TTY detection)')

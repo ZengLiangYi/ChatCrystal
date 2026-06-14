@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { CrystalClient, type CrystalClientOptions } from '../client.js';
+import { readCliPackageVersion } from '../version.js';
 import {
   RecallForTaskRequestShape,
   ValidateTaskMemoryRequestShape,
@@ -14,7 +15,7 @@ export async function startMcpServer(options?: string | CrystalClientOptions) {
   console.error(`ChatCrystal MCP: ${client.getConnectionSummary(status)}`);
   const server = new McpServer({
     name: 'chatcrystal',
-    version: '0.2.0',
+    version: readCliPackageVersion(),
   });
 
   // Tool 1: search_knowledge
