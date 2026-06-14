@@ -3,7 +3,7 @@
   "name": "io.github.ZengLiangYi/chatcrystal",
   "title": "ChatCrystal",
   "description": "Local-first AI PKM memory for coding conversations.",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "websiteUrl": "https://zengliangyi.github.io/ChatCrystal/",
   "repository": {
     "url": "https://github.com/ZengLiangYi/ChatCrystal",
@@ -15,7 +15,7 @@
     {
       "registryType": "npm",
       "identifier": "chatcrystal",
-      "version": "0.5.4",
+      "version": "0.5.5",
       "runtimeHint": "npx",
       "runtimeArguments": [
         {
