@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import process from 'node:process';
@@ -8,8 +9,6 @@ import process from 'node:process';
 const repoRoot = resolve(import.meta.dirname, '../..');
 const serverRoot = resolve(repoRoot, 'server');
 const dataDir = mkdtempSync(join(tmpdir(), 'chatcrystal-mcp-smoke-'));
-const port = process.env.CHATCRYSTAL_SMOKE_PORT || String(42000 + Math.floor(Math.random() * 1000));
-const baseUrl = `http://127.0.0.1:${port}`;
 const token = 'chatcrystal-smoke-token-1234567890';
 const serverEntry = resolve(serverRoot, 'dist/server/src/index.js');
 const cliEntry = resolve(serverRoot, 'dist/server/src/cli/index.js');
@@ -29,7 +28,26 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function waitForHealth() {
+async function getFreePort() {
+  if (process.env.CHATCRYSTAL_SMOKE_PORT) return process.env.CHATCRYSTAL_SMOKE_PORT;
+
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.on('error', reject);
+    server.listen(0, '0.0.0.0', () => {
+      const address = server.address();
+      server.close(() => {
+        if (typeof address === 'object' && address?.port) {
+          resolve(String(address.port));
+          return;
+        }
+        reject(new Error('Unable to allocate a free smoke test port'));
+      });
+    });
+  });
+}
+
+async function waitForHealth(baseUrl) {
   for (let i = 0; i < 80; i += 1) {
     try {
       const res = await fetch(`${baseUrl}/api/health`);
@@ -58,6 +76,8 @@ async function stopProcess(child) {
 let server;
 
 try {
+  const port = await getFreePort();
+  const baseUrl = `http://127.0.0.1:${port}`;
   server = spawn(process.execPath, [serverEntry], {
     cwd: repoRoot,
     env: {
@@ -71,7 +91,7 @@ try {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
-  await waitForHealth();
+  await waitForHealth(baseUrl);
 
   const [{ Client }, { StdioClientTransport }] = await Promise.all([
     import('@modelcontextprotocol/sdk/client/index.js'),
