@@ -68,13 +68,27 @@ export async function recallForTask(
     );
   }
 
-  const hits = await search(
-    [request.task.goal, ...(request.task.error_signatures ?? [])]
-      .filter(Boolean)
-      .join('\n'),
-    Math.max((projectLimit + globalLimit) * 3, 1),
-    includeRelations,
-  );
+  let hits: Awaited<ReturnType<typeof semanticSearch>>;
+  try {
+    hits = await search(
+      [request.task.goal, ...(request.task.error_signatures ?? [])]
+        .filter(Boolean)
+        .join('\n'),
+      Math.max((projectLimit + globalLimit) * 3, 1),
+      includeRelations,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    warnings.push(`Semantic memory recall unavailable: ${message}`);
+    return {
+      mode: request.mode,
+      project_key: canonicalProjectKey,
+      reason: canonicalProjectKey ? 'no-matches' : 'no-project-key',
+      warnings,
+      project_memories: [],
+      global_memories: [],
+    };
+  }
   const noteIds = [...new Set(hits.map((hit) => hit.noteId))];
 
   if (noteIds.length === 0) {

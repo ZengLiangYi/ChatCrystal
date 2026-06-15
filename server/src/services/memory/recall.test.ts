@@ -133,6 +133,51 @@ test('recallForTask returns no-matches when semantic hits are fully filtered out
   assert.deepEqual(result.global_memories, []);
 });
 
+test('recallForTask returns an empty recall with warning when semantic search backend is unavailable', async () => {
+  const db = {
+    exec(sql: string) {
+      if (sql.includes('SELECT canonical_key FROM project_key_aliases')) {
+        return [{ columns: ['canonical_key'], values: [] }];
+      }
+      if (sql.includes('FROM project_key_aliases')) {
+        return [{
+          columns: ['alias_key'],
+          values: [['git:project-a']],
+        }];
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  };
+
+  const result = await recallForTask(
+    {
+      mode: 'task',
+      task: {
+        goal: 'Evaluate Glama MCP listing quality',
+        task_kind: 'config',
+        project_key: 'git:project-a',
+      },
+      options: {
+        project_limit: 3,
+        global_limit: 0,
+        include_relations: false,
+      },
+    },
+    {
+      db: db as never,
+      semanticSearch: async () => {
+        throw new Error('Cannot connect to API: connect ECONNREFUSED 127.0.0.1:11434');
+      },
+    },
+  );
+
+  assert.equal(result.reason, 'no-matches');
+  assert.deepEqual(result.project_memories, []);
+  assert.deepEqual(result.global_memories, []);
+  assert.match(result.warnings.join('\n'), /Semantic memory recall unavailable/);
+  assert.match(result.warnings.join('\n'), /ECONNREFUSED/);
+});
+
 test('recallForTask derives project_key from project_dir when the caller does not provide one', async () => {
   const projectDir = process.cwd().replace(/\\/g, '/');
   const derivedProjectKey = deriveProjectKey(
