@@ -2,6 +2,12 @@
 
 English | [简体中文](MCP.zh-CN.md)
 
+<div align="center">
+
+[![ChatCrystal MCP server](https://glama.ai/mcp/servers/ZengLiangYi/ChatCrystal/badges/card.svg)](https://glama.ai/mcp/servers/ZengLiangYi/ChatCrystal)
+
+</div>
+
 This guide explains how ChatCrystal integrates with AI agents through MCP and publishable skills.
 
 ## Overview
