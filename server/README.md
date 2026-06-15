@@ -120,11 +120,12 @@ Add to `settings.json`:
 
 | Tool | Description |
 |------|-------------|
-| `search_knowledge` | Semantic search across notes |
+| `search_knowledge` | Semantic search across notes when you need relevance-ranked matches |
 | `get_note` | Get full note content (summary, conclusions, code snippets) |
-| `list_notes` | Browse notes by tag or keyword |
+| `list_notes` | Browse paginated note summaries by tag or title/summary keyword |
 | `get_relations` | Get related notes with relationship types |
-| `recall_for_task` | Recall project-first memories for a coding task |
+| `recall_for_task` | Read-only task recall that loads project memories first, then optional global lessons |
+| `validate_task_memory` | Dry-run validation before writing a task memory; returns acceptance, reasons, warnings, and note fields |
 | `write_task_memory` | Persist reusable task memories after meaningful work |
 
 ## Configuration

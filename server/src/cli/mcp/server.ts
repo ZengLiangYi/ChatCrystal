@@ -9,6 +9,28 @@ import {
   WriteTaskMemoryRequestShape,
 } from '../../services/memory/schemas.js';
 
+const LIST_NOTES_DESCRIPTION = [
+  'List note summaries for browsing and narrowing the ChatCrystal knowledge base.',
+  'Use this when you need paginated notes filtered by tag or title/summary keyword.',
+  'Use search_knowledge instead for semantic relevance ranking, and get_note when you already have an id and need the full note body.',
+  'Returns note metadata and summaries, not full note content.',
+].join(' ');
+
+const RECALL_FOR_TASK_DESCRIPTION = [
+  'Retrieve reusable task memories before starting substantive coding work.',
+  'Use this at the beginning of implementation, debugging, migration, configuration, investigation, refactor, or optimization tasks to load project-scoped memories first and optional global lessons second.',
+  'Use mode="debug" when the user reports an error, failing command, regression, or incident; include error_signatures and related_files when available.',
+  'Use search_knowledge instead for ad hoc semantic note search that is not tied to the current task.',
+  'This tool is read-only and returns ranked memories plus optional related-note context without writing anything.',
+].join(' ');
+
+const VALIDATE_TASK_MEMORY_DESCRIPTION = [
+  'Dry-run validation for a candidate task memory before calling write_task_memory.',
+  'Use this after meaningful work and before persisting a lesson to check whether the candidate is durable, specific, reusable, and shaped like a high-quality ChatCrystal note.',
+  'It has no side effects and never writes to the knowledge base.',
+  'Returns acceptance, rejection reason, warnings, and materialized note fields so agents can revise the candidate or skip weak work logs.',
+].join(' ');
+
 export async function startMcpServer(options?: string | CrystalClientOptions) {
   const client = new CrystalClient(options);
   const status = await client.status();
@@ -58,11 +80,11 @@ export async function startMcpServer(options?: string | CrystalClientOptions) {
   // Tool 3: list_notes
   server.tool(
     'list_notes',
-    'Browse notes in the knowledge base. Filter by tag or keyword search.',
+    LIST_NOTES_DESCRIPTION,
     {
-      tag: z.string().optional().describe('Filter by tag name'),
-      search: z.string().optional().describe('Filter by keyword in title/summary'),
-      page: z.number().optional().default(1).describe('Page number'),
+      tag: z.string().optional().describe('Exact tag name to filter notes by, for example "mcp" or "cursor".'),
+      search: z.string().optional().describe('Literal keyword filter applied to note title and summary; not semantic search.'),
+      page: z.number().optional().default(1).describe('1-based page number for paginated note summaries. Each page returns up to 20 notes.'),
     },
     async ({ tag, search, page }) => {
       const limit = 20;
@@ -97,7 +119,7 @@ export async function startMcpServer(options?: string | CrystalClientOptions) {
 
   server.tool(
     'recall_for_task',
-    'Recall project-first and global-supplement memories for a task.',
+    RECALL_FOR_TASK_DESCRIPTION,
     RecallForTaskRequestShape,
     async (input) => {
       const data = await client.recallForTask(input);
@@ -112,7 +134,7 @@ export async function startMcpServer(options?: string | CrystalClientOptions) {
 
   server.tool(
     'validate_task_memory',
-    'Preflight a task memory candidate without side effects. Use this before write_task_memory when available. Returns materialized ChatCrystal note fields, acceptance, reason, and warnings.',
+    VALIDATE_TASK_MEMORY_DESCRIPTION,
     ValidateTaskMemoryRequestShape,
     async (input) => {
       const data = await client.validateTaskMemory(input);
