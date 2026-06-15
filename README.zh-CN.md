@@ -8,6 +8,7 @@
 
 [![GitHub release](https://img.shields.io/github/v/release/ZengLiangYi/ChatCrystal?style=flat-square)](https://github.com/ZengLiangYi/ChatCrystal/releases)
 [![npm](https://img.shields.io/npm/v/chatcrystal?style=flat-square)](https://www.npmjs.com/package/chatcrystal)
+[![ChatCrystal MCP server](https://glama.ai/mcp/servers/ZengLiangYi/ChatCrystal/badges/score.svg)](https://glama.ai/mcp/servers/ZengLiangYi/ChatCrystal)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen?style=flat-square)](https://nodejs.org/)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey?style=flat-square)](#)
