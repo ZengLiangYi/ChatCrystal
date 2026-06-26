@@ -14,6 +14,7 @@ export interface ProviderEntry {
   name: string;
   displayName: string;
   supportsEmbedding: boolean;
+  supportsModelDiscovery: boolean;
   requiresApiKey: boolean;
   requiresBaseURL: boolean;
   createLanguageModel(config: ProviderConfig): LanguageModel;
@@ -27,6 +28,7 @@ providers.set('ollama', {
   name: 'ollama',
   displayName: 'Ollama',
   supportsEmbedding: true,
+  supportsModelDiscovery: true,
   requiresApiKey: false,
   requiresBaseURL: true,
   createLanguageModel({ baseURL, model }) {
@@ -46,6 +48,7 @@ providers.set('openai', {
   name: 'openai',
   displayName: 'OpenAI',
   supportsEmbedding: true,
+  supportsModelDiscovery: true,
   requiresApiKey: true,
   requiresBaseURL: false,
   createLanguageModel({ baseURL, apiKey, model }) {
@@ -63,6 +66,7 @@ providers.set('anthropic', {
   name: 'anthropic',
   displayName: 'Anthropic',
   supportsEmbedding: false,
+  supportsModelDiscovery: true,
   requiresApiKey: true,
   requiresBaseURL: false,
   createLanguageModel({ apiKey, model }) {
@@ -76,6 +80,7 @@ providers.set('google', {
   name: 'google',
   displayName: 'Google AI',
   supportsEmbedding: true,
+  supportsModelDiscovery: true,
   requiresApiKey: true,
   requiresBaseURL: false,
   createLanguageModel({ apiKey, model }) {
@@ -93,6 +98,7 @@ providers.set('azure', {
   name: 'azure',
   displayName: 'Azure OpenAI',
   supportsEmbedding: true,
+  supportsModelDiscovery: false,
   requiresApiKey: true,
   requiresBaseURL: true,
   createLanguageModel({ baseURL, apiKey, model }) {
@@ -110,6 +116,7 @@ providers.set('custom', {
   name: 'custom',
   displayName: 'Custom (OpenAI Compatible)',
   supportsEmbedding: true,
+  supportsModelDiscovery: true,
   requiresApiKey: true,
   requiresBaseURL: true,
   createLanguageModel({ baseURL, apiKey, model }) {

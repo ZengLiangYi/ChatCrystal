@@ -6,7 +6,13 @@ import { withTransaction } from "../db/transaction.js";
 import { taskTracker } from "../queue/index.js";
 import { clearEmbeddingIndex } from "../services/embedding.js";
 import { getLanguageModel } from "../services/llm.js";
+import {
+	ModelDiscoveryError,
+	discoverProviderModels,
+} from "../services/modelDiscovery.js";
 import { getProvider, listProviders } from "../services/providers.js";
+import { isCloudMode } from "../runtime/cloud.js";
+import { isLocalBrowserRequestOriginAllowed } from "../runtime/localOrigin.js";
 
 // OpenAI Responses-compatible gateways such as NewAPI reject lower values.
 const CONFIG_TEST_MAX_OUTPUT_TOKENS = 16;
@@ -18,10 +24,79 @@ export async function configRoutes(app: FastifyInstance) {
 			name: p.name,
 			displayName: p.displayName,
 			supportsEmbedding: p.supportsEmbedding,
+			supportsModelDiscovery: p.supportsModelDiscovery,
 			requiresApiKey: p.requiresApiKey,
 			requiresBaseURL: p.requiresBaseURL,
 		}));
 		return { success: true, data: providers };
+	});
+
+	app.post("/api/config/models", async (req, reply) => {
+		if (isCloudMode()) {
+			reply.status(403);
+			return {
+				success: false,
+				code: "cloud_unsupported",
+				error: "云端模式暂不支持获取模型列表",
+			};
+		}
+		if (!isLocalBrowserRequestOriginAllowed(req.headers.origin, req.headers.referer)) {
+			reply.status(403);
+			return {
+				success: false,
+				code: "local_origin_required",
+				error: "Model discovery must be started from ChatCrystal.",
+			};
+		}
+
+		const body = req.body as {
+			target?: "llm" | "embedding";
+			provider?: string;
+			baseURL?: string;
+			apiKey?: string;
+		};
+		const target = body.target;
+
+		if (target !== "llm" && target !== "embedding") {
+			reply.status(400);
+			return {
+				success: false,
+				code: "invalid_target",
+				error: "Invalid model discovery target",
+			};
+		}
+
+		const savedConfig = appConfig[target];
+		const apiKey = body.apiKey?.trim() ? body.apiKey : savedConfig.apiKey;
+
+		try {
+			const models = await discoverProviderModels({
+				target,
+				provider: body.provider || savedConfig.provider,
+				baseURL: body.baseURL ?? savedConfig.baseURL,
+				apiKey,
+			});
+			return { success: true, data: { models } };
+		} catch (error) {
+			if (error instanceof ModelDiscoveryError) {
+				reply.status(modelDiscoveryStatusCode(error.code));
+				return {
+					success: false,
+					code: error.code,
+					error: error.message,
+				};
+			}
+
+			reply.status(500);
+			return {
+				success: false,
+				code: "request_failed",
+				error:
+					error instanceof Error
+						? error.message
+						: "Model discovery request failed",
+			};
+		}
 	});
 
 	// Update config with protection
@@ -197,4 +272,23 @@ export async function configRoutes(app: FastifyInstance) {
 			},
 		};
 	});
+}
+
+function modelDiscoveryStatusCode(code: string): number {
+	switch (code) {
+		case "missing_api_key":
+		case "missing_base_url":
+		case "provider_unsupported":
+			return 400;
+		case "auth_failed":
+			return 400;
+		case "endpoint_not_found":
+			return 404;
+		case "timeout":
+		case "parse_failed":
+		case "request_failed":
+			return 502;
+		default:
+			return 500;
+	}
 }

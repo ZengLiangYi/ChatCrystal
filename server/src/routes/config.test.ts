@@ -100,3 +100,167 @@ test('config test uses an OpenAI-compatible max_output_tokens value accepted by 
     await upstream.close();
   }
 });
+
+test('config model discovery proxies local OpenAI-compatible providers', async () => {
+  const upstream = Fastify();
+  let capturedAuthorization: string | undefined;
+
+  upstream.get('/v1/models', async (req) => {
+    capturedAuthorization = req.headers.authorization;
+    return {
+      data: [
+        { id: 'model-b', owned_by: 'fixture' },
+        { id: 'model-a' },
+      ],
+    };
+  });
+
+  await upstream.listen({ host: '127.0.0.1', port: 0 });
+  const address = upstream.server.address() as AddressInfo;
+  const baseURL = `http://127.0.0.1:${address.port}`;
+
+  updateConfig({
+    llm: {
+      provider: 'custom',
+      baseURL,
+      apiKey: 'saved-discovery-key',
+      model: 'model-a',
+    },
+  });
+
+  const app = Fastify();
+  await app.register(configRoutes);
+
+  try {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/config/models',
+      payload: {
+        target: 'llm',
+        provider: 'custom',
+        baseURL,
+        apiKey: '',
+      },
+    });
+    const body = response.json();
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(body.success, true);
+    assert.deepEqual(body.data.models, [
+      { id: 'model-a', ownedBy: null },
+      { id: 'model-b', ownedBy: 'fixture' },
+    ]);
+    assert.equal(capturedAuthorization, 'Bearer saved-discovery-key');
+  } finally {
+    await app.close();
+    await upstream.close();
+  }
+});
+
+test('config model discovery rejects non-local browser origins before proxying', async () => {
+  const upstream = Fastify();
+  let requestCount = 0;
+
+  upstream.get('/v1/models', async () => {
+    requestCount += 1;
+    return { data: [{ id: 'should-not-fetch' }] };
+  });
+
+  await upstream.listen({ host: '127.0.0.1', port: 0 });
+  const address = upstream.server.address() as AddressInfo;
+  const baseURL = `http://127.0.0.1:${address.port}`;
+
+  const app = Fastify();
+  await app.register(configRoutes);
+
+  try {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/config/models',
+      headers: { origin: 'https://example.com' },
+      payload: {
+        target: 'llm',
+        provider: 'custom',
+        baseURL,
+        apiKey: 'test-key',
+      },
+    });
+    const body = response.json();
+
+    assert.equal(response.statusCode, 403);
+    assert.equal(body.success, false);
+    assert.equal(requestCount, 0);
+  } finally {
+    await app.close();
+    await upstream.close();
+  }
+});
+
+test('config model discovery does not report provider auth failures as ChatCrystal auth failures', async () => {
+  const upstream = Fastify();
+
+  upstream.get('/v1/models', async (_req, reply) => {
+    reply.status(401);
+    return { error: { message: 'bad provider key' } };
+  });
+
+  await upstream.listen({ host: '127.0.0.1', port: 0 });
+  const address = upstream.server.address() as AddressInfo;
+  const baseURL = `http://127.0.0.1:${address.port}`;
+
+  const app = Fastify();
+  await app.register(configRoutes);
+
+  try {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/config/models',
+      payload: {
+        target: 'llm',
+        provider: 'custom',
+        baseURL,
+        apiKey: 'bad-key',
+      },
+    });
+    const body = response.json();
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(body.success, false);
+    assert.equal(body.code, 'auth_failed');
+  } finally {
+    await app.close();
+    await upstream.close();
+  }
+});
+
+test('config model discovery is disabled in cloud mode', async () => {
+  const previousMode = process.env.CHATCRYSTAL_CLOUD_MODE;
+  process.env.CHATCRYSTAL_CLOUD_MODE = 'true';
+
+  const app = Fastify();
+  await app.register(configRoutes);
+
+  try {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/config/models',
+      payload: {
+        target: 'llm',
+        provider: 'ollama',
+        baseURL: 'http://localhost:11434',
+      },
+    });
+    const body = response.json();
+
+    assert.equal(response.statusCode, 403);
+    assert.equal(body.success, false);
+    assert.equal(body.code, 'cloud_unsupported');
+  } finally {
+    await app.close();
+    if (previousMode === undefined) {
+      delete process.env.CHATCRYSTAL_CLOUD_MODE;
+    } else {
+      process.env.CHATCRYSTAL_CLOUD_MODE = previousMode;
+    }
+  }
+});

@@ -53,6 +53,7 @@ export async function statusRoutes(app: FastifyInstance) {
 		return {
 			success: true,
 			data: {
+				cloudMode,
 				llm: {
 					provider: appConfig.llm.provider,
 					baseURL: appConfig.llm.baseURL,

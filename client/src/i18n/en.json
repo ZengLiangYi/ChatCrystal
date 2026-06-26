@@ -106,6 +106,27 @@
     "base_url": "Base URL",
     "api_key": "API Key"
   },
+  "settings": {
+    "models": {
+      "fetch": "Fetch model list",
+      "fetching": "Fetching...",
+      "open_list": "Choose model",
+      "search_placeholder": "Search models...",
+      "fetch_success": "Fetched {{count}} models",
+      "empty": "No models found",
+      "no_matches": "No matching models",
+      "other_owner": "Other",
+      "missing_api_key": "Enter an API Key first",
+      "missing_base_url": "Enter a Base URL first",
+      "provider_unsupported": "This provider does not support model discovery yet",
+      "auth_failed": "API Key is invalid or lacks permission",
+      "endpoint_not_found": "No reachable model list endpoint was found. Check the Base URL",
+      "timeout": "Request timed out. Check your network connection",
+      "parse_failed": "The model list response could not be parsed",
+      "request_failed": "Failed to fetch model list",
+      "cloud_unsupported_hint": "Cloud mode does not support model list fetching yet"
+    }
+  },
   "filter": {
     "all": "All"
   },
