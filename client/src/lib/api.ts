@@ -5,6 +5,34 @@ const TOKEN_KEY = "chatcrystal.apiToken";
 export const AUTH_CHANGED_EVENT = "chatcrystal-auth-changed";
 
 type DeleteNoteWebRequest = Omit<DeleteNoteReviewRequest, "source"> & { source: "web" };
+type ProviderResponse = {
+	name: string;
+	displayName: string;
+	supportsEmbedding: boolean;
+	supportsModelDiscovery?: boolean;
+	requiresApiKey: boolean;
+	requiresBaseURL: boolean;
+};
+
+const MODEL_DISCOVERY_SUPPORTED_PROVIDERS = new Set([
+	"ollama",
+	"openai",
+	"anthropic",
+	"google",
+	"custom",
+]);
+
+export class ApiRequestError extends Error {
+	status?: number;
+	code?: string;
+
+	constructor(message: string, options?: { status?: number; code?: string }) {
+		super(message);
+		this.name = "ApiRequestError";
+		this.status = options?.status;
+		this.code = options?.code;
+	}
+}
 
 export function getStoredToken(): string | null {
 	return window.localStorage.getItem(TOKEN_KEY);
@@ -35,15 +63,46 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 		headers,
 	});
 	if (!res.ok) {
-		const body = await res.json().catch(() => ({}));
+		const body = (await res.json().catch(() => ({}))) as {
+			error?: string;
+			code?: string;
+		};
 		if (res.status === 401) {
 			clearStoredToken();
 		}
-		throw new Error(body.error || `Request failed: ${res.status}`);
+		throw new ApiRequestError(body.error || `Request failed: ${res.status}`, {
+			status: res.status,
+			code: body.code,
+		});
 	}
-	const json = await res.json();
-	if (!json.success) throw new Error(json.error || "Unknown error");
+	const json = (await res.json()) as {
+		success: boolean;
+		data: T;
+		error?: string;
+		code?: string;
+	};
+	if (!json.success) {
+		throw new ApiRequestError(json.error || "Unknown error", {
+			code: json.code,
+		});
+	}
 	return json.data;
+}
+
+export function isProviderModelDiscoverySupported(provider: {
+	name: string;
+	supportsModelDiscovery?: boolean;
+}) {
+	return typeof provider.supportsModelDiscovery === "boolean"
+		? provider.supportsModelDiscovery
+		: MODEL_DISCOVERY_SUPPORTED_PROVIDERS.has(provider.name);
+}
+
+function normalizeProviders(providers: ProviderResponse[]) {
+	return providers.map((provider) => ({
+		...provider,
+		supportsModelDiscovery: isProviderModelDiscoverySupported(provider),
+	}));
 }
 
 export const api = {
@@ -337,18 +396,20 @@ export const api = {
 			}[];
 			enabledSources: string[];
 			claudeProjectsDir: string;
+			cloudMode: boolean;
 		}>("/config"),
 
-	getProviders: () =>
-		request<
-			{
-				name: string;
-				displayName: string;
-				supportsEmbedding: boolean;
-				requiresApiKey: boolean;
-				requiresBaseURL: boolean;
-			}[]
-		>("/providers"),
+	getProviders: async () => normalizeProviders(await request<ProviderResponse[]>("/providers")),
+
+	discoverModels: (data: {
+		target: "llm" | "embedding";
+		provider: string;
+		baseURL?: string;
+		apiKey?: string;
+	}) =>
+		request<{
+			models: { id: string; ownedBy: string | null }[];
+		}>("/config/models", { method: "POST", body: JSON.stringify(data) }),
 
 	updateConfig: (data: {
 		llm?: {

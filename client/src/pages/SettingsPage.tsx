@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	AlertTriangle,
 	Brain,
+	ChevronDown,
 	CheckCircle,
 	Download,
 	ExternalLink,
@@ -32,11 +33,30 @@ import {
 } from "@/components/ui/alert-dialog.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import {
+	Command,
+	CommandEmpty,
+	CommandGroup,
+	CommandInput,
+	CommandItem,
+	CommandList,
+} from "@/components/ui/command.tsx";
+import {
 	Field,
 	FieldGroup,
 	FieldLabel,
 } from "@/components/ui/field.tsx";
 import { Input } from "@/components/ui/input.tsx";
+import {
+	InputGroup,
+	InputGroupAddon,
+	InputGroupButton,
+	InputGroupInput,
+} from "@/components/ui/input-group.tsx";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover.tsx";
 import {
 	Select,
 	SelectContent,
@@ -56,7 +76,11 @@ import {
 	getSelectedLanguageCode,
 	LANGUAGE_OPTIONS,
 } from "@/i18n/language.ts";
-import { api } from "@/lib/api.ts";
+import {
+	ApiRequestError,
+	api,
+	isProviderModelDiscoverySupported,
+} from "@/lib/api.ts";
 import { cn } from "@/lib/cn.ts";
 import { getSourceColor } from "@/lib/source-colors.ts";
 import { useTheme } from "@/providers/useTheme.ts";
@@ -65,8 +89,19 @@ type ProviderOption = {
 	name: string;
 	displayName: string;
 	supportsEmbedding: boolean;
+	supportsModelDiscovery?: boolean;
 	requiresApiKey: boolean;
 	requiresBaseURL: boolean;
+};
+
+type DiscoveredModel = {
+	id: string;
+	ownedBy: string | null;
+};
+
+type DiscoveryMessage = {
+	kind: "success" | "error" | "info";
+	text: string;
 };
 
 function useProviders() {
@@ -279,6 +314,7 @@ export function SettingsPage() {
 
 					<Section title={t("section.llm")} icon={<Brain />}>
 						<ModelProviderFields
+							target="llm"
 							providers={providers}
 							provider={llmProvider}
 							onProviderChange={setLlmProvider}
@@ -290,6 +326,7 @@ export function SettingsPage() {
 							onApiKeyChange={setLlmApiKey}
 							providerInfo={llmProviderInfo}
 							hasApiKey={config.llm.hasApiKey}
+							cloudMode={config.cloudMode}
 							modelPlaceholder={t("placeholder.llm_model")}
 							baseUrlPlaceholder={t("placeholder.llm_base_url")}
 						/>
@@ -297,6 +334,7 @@ export function SettingsPage() {
 
 					<Section title={t("section.embedding")} icon={<Server />}>
 						<ModelProviderFields
+							target="embedding"
 							providers={embeddingProviders}
 							provider={embProvider}
 							onProviderChange={setEmbProvider}
@@ -308,6 +346,7 @@ export function SettingsPage() {
 							onApiKeyChange={setEmbApiKey}
 							providerInfo={embProviderInfo}
 							hasApiKey={config.embedding.hasApiKey}
+							cloudMode={config.cloudMode}
 							modelPlaceholder={t("placeholder.embedding_model")}
 							baseUrlPlaceholder={t("placeholder.llm_base_url")}
 						/>
@@ -544,6 +583,7 @@ function formatUpdateDate(value: string): string {
 }
 
 function ModelProviderFields({
+	target,
 	providers,
 	provider,
 	onProviderChange,
@@ -555,9 +595,11 @@ function ModelProviderFields({
 	onApiKeyChange,
 	providerInfo,
 	hasApiKey,
+	cloudMode,
 	modelPlaceholder,
 	baseUrlPlaceholder,
 }: {
+	target: "llm" | "embedding";
 	providers: ProviderOption[];
 	provider: string;
 	onProviderChange: (value: string) => void;
@@ -569,10 +611,100 @@ function ModelProviderFields({
 	onApiKeyChange: (value: string) => void;
 	providerInfo?: ProviderOption;
 	hasApiKey: boolean;
+	cloudMode: boolean;
 	modelPlaceholder: string;
 	baseUrlPlaceholder: string;
 }) {
 	const { t } = useTranslation();
+	const [fetchedModels, setFetchedModels] = useState<DiscoveredModel[]>([]);
+	const [discoveryMessage, setDiscoveryMessage] =
+		useState<DiscoveryMessage | null>(null);
+
+	useEffect(() => {
+		setFetchedModels([]);
+		setDiscoveryMessage(null);
+	}, [provider, baseURL, target]);
+
+	const discoverModelsMutation = useMutation({
+		mutationFn: () =>
+			api.discoverModels({
+				target,
+				provider,
+				baseURL,
+				apiKey,
+			}),
+		onSuccess: (result) => {
+			setFetchedModels(result.models);
+			setDiscoveryMessage({
+				kind: result.models.length > 0 ? "success" : "info",
+				text:
+					result.models.length > 0
+						? t("settings.models.fetch_success", {
+								count: result.models.length,
+							})
+						: t("settings.models.empty"),
+			});
+		},
+		onError: (error) => {
+			setDiscoveryMessage({
+				kind: "error",
+				text: t(modelDiscoveryErrorKey(error)),
+			});
+		},
+	});
+	const providerSupportsDiscovery = providerInfo
+		? isProviderModelDiscoverySupported(providerInfo)
+		: false;
+
+	const handleDiscoverModels = () => {
+		if (cloudMode) {
+			setDiscoveryMessage({
+				kind: "info",
+				text: t("settings.models.cloud_unsupported_hint"),
+			});
+			return;
+		}
+		if (!providerInfo || !providerSupportsDiscovery) {
+			setDiscoveryMessage({
+				kind: "error",
+				text: t("settings.models.provider_unsupported"),
+			});
+			return;
+		}
+		if (providerInfo.requiresApiKey && !apiKey.trim() && !hasApiKey) {
+			setDiscoveryMessage({
+				kind: "error",
+				text: t("settings.models.missing_api_key"),
+			});
+			return;
+		}
+		if (provider === "custom" && !baseURL.trim()) {
+			setDiscoveryMessage({
+				kind: "error",
+				text: t("settings.models.missing_base_url"),
+			});
+			return;
+		}
+
+		discoverModelsMutation.mutate();
+	};
+
+	const discoveryDisabled =
+		discoverModelsMutation.isPending ||
+		!provider ||
+		cloudMode ||
+		!providerSupportsDiscovery;
+	const visibleDiscoveryMessage = cloudMode
+		? {
+				kind: "info" as const,
+				text: t("settings.models.cloud_unsupported_hint"),
+			}
+		: providerInfo && !providerSupportsDiscovery
+			? {
+					kind: "info" as const,
+					text: t("settings.models.provider_unsupported"),
+				}
+		: discoveryMessage;
 
 	return (
 		<FieldGroup className="gap-3">
@@ -597,12 +729,40 @@ function ModelProviderFields({
 				</Select>
 			</FieldRow>
 			<FieldRow label={t("label.model")}>
-				<Input
-					value={model}
-					onChange={(e) => onModelChange(e.target.value)}
-					className="w-72 font-mono"
-					placeholder={modelPlaceholder}
-				/>
+				<div className="flex w-72 max-w-full flex-col gap-1.5">
+					<InputGroup className="w-full">
+						<InputGroupInput
+							value={model}
+							onChange={(e) => onModelChange(e.target.value)}
+							className="font-mono"
+							placeholder={modelPlaceholder}
+						/>
+						<InputGroupAddon align="inline-end" className="gap-1">
+							{fetchedModels.length > 0 && (
+								<ModelListPopover
+									models={fetchedModels}
+									onSelect={onModelChange}
+								/>
+							)}
+							<InputGroupButton
+								type="button"
+								size="icon-xs"
+								variant="ghost"
+								onClick={handleDiscoverModels}
+								disabled={discoveryDisabled}
+								aria-label={t("settings.models.fetch")}
+								title={t("settings.models.fetch")}
+							>
+								{discoverModelsMutation.isPending ? (
+									<Loader2 className="animate-spin" />
+								) : (
+									<Download />
+								)}
+							</InputGroupButton>
+						</InputGroupAddon>
+					</InputGroup>
+					<ModelDiscoveryMessage message={visibleDiscoveryMessage} />
+				</div>
 			</FieldRow>
 			{providerInfo?.requiresBaseURL && (
 				<FieldRow label={t("label.base_url")}>
@@ -631,6 +791,125 @@ function ModelProviderFields({
 			)}
 		</FieldGroup>
 	);
+}
+
+function ModelListPopover({
+	models,
+	onSelect,
+}: {
+	models: DiscoveredModel[];
+	onSelect: (value: string) => void;
+}) {
+	const { t } = useTranslation();
+	const [open, setOpen] = useState(false);
+	const groupedModels = groupModelsByOwner(models, t("settings.models.other_owner"));
+
+	return (
+		<Popover open={open} onOpenChange={setOpen}>
+			<PopoverTrigger asChild>
+				<InputGroupButton
+					type="button"
+					size="icon-xs"
+					variant="ghost"
+					aria-label={t("settings.models.open_list")}
+					title={t("settings.models.open_list")}
+				>
+					<ChevronDown />
+				</InputGroupButton>
+			</PopoverTrigger>
+			<PopoverContent align="end" className="w-80 p-1">
+				<Command>
+					<CommandInput placeholder={t("settings.models.search_placeholder")} />
+					<CommandList>
+						<CommandEmpty>{t("settings.models.no_matches")}</CommandEmpty>
+						{groupedModels.map(([owner, ownerModels]) => (
+							<CommandGroup key={owner} heading={owner}>
+								{ownerModels.map((model) => (
+									<CommandItem
+										key={model.id}
+										value={model.id}
+										onSelect={() => {
+											onSelect(model.id);
+											setOpen(false);
+										}}
+										className="cursor-pointer"
+									>
+										<span className="truncate font-mono">{model.id}</span>
+									</CommandItem>
+								))}
+							</CommandGroup>
+						))}
+					</CommandList>
+				</Command>
+			</PopoverContent>
+		</Popover>
+	);
+}
+
+function ModelDiscoveryMessage({
+	message,
+}: {
+	message: DiscoveryMessage | null;
+}) {
+	if (!message) return null;
+
+	return (
+		<p
+			className={cn(
+				"text-xs",
+				message.kind === "success" && "text-success",
+				message.kind === "error" && "text-error",
+				message.kind === "info" && "text-muted-foreground",
+			)}
+		>
+			{message.text}
+		</p>
+	);
+}
+
+function groupModelsByOwner(
+	models: DiscoveredModel[],
+	fallbackOwner: string,
+): [string, DiscoveredModel[]][] {
+	const grouped = new Map<string, DiscoveredModel[]>();
+
+	for (const model of models) {
+		const owner = model.ownedBy || fallbackOwner;
+		grouped.set(owner, [...(grouped.get(owner) ?? []), model]);
+	}
+
+	return [...grouped.entries()].sort(([left], [right]) =>
+		left.localeCompare(right),
+	);
+}
+
+function modelDiscoveryErrorKey(error: unknown): string {
+	if (error instanceof ApiRequestError) {
+		switch (error.code) {
+			case "missing_api_key":
+				return "settings.models.missing_api_key";
+			case "missing_base_url":
+				return "settings.models.missing_base_url";
+			case "provider_unsupported":
+				return "settings.models.provider_unsupported";
+			case "auth_failed":
+				return "settings.models.auth_failed";
+			case "endpoint_not_found":
+				return "settings.models.endpoint_not_found";
+			case "timeout":
+				return "settings.models.timeout";
+			case "parse_failed":
+				return "settings.models.parse_failed";
+			case "cloud_unsupported":
+				return "settings.models.cloud_unsupported_hint";
+			case "request_failed":
+				return "settings.models.request_failed";
+			default:
+				break;
+		}
+	}
+
+	return "settings.models.request_failed";
 }
 
 function FieldRow({

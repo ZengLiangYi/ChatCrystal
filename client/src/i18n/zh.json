@@ -106,6 +106,27 @@
     "base_url": "Base URL",
     "api_key": "API Key"
   },
+  "settings": {
+    "models": {
+      "fetch": "获取模型列表",
+      "fetching": "获取中...",
+      "open_list": "选择模型",
+      "search_placeholder": "搜索模型...",
+      "fetch_success": "已获取 {{count}} 个模型",
+      "empty": "未发现模型",
+      "no_matches": "没有匹配的模型",
+      "other_owner": "其他",
+      "missing_api_key": "请先填写 API Key",
+      "missing_base_url": "请先填写 Base URL",
+      "provider_unsupported": "该供应商暂不支持获取模型列表",
+      "auth_failed": "API Key 无效或权限不足",
+      "endpoint_not_found": "未找到可用的模型列表端点，请检查 Base URL",
+      "timeout": "请求超时，请检查网络连接",
+      "parse_failed": "模型列表响应无法解析",
+      "request_failed": "获取模型列表失败",
+      "cloud_unsupported_hint": "云端模式暂不支持获取模型列表"
+    }
+  },
   "filter": {
     "all": "全部"
   },
