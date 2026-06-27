@@ -1,6 +1,6 @@
 {
   "name": "chatcrystal",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "private": true,
   "license": "Apache-2.0",
   "description": "Local-first AI PKM for coding conversations — supports Claude Code, Cursor, Codex CLI, Trae, GitHub Copilot",
