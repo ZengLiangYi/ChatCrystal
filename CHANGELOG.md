@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## [0.5.3] - 2026-06-27
+
+### Settings Model Discovery
+
+- Added model-list discovery to the local Settings page for both LLM and Embedding configuration.
+- Added a searchable fetched-model picker while keeping the model field manually editable.
+- Added provider discovery support for Ollama, OpenAI-compatible endpoints, OpenAI, Anthropic, Google, and Custom providers; Azure returns an unsupported-provider message in this first version.
+- Added `POST /api/config/models` so the server fetches model lists with saved or newly entered provider credentials instead of exposing third-party API keys to the browser.
+- Marked cloud mode as unsupported for model discovery and surfaced the limitation in Settings.
+- Added local browser-origin checks for model discovery proxying, plus structured errors for missing credentials, endpoint failures, auth failures, timeouts, and parse failures.
+- Added regression coverage for model discovery services, routes, client API normalization, Settings wiring, and i18n copy.
+
 ## [0.5.2] - 2026-06-08
 
 ### Markdown Export
