@@ -1,3 +1,5 @@
+
+
 <div align="center">
 
 <img src="electron/icon.png" alt="ChatCrystal" width="120" />
@@ -132,6 +134,8 @@ Development server ports:
 
 - API/server: http://localhost:3721
 - Vite client: http://localhost:13721
+
+For desktop app development, run `npm run dev:electron` to launch the Electron window with Vite HMR.
 
 See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for architecture, testing, build, and release details.
 
