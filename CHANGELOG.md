@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## [0.5.4] - 2026-09-03
+
+### OrcaRouter
+
+- Added OrcaRouter as a first-class LLM provider with its OpenAI-compatible API endpoint built in.
+- Enabled authenticated OrcaRouter model discovery through the searchable model picker in Settings.
+- Added a direct API-key link and bilingual setup documentation for OrcaRouter.
+
+### Settings
+
+- Changed connection tests to use the provider, model, Base URL, and API keys currently entered in the form without saving them first.
+- Trimmed draft API keys before testing, preventing copied whitespace or stale saved credentials from causing misleading authentication failures.
+- Added regression coverage for OrcaRouter generation, model discovery, Settings integration, and request-scoped connection tests.
+
 ## [0.5.3] - 2026-06-27
 
 ### Settings Model Discovery
