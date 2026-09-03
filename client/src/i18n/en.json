@@ -107,6 +107,9 @@
     "api_key": "API Key"
   },
   "settings": {
+    "orcarouter": {
+      "get_api_key": "Get OrcaRouter API Key"
+    },
     "models": {
       "fetch": "Fetch model list",
       "fetching": "Fetching...",

@@ -98,6 +98,37 @@ test('discoverProviderModels parses OpenAI-compatible model responses and skips 
   ]);
 });
 
+test('discoverProviderModels discovers OrcaRouter models from its fixed endpoint', async () => {
+  const calls: string[] = [];
+  const models = await discoverProviderModels(
+    {
+      target: 'llm',
+      provider: 'orcarouter',
+      baseURL: 'https://ignored.example.com/v1',
+      apiKey: 'sk-orca-test',
+    },
+    {
+      fetch: async (url, init) => {
+        calls.push(`${String(url)}|${new Headers(init?.headers).get('authorization')}`);
+        return jsonResponse({
+          data: [
+            { id: 'orcarouter/auto', owned_by: 'orcarouter' },
+            { id: 'openai/gpt-4o-mini' },
+          ],
+        });
+      },
+    },
+  );
+
+  assert.deepEqual(calls, [
+    'https://api.orcarouter.ai/v1/models|Bearer sk-orca-test',
+  ]);
+  assert.deepEqual(models, [
+    { id: 'openai/gpt-4o-mini', ownedBy: null },
+    { id: 'orcarouter/auto', ownedBy: 'orcarouter' },
+  ]);
+});
+
 test('discoverProviderModels parses Anthropic and Google model responses', async () => {
   const anthropic = await discoverProviderModels(
     {
@@ -161,6 +192,13 @@ test('discoverProviderModels returns structured errors for unsupported providers
 
   await assert.rejects(
     () => discoverProviderModels({ target: 'llm', provider: 'openai', apiKey: '' }),
+    (error) =>
+      error instanceof ModelDiscoveryError &&
+      error.code === 'missing_api_key',
+  );
+
+  await assert.rejects(
+    () => discoverProviderModels({ target: 'llm', provider: 'orcarouter', apiKey: '' }),
     (error) =>
       error instanceof ModelDiscoveryError &&
       error.code === 'missing_api_key',

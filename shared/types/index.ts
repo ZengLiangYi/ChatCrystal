@@ -318,7 +318,7 @@ export interface PaginatedResponse<T> {
 // --- Config ---
 
 export interface LLMConfig {
-  provider: 'openai' | 'anthropic' | 'google' | 'ollama' | 'azure' | 'custom';
+  provider: 'openai' | 'orcarouter' | 'anthropic' | 'google' | 'ollama' | 'azure' | 'custom';
   baseURL?: string;
   apiKey?: string;
   model: string;

@@ -85,6 +85,9 @@ import { cn } from "@/lib/cn.ts";
 import { getSourceColor } from "@/lib/source-colors.ts";
 import { useTheme } from "@/providers/useTheme.ts";
 
+const ORCAROUTER_REFERRAL_URL =
+	"https://www.orcarouter.ai/ref/ref_67516d927343232775e2";
+
 type ProviderOption = {
 	name: string;
 	displayName: string;
@@ -776,17 +779,30 @@ function ModelProviderFields({
 			)}
 			{providerInfo?.requiresApiKey && (
 				<FieldRow label={t("label.api_key")}>
-					<Input
-						type="password"
-						value={apiKey}
-						onChange={(e) => onApiKeyChange(e.target.value)}
-						className="w-72 font-mono"
-						placeholder={
-							hasApiKey
-								? t("placeholder.api_key_set")
-								: t("placeholder.api_key_not_set")
-						}
-					/>
+					<div className="flex w-72 max-w-full flex-col gap-1.5">
+						<Input
+							type="password"
+							value={apiKey}
+							onChange={(e) => onApiKeyChange(e.target.value)}
+							className="w-full font-mono"
+							placeholder={
+								hasApiKey
+									? t("placeholder.api_key_set")
+									: t("placeholder.api_key_not_set")
+							}
+						/>
+						{provider === "orcarouter" && (
+							<a
+								href={ORCAROUTER_REFERRAL_URL}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="inline-flex w-fit items-center gap-1 text-xs text-accent hover:underline"
+							>
+								{t("settings.orcarouter.get_api_key")}
+								<ExternalLink className="size-3" aria-hidden="true" />
+							</a>
+						)}
+					</div>
 				</FieldRow>
 			)}
 		</FieldGroup>

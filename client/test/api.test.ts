@@ -147,6 +147,13 @@ test("web api normalizes missing provider model discovery support", async () => 
 						requiresBaseURL: false,
 					},
 					{
+						name: "orcarouter",
+						displayName: "OrcaRouter",
+						supportsEmbedding: false,
+						requiresApiKey: true,
+						requiresBaseURL: false,
+					},
+					{
 						name: "anthropic",
 						displayName: "Anthropic",
 						supportsEmbedding: false,
@@ -194,6 +201,7 @@ test("web api normalizes missing provider model discovery support", async () => 
 		assert.deepEqual(supportByProvider, {
 			ollama: true,
 			openai: true,
+			orcarouter: true,
 			anthropic: true,
 			google: true,
 			azure: false,
@@ -215,6 +223,10 @@ test("provider model discovery support defaults stay aligned for cached provider
 	);
 	assert.equal(
 		isProviderModelDiscoverySupported({ name: "openai" }),
+		true,
+	);
+	assert.equal(
+		isProviderModelDiscoverySupported({ name: "orcarouter" }),
 		true,
 	);
 	assert.equal(

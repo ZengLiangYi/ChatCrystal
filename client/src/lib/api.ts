@@ -17,6 +17,7 @@ type ProviderResponse = {
 const MODEL_DISCOVERY_SUPPORTED_PROVIDERS = new Set([
 	"ollama",
 	"openai",
+	"orcarouter",
 	"anthropic",
 	"google",
 	"custom",

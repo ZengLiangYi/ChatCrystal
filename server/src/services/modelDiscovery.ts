@@ -3,6 +3,7 @@ export type ModelDiscoveryTarget = 'llm' | 'embedding';
 export type ModelDiscoveryProvider =
   | 'ollama'
   | 'openai'
+  | 'orcarouter'
   | 'anthropic'
   | 'google'
   | 'azure'
@@ -66,6 +67,7 @@ const FETCH_TIMEOUT_MS = 15_000;
 const ERROR_BODY_MAX_CHARS = 512;
 const DEFAULT_OLLAMA_BASE_URL = 'http://localhost:11434';
 const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
+const ORCAROUTER_BASE_URL = 'https://api.orcarouter.ai/v1';
 const ANTHROPIC_MODELS_URL = 'https://api.anthropic.com/v1/models';
 const GOOGLE_MODELS_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -104,6 +106,12 @@ export async function discoverProviderModels(
     case 'openai':
       return discoverOpenAICompatibleModels(
         input.baseURL?.trim() || DEFAULT_OPENAI_BASE_URL,
+        requireApiKey(input),
+        fetchImpl,
+      );
+    case 'orcarouter':
+      return discoverOpenAICompatibleModels(
+        ORCAROUTER_BASE_URL,
         requireApiKey(input),
         fetchImpl,
       );

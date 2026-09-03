@@ -22,6 +22,7 @@ export interface ProviderEntry {
 }
 
 const providers = new Map<string, ProviderEntry>();
+const ORCAROUTER_BASE_URL = 'https://api.orcarouter.ai/v1';
 
 // Ollama — local inference via OpenAI-compatible endpoint (/v1/)
 providers.set('ollama', {
@@ -58,6 +59,24 @@ providers.set('openai', {
   createEmbeddingModel({ baseURL, apiKey, model }) {
     const openai = createOpenAI({ baseURL, apiKey });
     return openai.textEmbeddingModel(model);
+  },
+});
+
+// OrcaRouter — managed OpenAI-compatible gateway
+providers.set('orcarouter', {
+  name: 'orcarouter',
+  displayName: 'OrcaRouter',
+  supportsEmbedding: false,
+  supportsModelDiscovery: true,
+  requiresApiKey: true,
+  requiresBaseURL: false,
+  createLanguageModel({ apiKey, model }) {
+    const orcarouter = createOpenAI({
+      baseURL: ORCAROUTER_BASE_URL,
+      apiKey,
+      name: 'orcarouter',
+    });
+    return orcarouter(model);
   },
 });
 
