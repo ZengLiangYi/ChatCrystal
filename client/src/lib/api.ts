@@ -445,7 +445,20 @@ export const api = {
 			};
 		}>("/config", { method: "POST", body: JSON.stringify(data) }),
 
-	testConfig: () =>
+	testConfig: (data?: {
+		llm?: {
+			provider?: string;
+			baseURL?: string;
+			apiKey?: string;
+			model?: string;
+		};
+		embedding?: {
+			provider?: string;
+			baseURL?: string;
+			apiKey?: string;
+			model?: string;
+		};
+	}) =>
 		request<{
 			connected: boolean;
 			response?: string;
@@ -454,6 +467,6 @@ export const api = {
 			embedding: { connected: boolean; error?: string };
 		}>(
 			"/config/test",
-			{ method: "POST" },
+			{ method: "POST", body: JSON.stringify(data ?? {}) },
 		),
 };

@@ -110,6 +110,63 @@ test("web api posts model discovery requests and preserves error codes", async (
 	}
 });
 
+test("web api posts draft configuration when testing connections", async () => {
+	const originalWindow = globalThis.window;
+	const originalFetch = globalThis.fetch;
+	let capturedBody: unknown;
+
+	Object.defineProperty(globalThis, "window", {
+		configurable: true,
+		value: {
+			localStorage: {
+				getItem: () => null,
+				setItem: () => undefined,
+				removeItem: () => undefined,
+			},
+			dispatchEvent: () => true,
+		},
+	});
+
+	globalThis.fetch = async (_input: string | URL | Request, init?: RequestInit) => {
+		capturedBody = JSON.parse(String(init?.body));
+		return new Response(
+			JSON.stringify({
+				success: true,
+				data: {
+					connected: true,
+					llm: { connected: true },
+					embedding: { connected: true },
+				},
+			}),
+			{ status: 200, headers: { "Content-Type": "application/json" } },
+		);
+	};
+
+	try {
+		await api.testConfig({
+			llm: {
+				provider: "orcarouter",
+				apiKey: "sk-draft",
+				model: "orcarouter/auto",
+			},
+		});
+
+		assert.deepEqual(capturedBody, {
+			llm: {
+				provider: "orcarouter",
+				apiKey: "sk-draft",
+				model: "orcarouter/auto",
+			},
+		});
+	} finally {
+		globalThis.fetch = originalFetch;
+		Object.defineProperty(globalThis, "window", {
+			configurable: true,
+			value: originalWindow,
+		});
+	}
+});
+
 test("web api normalizes missing provider model discovery support", async () => {
 	const storage = new Map<string, string>();
 	const originalWindow = globalThis.window;

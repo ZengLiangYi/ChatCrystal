@@ -143,7 +143,23 @@ export function SettingsPage() {
 		unknown
 	> | null>(null);
 
-	const testMutation = useMutation({ mutationFn: () => api.testConfig() });
+	const testMutation = useMutation({
+		mutationFn: () =>
+			api.testConfig({
+				llm: {
+					provider: llmProvider,
+					baseURL: llmBaseURL,
+					model: llmModel,
+					...(llmApiKey.trim() ? { apiKey: llmApiKey.trim() } : {}),
+				},
+				embedding: {
+					provider: embProvider,
+					baseURL: embBaseURL,
+					model: embModel,
+					...(embApiKey.trim() ? { apiKey: embApiKey.trim() } : {}),
+				},
+			}),
+	});
 	const [updateResult, setUpdateResult] =
 		useState<ChatCrystalUpdateCheckResult | null>(null);
 	const [checkingUpdates, setCheckingUpdates] = useState(false);

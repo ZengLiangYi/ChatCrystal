@@ -5,7 +5,6 @@ import { getDatabase, saveDatabase } from "../db/index.js";
 import { withTransaction } from "../db/transaction.js";
 import { taskTracker } from "../queue/index.js";
 import { clearEmbeddingIndex } from "../services/embedding.js";
-import { getLanguageModel } from "../services/llm.js";
 import {
 	ModelDiscoveryError,
 	discoverProviderModels,
@@ -212,7 +211,32 @@ export async function configRoutes(app: FastifyInstance) {
 	});
 
 	// Test connection (LLM + Embedding)
-	app.post("/api/config/test", async (_req, reply) => {
+	app.post("/api/config/test", async (req, reply) => {
+		const body = (req.body ?? {}) as {
+			llm?: {
+				provider?: string;
+				baseURL?: string;
+				apiKey?: string;
+				model?: string;
+			};
+			embedding?: {
+				provider?: string;
+				baseURL?: string;
+				apiKey?: string;
+				model?: string;
+			};
+		};
+		const llmConfig = {
+			...appConfig.llm,
+			...body.llm,
+			apiKey: body.llm?.apiKey?.trim() || appConfig.llm.apiKey,
+		};
+		const embeddingConfig = {
+			...appConfig.embedding,
+			...body.embedding,
+			apiKey:
+				body.embedding?.apiKey?.trim() || appConfig.embedding.apiKey,
+		};
 		const result: {
 			llm: { connected: boolean; response?: string; error?: string };
 			embedding: { connected: boolean; error?: string };
@@ -223,7 +247,8 @@ export async function configRoutes(app: FastifyInstance) {
 
 		// Test LLM
 		try {
-			const model = getLanguageModel();
+			const entry = getProvider(llmConfig.provider);
+			const model = entry.createLanguageModel(llmConfig);
 			const llmResult = await generateText({
 				model,
 				prompt: "Reply with exactly: OK",
@@ -239,14 +264,14 @@ export async function configRoutes(app: FastifyInstance) {
 
 		// Test Embedding
 		try {
-			const entry = getProvider(appConfig.embedding.provider);
+			const entry = getProvider(embeddingConfig.provider);
 			if (!entry.createEmbeddingModel) {
 				result.embedding = {
 					connected: false,
-					error: `Provider "${appConfig.embedding.provider}" does not support embeddings`,
+					error: `Provider "${embeddingConfig.provider}" does not support embeddings`,
 				};
 			} else {
-				const embeddingModel = entry.createEmbeddingModel(appConfig.embedding);
+				const embeddingModel = entry.createEmbeddingModel(embeddingConfig);
 				await embed({ model: embeddingModel, value: "test" });
 				result.embedding = { connected: true };
 			}
