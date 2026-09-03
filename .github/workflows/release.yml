@@ -93,8 +93,8 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
-          cache: npm
+          node-version: 24
+          package-manager-cache: false
           registry-url: https://registry.npmjs.org
 
       - run: npm ci
@@ -116,8 +116,6 @@ jobs:
         run: |
           npm version "${{ needs.prepare.outputs.npm_version }}" --no-git-tag-version --allow-same-version
           npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   # ── Build Electron + GitHub Release ────────────────────────
   publish-electron:
