@@ -93,7 +93,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: 22
           package-manager-cache: false
           registry-url: https://registry.npmjs.org
 
@@ -110,6 +110,9 @@ jobs:
 
       - name: Validate npm package contents
         run: npm run check:npm-package -w server
+
+      - name: Upgrade npm for trusted publishing
+        run: npm install --global npm@11.5.1
 
       - name: Publish to npm
         working-directory: server
