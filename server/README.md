@@ -22,7 +22,7 @@ ChatCrystal collects conversations from AI coding tools (Claude Code, Cursor, Co
 npm install -g chatcrystal
 ```
 
-Requires Node.js >= 20 and an LLM service ([Ollama](https://ollama.ai/), OpenAI, Anthropic, Google AI, or any OpenAI-compatible API).
+Requires Node.js >= 20 and an LLM service ([Ollama](https://ollama.ai/), OpenAI, [OrcaRouter](https://www.orcarouter.ai/ref/ref_67516d927343232775e2), Anthropic, Google AI, or any OpenAI-compatible API).
 
 ## Quick Start
 
@@ -133,7 +133,7 @@ Add to `settings.json`:
 Runtime configuration is stored in `config.json` under the active data directory. CLI, MCP, repo/dev checkouts, npm global installs, and Electron default to `~/.chatcrystal/data`. Use `crystal config set` for persistent config. `.env` remains available only as an optional local override layer.
 
 ```bash
-# LLM (ollama/openai/anthropic/google/azure/custom)
+# LLM (ollama/openai/orcarouter/anthropic/google/azure/custom)
 crystal config set llm.provider openai
 crystal config set llm.model gpt-4o
 crystal config set llm.apiKey sk-...
@@ -142,6 +142,8 @@ crystal config set llm.apiKey sk-...
 crystal config set embedding.provider ollama
 crystal config set embedding.model nomic-embed-text
 ```
+
+OrcaRouter uses ChatCrystal's built-in `https://api.orcarouter.ai/v1` Base URL. Set `llm.provider` to `orcarouter`, provide an API Key, and select a discovered model in the Web UI; no `llm.baseURL` is required. [Get an OrcaRouter API Key](https://www.orcarouter.ai/ref/ref_67516d927343232775e2).
 
 ## Data Sources
 

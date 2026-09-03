@@ -118,12 +118,19 @@ LLM_PROVIDER=google
 LLM_API_KEY=AIza...
 LLM_MODEL=gemini-2.0-flash
 
+# OrcaRouter
+LLM_PROVIDER=orcarouter
+LLM_API_KEY=sk-orca-...
+LLM_MODEL=<model-id>
+
 # OpenAI-compatible service
 LLM_PROVIDER=custom
 LLM_BASE_URL=https://openrouter.ai/api/v1
 LLM_API_KEY=your-key
 LLM_MODEL=anthropic/claude-sonnet-4
 ```
+
+OrcaRouter is an OpenAI-compatible LLM provider. ChatCrystal has its `https://api.orcarouter.ai/v1` Base URL built in, so do not set `LLM_BASE_URL` for it. In **Settings**, enter your OrcaRouter API Key, fetch the available models, and select one before saving. [Get an OrcaRouter API Key](https://www.orcarouter.ai/ref/ref_67516d927343232775e2).
 
 ## LLM and Embedding Models
 

@@ -119,6 +119,8 @@ crystal mcp                             # 启动 MCP stdio 服务
 
 LLM 和 Embedding 需要分别配置。Claude、GPT、Qwen 等大语言模型不是 Embedding 模型。Provider 示例见[用户指南](docs/USER_GUIDE.zh-CN.md#配置)。
 
+ChatCrystal 已将 [OrcaRouter](https://www.orcarouter.ai/ref/ref_67516d927343232775e2) 作为一等 LLM Provider 集成。OrcaRouter 兼容 OpenAI API，Base URL 已内置；用户只需填写 API Key，即可在 **Settings** 中获取并选择可用模型。
+
 ## 本地开发
 
 ```bash

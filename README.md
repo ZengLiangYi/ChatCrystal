@@ -119,6 +119,8 @@ crystal mcp                             # Start MCP stdio server
 
 LLM and embedding providers are configured separately. Large language models such as Claude, GPT, and Qwen are not embedding models. See the [user guide](docs/USER_GUIDE.md#configuration) for provider examples.
 
+ChatCrystal includes first-class [OrcaRouter](https://www.orcarouter.ai/ref/ref_67516d927343232775e2) support for LLM generation. OrcaRouter is OpenAI-compatible; its Base URL is built in, so enter only your API Key and use **Settings** to fetch and select an available model.
+
 ## Local Development
 
 ```bash

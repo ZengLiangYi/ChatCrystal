@@ -114,7 +114,7 @@ Monorepo with three npm workspaces:
     - `adapters/cursor.ts` — SQLite `state.vscdb` from Cursor's workspaceStorage/globalStorage. Reads composer metadata + bubble data via sql.js.
     - `adapters/trae.ts` — SQLite `state.vscdb` from Trae's workspaceStorage. Reads `memento/icube-ai-agent-storage` key; extracts content from agentTaskContent for agent responses.
     - `adapters/copilot.ts` — JSONL from VS Code's workspaceStorage/chatSessions + globalStorage/emptyWindowChatSessions. Parses session snapshots (kind:0) with requests/response arrays.
-  - `services/llm.ts` — Provider factory via Vercel AI SDK (Ollama, OpenAI, Anthropic, Google, Azure, Custom)
+  - `services/llm.ts` — Provider factory via Vercel AI SDK (Ollama, OpenAI, OrcaRouter, Anthropic, Google, Azure, Custom)
   - `services/summarize.ts` — Conversation preprocessing (truncate ~8000 tokens) + LLM call + JSON parsing + DB persistence. Auto-generates embeddings after summarization.
   - `services/embedding.ts` — Embedding model factory + vectra LocalIndex + text chunking
   - `services/import.ts` — Scan + dedup (file size + mtime) + batch insert
@@ -176,7 +176,7 @@ Runtime configuration is stored in `config.json` under the active data directory
 - `CURSOR_DATA_DIR` — path to Cursor data (auto-detected per platform)
 - `TRAE_DATA_DIR` — path to Trae data (auto-detected per platform)
 - `COPILOT_DATA_DIR` — path to VS Code Copilot data (auto-detected per platform)
-- `LLM_PROVIDER` / `LLM_MODEL` — for summarization (ollama, openai, anthropic, google, custom)
+- `LLM_PROVIDER` / `LLM_MODEL` — for summarization (ollama, openai, orcarouter, anthropic, google, azure, custom)
 - `EMBEDDING_PROVIDER` / `EMBEDDING_MODEL` — for semantic search
 
 > **注意：LLM 与 Embedding 需要分别配置。** 语义搜索要求 Embedding 模型支持 `/v1/embeddings` 端点。大语言模型（如 Codex、GPT-4、Qwen）**不能**用作 Embedding 模型。常见可用的 Embedding 模型：
