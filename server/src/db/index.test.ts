@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { fileURLToPath } from 'node:url';
 import initSqlJs, { type Database } from 'sql.js';
+import { locateSqlJsFile } from '../test-utils/sql.test-helper.js';
 import {
   applySchemaMigrations,
   exportDatabasePreservingForeignKeys,
@@ -9,10 +9,7 @@ import {
 
 async function createDatabase(): Promise<Database> {
   const SQL = await initSqlJs({
-    locateFile: (file) =>
-      fileURLToPath(
-        new URL(`../../../node_modules/sql.js/dist/${file}`, import.meta.url),
-      ),
+    locateFile: locateSqlJsFile,
   });
 
   return new SQL.Database();

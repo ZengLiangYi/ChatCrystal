@@ -51,15 +51,15 @@
   },
   "author": "Rayner Zeng",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=24.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.13",
-    "concurrently": "^9.2.1",
+    "@biomejs/biome": "^2.5.12",
+    "@typescript/native": "npm:typescript@7.0.2",
+    "concurrently": "^10.0.5",
     "cross-env": "^10.1.0",
-    "electron": "^41.3.0",
-    "electron-builder": "^26.8.1",
-    "typescript": "^5.9.3",
-    "wait-on": "^9.0.5"
+    "electron": "44.2.0",
+    "electron-builder": "26.15.3",
+    "wait-on": "^9.1.0"
   }
 }

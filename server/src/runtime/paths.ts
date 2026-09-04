@@ -89,7 +89,7 @@ const appRoot = workspaceRoot ?? packageRoot;
 
 for (const envPath of unique([path.resolve(appRoot, '.env'), path.resolve(packageRoot, '.env')])) {
   if (existsSync(envPath)) {
-    config({ path: envPath });
+    config({ path: envPath, quiet: true });
     break;
   }
 }

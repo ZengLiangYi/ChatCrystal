@@ -1,4 +1,4 @@
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { getDatabase, saveDatabase } from '../db/index.js';
 import { withTransaction } from '../db/transaction.js';
@@ -145,11 +145,10 @@ export async function discoverRelations(noteId: number): Promise<NoteRelation[]>
 ${candidateList}`;
 
   // Call LLM
-  const { object: rawRelations } = await generateObject({
+  const { output: rawRelations } = await generateText({
     model: getLanguageModel(),
-    output: 'array',
-    schema: RelationElementSchema,
-    system: RELATION_SYSTEM_PROMPT,
+    output: Output.array({ element: RelationElementSchema }),
+    instructions: RELATION_SYSTEM_PROMPT,
     prompt,
     maxOutputTokens: 1024,
     maxRetries: 2,

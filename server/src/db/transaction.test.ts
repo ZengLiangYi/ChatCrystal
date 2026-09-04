@@ -1,15 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { fileURLToPath } from 'node:url';
 import initSqlJs from 'sql.js';
+import { locateSqlJsFile } from '../test-utils/sql.test-helper.js';
 import { withTransaction } from './transaction.js';
 
 async function createDatabase() {
   const SQL = await initSqlJs({
-    locateFile: (file) =>
-      fileURLToPath(
-        new URL(`../../../node_modules/sql.js/dist/${file}`, import.meta.url),
-      ),
+    locateFile: locateSqlJsFile,
   });
 
   const db = new SQL.Database();

@@ -1,16 +1,22 @@
 import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import process from 'node:process';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '../..');
 const serverRoot = resolve(root, 'server');
 const packageJson = JSON.parse(readFileSync(resolve(serverRoot, 'package.json'), 'utf-8'));
 const serverJson = JSON.parse(readFileSync(resolve(serverRoot, 'server.json'), 'utf-8'));
 
-const output = execSync('npm pack -w server --dry-run --json', {
-  cwd: root,
+const npmCache = join(tmpdir(), 'chatcrystal-npm-cache');
+mkdirSync(npmCache, { recursive: true });
+const npmEnv = { ...process.env, NPM_CONFIG_CACHE: npmCache };
+delete npmEnv.npm_config_cache;
+const output = execSync('npm pack --dry-run --json', {
+  cwd: serverRoot,
   encoding: 'utf-8',
+  env: npmEnv,
   stdio: ['ignore', 'pipe', 'inherit'],
 });
 

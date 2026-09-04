@@ -90,14 +90,14 @@ export const WriteTaskMemoryRequestSchema = z
   .superRefine((value, ctx) => {
     if (value.mode === 'auto' && !value.source_run_key) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['source_run_key'],
         message: 'source_run_key is required when mode=auto',
       });
     }
     if (value.mode === 'auto' && value.scope === 'global') {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['scope'],
         message: 'scope=global is only allowed when mode=manual',
       });

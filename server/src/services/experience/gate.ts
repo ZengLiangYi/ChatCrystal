@@ -1,4 +1,4 @@
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { getDatabase, saveDatabase } from '../../db/index.js';
 import { resultToObjects } from '../../db/utils.js';
 import { getLanguageModel } from '../llm.js';
@@ -238,16 +238,16 @@ export function loadConversationSignalMessages(
 }
 
 export async function judgeConversationExperience(transcript: string) {
-  const { object } = await generateObject({
+  const { output } = await generateText({
     model: getLanguageModel(),
-    schema: ExperienceDimensionsSchema,
-    system:
+    output: Output.object({ schema: ExperienceDimensionsSchema }),
+    instructions:
       '你是 ChatCrystal 的经验质量评审器。只根据 rubric 打分，不生成笔记。每项 0-20：problem_clarity, process_depth, decision_value, outcome_closure, reuse_potential。',
     prompt: transcript,
     maxOutputTokens: 512,
     maxRetries: 2,
   });
-  return object;
+  return output;
 }
 
 export async function evaluateConversationExperience(

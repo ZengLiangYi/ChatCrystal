@@ -1,6 +1,6 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createGoogle } from '@ai-sdk/google';
 import { createAzure } from '@ai-sdk/azure';
 import type { LanguageModel, EmbeddingModel } from 'ai';
 
@@ -40,7 +40,7 @@ providers.set('ollama', {
   createEmbeddingModel({ baseURL, model }) {
     const url = baseURL || 'http://localhost:11434';
     const ollama = createOpenAI({ baseURL: `${url.replace(/\/+$/, '')}/v1`, apiKey: 'ollama', name: 'ollama' });
-    return ollama.textEmbeddingModel(model);
+    return ollama.embeddingModel(model);
   },
 });
 
@@ -58,7 +58,7 @@ providers.set('openai', {
   },
   createEmbeddingModel({ baseURL, apiKey, model }) {
     const openai = createOpenAI({ baseURL, apiKey });
-    return openai.textEmbeddingModel(model);
+    return openai.embeddingModel(model);
   },
 });
 
@@ -103,12 +103,12 @@ providers.set('google', {
   requiresApiKey: true,
   requiresBaseURL: false,
   createLanguageModel({ apiKey, model }) {
-    const google = createGoogleGenerativeAI({ apiKey });
+    const google = createGoogle({ apiKey });
     return google(model);
   },
   createEmbeddingModel({ apiKey, model }) {
-    const google = createGoogleGenerativeAI({ apiKey });
-    return google.textEmbeddingModel(model);
+    const google = createGoogle({ apiKey });
+    return google.embeddingModel(model);
   },
 });
 
@@ -126,7 +126,7 @@ providers.set('azure', {
   },
   createEmbeddingModel({ baseURL, apiKey, model }) {
     const azure = createAzure({ baseURL, apiKey });
-    return azure.textEmbeddingModel(model);
+    return azure.embeddingModel(model);
   },
 });
 
@@ -144,7 +144,7 @@ providers.set('custom', {
   },
   createEmbeddingModel({ baseURL, apiKey, model }) {
     const custom = createOpenAI({ baseURL, apiKey, name: 'custom' });
-    return custom.textEmbeddingModel(model);
+    return custom.embeddingModel(model);
   },
 });
 

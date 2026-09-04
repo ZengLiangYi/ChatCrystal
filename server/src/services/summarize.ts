@@ -1,4 +1,4 @@
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import type { Database } from 'sql.js';
 import { z } from 'zod';
 import { getDatabase, saveDatabase } from '../db/index.js';
@@ -92,10 +92,10 @@ async function summarizeConversation(
   conversationId: string,
   transcript = prepareTranscript(conversationId),
 ): Promise<SummarizeResult> {
-  const { object } = await generateObject({
+  const { output } = await generateText({
     model: getLanguageModel(),
-    schema: SummarizeSchema,
-    system: SYSTEM_PROMPT,
+    output: Output.object({ schema: SummarizeSchema }),
+    instructions: SYSTEM_PROMPT,
     prompt: transcript,
     maxOutputTokens: 4096,
     maxRetries: 3,
@@ -103,9 +103,9 @@ async function summarizeConversation(
 
   // Normalize tags to lowercase
   const result: SummarizeResult = {
-    ...object,
-    tags: object.tags.map((t) => t.toLowerCase()),
-    raw_response: JSON.stringify(object),
+    ...output,
+    tags: output.tags.map((t) => t.toLowerCase()),
+    raw_response: JSON.stringify(output),
   };
 
   return result;

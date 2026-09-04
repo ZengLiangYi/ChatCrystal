@@ -7,14 +7,14 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src'),
+      '@': resolve(import.meta.dirname, 'src'),
     },
   },
   build: {
     rollupOptions: {
       input: {
-        index: resolve(__dirname, 'index.html'),
-        onboarding: resolve(__dirname, 'electron-onboarding/index.html'),
+        index: resolve(import.meta.dirname, 'index.html'),
+        onboarding: resolve(import.meta.dirname, 'electron-onboarding/index.html'),
       },
     },
   },

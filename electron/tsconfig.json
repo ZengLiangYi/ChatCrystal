@@ -1,11 +1,12 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "module": "Node16",
+    "moduleResolution": "Node16",
     "outDir": "dist",
     "rootDir": ".",
     "strict": true,
+    "types": ["node", "electron"],
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,

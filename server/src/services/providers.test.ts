@@ -3,6 +3,38 @@ import test from 'node:test';
 import { generateText } from 'ai';
 import { listProviders } from './providers.js';
 
+test('provider factories expose AI SDK 7 language and embedding models', () => {
+  const expected = {
+    ollama: { language: 'ollama.responses', embedding: 'ollama.embedding' },
+    openai: { language: 'openai.responses', embedding: 'openai.embedding' },
+    orcarouter: { language: 'orcarouter.responses', embedding: undefined },
+    anthropic: { language: 'anthropic.messages', embedding: undefined },
+    google: { language: 'google.generative-ai', embedding: 'google.generative-ai' },
+    azure: { language: 'azure.responses', embedding: 'azure.embeddings' },
+    custom: { language: 'custom.responses', embedding: 'custom.embedding' },
+  } as const;
+
+  const providers = listProviders();
+  assert.deepEqual(providers.map((provider) => provider.name), Object.keys(expected));
+
+  for (const provider of providers) {
+    const contract = expected[provider.name as keyof typeof expected];
+    const config = {
+      apiKey: 'test-api-key',
+      baseURL: 'https://example.test/v1',
+      model: 'test-model',
+    };
+    const languageModel = provider.createLanguageModel(config);
+    const embeddingModel = provider.createEmbeddingModel?.(config);
+
+    assert.equal(languageModel.provider, contract.language, `${provider.name} language provider`);
+    assert.equal(languageModel.modelId, config.model, `${provider.name} language model id`);
+    assert.equal(embeddingModel?.provider, contract.embedding, `${provider.name} embedding provider`);
+    assert.equal(embeddingModel?.modelId, contract.embedding ? config.model : undefined);
+    assert.equal(provider.supportsEmbedding, contract.embedding !== undefined);
+  }
+});
+
 test('listProviders registers OrcaRouter as a first-class LLM provider', () => {
   const provider = listProviders().find((entry) => entry.name === 'orcarouter');
 

@@ -1,8 +1,8 @@
 import { strict as assert } from 'node:assert';
 import test from 'node:test';
-import { fileURLToPath } from 'node:url';
 import initSqlJs, { type Database } from 'sql.js';
 import { SCHEMA_SQL } from '../db/schema.js';
+import { locateSqlJsFile } from '../test-utils/sql.test-helper.js';
 import {
   enqueueNoteVectorCleanupTask,
   processNoteVectorCleanupTask,
@@ -11,10 +11,7 @@ import {
 
 async function createSqlDatabase() {
   const SQL = await initSqlJs({
-    locateFile: (file) =>
-      fileURLToPath(
-        new URL(`../../../node_modules/sql.js/dist/${file}`, import.meta.url),
-      ),
+    locateFile: locateSqlJsFile,
   });
   const db = new SQL.Database();
   db.exec(SCHEMA_SQL);

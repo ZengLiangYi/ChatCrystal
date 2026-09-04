@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { fileURLToPath } from 'node:url';
 import type { DeleteNoteReviewRequest } from '@chatcrystal/shared';
 import initSqlJs, { type Database } from 'sql.js';
 import { SCHEMA_SQL } from '../../db/schema.js';
+import { locateSqlJsFile } from '../../test-utils/sql.test-helper.js';
 import {
   DeleteNoteReviewValidationError,
   NoteNotFoundForReviewError,
@@ -13,10 +13,7 @@ import { enqueueNoteVectorCleanupTask } from '../vector-cleanup.js';
 
 async function createSqlDatabase() {
   const SQL = await initSqlJs({
-    locateFile: (file) =>
-      fileURLToPath(
-        new URL(`../../../../node_modules/sql.js/dist/${file}`, import.meta.url),
-      ),
+    locateFile: locateSqlJsFile,
   });
   const db = new SQL.Database();
   db.exec('PRAGMA foreign_keys = ON');

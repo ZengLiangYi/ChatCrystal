@@ -20,8 +20,7 @@ export async function enqueueWithRetry<T>(
 ): Promise<T> {
   taskTracker.add(taskId, taskTitle);
 
-  const result = await summarizeQueue.add(
-    async () => {
+  const result = await summarizeQueue.add(async () => {
       taskTracker.start(taskId);
       let lastError: Error | undefined;
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -42,10 +41,8 @@ export async function enqueueWithRetry<T>(
       }
       taskTracker.fail(taskId, lastError?.message || 'Unknown error');
       throw lastError;
-    },
-    { throwOnTimeout: true },
-  );
-  return result as T;
+  });
+  return result;
 }
 
 export function getQueueStatus() {
