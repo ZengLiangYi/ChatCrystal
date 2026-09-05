@@ -218,6 +218,9 @@ importers:
       '@types/node':
         specifier: 24.13.3
         version: 24.13.3
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
       '@types/sql.js':
         specifier: ^1.4.11
         version: 1.4.11
