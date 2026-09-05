@@ -9,6 +9,11 @@ updates:
       timezone: Asia/Shanghai
     open-pull-requests-limit: 10
     versioning-strategy: increase
+    ignore:
+      # Match the project's Node.js 24 runtime instead of exposing Node 26 APIs.
+      - dependency-name: "@types/node"
+        update-types:
+          - version-update:semver-major
     groups:
       compatible-updates:
         patterns:
