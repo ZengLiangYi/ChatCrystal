@@ -40,7 +40,7 @@
     "start": "pnpm --filter ./server start",
     "lint": "pnpm exec biome check . --diagnostic-level=error && pnpm --filter ./client lint",
     "lint:fix": "pnpm exec biome check --fix . && pnpm --filter ./client lint -- --fix",
-    "test": "pnpm test:server && pnpm test:client && pnpm test:electron",
+    "test": "pnpm test:server && pnpm test:client && pnpm test:electron && pnpm test:audit-policy",
     "test:server": "pnpm --filter ./server test",
     "test:client": "tsx --test client/test/*.test.ts",
     "test:electron": "tsx --test electron/test/*.test.ts",
