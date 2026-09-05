@@ -153,9 +153,13 @@ jobs:
         env:
           RELEASE_VERSION: ${{ needs.prepare.outputs.npm_version }}
         run: |
-          npm version "$RELEASE_VERSION" --no-git-tag-version --allow-same-version --package-lock=false
           node --input-type=module <<'NODE'
           import { readFileSync, writeFileSync } from 'node:fs';
+
+          const packagePath = 'package.json';
+          const packageManifest = JSON.parse(readFileSync(packagePath, 'utf8'));
+          packageManifest.version = process.env.RELEASE_VERSION;
+          writeFileSync(packagePath, `${JSON.stringify(packageManifest, null, 2)}\n`);
 
           const path = 'server.json';
           const manifest = JSON.parse(readFileSync(path, 'utf8'));
@@ -251,7 +255,15 @@ jobs:
         shell: bash
         env:
           RELEASE_VERSION: ${{ needs.prepare.outputs.electron_version }}
-        run: npm version "$RELEASE_VERSION" --no-git-tag-version --allow-same-version --package-lock=false
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+
+          const path = 'package.json';
+          const manifest = JSON.parse(readFileSync(path, 'utf8'));
+          manifest.version = process.env.RELEASE_VERSION;
+          writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`);
+          NODE
 
       - name: Smoke test MCP server
         run: pnpm --filter ./server smoke:mcp
@@ -297,7 +309,7 @@ jobs:
           RELEASE_VERSION: ${{ needs.prepare.outputs.electron_version }}
         run: |
           # Extract the section for this version from CHANGELOG.md
-          BODY=$(awk -v heading="## [$RELEASE_VERSION]" '$0 == heading {found=1; next} /^## \[/ {if(found) exit} found {print}' CHANGELOG.md)
+          BODY=$(awk -v heading="## [$RELEASE_VERSION]" 'index($0, heading) == 1 {found=1; next} /^## \[/ {if(found) exit} found {print}' CHANGELOG.md)
           if [ -z "$BODY" ]; then
             BODY="Release v${RELEASE_VERSION}"
           fi

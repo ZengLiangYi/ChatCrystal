@@ -25,7 +25,8 @@ const run = (cmd) => execSync(cmd, { stdio: "inherit", cwd: root });
 
 // Determine target from RELEASE_TARGET env or default to "all"
 const target = process.env.RELEASE_TARGET || "all";
-const arg = process.argv[2] || "patch";
+const releaseArgs = process.argv.slice(2);
+const arg = (releaseArgs[0] === "--" ? releaseArgs[1] : releaseArgs[0]) || "patch";
 
 // Ensure clean working tree
 try {

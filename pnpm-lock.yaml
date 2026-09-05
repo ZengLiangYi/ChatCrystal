@@ -15,6 +15,9 @@ importers:
       '@biomejs/biome':
         specifier: ^2.5.12
         version: 2.5.12
+      '@types/node':
+        specifier: 24.13.3
+        version: 24.13.3
       '@typescript/native':
         specifier: npm:typescript@7.0.2
         version: typescript@7.0.2
