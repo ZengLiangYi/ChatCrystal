@@ -40,7 +40,10 @@
     "start": "pnpm --filter ./server start",
     "lint": "pnpm exec biome check . --diagnostic-level=error && pnpm --filter ./client lint",
     "lint:fix": "pnpm exec biome check --fix . && pnpm --filter ./client lint -- --fix",
-    "test": "pnpm --filter ./server test",
+    "test": "pnpm test:server && pnpm test:client && pnpm test:electron",
+    "test:server": "pnpm --filter ./server test",
+    "test:client": "tsx --test client/test/*.test.ts",
+    "test:electron": "tsx --test electron/test/*.test.ts",
     "test:audit-policy": "node --test --test-isolation=none scripts/check-dependency-audit.test.mjs",
     "security:audit": "node scripts/check-dependency-audit.mjs",
     "security:signatures": "pnpm audit signatures",
@@ -68,6 +71,7 @@
     "cross-env": "^10.1.0",
     "electron": "44.1.1",
     "electron-builder": "26.15.3",
+    "tsx": "^4.23.13",
     "wait-on": "^9.1.0"
   }
 }
