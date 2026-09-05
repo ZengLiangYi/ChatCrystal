@@ -50,39 +50,66 @@ jobs:
 
       - id: resolve
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_PUBLISH_NPM: ${{ inputs.publish_npm }}
+          INPUT_NPM_VERSION: ${{ inputs.npm_version }}
+          INPUT_BUILD_ELECTRON: ${{ inputs.build_electron }}
+          INPUT_ELECTRON_VERSION: ${{ inputs.electron_version }}
         run: |
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            TAG="${GITHUB_REF_NAME}"
+          npm_version=""
+          electron_version=""
+
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            TAG="$REF_NAME"
             if [[ "$TAG" == npm-v* ]]; then
-              echo "do_npm=true" >> $GITHUB_OUTPUT
-              echo "do_electron=false" >> $GITHUB_OUTPUT
-              echo "npm_version=${TAG#npm-v}" >> $GITHUB_OUTPUT
+              do_npm=true
+              do_electron=false
+              npm_version="${TAG#npm-v}"
             elif [[ "$TAG" == electron-v* ]]; then
-              echo "do_npm=false" >> $GITHUB_OUTPUT
-              echo "do_electron=true" >> $GITHUB_OUTPUT
-              echo "electron_version=${TAG#electron-v}" >> $GITHUB_OUTPUT
+              do_npm=false
+              do_electron=true
+              electron_version="${TAG#electron-v}"
             else
-              echo "do_npm=true" >> $GITHUB_OUTPUT
-              echo "do_electron=true" >> $GITHUB_OUTPUT
-              echo "npm_version=$(node -p "require('./server/package.json').version")" >> $GITHUB_OUTPUT
-              echo "electron_version=${TAG#v}" >> $GITHUB_OUTPUT
+              do_npm=true
+              do_electron=true
+              npm_version="$(node -p "require('./server/package.json').version")"
+              electron_version="${TAG#v}"
             fi
           else
-            echo "do_npm=${{ inputs.publish_npm }}" >> $GITHUB_OUTPUT
-            echo "do_electron=${{ inputs.build_electron }}" >> $GITHUB_OUTPUT
+            do_npm="$INPUT_PUBLISH_NPM"
+            do_electron="$INPUT_BUILD_ELECTRON"
 
-            if [[ -n "${{ inputs.npm_version }}" ]]; then
-              echo "npm_version=${{ inputs.npm_version }}" >> $GITHUB_OUTPUT
+            if [[ -n "$INPUT_NPM_VERSION" ]]; then
+              npm_version="$INPUT_NPM_VERSION"
             else
-              echo "npm_version=$(node -p "require('./server/package.json').version")" >> $GITHUB_OUTPUT
+              npm_version="$(node -p "require('./server/package.json').version")"
             fi
 
-            if [[ -n "${{ inputs.electron_version }}" ]]; then
-              echo "electron_version=${{ inputs.electron_version }}" >> $GITHUB_OUTPUT
+            if [[ -n "$INPUT_ELECTRON_VERSION" ]]; then
+              electron_version="$INPUT_ELECTRON_VERSION"
             else
-              echo "electron_version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+              electron_version="$(node -p "require('./package.json').version")"
             fi
           fi
+
+          semver_pattern='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
+          if [[ "$do_npm" == "true" && ! "$npm_version" =~ $semver_pattern ]]; then
+            echo "Invalid npm version: $npm_version" >&2
+            exit 1
+          fi
+          if [[ "$do_electron" == "true" && ! "$electron_version" =~ $semver_pattern ]]; then
+            echo "Invalid Electron version: $electron_version" >&2
+            exit 1
+          fi
+
+          {
+            printf 'do_npm=%s\n' "$do_npm"
+            printf 'do_electron=%s\n' "$do_electron"
+            printf 'npm_version=%s\n' "$npm_version"
+            printf 'electron_version=%s\n' "$electron_version"
+          } >> "$GITHUB_OUTPUT"
 
   # ── Publish to npm (Trusted Publisher via OIDC) ────────────
   publish-npm:
@@ -219,7 +246,9 @@ jobs:
 
       - name: Sync Electron version
         shell: bash
-        run: npm version "${{ needs.prepare.outputs.electron_version }}" --no-git-tag-version --allow-same-version --package-lock=false
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.electron_version }}
+        run: npm version "$RELEASE_VERSION" --no-git-tag-version --allow-same-version --package-lock=false
 
       - name: Package Electron app
         shell: bash
@@ -258,12 +287,13 @@ jobs:
       - name: Extract changelog
         id: changelog
         shell: bash
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.electron_version }}
         run: |
-          VERSION="${{ needs.prepare.outputs.electron_version }}"
           # Extract the section for this version from CHANGELOG.md
-          BODY=$(awk "/^## \\[${VERSION}\\]/{found=1; next} /^## \\[/{if(found) exit} found{print}" CHANGELOG.md)
+          BODY=$(awk -v heading="## [$RELEASE_VERSION]" '$0 == heading {found=1; next} /^## \[/ {if(found) exit} found {print}' CHANGELOG.md)
           if [ -z "$BODY" ]; then
-            BODY="Release v${VERSION}"
+            BODY="Release v${RELEASE_VERSION}"
           fi
           # Write to file to avoid escaping issues
           echo "$BODY" > release_body.md
@@ -271,16 +301,27 @@ jobs:
       - name: Determine release tag
         id: release_tag
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+          ELECTRON_VERSION: ${{ needs.prepare.outputs.electron_version }}
         run: |
           # Use the original push tag if available (v* for full release),
           # otherwise fall back to electron-v* prefix
-          if [[ "${{ github.event_name }}" != "push" && -n "${{ inputs.release_tag }}" ]]; then
-            echo "tag=${{ inputs.release_tag }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref_name }}" == v* ]]; then
-            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          if [[ "$EVENT_NAME" != "push" && -n "$INPUT_RELEASE_TAG" ]]; then
+            tag="$INPUT_RELEASE_TAG"
+          elif [[ "$REF_NAME" == v* ]]; then
+            tag="$REF_NAME"
           else
-            echo "tag=electron-v${{ needs.prepare.outputs.electron_version }}" >> $GITHUB_OUTPUT
+            tag="electron-v${ELECTRON_VERSION}"
           fi
+
+          if [[ ! "$tag" =~ ^[0-9A-Za-z._/-]+$ ]]; then
+            echo "Invalid release tag: $tag" >&2
+            exit 1
+          fi
+          printf 'tag=%s\n' "$tag" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
