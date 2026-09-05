@@ -168,6 +168,9 @@ jobs:
           writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`);
           NODE
 
+      - name: Smoke test MCP server
+        run: pnpm --filter ./server smoke:mcp
+
       - name: Validate npm package contents
         run: pnpm --filter ./server check:npm-package
 
@@ -249,6 +252,9 @@ jobs:
         env:
           RELEASE_VERSION: ${{ needs.prepare.outputs.electron_version }}
         run: npm version "$RELEASE_VERSION" --no-git-tag-version --allow-same-version --package-lock=false
+
+      - name: Smoke test MCP server
+        run: pnpm --filter ./server smoke:mcp
 
       - name: Package Electron app
         shell: bash
