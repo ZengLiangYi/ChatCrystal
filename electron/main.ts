@@ -399,7 +399,7 @@ async function importServerModule<T>(relativeModulePath: string): Promise<T> {
 	);
 	if (!existsSync(modulePath)) {
 		throw new Error(
-			`Missing compiled server module: ${modulePath}. Run npm run build -w server before packaging Electron.`,
+			`Missing compiled server module: ${modulePath}. Run pnpm --filter ./server build before packaging Electron.`,
 		);
 	}
 	const moduleUrl = pathToFileURL(modulePath).href;
