@@ -41,9 +41,9 @@ jobs:
       npm_version: ${{ steps.resolve.outputs.npm_version }}
       electron_version: ${{ steps.resolve.outputs.electron_version }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24.20.0
           package-manager-cache: false
@@ -121,11 +121,11 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24.20.0
           cache: pnpm
@@ -193,11 +193,11 @@ jobs:
       ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
       ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24.20.0
           cache: pnpm
@@ -215,7 +215,7 @@ jobs:
       # Cache Electron binary (~90MB) by Electron version, not by the whole lockfile.
       - name: Restore Electron binary cache
         id: electron_binary_cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: ${{ github.workspace }}/.cache/electron
           key: ${{ steps.electron_cache.outputs.binary_key }}
@@ -226,7 +226,7 @@ jobs:
       # Cache electron-builder tools (NSIS, nsis-resources, etc.)
       - name: Restore electron-builder tools cache
         id: electron_builder_cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: ${{ github.workspace }}/.cache/electron-builder
           key: ${{ steps.electron_cache.outputs.builder_key }}
@@ -290,14 +290,14 @@ jobs:
 
       - name: Save Electron binary cache
         if: steps.electron_binary_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: ${{ github.workspace }}/.cache/electron
           key: ${{ steps.electron_cache.outputs.binary_key }}
 
       - name: Save electron-builder tools cache
         if: steps.electron_builder_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: ${{ github.workspace }}/.cache/electron-builder
           key: ${{ steps.electron_cache.outputs.builder_key }}
@@ -342,7 +342,7 @@ jobs:
           printf 'tag=%s\n' "$tag" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.release_tag.outputs.tag }}
           name: ChatCrystal v${{ needs.prepare.outputs.electron_version }}
