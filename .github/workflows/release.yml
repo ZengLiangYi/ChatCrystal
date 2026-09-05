@@ -121,14 +121,32 @@ jobs:
       - name: Build server
         run: pnpm --filter ./server build
 
+      - name: Sync npm package version
+        working-directory: server
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.npm_version }}
+        run: |
+          npm version "$RELEASE_VERSION" --no-git-tag-version --allow-same-version --package-lock=false
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+
+          const path = 'server.json';
+          const manifest = JSON.parse(readFileSync(path, 'utf8'));
+          manifest.version = process.env.RELEASE_VERSION;
+          for (const pkg of manifest.packages ?? []) {
+            if (pkg.registryType === 'npm' && pkg.identifier === 'chatcrystal') {
+              pkg.version = process.env.RELEASE_VERSION;
+            }
+          }
+          writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`);
+          NODE
+
       - name: Validate npm package contents
         run: pnpm --filter ./server check:npm-package
 
       - name: Publish to npm
         working-directory: server
-        run: |
-          npm version "${{ needs.prepare.outputs.npm_version }}" --no-git-tag-version --allow-same-version --package-lock=false
-          npm publish --provenance --access public
+        run: npm publish --provenance --access public
 
   # ── Build Electron + GitHub Release ────────────────────────
   publish-electron:
