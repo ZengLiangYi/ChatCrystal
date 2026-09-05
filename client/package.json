@@ -37,7 +37,7 @@
     "@chatcrystal/shared": "workspace:*",
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.3.3",
-    "@types/node": "24.13.3",
+    "@types/node": "26.4.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@typescript/native": "npm:typescript@7.0.2",

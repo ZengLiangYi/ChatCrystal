@@ -73,7 +73,7 @@
   },
   "devDependencies": {
     "@chatcrystal/shared": "workspace:*",
-    "@types/node": "24.13.3",
+    "@types/node": "26.4.1",
     "@types/react": "^19.2.18",
     "@types/sql.js": "^1.4.11",
     "@typescript/native": "npm:typescript@7.0.2",
