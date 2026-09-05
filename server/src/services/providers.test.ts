@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { generateText } from 'ai';
+import { embed, generateText, Output } from 'ai';
+import { z } from 'zod';
 import { listProviders } from './providers.js';
 
 test('provider factories expose AI SDK 7 language and embedding models', () => {
@@ -97,6 +98,105 @@ test('OrcaRouter generation uses its fixed OpenAI-compatible endpoint', async ()
     assert.equal(requestUrl, 'https://api.orcarouter.ai/v1/responses');
     assert.equal(authorization, 'Bearer sk-orca-test');
     assert.equal(result.text, 'OK');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('AI SDK 7 structured outputs use the Responses API contract', async () => {
+  const provider = listProviders().find((entry) => entry.name === 'custom');
+  assert.ok(provider);
+
+  const originalFetch = globalThis.fetch;
+  const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+  globalThis.fetch = async (input, init) => {
+    const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    requests.push({ url: String(input), body });
+    const text = requests.length === 1
+      ? JSON.stringify({ title: 'Reviewed' })
+      : JSON.stringify({ elements: [{ noteId: 7 }] });
+
+    return new Response(JSON.stringify({
+      id: `resp_${requests.length}`,
+      created_at: 1_700_000_000,
+      model: 'test-model',
+      output: [{
+        type: 'message',
+        id: `msg_${requests.length}`,
+        role: 'assistant',
+        content: [{ type: 'output_text', text, annotations: [] }],
+      }],
+      usage: { input_tokens: 1, output_tokens: 1 },
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  };
+
+  try {
+    const model = provider.createLanguageModel({
+      apiKey: 'test-api-key',
+      baseURL: 'https://example.test/v1',
+      model: 'test-model',
+    });
+    const objectResult = await generateText({
+      model,
+      output: Output.object({ schema: z.object({ title: z.string() }) }),
+      prompt: 'Return an object.',
+    });
+    const arrayResult = await generateText({
+      model,
+      output: Output.array({ element: z.object({ noteId: z.number() }) }),
+      prompt: 'Return an array.',
+    });
+
+    assert.deepEqual(objectResult.output, { title: 'Reviewed' });
+    assert.deepEqual(arrayResult.output, [{ noteId: 7 }]);
+    assert.deepEqual(requests.map(({ url }) => url), [
+      'https://example.test/v1/responses',
+      'https://example.test/v1/responses',
+    ]);
+    for (const { body } of requests) {
+      assert.equal((body.text as { format?: { type?: string } })?.format?.type, 'json_schema');
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('AI SDK 7 embeddingModel uses the embeddings endpoint contract', async () => {
+  const provider = listProviders().find((entry) => entry.name === 'custom');
+  assert.ok(provider?.createEmbeddingModel);
+
+  const originalFetch = globalThis.fetch;
+  let requestUrl = '';
+  let requestBody: Record<string, unknown> = {};
+  globalThis.fetch = async (input, init) => {
+    requestUrl = String(input);
+    requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return new Response(JSON.stringify({
+      object: 'list',
+      data: [{ object: 'embedding', index: 0, embedding: [0.25, 0.75] }],
+      model: 'test-embedding-model',
+      usage: { prompt_tokens: 1, total_tokens: 1 },
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  };
+
+  try {
+    const model = provider.createEmbeddingModel({
+      apiKey: 'test-api-key',
+      baseURL: 'https://example.test/v1',
+      model: 'test-embedding-model',
+    });
+    const result = await embed({ model, value: 'dependency review' });
+
+    assert.equal(requestUrl, 'https://example.test/v1/embeddings');
+    assert.deepEqual(requestBody.input, ['dependency review']);
+    assert.equal(requestBody.model, 'test-embedding-model');
+    assert.deepEqual(result.embedding, [0.25, 0.75]);
   } finally {
     globalThis.fetch = originalFetch;
   }
