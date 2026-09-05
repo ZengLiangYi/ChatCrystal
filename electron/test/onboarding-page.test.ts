@@ -24,15 +24,18 @@ test("electron onboarding helper points dev mode at Vite static assets", () => {
 });
 
 test("electron onboarding helper points packaged mode at built static assets", () => {
+	const appPath = path.resolve("fake", "ChatCrystal");
 	const url = getOnboardingUrl({
-		appPath: "C:\\fake\\ChatCrystal",
+		appPath,
 		initialError: "本地核心启动失败",
 	});
+	const parsed = new URL(url);
 
-	assert.match(
-		url,
-		/^file:\/\/\/C:\/fake\/ChatCrystal\/client\/dist\/electron-onboarding\/index\.html\?initialError=/,
+	assert.equal(
+		fileURLToPath(parsed),
+		path.join(appPath, "client", "dist", "electron-onboarding", "index.html"),
 	);
+	assert.equal(parsed.searchParams.get("initialError"), "本地核心启动失败");
 });
 
 test("electron onboarding helper is not an embedded HTML generator", () => {

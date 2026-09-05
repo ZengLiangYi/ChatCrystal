@@ -26,10 +26,13 @@ test("vite builds the onboarding page as a separate React entry", () => {
 
 	assert.match(config, /rollupOptions/);
 	assert.match(config, /input/);
-	assert.match(config, /index:\s*resolve\(__dirname,\s*["']index\.html["']\)/);
 	assert.match(
 		config,
-		/onboarding:\s*resolve\(__dirname,\s*["']electron-onboarding\/index\.html["']\)/,
+		/index:\s*resolve\(import\.meta\.dirname,\s*["']index\.html["']\)/,
+	);
+	assert.match(
+		config,
+		/onboarding:\s*resolve\(import\.meta\.dirname,\s*["']electron-onboarding\/index\.html["']\)/,
 	);
 });
 
