@@ -42,9 +42,6 @@ importers:
       '@react-sigma/core':
         specifier: ^5.0.6
         version: 5.0.6(graphology@0.26.0(graphology-types@0.24.8))(react@19.2.8)(sigma@3.0.3(graphology-types@0.24.8))
-      '@tailwindcss/vite':
-        specifier: ^4.3.3
-        version: 4.3.3(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13))
       '@tanstack/react-query':
         specifier: ^5.102.8
         version: 5.102.8(react@19.2.8)
@@ -105,12 +102,6 @@ importers:
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
-      tailwindcss:
-        specifier: ^4.3.3
-        version: 4.3.3
-      tw-animate-css:
-        specifier: ^1.4.0
-        version: 1.4.0
     devDependencies:
       '@chatcrystal/shared':
         specifier: workspace:*
@@ -118,6 +109,9 @@ importers:
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.9.1(jiti@2.7.0)(supports-color@10.2.2))
+      '@tailwindcss/vite':
+        specifier: ^4.3.3
+        version: 4.3.3(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13))
       '@types/node':
         specifier: 24.13.3
         version: 24.13.3
@@ -145,6 +139,12 @@ importers:
       globals:
         specifier: ^17.12.0
         version: 17.12.0
+      tailwindcss:
+        specifier: ^4.3.3
+        version: 4.3.3
+      tw-animate-css:
+        specifier: ^1.4.0
+        version: 1.4.0
       typescript:
         specifier: npm:@typescript/typescript6@6.0.2
         version: '@typescript/typescript6@6.0.2'
