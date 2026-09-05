@@ -45,10 +45,14 @@ pnpm build                            # Build server and client
 pnpm start                            # Production server
 pnpm lint                             # Biome + client ESLint
 pnpm lint:fix                         # Apply safe lint fixes
-pnpm test                             # Server tests
+pnpm test                             # All tests, including dependency audit policy
+pnpm test:server                      # Server tests only
+pnpm test:client                      # Client tests only
+pnpm test:electron                    # Electron tests only
 pnpm dev:electron                     # Electron dev mode
 pnpm build:electron                   # Build Windows installer
 pnpm pack:electron                    # Build unpacked Electron app
+pnpm --filter ./server smoke:mcp      # End-to-end MCP smoke (run after build)
 pnpm --filter ./server eval:experience
 pnpm security:audit                   # Fail on high/critical findings
 pnpm security:signatures              # Verify registry signatures
@@ -178,13 +182,14 @@ Primary verification:
 ```bash
 pnpm test
 pnpm build
+pnpm --filter ./server smoke:mcp
 pnpm lint
 pnpm --filter ./server eval:experience
 pnpm security:audit
 pnpm security:signatures
 ```
 
-Use focused server tests while iterating, then run the full commands before committing.
+Use a focused layer while iterating, then run the full commands before committing. The MCP smoke test uses compiled output, so run `pnpm build` first.
 
 ## Release
 

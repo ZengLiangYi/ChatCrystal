@@ -45,10 +45,14 @@ pnpm build                            # 构建 server 和 client
 pnpm start                            # 生产 server
 pnpm lint                             # Biome + client ESLint
 pnpm lint:fix                         # 应用安全 lint 修复
-pnpm test                             # Server 测试
+pnpm test                             # 全部测试（含依赖审计策略）
+pnpm test:server                      # 仅 Server 测试
+pnpm test:client                      # 仅 Client 测试
+pnpm test:electron                    # 仅 Electron 测试
 pnpm dev:electron                     # Electron 开发模式
 pnpm build:electron                   # 构建 Windows 安装包
 pnpm pack:electron                    # 构建未打包 Electron 应用
+pnpm --filter ./server smoke:mcp      # MCP 端到端冒烟测试（先执行 build）
 pnpm --filter ./server eval:experience
 pnpm security:audit                   # high/critical 时失败
 pnpm security:signatures              # 校验 registry 签名
@@ -178,13 +182,14 @@ interface SourceAdapter {
 ```bash
 pnpm test
 pnpm build
+pnpm --filter ./server smoke:mcp
 pnpm lint
 pnpm --filter ./server eval:experience
 pnpm security:audit
 pnpm security:signatures
 ```
 
-开发时可以先跑聚焦测试，提交前再跑完整命令。
+开发时可以先跑单层聚焦测试，提交前再跑完整命令。MCP 冒烟测试使用编译产物，因此需要先执行 `pnpm build`。
 
 ## 发布
 

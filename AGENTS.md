@@ -38,6 +38,15 @@ pnpm release:npm -- 1.0.1       # npm-only release → npm-v*
 # Lint
 pnpm lint
 pnpm lint:fix
+
+# Tests (all layers by default)
+pnpm test
+pnpm test:server
+pnpm test:client
+pnpm test:electron
+pnpm --filter ./server smoke:mcp  # requires pnpm build first
+
+# Dependency security
 pnpm security:audit
 pnpm security:signatures
 ```
