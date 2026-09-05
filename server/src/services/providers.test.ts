@@ -6,7 +6,7 @@ import { listProviders } from './providers.js';
 
 test('provider factories expose AI SDK 7 language and embedding models', () => {
   const expected = {
-    ollama: { language: 'ollama.responses', embedding: 'ollama.embedding' },
+    ollama: { language: 'ollama.chat', embedding: 'ollama.embedding' },
     openai: { language: 'openai.responses', embedding: 'openai.embedding' },
     orcarouter: { language: 'orcarouter.responses', embedding: undefined },
     anthropic: { language: 'anthropic.messages', embedding: undefined },
@@ -98,6 +98,51 @@ test('OrcaRouter generation uses its fixed OpenAI-compatible endpoint', async ()
     assert.equal(requestUrl, 'https://api.orcarouter.ai/v1/responses');
     assert.equal(authorization, 'Bearer sk-orca-test');
     assert.equal(result.text, 'OK');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('Ollama structured outputs use its broadly compatible chat endpoint', async () => {
+  const provider = listProviders().find((entry) => entry.name === 'ollama');
+  assert.ok(provider);
+
+  const originalFetch = globalThis.fetch;
+  let requestUrl = '';
+  let requestBody: Record<string, unknown> = {};
+  globalThis.fetch = async (input, init) => {
+    requestUrl = String(input);
+    requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return new Response(JSON.stringify({
+      id: 'chatcmpl_test',
+      created: 1_700_000_000,
+      model: 'qwen3',
+      choices: [{
+        index: 0,
+        message: { role: 'assistant', content: JSON.stringify({ title: 'Local' }) },
+        finish_reason: 'stop',
+      }],
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  };
+
+  try {
+    const model = provider.createLanguageModel({
+      baseURL: 'http://localhost:11434/',
+      model: 'qwen3',
+    });
+    const result = await generateText({
+      model,
+      output: Output.object({ schema: z.object({ title: z.string() }) }),
+      prompt: 'Return an object.',
+    });
+
+    assert.equal(requestUrl, 'http://localhost:11434/v1/chat/completions');
+    assert.equal((requestBody.response_format as { type?: string })?.type, 'json_schema');
+    assert.deepEqual(result.output, { title: 'Local' });
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -35,7 +35,7 @@ providers.set('ollama', {
   createLanguageModel({ baseURL, model }) {
     const url = baseURL || 'http://localhost:11434';
     const ollama = createOpenAI({ baseURL: `${url.replace(/\/+$/, '')}/v1`, apiKey: 'ollama', name: 'ollama' });
-    return ollama(model);
+    return ollama.chat(model);
   },
   createEmbeddingModel({ baseURL, model }) {
     const url = baseURL || 'http://localhost:11434';
