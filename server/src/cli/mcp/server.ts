@@ -41,12 +41,14 @@ export async function startMcpServer(options?: string | CrystalClientOptions) {
   });
 
   // Tool 1: search_knowledge
-  server.tool(
+  server.registerTool(
     'search_knowledge',
-    'Semantic search across your AI conversation knowledge base. Returns matching notes ranked by relevance.',
     {
-      query: z.string().describe('Search query text'),
-      limit: z.number().optional().default(10).describe('Maximum number of results'),
+      description: 'Semantic search across your AI conversation knowledge base. Returns matching notes ranked by relevance.',
+      inputSchema: {
+        query: z.string().describe('Search query text'),
+        limit: z.number().optional().default(10).describe('Maximum number of results'),
+      },
     },
     async ({ query, limit }) => {
       const results = await client.search(query, limit);
@@ -60,11 +62,13 @@ export async function startMcpServer(options?: string | CrystalClientOptions) {
   );
 
   // Tool 2: get_note
-  server.tool(
+  server.registerTool(
     'get_note',
-    'Get the full content of a note including title, summary, key conclusions, code snippets, and tags.',
     {
-      id: z.number().describe('Note ID'),
+      description: 'Get the full content of a note including title, summary, key conclusions, code snippets, and tags.',
+      inputSchema: {
+        id: z.number().describe('Note ID'),
+      },
     },
     async ({ id }) => {
       const note = await client.getNote(id);
@@ -78,13 +82,15 @@ export async function startMcpServer(options?: string | CrystalClientOptions) {
   );
 
   // Tool 3: list_notes
-  server.tool(
+  server.registerTool(
     'list_notes',
-    LIST_NOTES_DESCRIPTION,
     {
-      tag: z.string().optional().describe('Exact tag name to filter notes by, for example "mcp" or "cursor".'),
-      search: z.string().optional().describe('Literal keyword filter applied to note title and summary; not semantic search.'),
-      page: z.number().optional().default(1).describe('1-based page number for paginated note summaries. Each page returns up to 20 notes.'),
+      description: LIST_NOTES_DESCRIPTION,
+      inputSchema: {
+        tag: z.string().optional().describe('Exact tag name to filter notes by, for example "mcp" or "cursor".'),
+        search: z.string().optional().describe('Literal keyword filter applied to note title and summary; not semantic search.'),
+        page: z.number().optional().default(1).describe('1-based page number for paginated note summaries. Each page returns up to 20 notes.'),
+      },
     },
     async ({ tag, search, page }) => {
       const limit = 20;
@@ -100,11 +106,13 @@ export async function startMcpServer(options?: string | CrystalClientOptions) {
   );
 
   // Tool 4: get_relations
-  server.tool(
+  server.registerTool(
     'get_relations',
-    'Get related notes for a given note, including relationship type and confidence score.',
     {
-      noteId: z.number().describe('Note ID to find relations for'),
+      description: 'Get related notes for a given note, including relationship type and confidence score.',
+      inputSchema: {
+        noteId: z.number().describe('Note ID to find relations for'),
+      },
     },
     async ({ noteId }) => {
       const relations = await client.getNoteRelations(noteId);
@@ -117,10 +125,12 @@ export async function startMcpServer(options?: string | CrystalClientOptions) {
     },
   );
 
-  server.tool(
+  server.registerTool(
     'recall_for_task',
-    RECALL_FOR_TASK_DESCRIPTION,
-    RecallForTaskRequestShape,
+    {
+      description: RECALL_FOR_TASK_DESCRIPTION,
+      inputSchema: RecallForTaskRequestShape,
+    },
     async (input) => {
       const data = await client.recallForTask(input);
       return {
@@ -132,10 +142,12 @@ export async function startMcpServer(options?: string | CrystalClientOptions) {
     },
   );
 
-  server.tool(
+  server.registerTool(
     'validate_task_memory',
-    VALIDATE_TASK_MEMORY_DESCRIPTION,
-    ValidateTaskMemoryRequestShape,
+    {
+      description: VALIDATE_TASK_MEMORY_DESCRIPTION,
+      inputSchema: ValidateTaskMemoryRequestShape,
+    },
     async (input) => {
       const data = await client.validateTaskMemory(input);
       return {
@@ -147,10 +159,12 @@ export async function startMcpServer(options?: string | CrystalClientOptions) {
     },
   );
 
-  server.tool(
+  server.registerTool(
     'write_task_memory',
-    'Persist a task memory only when it can become a high-quality ChatCrystal note: specific title, concrete summary, meaningful key conclusions, and a durable reusable lesson such as a pitfall, fix, decision, pattern, or symptom-to-resolution mapping. Do not write one-time environment checks, version/status reports, ordinary progress logs, or vague robustness claims. Weak auto writebacks are skipped by core validation and recorded only as receipts.',
-    WriteTaskMemoryRequestShape,
+    {
+      description: 'Persist a task memory only when it can become a high-quality ChatCrystal note: specific title, concrete summary, meaningful key conclusions, and a durable reusable lesson such as a pitfall, fix, decision, pattern, or symptom-to-resolution mapping. Do not write one-time environment checks, version/status reports, ordinary progress logs, or vague robustness claims. Weak auto writebacks are skipped by core validation and recorded only as receipts.',
+      inputSchema: WriteTaskMemoryRequestShape,
+    },
     async (input) => {
       const data = await client.writeTaskMemory(input);
       return {

@@ -9,7 +9,7 @@ export const summarizeQueue: InstanceType<typeof PQueue> = new PQueue({
   concurrency: 1,
   intervalCap: 1,
   interval: 1000,
-  carryoverConcurrencyCount: true,
+  carryoverIntervalCount: true,
 });
 
 export async function enqueueWithRetry<T>(
