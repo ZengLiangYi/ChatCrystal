@@ -30,7 +30,7 @@ ChatCrystal/
 | Frontend | Vite v8, React 19, Tailwind CSS v4, TanStack React Query v5 |
 | Desktop | Electron, electron-builder |
 | Database | sql.js WASM SQLite |
-| LLM | Vercel AI SDK v6 |
+| LLM | Vercel AI SDK v7 |
 | Embeddings | vectra local vector index |
 | Queue | p-queue |
 | File watching | chokidar |
@@ -38,19 +38,32 @@ ChatCrystal/
 ## Development Commands
 
 ```bash
-npm run dev                   # Server 3721 + client 13721
-npm run build                 # Build server and client
-npm start                     # Production server
-npm run lint                  # Biome + client ESLint
-npm run lint:fix              # Apply safe lint fixes
-npm run test -w server        # Server tests
-npm run dev:electron          # Electron dev mode
-npm run build:electron        # Build Windows installer
-npm run pack:electron         # Build unpacked Electron app
-npm run eval:experience -w server
+corepack enable
+pnpm install
+pnpm dev                              # Server 3721 + client 13721
+pnpm build                            # Build server and client
+pnpm start                            # Production server
+pnpm lint                             # Biome + client ESLint
+pnpm lint:fix                         # Apply safe lint fixes
+pnpm test                             # Server tests
+pnpm dev:electron                     # Electron dev mode
+pnpm build:electron                   # Build Windows installer
+pnpm pack:electron                    # Build unpacked Electron app
+pnpm --filter ./server eval:experience
+pnpm security:audit                   # Fail on high/critical findings
+pnpm security:signatures              # Verify registry signatures
 ```
 
-`npm run eval:experience -w server` runs the offline calibration suite for the experience quality gate.
+The root workspace requires Node.js 24 and pnpm 11 through Corepack. `site/` and `promo/` remain independent npm projects. `pnpm --filter ./server eval:experience` runs the offline calibration suite for the experience quality gate.
+
+### Dependency policy
+
+- `pnpm-lock.yaml` is the only lockfile for the root, server, client, shared, and Electron build graph.
+- Keep pnpm's isolated, project-local virtual store layout: electron-builder uses its versioned paths to package the correct production dependency when multiple versions are installed.
+- New package releases are held for 24 hours by default. Exact exceptions are reserved for time-sensitive security fixes and must include an inline rationale.
+- Registry trust downgrades are rejected for recently published packages, exotic subdependencies are blocked, and dependency lifecycle scripts use an explicit allowlist.
+- `pnpm security:audit` prints the complete audit report and fails on high or critical findings. `pnpm security:signatures` verifies registry signatures.
+- Dependabot checks workspace packages and GitHub Actions weekly. Minor and patch updates are grouped; major updates remain separate for review.
 
 ## Runtime Data
 
@@ -88,7 +101,7 @@ ChatCrystal uses turn-based transcript preparation before summarization:
 5. Fill the remaining budget with high-value middle turns.
 6. Compress skipped turns into one-line previews.
 
-Structured output uses Vercel AI SDK `generateObject()` with Zod schemas. This avoids fragile JSON extraction and lets schema validation retry invalid model output.
+Structured output uses Vercel AI SDK `generateText()` with `Output.object()` and Zod schemas. This avoids fragile JSON extraction and lets schema validation retry invalid model output.
 
 ## Source Adapters
 
@@ -163,10 +176,12 @@ Relations can be discovered by LLM, added manually, or followed during semantic 
 Primary verification:
 
 ```bash
-npm run test -w server
-npm run build
-npm run lint
-npm run eval:experience -w server
+pnpm test
+pnpm build
+pnpm lint
+pnpm --filter ./server eval:experience
+pnpm security:audit
+pnpm security:signatures
 ```
 
 Use focused server tests while iterating, then run the full commands before committing.
@@ -174,12 +189,12 @@ Use focused server tests while iterating, then run the full commands before comm
 ## Release
 
 ```bash
-npm run release                    # Full release: npm + Electron, tag v*
-npm run release -- minor
-npm run release -- major
-npm run release -- 1.0.0
-npm run release:electron -- 1.0.1  # Electron-only release, tag electron-v*
-npm run release:npm -- 1.0.1       # npm-only release, tag npm-v*
+pnpm release                    # Full release: npm + Electron, tag v*
+pnpm release -- minor
+pnpm release -- major
+pnpm release -- 1.0.0
+pnpm release:electron -- 1.0.1  # Electron-only release, tag electron-v*
+pnpm release:npm -- 1.0.1       # npm-only release, tag npm-v*
 ```
 
 Use `scripts/release.mjs` for releases. Avoid manually bumping versions, committing, tagging, and pushing unless you are doing an explicit recovery flow.

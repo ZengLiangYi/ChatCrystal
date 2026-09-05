@@ -9,31 +9,37 @@ ChatCrystal is an AI conversation knowledge crystallization tool. It imports con
 ## Commands
 
 ```bash
+# Install (Node.js 24; root workspace uses pnpm via Corepack)
+corepack enable
+pnpm install
+
 # Development (server port 3721 + client port 13721)
-npm run dev
+pnpm dev
 
 # Build for production
-npm run build
+pnpm build
 
 # Production server (serves frontend statically on port 3721)
-npm start
+pnpm start
 
 # Electron desktop app
-npm run dev:electron        # dev mode (Vite HMR + Electron window)
-npm run build:electron      # build NSIS installer → release/
-npm run pack:electron       # build unpacked directory (faster for testing)
+pnpm dev:electron        # dev mode (Vite HMR + Electron window)
+pnpm build:electron      # build NSIS installer → release/
+pnpm pack:electron       # build unpacked directory (faster for testing)
 
 # Release (bump version + git tag + push → CI builds & publishes)
-npm run release             # patch bump (0.1.0 → 0.1.1)
-npm run release -- minor    # minor bump
-npm run release -- major    # major bump
-npm run release -- 1.0.0    # explicit version
-npm run release:electron -- 1.0.1  # Electron-only release → electron-v*
-npm run release:npm -- 1.0.1       # npm-only release → npm-v*
+pnpm release             # patch bump (0.1.0 → 0.1.1)
+pnpm release -- minor    # minor bump
+pnpm release -- major    # major bump
+pnpm release -- 1.0.0    # explicit version
+pnpm release:electron -- 1.0.1  # Electron-only release → electron-v*
+pnpm release:npm -- 1.0.1       # npm-only release → npm-v*
 
 # Lint
-npm run lint
-npm run lint:fix
+pnpm lint
+pnpm lint:fix
+pnpm security:audit
+pnpm security:signatures
 ```
 
 ### Release Tag Semantics
@@ -41,8 +47,8 @@ npm run lint:fix
 Use `scripts/release.mjs` for releases; do not manually bump versions, commit, tag, and push unless the user explicitly asks for a custom recovery flow.
 
 - `v*` tags are full releases and trigger both npm publishing and Electron GitHub Release builds. Use this only when both root `package.json` and `server/package.json` should move together.
-- `electron-v*` tags are Electron-only releases. Use `npm run release:electron -- <version>` for desktop-only changes, including Electron main/preload/tray/packaging changes and Electron-gated client UI.
-- `npm-v*` tags are npm-only releases. Use `npm run release:npm -- <version>` for CLI/server/MCP package changes.
+- `electron-v*` tags are Electron-only releases. Use `pnpm release:electron -- <version>` for desktop-only changes, including Electron main/preload/tray/packaging changes and Electron-gated client UI.
+- `npm-v*` tags are npm-only releases. Use `pnpm release:npm -- <version>` for CLI/server/MCP package changes.
 - The published npm package version comes from `server/package.json`, not the root package. If a `v*` tag is pushed while `server/package.json` still points at an already-published version, the npm job will fail with `E403 You cannot publish over the previously published versions`.
 - If an Electron-only release is accidentally published with a `v*` tag and the Electron job succeeds but npm fails because the server version already exists, do not delete or re-tag the release by default. Treat the GitHub Release as usable, document the cause, and use `electron-v*` for the next Electron-only release.
 
@@ -194,6 +200,6 @@ Runtime configuration is stored in `config.json` under the active data directory
 - **sanitizeContent()**: strips Claude Code system XML tags from message content
 - **Consecutive tool-use messages**: grouped and collapsed in frontend (ToolCallGroup component)
 - **Production SPA fallback**: Fastify serves `client/dist`, non-API 404s return `index.html`
-- **Dual mode**: `npm start` runs standalone web server; Electron embeds the same server in its main process via `createServer()` export
+- **Dual mode**: `pnpm start` runs standalone web server; Electron embeds the same server in its main process via `createServer()` export
 - **Window state persistence**: Electron saves/restores window bounds (position, size, maximized) to `%APPDATA%/ChatCrystal/window-state.json`
 - **Single instance**: `app.requestSingleInstanceLock()` prevents duplicate instances; second launch focuses existing window

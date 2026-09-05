@@ -55,7 +55,7 @@ ChatCrystal 应优先保留包含以下内容的对话：
 运行校准样本：
 
 ```bash
-npm run eval:experience -w server
+pnpm --filter ./server eval:experience
 ```
 
 默认样本集位置：
@@ -112,7 +112,6 @@ server/src/services/experience/eval-samples.json
 1. 在 UI 或 CLI 中展示 filtered 对话和理由。
 2. 允许用户标记“应该保留”或“过滤正确”。
 3. 将 false accept 和 false reject 回流到校准样本集。
-4. 调整阈值前先运行 `npm run eval:experience -w server`。
+4. 调整阈值前先运行 `pnpm --filter ./server eval:experience`。
 
 质量门槛应该从真实复查结果中演化，而不是只凭直觉调整。
-

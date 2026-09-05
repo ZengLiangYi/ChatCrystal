@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Runtime & Dependencies
+
+- Raised the supported runtime and CI/Docker baseline to Node.js 24 and completed the major migrations to Vercel AI SDK 7, React 19, Vite 8, Tailwind CSS 4, Electron 44, and the current Fastify 5 line.
+- Moved the root/server/client/shared/Electron dependency graph from npm workspaces to pnpm 11 with a single lockfile; the standalone `site/` and `promo/` projects remain on npm.
+- Declared the embedded server as an explicit desktop workspace dependency and gave the private root package a distinct name, allowing electron-builder to collect the complete production runtime graph.
+- Selected mature previous patch releases for six newly published packages whose newest fixes do not affect ChatCrystal, while retaining Fastify 5.12.2 because it contains request-validation security fixes.
+
+### Supply-chain Security
+
+- Replaced Electron's vulnerable legacy `extract-zip` path with Electron 44's `@electron-internal/extract-zip` implementation.
+- Added a 24-hour package-release cooling period, recent-package trust downgrade protection, exotic-subdependency blocking, and an explicit lifecycle-script allowlist.
+- Added high/critical vulnerability enforcement, registry signature verification, a scheduled dependency-security workflow, and weekly Dependabot updates for workspace packages and GitHub Actions.
+
 ## [0.5.4] - 2026-09-03
 
 ### OrcaRouter

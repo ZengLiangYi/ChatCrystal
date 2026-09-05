@@ -55,7 +55,7 @@ This makes filtering reviewable and keeps future retry workflows possible.
 Run the calibration suite:
 
 ```bash
-npm run eval:experience -w server
+pnpm --filter ./server eval:experience
 ```
 
 The default sample set lives at:
@@ -112,7 +112,6 @@ The next product step should make gate decisions reviewable:
 1. Surface filtered conversations and reasons in UI or CLI.
 2. Let a user mark a case as "should keep" or "correctly filtered".
 3. Feed false accepts and false rejects back into the calibration set.
-4. Re-run `npm run eval:experience -w server` before changing thresholds.
+4. Re-run `pnpm --filter ./server eval:experience` before changing thresholds.
 
 The quality gate should evolve from real review outcomes, not intuition alone.
-

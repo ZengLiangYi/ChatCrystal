@@ -30,7 +30,7 @@ ChatCrystal/
 | 前端 | Vite v8, React 19, Tailwind CSS v4, TanStack React Query v5 |
 | 桌面 | Electron, electron-builder |
 | 数据库 | sql.js WASM SQLite |
-| LLM | Vercel AI SDK v6 |
+| LLM | Vercel AI SDK v7 |
 | Embeddings | vectra 本地向量索引 |
 | 队列 | p-queue |
 | 文件监听 | chokidar |
@@ -38,19 +38,32 @@ ChatCrystal/
 ## 开发命令
 
 ```bash
-npm run dev                   # Server 3721 + client 13721
-npm run build                 # 构建 server 和 client
-npm start                     # 生产 server
-npm run lint                  # Biome + client ESLint
-npm run lint:fix              # 应用安全 lint 修复
-npm run test -w server        # Server 测试
-npm run dev:electron          # Electron 开发模式
-npm run build:electron        # 构建 Windows 安装包
-npm run pack:electron         # 构建未打包 Electron 应用
-npm run eval:experience -w server
+corepack enable
+pnpm install
+pnpm dev                              # Server 3721 + client 13721
+pnpm build                            # 构建 server 和 client
+pnpm start                            # 生产 server
+pnpm lint                             # Biome + client ESLint
+pnpm lint:fix                         # 应用安全 lint 修复
+pnpm test                             # Server 测试
+pnpm dev:electron                     # Electron 开发模式
+pnpm build:electron                   # 构建 Windows 安装包
+pnpm pack:electron                    # 构建未打包 Electron 应用
+pnpm --filter ./server eval:experience
+pnpm security:audit                   # high/critical 时失败
+pnpm security:signatures              # 校验 registry 签名
 ```
 
-`npm run eval:experience -w server` 用于运行经验质量门槛的离线校准样本。
+根 workspace 要求 Node.js 24，并通过 Corepack 使用 pnpm 11；`site/` 与 `promo/` 仍是独立 npm 项目。`pnpm --filter ./server eval:experience` 用于运行经验质量门槛的离线校准样本。
+
+### 依赖策略
+
+- root、server、client、shared 与 Electron 构建链只使用 `pnpm-lock.yaml`。
+- 保持 pnpm 的 isolated、项目内虚拟存储布局；electron-builder 会依据带版本的真实路径，在存在多个版本时打包正确的生产依赖。
+- 新发布版本默认冷却 24 小时；只有时效性安全修复可以添加精确例外，并必须在配置旁说明原因。
+- 最近发布包若发生 registry 信任降级会被拒绝，exotic 子依赖会被阻断，依赖生命周期脚本使用显式白名单。
+- `pnpm security:audit` 会打印完整审计结果，并在 high 或 critical 发现时失败；`pnpm security:signatures` 用于校验 registry 签名。
+- Dependabot 每周检查 workspace 依赖与 GitHub Actions。minor/patch 合并更新，major 保持单独评估。
 
 ## 运行时数据
 
@@ -88,7 +101,7 @@ ChatCrystal 在摘要前使用 turn-based 对话预处理：
 5. 剩余预算给高价值中间 turn。
 6. 被跳过的 turn 压缩成单行预览。
 
-结构化输出使用 Vercel AI SDK 的 `generateObject()` 和 Zod schema。这样可以避免脆弱的 JSON 提取，并在模型输出不符合 schema 时自动重试。
+结构化输出使用 Vercel AI SDK 的 `generateText()`、`Output.object()` 和 Zod schema。这样可以避免脆弱的 JSON 提取，并在模型输出不符合 schema 时自动重试。
 
 ## 数据源适配器
 
@@ -163,10 +176,12 @@ interface SourceAdapter {
 主要验证命令：
 
 ```bash
-npm run test -w server
-npm run build
-npm run lint
-npm run eval:experience -w server
+pnpm test
+pnpm build
+pnpm lint
+pnpm --filter ./server eval:experience
+pnpm security:audit
+pnpm security:signatures
 ```
 
 开发时可以先跑聚焦测试，提交前再跑完整命令。
@@ -174,12 +189,12 @@ npm run eval:experience -w server
 ## 发布
 
 ```bash
-npm run release                    # 完整发布：npm + Electron，tag v*
-npm run release -- minor
-npm run release -- major
-npm run release -- 1.0.0
-npm run release:electron -- 1.0.1  # 仅 Electron 发布，tag electron-v*
-npm run release:npm -- 1.0.1       # 仅 npm 发布，tag npm-v*
+pnpm release                    # 完整发布：npm + Electron，tag v*
+pnpm release -- minor
+pnpm release -- major
+pnpm release -- 1.0.0
+pnpm release:electron -- 1.0.1  # 仅 Electron 发布，tag electron-v*
+pnpm release:npm -- 1.0.1       # 仅 npm 发布，tag npm-v*
 ```
 
 发布应使用 `scripts/release.mjs`。除非是在明确的恢复流程中，不要手动改版本、提交、打 tag 再 push。

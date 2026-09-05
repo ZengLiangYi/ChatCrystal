@@ -10,7 +10,7 @@
 [![npm](https://img.shields.io/npm/v/chatcrystal?style=flat-square)](https://www.npmjs.com/package/chatcrystal)
 [![ChatCrystal MCP server](https://glama.ai/mcp/servers/ZengLiangYi/ChatCrystal/badges/score.svg)](https://glama.ai/mcp/servers/ZengLiangYi/ChatCrystal)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen?style=flat-square)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D24-brightgreen?style=flat-square)](https://nodejs.org/)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey?style=flat-square)](#)
 [![Website](https://img.shields.io/badge/website-ChatCrystal-B8584B?style=flat-square)](https://zengliangyi.github.io/ChatCrystal/)
 
@@ -113,7 +113,7 @@ crystal mcp                             # Start MCP stdio server
 
 ## Requirements
 
-- Node.js >= 20
+- Node.js >= 24
 - An LLM provider for summarization
 - An embedding provider for semantic search
 
@@ -126,8 +126,9 @@ ChatCrystal includes first-class [OrcaRouter](https://www.orcarouter.ai/ref/ref_
 ```bash
 git clone https://github.com/ZengLiangYi/ChatCrystal.git
 cd ChatCrystal
-npm install
-npm run dev
+corepack enable
+pnpm install
+pnpm dev
 ```
 
 Development server ports:

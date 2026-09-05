@@ -21,8 +21,9 @@ Open http://localhost:3721 after the server starts.
 ```bash
 git clone https://github.com/ZengLiangYi/ChatCrystal.git
 cd ChatCrystal
-npm install
-npm run dev
+corepack enable
+pnpm install
+pnpm dev
 ```
 
 Development mode starts the API server on http://localhost:3721 and the Vite client on http://localhost:13721.
@@ -30,8 +31,8 @@ Development mode starts the API server on http://localhost:3721 and the Vite cli
 ### Desktop App
 
 ```bash
-npm run dev:electron
-npm run build:electron
+pnpm dev:electron
+pnpm build:electron
 ```
 
 The installer is generated under `release/`. The desktop app uses the same default data directory as the CLI and MCP server: `~/.chatcrystal/data`.

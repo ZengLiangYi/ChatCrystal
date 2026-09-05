@@ -21,8 +21,9 @@ crystal import
 ```bash
 git clone https://github.com/ZengLiangYi/ChatCrystal.git
 cd ChatCrystal
-npm install
-npm run dev
+corepack enable
+pnpm install
+pnpm dev
 ```
 
 开发模式会启动 API 服务 http://localhost:3721 和 Vite 客户端 http://localhost:13721。
@@ -30,8 +31,8 @@ npm run dev
 ### 桌面应用
 
 ```bash
-npm run dev:electron
-npm run build:electron
+pnpm dev:electron
+pnpm build:electron
 ```
 
 安装包会生成到 `release/`。桌面应用与 CLI、MCP server 使用同一个默认数据目录：`~/.chatcrystal/data`。
