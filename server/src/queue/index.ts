@@ -1,5 +1,4 @@
 import PQueue from 'p-queue';
-import type {} from 'p-queue';
 import { taskTracker } from './tracker.js';
 
 export { taskTracker } from './tracker.js';
@@ -21,26 +20,26 @@ export async function enqueueWithRetry<T>(
   taskTracker.add(taskId, taskTitle);
 
   const result = await summarizeQueue.add(async () => {
-      taskTracker.start(taskId);
-      let lastError: Error | undefined;
-      for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        try {
-          const res = await fn();
-          taskTracker.complete(taskId);
-          return res;
-        } catch (err) {
-          lastError = err instanceof Error ? err : new Error(String(err));
-          if (lastError.message.includes('429') && attempt < maxRetries) {
-            const delay = 1000 * 2 ** attempt;
-            await new Promise((r) => setTimeout(r, delay));
-            continue;
-          }
-          taskTracker.fail(taskId, lastError.message);
-          throw lastError;
+    taskTracker.start(taskId);
+    let lastError: Error | undefined;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const res = await fn();
+        taskTracker.complete(taskId);
+        return res;
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        if (lastError.message.includes('429') && attempt < maxRetries) {
+          const delay = 1000 * 2 ** attempt;
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
         }
+        taskTracker.fail(taskId, lastError.message);
+        throw lastError;
       }
-      taskTracker.fail(taskId, lastError?.message || 'Unknown error');
-      throw lastError;
+    }
+    taskTracker.fail(taskId, lastError?.message || 'Unknown error');
+    throw lastError;
   });
   return result;
 }
