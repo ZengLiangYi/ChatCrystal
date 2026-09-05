@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [0.6.0] - 2026-09-05
 
 ### Runtime & Dependencies
 
@@ -8,12 +8,26 @@
 - Moved the root/server/client/shared/Electron dependency graph from npm workspaces to pnpm 11 with a single lockfile; the standalone `site/` and `promo/` projects remain on npm.
 - Declared the embedded server as an explicit desktop workspace dependency and gave the private root package a distinct name, allowing electron-builder to collect the complete production runtime graph.
 - Selected mature previous patch releases for six newly published packages whose newest fixes do not affect ChatCrystal, while retaining Fastify 5.12.2 because it contains request-validation security fixes.
+- Updated provider integrations for AI SDK 7, including structured output and embedding contracts, while keeping OpenAI-compatible providers on their intended protocol paths.
+- Switched Ollama structured output to its broadly compatible chat-completions endpoint, migrated all MCP tools to the current registration API, and updated queue configuration for the current p-queue API.
 
 ### Supply-chain Security
 
 - Replaced Electron's vulnerable legacy `extract-zip` path with Electron 44's `@electron-internal/extract-zip` implementation.
 - Added a 24-hour package-release cooling period, recent-package trust downgrade protection, exotic-subdependency blocking, and an explicit lifecycle-script allowlist.
 - Added high/critical vulnerability enforcement, registry signature verification, a scheduled dependency-security workflow, and weekly Dependabot updates for workspace packages and GitHub Actions.
+
+### Build & Release
+
+- Migrated Docker, GitHub Actions, Electron packaging, npm publishing, MCP registry publishing, and release scripts to the pnpm workspace and frozen lockfile workflow.
+- Hardened manual release inputs with SemVer and tag validation, kept npm package metadata synchronized during manual version overrides, and added compiled MCP artifact smoke tests to npm and Electron release jobs.
+- Corrected frontend build-tool classification and declared the server's React type dependency explicitly so clean Docker builds no longer depend on an existing local install layout.
+
+### Quality
+
+- Expanded the root test command to cover server, client, Electron, and dependency-audit policy suites by default.
+- Added protocol-level regression coverage for AI SDK 7 providers, Ollama structured output, embeddings, and the MCP tool surface.
+- Verified clean production builds, Electron compilation and packaging, npm package contents, Docker CLI/container smoke tests, and all 264 automated tests.
 
 ## [0.5.4] - 2026-09-03
 
