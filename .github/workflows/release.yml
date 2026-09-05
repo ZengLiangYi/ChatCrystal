@@ -43,6 +43,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.20.0
+          package-manager-cache: false
+
       - id: resolve
         shell: bash
         run: |
@@ -91,33 +96,38 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
-          package-manager-cache: false
+          node-version: 24.20.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
           registry-url: https://registry.npmjs.org
 
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: npm run lint
+        run: pnpm lint
 
       - name: Test
-        run: npm test
+        run: pnpm test
+
+      - name: Dependency security
+        run: |
+          pnpm security:audit
+          pnpm security:signatures
 
       - name: Build server
-        run: npm run build -w server
+        run: pnpm --filter ./server build
 
       - name: Validate npm package contents
-        run: npm run check:npm-package -w server
-
-      - name: Upgrade npm for trusted publishing
-        run: npm install --global npm@11.5.1
+        run: pnpm --filter ./server check:npm-package
 
       - name: Publish to npm
         working-directory: server
         run: |
-          npm version "${{ needs.prepare.outputs.npm_version }}" --no-git-tag-version --allow-same-version
+          npm version "${{ needs.prepare.outputs.npm_version }}" --no-git-tag-version --allow-same-version --package-lock=false
           npm publish --provenance --access public
 
   # ── Build Electron + GitHub Release ────────────────────────
@@ -133,16 +143,19 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
-          cache: npm
+          node-version: 24.20.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Resolve Electron cache keys
         id: electron_cache
         shell: bash
         run: |
-          ELECTRON_VERSION=$(node -p "require('./package-lock.json').packages['node_modules/electron'].version")
+          ELECTRON_VERSION=$(node -p "require('./package.json').devDependencies.electron")
           echo "version=${ELECTRON_VERSION}" >> "$GITHUB_OUTPUT"
           echo "binary_key=electron-${{ runner.os }}-x64-v${ELECTRON_VERSION}" >> "$GITHUB_OUTPUT"
           echo "builder_key=electron-builder-${{ runner.os }}-${{ hashFiles('electron-builder.yml') }}" >> "$GITHUB_OUTPUT"
@@ -168,28 +181,33 @@ jobs:
           restore-keys: |
             electron-builder-${{ runner.os }}-
 
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: npm run lint
+        run: pnpm lint
 
       - name: Test
-        run: npm test
+        run: pnpm test
+
+      - name: Dependency security
+        run: |
+          pnpm security:audit
+          pnpm security:signatures
 
       - name: Build application
         run: |
-          npm run build
-          npx tsc -p electron/tsconfig.json
+          pnpm build
+          pnpm exec tsc -p electron/tsconfig.json
 
       - name: Sync Electron version
         shell: bash
-        run: npm version "${{ needs.prepare.outputs.electron_version }}" --no-git-tag-version --allow-same-version
+        run: npm version "${{ needs.prepare.outputs.electron_version }}" --no-git-tag-version --allow-same-version --package-lock=false
 
       - name: Package Electron app
         shell: bash
         run: |
           for attempt in 1 2 3; do
-            if npx electron-builder --win --publish never; then
+            if pnpm exec electron-builder --win --publish never; then
               exit 0
             fi
 

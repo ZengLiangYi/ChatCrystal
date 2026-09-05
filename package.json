@@ -1,5 +1,6 @@
 {
-  "name": "chatcrystal",
+  "name": "chatcrystal-desktop",
+  "productName": "ChatCrystal",
   "version": "0.5.4",
   "private": true,
   "license": "Apache-2.0",
@@ -24,24 +25,28 @@
     "local-first"
   ],
   "main": "electron/dist/main.js",
+  "packageManager": "pnpm@11.24.0+sha224.fbaadab3a5692e1288bcf0ac62a4214856306b197cdc1f88eeb41098",
   "workspaces": [
     "shared",
     "server",
     "client"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "npm run dev -w server",
-    "dev:client": "npm run dev -w client",
-    "build": "npm run build -w server && npm run build -w client",
-    "check:npm-package": "npm run check:npm-package -w server",
-    "start": "npm run start -w server",
-    "lint": "biome check . --diagnostic-level=error && npm run lint -w client",
-    "lint:fix": "biome check --fix . && npm run lint -w client -- --fix",
-    "test": "npm run test -w server",
-    "dev:electron": "tsc -p electron/tsconfig.json && concurrently \"npm run dev:server\" \"npm run dev:client\" \"wait-on http://localhost:13721 && cross-env VITE_DEV_URL=http://localhost:13721 electron .\"",
-    "build:electron": "npm run build && tsc -p electron/tsconfig.json && electron-builder --win",
-    "pack:electron": "npm run build && tsc -p electron/tsconfig.json && electron-builder --win --dir",
+    "dev": "concurrently \"pnpm dev:server\" \"pnpm dev:client\"",
+    "dev:server": "pnpm --filter ./server dev",
+    "dev:client": "pnpm --filter ./client dev",
+    "build": "pnpm --filter ./server build && pnpm --filter ./client build",
+    "check:npm-package": "pnpm --filter ./server check:npm-package",
+    "start": "pnpm --filter ./server start",
+    "lint": "pnpm exec biome check . --diagnostic-level=error && pnpm --filter ./client lint",
+    "lint:fix": "pnpm exec biome check --fix . && pnpm --filter ./client lint -- --fix",
+    "test": "pnpm --filter ./server test",
+    "test:audit-policy": "node --test --test-isolation=none scripts/check-dependency-audit.test.mjs",
+    "security:audit": "node scripts/check-dependency-audit.mjs",
+    "security:signatures": "pnpm audit signatures",
+    "dev:electron": "pnpm exec tsc -p electron/tsconfig.json && concurrently \"pnpm dev:server\" \"pnpm dev:client\" \"wait-on http://localhost:13721 && cross-env VITE_DEV_URL=http://localhost:13721 electron .\"",
+    "build:electron": "pnpm build && pnpm exec tsc -p electron/tsconfig.json && pnpm exec electron-builder --win",
+    "pack:electron": "pnpm build && pnpm exec tsc -p electron/tsconfig.json && pnpm exec electron-builder --win --dir",
     "release": "node scripts/release.mjs",
     "release:npm": "cross-env RELEASE_TARGET=npm node scripts/release.mjs",
     "release:electron": "cross-env RELEASE_TARGET=electron node scripts/release.mjs",
@@ -53,12 +58,15 @@
   "engines": {
     "node": ">=24.0.0"
   },
+  "dependencies": {
+    "chatcrystal": "workspace:*"
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.5.12",
     "@typescript/native": "npm:typescript@7.0.2",
     "concurrently": "^10.0.5",
     "cross-env": "^10.1.0",
-    "electron": "44.2.0",
+    "electron": "44.1.1",
     "electron-builder": "26.15.3",
     "wait-on": "^9.1.0"
   }

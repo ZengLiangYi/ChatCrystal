@@ -1,0 +1,23 @@
+packages:
+  - server
+  - client
+  - shared
+
+# electron-builder resolves versioned production dependencies from pnpm's
+# virtual store. Hoisted layouts can select an unrelated root dev dependency.
+nodeLinker: isolated
+# Keep the node_modules layout identical in local shells and CI.
+enableGlobalVirtualStore: false
+engineStrict: true
+strictDepBuilds: true
+allowBuilds:
+  electron-winstaller: true
+  esbuild: true
+  protobufjs: true
+blockExoticSubdeps: true
+minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  # Fastify 5.12.2 is a security release for request-validation bypasses.
+  - fastify@5.12.2
+trustPolicy: no-downgrade
+trustPolicyIgnoreAfter: 10080

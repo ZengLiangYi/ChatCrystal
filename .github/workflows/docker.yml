@@ -8,7 +8,8 @@ on:
       - docker-compose.build.yml
       - .dockerignore
       - package.json
-      - package-lock.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
       - tsconfig.base.json
       - README.md
       - LICENSE
@@ -28,7 +29,8 @@ on:
       - docker-compose.build.yml
       - .dockerignore
       - package.json
-      - package-lock.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
       - tsconfig.base.json
       - README.md
       - LICENSE

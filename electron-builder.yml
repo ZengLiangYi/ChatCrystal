@@ -13,7 +13,6 @@ files:
   - client/dist/**/*
   - shared/**/*
   - package.json
-  - node_modules/**/*
   # Exclude source / build artifacts
   - "!**/*.ts"
   - "!**/*.tsx"
@@ -23,6 +22,9 @@ files:
   - "!**/node_modules/.cache/**"
   - "!**/node_modules/.bin/**"
   - "!**/node_modules/.package-lock.json"
+  - "!**/node_modules/.modules.yaml"
+  - "!**/node_modules/.package-map.json"
+  - "!**/node_modules/.pnpm/**"
   - "!**/node_modules/*/{test,tests,__tests__,docs,doc,example,examples,spec}/**"
   - "!**/node_modules/*/README.md"
   - "!**/node_modules/*/CHANGELOG.md"
@@ -32,6 +34,7 @@ files:
   - "!**/node_modules/*/.prettierrc*"
   # Exclude dev-only packages (build tools, linters, bundlers)
   - "!**/node_modules/typescript/**"
+  - "!**/node_modules/@typescript/native/**"
   - "!**/node_modules/@typescript-eslint/**"
   - "!**/node_modules/eslint/**"
   - "!**/node_modules/@eslint/**"

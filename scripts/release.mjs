@@ -3,16 +3,16 @@
  * Release helper: bumps version, creates git tag, pushes to trigger CI.
  *
  * Usage:
- *   npm run release              → bump both (patch), tag v*
- *   npm run release -- minor     → bump both (minor)
+ *   pnpm release              → bump both (patch), tag v*
+ *   pnpm release -- minor     → bump both (minor)
  *
- *   npm run release:npm           → bump npm only (patch), tag npm-v*
- *   npm run release:npm -- minor  → bump npm only (minor)
+ *   pnpm release:npm           → bump npm only (patch), tag npm-v*
+ *   pnpm release:npm -- minor  → bump npm only (minor)
  *
- *   npm run release:electron           → bump electron only (patch), tag electron-v*
- *   npm run release:electron -- minor  → bump electron only (minor)
+ *   pnpm release:electron           → bump electron only (patch), tag electron-v*
+ *   pnpm release:electron -- minor  → bump electron only (minor)
  *
- * Explicit version: npm run release:npm -- 0.3.0
+ * Explicit version: pnpm release:npm -- 0.3.0
  */
 import { execSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -112,8 +112,8 @@ if (target === "all") {
 console.log(`\nReleasing ${tag}\n`);
 
 // Update lockfile
-run("npm install --package-lock-only");
-filesToStage.push("package-lock.json");
+run("pnpm install --lockfile-only");
+filesToStage.push("pnpm-lock.yaml");
 
 // Commit and tag
 run(`git add ${filesToStage.join(" ")}`);
