@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.1] - 2026-09-20
+
+### Runtime & Dependencies
+
+- Updated React and React DOM to 19.3.0 and Electron to 44.3.0.
+- Updated AI SDK 7 and its Anthropic, Azure, Google, and OpenAI providers, Fastify to 5.12.3, and Zod to 4.6.2.
+- Refreshed i18next, Lucide icons, Vite, lint tooling, and TypeScript declarations; kept Node.js types aligned with the supported Node.js 24 runtime.
+
+### Build & Release
+
+- Updated GitHub Actions for checkout, Node.js and pnpm setup, caching, Pages artifacts, Docker builds and publishing, and GitHub Releases.
+
 ## [0.6.0] - 2026-09-05
 
 ### Runtime & Dependencies
