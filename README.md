@@ -111,6 +111,21 @@ crystal mcp                             # Start MCP stdio server
 | Experience quality gate | [docs/EXPERIENCE_GATE.md](docs/EXPERIENCE_GATE.md) | [docs/EXPERIENCE_GATE.zh-CN.md](docs/EXPERIENCE_GATE.zh-CN.md) |
 | Agent skills | [docs/agent-skills.md](docs/agent-skills.md) | [docs/agent-skills.zh-CN.md](docs/agent-skills.zh-CN.md) |
 
+### Architecture & Technical Deep Dives
+
+For engineering discussions, data privacy boundaries, and design decisions behind ChatCrystal, see the following articles:
+
+- **Architecture & Privacy Boundaries**
+  - [Local-First and Cloud AI: Understanding Data Boundaries](https://zengliangyi.com/en/blog/local-first-ai-data-boundaries/)
+  - [From RAG to Knowledge Graphs: Preserving Relationships in Retrieval](https://zengliangyi.com/en/blog/rag-and-knowledge-graphs/)
+- **Local Retrieval & Vector Engineering**
+  - [Configure Embeddings: Choose by Retrieval Samples and Verify Rebuilding](https://zengliangyi.com/en/blog/embedding-model-configuration/)
+  - [Choosing a Local Vector Store: Vectra, Chroma, and hnswlib](https://zengliangyi.com/en/blog/local-vector-database-selection/)
+- **Conversation Parsing & Protocol Integration**
+  - [Multi-Format Conversation Parsing: JSONL, Events, and SQLite Read Boundaries](https://zengliangyi.com/en/blog/multi-format-conversation-parsing/)
+  - [Set Up ChatCrystal MCP: Make Claude Code Calls Reviewable](https://zengliangyi.com/en/blog/chatcrystal-mcp-setup/)
+  - [Knowledge Bases for AI Agents: Recall, Validate, and Write Back](https://zengliangyi.com/en/blog/agent-knowledge-memory-loop/)
+
 ## Requirements
 
 - Node.js >= 24

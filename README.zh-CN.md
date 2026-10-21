@@ -111,6 +111,21 @@ crystal mcp                             # 启动 MCP stdio 服务
 | 经验质量门槛 | [docs/EXPERIENCE_GATE.md](docs/EXPERIENCE_GATE.md) | [docs/EXPERIENCE_GATE.zh-CN.md](docs/EXPERIENCE_GATE.zh-CN.md) |
 | Agent Skills | [docs/agent-skills.md](docs/agent-skills.md) | [docs/agent-skills.zh-CN.md](docs/agent-skills.zh-CN.md) |
 
+### 架构与深度解析
+
+关于 ChatCrystal 的设计理念、数据隐私边界与工程实践，可参考以下系列深度解析：
+
+- **架构与隐私边界**
+  - [本地优先与云端 AI：从数据流理解隐私边界](https://zengliangyi.com/blog/local-first-ai-data-boundaries/)
+  - [从 RAG 到知识图谱：让个人知识检索保留关系](https://zengliangyi.com/blog/rag-and-knowledge-graphs/)
+- **本地检索与向量工程**
+  - [配置 Embedding：按检索样本选模型并验证重建](https://zengliangyi.com/blog/embedding-model-configuration/)
+  - [本地向量数据库选型：Vectra、Chroma 与 hnswlib](https://zengliangyi.com/blog/local-vector-database-selection/)
+- **对话解析与协议集成**
+  - [多格式对话解析：JSONL、事件与 SQLite 的读取边界](https://zengliangyi.com/blog/multi-format-conversation-parsing/)
+  - [配置 ChatCrystal MCP：让 Claude Code 可检查地调用知识库](https://zengliangyi.com/blog/chatcrystal-mcp-setup/)
+  - [AI Agent 时代的知识库：回忆、验证与写回](https://zengliangyi.com/blog/agent-knowledge-memory-loop/)
+
 ## 运行要求
 
 - Node.js >= 24
