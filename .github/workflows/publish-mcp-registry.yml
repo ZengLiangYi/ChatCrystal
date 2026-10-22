@@ -22,7 +22,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "24.20.0"
+          node-version: "24.22.1"
 
       - name: Wait for npm package metadata
         working-directory: server

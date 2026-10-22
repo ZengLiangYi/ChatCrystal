@@ -3,6 +3,9 @@ packages:
   - client
   - shared
 
+overrides:
+  proxy-addr: ">=2.0.8"
+
 # electron-builder resolves versioned production dependencies from pnpm's
 # virtual store. Hoisted layouts can select an unrelated root dev dependency.
 nodeLinker: isolated

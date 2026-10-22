@@ -1,4 +1,4 @@
-FROM node:24.20-alpine AS build
+FROM node:24.22-alpine AS build
 
 WORKDIR /app
 
@@ -12,7 +12,7 @@ RUN corepack enable && pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
 
-FROM node:24.20-alpine AS runtime
+FROM node:24.22-alpine AS runtime
 
 WORKDIR /app
 LABEL org.opencontainers.image.source="https://github.com/ZengLiangYi/ChatCrystal"
