@@ -65,14 +65,14 @@
     "chatcrystal": "workspace:*"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.13",
-    "@types/node": "24.13.4",
+    "@biomejs/biome": "^2.5.15",
+    "@types/node": "24.19.2",
     "@typescript/native": "npm:typescript@7.0.2",
-    "concurrently": "^10.0.5",
+    "concurrently": "^10.0.6",
     "cross-env": "^10.1.0",
-    "electron": "44.3.0",
+    "electron": "44.9.0",
     "electron-builder": "26.15.3",
-    "tsx": "^4.23.13",
-    "wait-on": "^9.1.0"
+    "tsx": "^4.23.15",
+    "wait-on": "^9.5.1"
   }
 }
