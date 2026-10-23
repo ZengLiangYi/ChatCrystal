@@ -57,7 +57,10 @@
     "build:site": "cd site && npm run build",
     "preview:site": "cd site && npm run preview"
   },
-  "author": "Rayner Zeng",
+  "author": {
+    "name": "Zeng Liangyi",
+    "url": "https://zengliangyi.com"
+  },
   "engines": {
     "node": ">=24.0.0"
   },

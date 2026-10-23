@@ -80,5 +80,6 @@ export const zh: Translations = {
     npm: 'npm',
     docs: '文档',
     releases: '版本发布',
+    blog: '作者博客',
   },
 };

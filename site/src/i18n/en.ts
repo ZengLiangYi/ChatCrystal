@@ -78,6 +78,7 @@ export const en = {
     npm: 'npm',
     docs: 'Docs',
     releases: 'Releases',
+    blog: 'Author & Blog',
   },
 } as const;
 

@@ -15,6 +15,7 @@
 [![Website](https://img.shields.io/badge/website-ChatCrystal-B8584B?style=flat-square)](https://zengliangyi.github.io/ChatCrystal/zh/)
 
 [官网](https://zengliangyi.github.io/ChatCrystal/zh/) ·
+[作者博客](https://zengliangyi.com) ·
 [下载桌面版](https://github.com/ZengLiangYi/ChatCrystal/releases) ·
 [npm](https://www.npmjs.com/package/chatcrystal) ·
 [文档](docs/USER_GUIDE.zh-CN.md) ·

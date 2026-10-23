@@ -9,6 +9,10 @@
     "url": "https://github.com/ZengLiangYi/ChatCrystal"
   },
   "homepage": "https://zengliangyi.github.io/ChatCrystal/",
+  "author": {
+    "name": "Zeng Liangyi",
+    "url": "https://zengliangyi.com"
+  },
   "description": "Local-first AI PKM for coding conversations — supports Claude Code, Cursor, Codex CLI, Trae, GitHub Copilot",
   "keywords": [
     "claude",
