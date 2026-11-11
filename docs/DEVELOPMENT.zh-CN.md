@@ -101,6 +101,8 @@ AI 工具对话文件
 - `services/sync.ts` 是唯一的导入入口：一个小型状态机（`idle`/`syncing`/`cancelled`/`error`），带每源进度和触发合并。`createServer` 在启动 2.5s 后调度一轮；watcher 触发时只请求受影响的源。客户端轮询 `GET /api/sync/status`；`POST /api/sync/start`、`POST /api/sync/cancel` 可手动控制，`GET /api/sync/stream` 是 SSE 版本。
 - watcher 在第一轮启动同步结束后才开始。否则 chokidar 对超大目录（例如 workbuddy home 里的 7 万个插件文件）的首次扫描会与导入的 fs 读取争抢线程池。事件按最长前缀映射到所属 source，并 debounce 1.8s。
 - `importAll()` 接受 `{ sources?, signal?, onProgress?, parsePool? }`，发出阶段/每源进度与错误明细；旧的 `importAll(callback)` 仍兼容 CLI/SSE。
+- **索引优先**：collection 阶段先为每个扫描到的文件写入 `conversations` 行（`transcript_status='pending'`），再开始解析，所以扫描一结束列表就能显示。解析循环把正文写入并更新为 `'materialized'`；同步被取消/中断时留下 pending 行，由详情页或摘要服务按需调用 `materializeConversationById` 补全。
+- **解析缓存**：解析结果写入 `<dataDir>/transcript-cache/<source>/<sha1>.json.gz`，key 包含 source/id/parserVersion/文件路径/大小/mtime/rootDir。import 循环和懒解析都先查缓存，DB 重置或中断后重新读取同一会话时无需再 parse；缓存按大小/时间后台清理。
 - 解析默认走共享的 `services/parse-pool.ts` worker 池（`CHATCRYSTAL_PARSE_WORKERS`，默认 `min(4, CPUs-1)`；`0` 或 `CHATCRYSTAL_PARSE_POOL=off` 则主线程解析）。测试在 `NODE_TEST_CONTEXT` 下始终 inline，因为测试注册的 fake adapter 不在 worker 里。
 - `CHATCRYSTAL_AUTO_SYNC=0` 可关闭启动/watcher 自动同步；手动同步和 `crystal import` 不受影响。
 

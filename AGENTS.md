@@ -135,9 +135,10 @@ Monorepo with three npm workspaces:
   - `services/embedding.ts` — Embedding model factory + vectra LocalIndex + text chunking
   - `routes/` — REST endpoints: status, config, import, sync, conversations CRUD, notes CRUD, tags, search, queue status, batch operations
   - `queue/` — p-queue singleton (concurrency=1, 1 req/sec, 429 retry)
+  - `services/import.ts` — index-first incremental import: detect → scan (rows made visible as `transcript_status = 'pending'` before parsing) → parse via the transcript cache/worker pool → dedup by size/mtime/content hash → insert/replace. Emits phase and per-source progress, supports `sources` filtering and `AbortSignal` cancellation, and exports `materializeConversationById()` for index-only rows.
+  - `services/transcript-cache.ts` — parsed `ParsedConversation` snapshots on disk (`<dataDir>/transcript-cache/<source>/<sha1>.json.gz`, gzip, keyed by source/id/parserVersion/filePath/fileSize/fileMtime/rootDir) with size/age pruning; the detail route and summarizer materialize pending conversations through it.
   - `services/sync.ts` — background sync state machine (`idle`/`syncing`/`cancelled`/`error`, per-source progress, pending-trigger merging). `syncManager` is the process-wide singleton; `createServer` schedules a startup pass and the watcher feeds it. Exposed as `GET /api/sync/status`, `POST /api/sync/start`, `POST /api/sync/cancel`, `GET /api/sync/stream` (SSE).
   - `services/parse-pool.ts` — worker-thread parser pool used by `importAll` by default (`CHATCRYSTAL_PARSE_WORKERS`, `0`/`CHATCRYSTAL_PARSE_POOL=off` parses in-process; tests always parse inline).
-  - `services/import.ts` — incremental import: detect → scan → parse in the pool → dedup by size/mtime/content hash → insert/replace. Emits phase and per-source progress, supports `sources` filtering and `AbortSignal` cancellation.
   - `watcher/` — chokidar watches every adapter's `watchPaths()` plus the legacy source dirs, after the first startup sync; events are debounced (1.8s), mapped to the owning source by longest-prefix and handed to `syncManager.requestSources`. WSL UNC paths are never watched.
 
 ### `client/` — React SPA
@@ -247,6 +248,9 @@ Runtime configuration is stored in `config.json` under the active data directory
 - `CHATCRYSTAL_AUTO_SYNC` — set to `0` to disable the startup/watcher background sync (manual `POST /api/sync/start` and `crystal import` still work)
 - `CHATCRYSTAL_PARSE_WORKERS` — worker-thread parser count (default `min(4, cpus-1)`; `0` parses in-process)
 - `CHATCRYSTAL_PARSE_POOL` — set to `off`/`0`/`false` to force in-process parsing (alias of `CHATCRYSTAL_PARSE_WORKERS=0`)
+- `CHATCRYSTAL_TRANSCRIPT_CACHE` — set to `off`/`0`/`false` to disable the parsed-transcript disk cache
+- `CHATCRYSTAL_TRANSCRIPT_CACHE_DIR` — cache folder (default `<dataDir>/transcript-cache`)
+- `CHATCRYSTAL_TRANSCRIPT_CACHE_MAX_MB` / `CHATCRYSTAL_TRANSCRIPT_CACHE_MAX_AGE_DAYS` — cache caps (default 512 MB / 30 days)
 - `LLM_PROVIDER` / `LLM_MODEL` — for summarization (ollama, openai, orcarouter, anthropic, google, azure, custom)
 - `EMBEDDING_PROVIDER` / `EMBEDDING_MODEL` — for semantic search
 
@@ -262,6 +266,7 @@ Runtime configuration is stored in `config.json` under the active data directory
 - **SourceAdapter plugin interface** (`parser/adapter.ts`): implement `detect()`, `scan()`, `parse()` and optional `watchPaths()` to add new sources. 32 adapters ship today (all 26 magpie session readers plus Trae, Copilot Chat/CLI, Roo, Kilo, Continue, Goose, Qwen and zcode extras); the id list lives in `ALL_SOURCE_NAMES` (`server/src/config.ts`) and must match `server/src/parser/index.ts`. New source tests set their data-dir env var before importing the adapter so `appConfig` picks the fixture root. File-based adapters that can run in WSL scan `withWslRoots(primary, '<distro-home-relative>')` and tag metas with `rootDir`; tests set `CHATCRYSTAL_WSL='0'` and inject fixtures via `setWslHomesForTesting()`.
 - **Shared types are the contract**: both server and client import from `@chatcrystal/shared`
 - **No ORM**: raw SQL via `node:sqlite` with parameterized queries
+- **Index-first import**: during collection every scanned file becomes a `conversations` row with `transcript_status = 'pending'` before parsing, so the list fills as soon as a scan completes. The import loop (or the detail page via `materializeConversationById`) writes the messages and flips the row to `'materialized'`; interrupted syncs leave pending rows that materialize on demand. Parsed transcripts are cached on disk (`services/transcript-cache.ts`) and reused by both paths.
 - **Background sync is the import UX**: `syncManager` (services/sync.ts) owns the only import pass; the watcher and startup schedule feed it targeted source lists, and the client renders its state instead of running a one-shot import. `importAll()` still supports the old callback form for the CLI/SSE route.
 - **Parsing scales with worker threads**: `importAll` defaults to the shared `parse-pool.ts`; in the Node test runner it parses inline because fake adapters are registered in-process (`NODE_TEST_CONTEXT`).
 - **DB is a real SQLite file now**: WAL + checkpointed saves (`saveDatabase()`); a backup/copy must include `chatcrystal.db-wal` if taken while the server is running.

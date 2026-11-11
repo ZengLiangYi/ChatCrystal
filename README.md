@@ -58,7 +58,7 @@ Prefer self-hosting ChatCrystal for multiple devices? See [Docker Cloud Deployme
 ## What It Does
 
 - **Imports AI coding conversations** from 32 agent harnesses: Claude Code, Claude Desktop, Codex CLI, Cursor, Trae, GitHub Copilot Chat and CLI, Gemini CLI, Qwen Code, OpenCode, Cline, Roo Code, Kilo Code, Continue, DeepSeek Harness, WorkBuddy, CodeBuddy, Antigravity, Droid, Goose, Pi, omp, Raft, Cindy, Qoder/Qoder CN, ZCode, Hermes, Alma, Grok Build, Kimi Code, and MiniMax Code.
-- **Syncs automatically in the background** — a startup pass plus targeted file-watch passes keep conversations current without a manual import; parsing runs in worker threads and progress is visible in the sidebar.
+- **Syncs automatically in the background** — a startup pass plus targeted file-watch passes keep conversations current without a manual import; the list fills as soon as each source is scanned, transcripts are parsed in worker threads (and cached for later), and sync progress is visible in the sidebar.
 - **Reads WSL sessions on Windows** — Claude Code, Codex, Gemini CLI, Qwen Code, OpenCode, Cline, Continue, DeepSeek Harness and other agents installed inside a WSL distro are imported from the distro home (running distros are scanned by default).
 - **Distills conversations into structured notes** with titles, summaries, conclusions, snippets, and tags.
 - **Searches knowledge semantically** with embeddings and relation-aware result expansion.
