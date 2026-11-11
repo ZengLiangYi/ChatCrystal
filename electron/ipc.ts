@@ -20,6 +20,32 @@ export type CloudIpcDeps = {
 	uploadLocalHistory(): Promise<unknown>;
 };
 
+function isFileUrl(url: string): boolean {
+	try {
+		return new URL(url).protocol === "file:";
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * file:// frames report their origin as "file://" (or "null" depending on the
+ * Chromium version), while `new URL(fileUrl).origin` is "null". Accept those two
+ * spellings for the packed app's onboarding page; the exact URL comparison below
+ * still pins the frame to the onboarding document.
+ */
+function originMatchesExpected(
+	actualOrigin: string,
+	expectedOrigin: string,
+	expectedUrl: string,
+): boolean {
+	if (actualOrigin === expectedOrigin) return true;
+	return (
+		isFileUrl(expectedUrl) &&
+		(actualOrigin === "file://" || actualOrigin === "null")
+	);
+}
+
 function assertOnboardingSender(
 	event: IpcMainInvokeEvent,
 	expectedOrigin: string,
@@ -27,7 +53,11 @@ function assertOnboardingSender(
 ): void {
 	if (
 		!event.senderFrame ||
-		event.senderFrame.origin !== expectedOrigin ||
+		!originMatchesExpected(
+			event.senderFrame.origin,
+			expectedOrigin,
+			expectedUrl,
+		) ||
 		event.senderFrame.url !== expectedUrl
 	) {
 		throw new Error("Rejected onboarding IPC from unexpected origin");

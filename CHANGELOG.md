@@ -12,6 +12,11 @@
 - Persistence moved from sql.js (WASM SQLite, whole-database snapshot every 30s) to Node.js 24's built-in `node:sqlite` with WAL. `saveDatabase()` is now a WAL checkpoint, existing `chatcrystal.db` files open directly, and parser-side SQLite readers (Cursor, Trae, OpenCode, ZCode, Goose, Hermes, Alma) keep using sql.js for their own databases.
 - The desktop app enables background sync and the watcher (`CHATCRYSTAL_AUTO_SYNC=0` opts out). The watcher only starts after the first sync pass so chokidar's initial scan cannot starve it, events are debounced for 1.8s, and each changed path is mapped to its owning source. WorkBuddy now watches `<home>/projects` instead of the whole home (its plugin marketplaces hold tens of thousands of files), and chokidar skips `node_modules`/`.git`/`.cache`.
 
+### Desktop
+
+- Fixed the packaged Windows app opening a blank onboarding window on a fresh install: Vite emitted absolute `/assets/...` URLs for the onboarding page, which resolve to the drive root when the page is loaded from inside the ASAR via `file://`. The client build now rewrites the onboarding entry's asset URLs to relative paths (`client/scripts/rewrite-onboarding-assets.mjs`).
+- Fixed packaged onboarding buttons failing with `Rejected onboarding IPC from unexpected origin`: `file://` frames report their origin as `file://` (or `null`), while `new URL(fileUrl).origin` is `null`. The IPC guard now accepts the file-origin spellings for file URLs while still requiring the exact onboarding document URL.
+
 ### Sources
 
 - Added 13 conversation-source adapters, so ChatCrystal now imports local history from 18 AI coding agents: Gemini CLI, Qwen Code, OpenCode, Cline, Roo Code, Kilo Code, GitHub Copilot CLI, Continue, DeepSeek Harness, WorkBuddy, Antigravity, Factory Droid, and Goose.

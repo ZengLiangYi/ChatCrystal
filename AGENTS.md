@@ -161,6 +161,7 @@ Monorepo with three npm workspaces:
 - **Environment vars set by Electron:** `ELECTRON=true`, `DATA_DIR`, `ELECTRON_PACKAGED` (packaged only)
 - **Server import:** Production uses dynamic `import()` via `file://` URL to load compiled server ESM
 - **Packaging:** `electron-builder.yml` → NSIS installer, `sql-wasm.wasm` as extraResource, aggressive node_modules filtering
+- **Onboarding (packaged):** the onboarding page is loaded from `file://` inside the ASAR. `client/scripts/rewrite-onboarding-assets.mjs` runs at the end of `client build` to rewrite Vite's absolute `/assets/...` URLs to relative ones (absolute URLs resolve to the drive root and render a blank page). The onboarding IPC guard accepts `file://`/`null` sender-frame origins for file URLs but still pins the exact document URL, so IPC works in the packaged app without weakening the origin check.
 
 ### `scripts/` — Release & Utility Scripts
 - `release.mjs` — Release helper for version bump / tag / push flows
