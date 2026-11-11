@@ -15,6 +15,12 @@ export interface AgentLogoMeta {
   href?: string;
   /** Brand colour used for the hover label and the monogram fallback. */
   color: string;
+  /**
+   * Another source that shares the same brand mark (e.g. Copilot CLI and
+   * Copilot Chat, Qoder CN and Qoder). Aliased sources are still importable in
+   * the app, but the marquee shows the brand once.
+   */
+  aliasOf?: string;
 }
 
 export interface LogoLoopItem {
@@ -86,6 +92,7 @@ export const AGENT_LOGOS: AgentLogoMeta[] = [
     name: 'Claude Desktop',
     href: 'https://claude.ai/download',
     color: '#D97757',
+    aliasOf: 'claude-code',
   },
   {
     id: 'codex',
@@ -105,6 +112,7 @@ export const AGENT_LOGOS: AgentLogoMeta[] = [
     name: 'Copilot CLI',
     href: 'https://github.com/github/copilot-cli',
     color: '#111111',
+    aliasOf: 'copilot',
   },
   {
     id: 'gemini',
@@ -190,7 +198,13 @@ export const AGENT_LOGOS: AgentLogoMeta[] = [
     color: '#01C886',
   },
   { id: 'qoder', name: 'Qoder', href: 'https://qoder.com', color: '#2ADB5C' },
-  { id: 'qoder-cn', name: 'Qoder CN', href: 'https://qoder.com', color: '#2ADB5C' },
+  {
+    id: 'qoder-cn',
+    name: 'Qoder CN',
+    href: 'https://qoder.com',
+    color: '#2ADB5C',
+    aliasOf: 'qoder',
+  },
   { id: 'zcode', name: 'ZCode', href: 'https://github.com/zai-org/ZCode', color: '#000000' },
   {
     id: 'dsh',
@@ -204,13 +218,16 @@ export const AGENT_LOGOS: AgentLogoMeta[] = [
   { id: 'alma', name: 'Alma', color: '#000000' },
 ];
 
+/** Brands shown in the marquee: aliased sources share their mark once. */
+export const MARQUEE_LOGOS: AgentLogoMeta[] = AGENT_LOGOS.filter(
+  (meta) => !meta.aliasOf,
+);
+
 const rowAIds = new Set([
   'claude-code',
-  'claude-desktop',
   'codex',
   'cursor',
   'copilot',
-  'copilot-cli',
   'gemini',
   'qwen',
   'opencode',
@@ -223,13 +240,16 @@ const rowAIds = new Set([
   'antigravity',
 ]);
 
-export const AGENT_LOGOS_ROW_A: LogoLoopItem[] = AGENT_LOGOS.filter((meta) =>
+export const AGENT_LOGOS_ROW_A: LogoLoopItem[] = MARQUEE_LOGOS.filter((meta) =>
   rowAIds.has(meta.id),
 ).map(toItem);
 
-export const AGENT_LOGOS_ROW_B: LogoLoopItem[] = AGENT_LOGOS.filter(
+export const AGENT_LOGOS_ROW_B: LogoLoopItem[] = MARQUEE_LOGOS.filter(
   (meta) => !rowAIds.has(meta.id),
 ).map(toItem);
 
-/** Number of sources currently shown in the marquee. */
+/** Number of importable sources behind the marquee. */
 export const AGENT_LOGO_COUNT = AGENT_LOGOS.length;
+
+/** Number of distinct brand marks rendered by the marquee. */
+export const MARQUEE_LOGO_COUNT = MARQUEE_LOGOS.length;

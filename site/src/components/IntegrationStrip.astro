@@ -33,24 +33,16 @@ const { t } = Astro.props;
   :global(.agent-marquee) {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    padding: 0.75rem 0 0.5rem;
+    gap: 0.9rem;
+    padding: 1rem 0 0.5rem;
   }
 
   :global(.agent-marquee .logoloop) {
     width: 100%;
   }
 
-  :global(.agent-marquee .logoloop__content) {
-    padding: 0.55rem 1.1rem;
-    border: 1px solid var(--color-border);
-    border-radius: 0.9rem;
-    background: color-mix(in srgb, var(--color-paper) 82%, var(--color-paper-soft));
-    box-shadow: 0 1px 2px rgba(44, 42, 38, 0.04);
-  }
-
   :global(.agent-marquee .logoloop__item img) {
-    opacity: 0.92;
+    opacity: 0.94;
     transition:
       opacity 0.3s ease,
       transform 0.3s ease;

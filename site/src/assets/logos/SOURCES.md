@@ -1,12 +1,15 @@
 # Agent logo sources
 
-Logos shown in the home-page marquee (`src/components/AgentLogoMarquee.tsx`).
-They are used to identify the AI coding agents ChatCrystal imports; all marks
-remain the trademarks of their respective owners and are shown only for
-identification (nominative use).
+Logos used by the home-page marquee (`src/components/AgentLogoMarquee.tsx`).
+They identify the AI coding agents ChatCrystal imports; all marks remain the
+trademarks of their respective owners and are shown only for identification
+(nominative use).
 
 Files live in this folder as `<source-id>.svg` or `<source-id>.png`. The ids
-match the conversation-source ids in `server/src/config.ts`.
+match the conversation-source ids in `server/src/config.ts`. Sources that share
+a brand mark with another source (`claude-desktop`, `copilot-cli`, `qoder-cn`)
+keep their file for completeness but are deduplicated in the marquee, which
+shows each brand once.
 
 | Source id | File | Format | Source | Notes |
 |---|---|---|---|---|

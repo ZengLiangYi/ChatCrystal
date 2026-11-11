@@ -19,10 +19,10 @@ export default function AgentLogoMarquee({
     <div className="agent-marquee">
       <LogoLoop
         logos={AGENT_LOGOS_ROW_A}
-        speed={54}
+        speed={50}
         direction="left"
-        logoHeight={38}
-        gap={72}
+        logoHeight={40}
+        gap={84}
         hoverSpeed={0}
         scaleOnHover
         fadeOut
@@ -34,10 +34,10 @@ export default function AgentLogoMarquee({
       />
       <LogoLoop
         logos={AGENT_LOGOS_ROW_B}
-        speed={46}
+        speed={42}
         direction="right"
-        logoHeight={38}
-        gap={72}
+        logoHeight={40}
+        gap={84}
         hoverSpeed={0}
         scaleOnHover
         fadeOut
