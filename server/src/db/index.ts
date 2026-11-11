@@ -65,6 +65,18 @@ export function applySchemaMigrations(db: Database): void {
   ensureColumn(db, 'conversations', 'source_conversation_id', 'ALTER TABLE conversations ADD COLUMN source_conversation_id TEXT');
   ensureColumn(db, 'conversations', 'content_hash', 'ALTER TABLE conversations ADD COLUMN content_hash TEXT');
   ensureColumn(db, 'conversations', 'parser_version', 'ALTER TABLE conversations ADD COLUMN parser_version TEXT');
+  ensureColumn(db, 'conversations', 'root_dir', 'ALTER TABLE conversations ADD COLUMN root_dir TEXT');
+  ensureColumn(
+    db,
+    'conversations',
+    'transcript_status',
+    "ALTER TABLE conversations ADD COLUMN transcript_status TEXT DEFAULT 'materialized'",
+  );
+  db.run(
+    `UPDATE conversations
+        SET transcript_status = 'materialized'
+      WHERE transcript_status IS NULL OR trim(transcript_status) = ''`,
+  );
   db.run(
     `UPDATE conversations
         SET source_conversation_id = CASE
@@ -113,6 +125,8 @@ export function applySchemaMigrations(db: Database): void {
       ON conversations(source, source_conversation_id);
     CREATE INDEX IF NOT EXISTS idx_conversations_content_hash
       ON conversations(content_hash);
+    CREATE INDEX IF NOT EXISTS idx_conversations_transcript_status
+      ON conversations(transcript_status);
     CREATE INDEX IF NOT EXISTS idx_note_relations_type_confidence
       ON note_relations(relation_type, confidence);
     CREATE INDEX IF NOT EXISTS idx_note_relations_confidence

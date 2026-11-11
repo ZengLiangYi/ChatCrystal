@@ -3,12 +3,18 @@ import type {
 	ImportBatchResult,
 	ParsedConversation,
 } from "@chatcrystal/shared";
+import type { Database, SqlValue } from "sql.js";
+import { dirname } from "node:path";
 import { appConfig } from "../config.js";
 import { getDatabase, saveDatabase } from "../db/index.js";
 import { withTransaction } from "../db/transaction.js";
 import { getAdapter, getAllAdapters } from "../parser/index.js";
 import { computeConversationContentHash } from "./importPayload.js";
 import { createParsePool, type ParsePool } from "./parse-pool.js";
+import {
+	readTranscriptCache,
+	writeTranscriptCache,
+} from "./transcript-cache.js";
 import { enqueueNoteVectorCleanupTask } from "./vector-cleanup.js";
 
 let sharedParsePool: ParsePool | null = null;
@@ -114,6 +120,74 @@ function errorMessage(err: unknown): string {
 	return err instanceof Error ? err.message : "Unknown error";
 }
 
+/** Readable fallback shown before an indexed conversation is materialized. */
+function fallbackProjectName(displayName: string): string {
+	return displayName || "Indexed conversation";
+}
+
+/**
+ * Index-first: make a scanned conversation visible in the list without parsing
+ * it yet. The row starts as `transcript_status = 'pending'`; the import loop (or
+ * the detail page later) fills in the transcript and flips it to 'materialized'.
+ * Columns already materialized by an earlier pass are left alone.
+ */
+function ensureIndexedConversation(
+	db: ReturnType<typeof getDatabase>,
+	meta: ConversationMeta,
+	displayName: string,
+): void {
+	const existing = db.exec(
+		"SELECT file_size, file_mtime, transcript_status FROM conversations WHERE id = ? AND source = ?",
+		[meta.id, meta.source],
+	);
+	const row = existing[0]?.values[0];
+	if (!row) {
+		db.run(
+			`INSERT INTO conversations (
+				id, slug, source, source_conversation_id, parser_version,
+				project_dir, project_name, message_count,
+				first_message_at, last_message_at,
+				file_path, file_size, file_mtime, root_dir, transcript_status
+			) VALUES (?, NULL, ?, ?, NULL, ?, ?, 0, ?, ?, ?, ?, ?, ?, 'pending')`,
+			[
+				meta.id,
+				meta.source,
+				meta.id,
+				dirname(meta.filePath),
+				fallbackProjectName(displayName),
+				meta.fileMtime,
+				meta.fileMtime,
+				meta.filePath,
+				meta.fileSize,
+				meta.fileMtime,
+				meta.rootDir ?? null,
+			],
+		);
+		return;
+	}
+
+	if (Number(row[0]) === meta.fileSize && row[1] === meta.fileMtime) {
+		return;
+	}
+
+	// The file changed: keep the row visible but mark the transcript stale so
+	// the next pass (or the detail page) parses it again.
+	db.run(
+		`UPDATE conversations
+		    SET file_path = ?, file_size = ?, file_mtime = ?, root_dir = ?,
+		        transcript_status = 'pending', updated_at = datetime('now')
+		  WHERE id = ? AND source = ?`,
+		[
+			meta.filePath,
+			meta.fileSize,
+			meta.fileMtime,
+			meta.rootDir ?? null,
+			meta.id,
+			meta.source,
+		],
+	);
+}
+
 /**
  * Scan all registered sources and import new/changed conversations.
  *
@@ -138,6 +212,7 @@ export async function importAll(
 				? getSharedParsePool()
 				: null;
 	const startedAt = Date.now();
+	const db = getDatabase();
 
 	const enabledSources = appConfig.enabledSources;
 	const requestedSources = options.sources
@@ -221,9 +296,14 @@ export async function importAll(
 
 		try {
 			const metas = await adapter.scan();
-			for (const meta of metas) {
-				allMetas.push({ ...meta, adapterName: adapter.name });
-			}
+			// Index-first: make every scanned conversation visible to the list
+			// immediately (metadata only), then materialize its transcript below.
+			withTransaction(db, () => {
+				for (const meta of metas) {
+					ensureIndexedConversation(db, meta, adapter.displayName);
+					allMetas.push({ ...meta, adapterName: adapter.name });
+				}
+			});
 			entry.found = metas.length;
 			entry.status = "importing";
 		} catch (err) {
@@ -239,7 +319,6 @@ export async function importAll(
 	progress.cancelled = Boolean(signal?.aborted);
 	emit();
 
-	const db = getDatabase();
 	const remainingBySource = new Map<string, number>();
 	for (const meta of allMetas) {
 		remainingBySource.set(
@@ -319,6 +398,64 @@ export async function importAll(
 	return progress;
 }
 
+export type MaterializeResult =
+	| "materialized"
+	| "skipped"
+	| "missing"
+	| "error";
+
+/**
+ * Ensure one conversation's transcript is materialized.
+ *
+ * Index-first syncs create rows from scan metadata only; the detail page and the
+ * summarizer call this when `transcript_status` is still 'pending' (for example
+ * after an interrupted sync, a changed file, or a cancelled pass). Parsing goes
+ * through the transcript cache and the worker pool, exactly like a normal import.
+ */
+export async function materializeConversationById(
+	conversationId: string,
+	dbOverride?: Database,
+): Promise<MaterializeResult> {
+	const db = dbOverride ?? getDatabase();
+	const result = db.exec(
+		`SELECT id, source, source_conversation_id, file_path, file_size,
+		        file_mtime, root_dir, transcript_status
+		   FROM conversations
+		  WHERE id = ?`,
+		[conversationId],
+	);
+	const row = result[0]?.values[0];
+	if (!row) return "missing";
+	if (String(row[7] ?? "materialized") === "materialized") {
+		return "materialized";
+	}
+
+	const source = String(row[1]);
+	const adapter = getAdapter(source);
+	if (!adapter) return "error";
+
+	const meta: ConversationMeta & { adapterName: string } = {
+		id: row[2] ? String(row[2]) : String(row[0]),
+		source,
+		filePath: String(row[3] ?? ""),
+		fileSize: Number(row[4] ?? 0),
+		fileMtime: String(row[5] ?? ""),
+		projectDir: row[3] ? dirname(String(row[3])) : "",
+		...(row[6] ? { rootDir: String(row[6]) } : {}),
+		adapterName: source,
+	};
+
+	const outcome = await importConversationItem(
+		db,
+		meta,
+		shouldUseWorkerPool() ? getSharedParsePool() : null,
+	);
+	saveDatabase();
+	if (outcome.status === "error") return "error";
+	if (outcome.status === "skipped") return "skipped";
+	return "materialized";
+}
+
 type ImportItemOutcome =
 	| { status: "skipped"; id: string }
 	| { status: "imported"; id: string }
@@ -330,21 +467,35 @@ async function importConversationItem(
 	meta: ConversationMeta & { adapterName: string },
 	parsePool: ParsePoolLike | null,
 ): Promise<ImportItemOutcome> {
-	// Check whether the conversation is already imported and unchanged.
+	// Check whether the conversation is already materialized and unchanged.
 	const existing = db.exec(
-		"SELECT file_size, file_mtime, content_hash FROM conversations WHERE id = ? AND source = ?",
+		`SELECT file_size, file_mtime, content_hash, transcript_status,
+		        (SELECT COUNT(*) FROM messages WHERE conversation_id = conversations.id)
+		   FROM conversations
+		  WHERE id = ? AND source = ?`,
 		[meta.id, meta.source],
 	);
-	const existingRow = existing[0]?.values[0];
+	let existingRow: SqlValue[] | undefined = existing[0]?.values[0];
+	const rowPending =
+		existingRow !== undefined &&
+		String(existingRow[3] ?? "materialized") !== "materialized";
+	const hasOldTranscript =
+		existingRow !== undefined &&
+		((existingRow[2] !== null &&
+			existingRow[2] !== undefined &&
+			String(existingRow[2]).trim() !== "") ||
+			Number(existingRow[4] ?? 0) > 0);
+	// A row created by the index pass (no content hash, no messages) is new;
+	// a pending row that still holds an old transcript is a changed conversation.
+	const indexOnly = rowPending && !hasOldTranscript;
 
-	if (existingRow) {
-		const [existingSize, existingMtime] = existingRow;
-		if (
-			Number(existingSize) === meta.fileSize &&
-			existingMtime === meta.fileMtime
-		) {
-			return { status: "skipped", id: meta.id };
-		}
+	if (
+		existingRow &&
+		!rowPending &&
+		Number(existingRow[0]) === meta.fileSize &&
+		existingRow[1] === meta.fileMtime
+	) {
+		return { status: "skipped", id: meta.id };
 	}
 
 	const adapter = getAdapter(meta.adapterName);
@@ -356,16 +507,47 @@ async function importConversationItem(
 		};
 	}
 
-	try {
-		const parsed = parsePool
-			? await parsePool.parse(meta)
-			: await adapter.parse(meta);
-		const contentHash = computeConversationContentHash(parsed);
-		const parserVersion =
-			adapter.parserVersion ?? `${meta.adapterName}@1`;
+	const parserVersion = adapter.parserVersion ?? `${meta.adapterName}@1`;
 
-		// Skip conversations with fewer than 2 meaningful messages.
+	try {
+		let parsed: ParsedConversation | null =
+			await readTranscriptCache(meta, parserVersion);
+		if (!parsed) {
+			parsed = parsePool
+				? await parsePool.parse(meta)
+				: await adapter.parse(meta);
+			await writeTranscriptCache(meta, parserVersion, parsed);
+		}
+
+		// A parser may normalize the conversation id; drop the index-only row
+		// under the scanned id so the materialized row is inserted once.
+		if (existingRow && parsed.id !== meta.id) {
+			if (indexOnly) {
+				db.run(
+					"DELETE FROM conversations WHERE id = ? AND source = ?",
+					[meta.id, meta.source],
+				);
+				existingRow = undefined;
+			} else {
+				return {
+					status: "error",
+					id: parsed.id,
+					message: `Conversation id changed from ${meta.id} to ${parsed.id}`,
+				};
+			}
+		}
+
+		const contentHash = computeConversationContentHash(parsed);
+
+		// Index-only rows with too little content are dropped again so the list
+		// keeps the same semantics as a full import.
 		if (parsed.messages.length < 2) {
+			if (indexOnly) {
+				db.run(
+					"DELETE FROM conversations WHERE id = ? AND source = ?",
+					[meta.id, meta.source],
+				);
+			}
 			return { status: "skipped", id: parsed.id };
 		}
 
@@ -373,7 +555,14 @@ async function importConversationItem(
 			existingRow?.[2] === null || existingRow?.[2] === undefined
 				? null
 				: String(existingRow[2]);
-		if (existingRow && existingContentHash === contentHash) {
+		// Same content: only skip when the stored transcript is actually there.
+		// A pending row whose messages were dropped (or an index-only row that
+		// already has a hash) still needs to write the parsed messages.
+		if (
+			existingRow &&
+			existingContentHash === contentHash &&
+			Number(existingRow[4] ?? 0) > 0
+		) {
 			withTransaction(db, () => {
 				updateImportedConversationMetadata(
 					db,
@@ -384,6 +573,17 @@ async function importConversationItem(
 				);
 			});
 			return { status: "skipped", id: parsed.id };
+		}
+
+		// An index-only row created by this or an earlier scan is not an existing
+		// conversation: replace it with the materialized row so the outcome counts
+		// as an import, not as a replacement of a previous transcript.
+		if (existingRow && indexOnly) {
+			db.run(
+				"DELETE FROM conversations WHERE id = ? AND source = ?",
+				[meta.id, meta.source],
+			);
+			existingRow = undefined;
 		}
 
 		withTransaction(db, () => {
@@ -448,6 +648,8 @@ function updateImportedConversationMetadata(
 		        file_path = ?,
 		        file_size = ?,
 		        file_mtime = ?,
+		        root_dir = ?,
+		        transcript_status = 'materialized',
 		        updated_at = datetime('now')
 		  WHERE id = ? AND source = ?`,
 		[
@@ -465,6 +667,7 @@ function updateImportedConversationMetadata(
 			meta.filePath,
 			meta.fileSize,
 			meta.fileMtime,
+			meta.rootDir ?? null,
 			parsed.id,
 			parsed.source,
 		],
@@ -565,6 +768,8 @@ function replaceImportedConversation(
 		        file_path = ?,
 		        file_size = ?,
 		        file_mtime = ?,
+		        root_dir = ?,
+		        transcript_status = 'materialized',
 		        status = ?,
 		        experience_score = ?,
 		        experience_gate_reason = ?,
@@ -587,6 +792,7 @@ function replaceImportedConversation(
 			meta.filePath,
 			meta.fileSize,
 			meta.fileMtime,
+			meta.rootDir ?? null,
 			keepUserRejectedGate ? "filtered" : hasPreservedNote ? "summarized" : "imported",
 			keepUserRejectedGate ? experienceScore : null,
 			keepUserRejectedGate ? experienceGateReason : null,
@@ -609,8 +815,8 @@ function insertConversation(
       id, slug, source, source_conversation_id, content_hash, parser_version,
       project_dir, project_name, cwd, git_branch,
       message_count, first_message_at, last_message_at,
-      file_path, file_size, file_mtime, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'imported')`,
+      file_path, file_size, file_mtime, root_dir, transcript_status, status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'materialized', 'imported')`,
 		[
 			parsed.id,
 			parsed.slug,
@@ -628,6 +834,7 @@ function insertConversation(
 			meta.filePath,
 			meta.fileSize,
 			meta.fileMtime,
+			meta.rootDir ?? null,
 		],
 	);
 }

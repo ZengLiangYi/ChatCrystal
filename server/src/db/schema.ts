@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS conversations (
   file_path TEXT NOT NULL,
   file_size INTEGER,
   file_mtime TEXT,
+  root_dir TEXT,
+  transcript_status TEXT DEFAULT 'materialized',
   status TEXT DEFAULT 'imported',
   experience_score REAL,
   experience_gate_reason TEXT,

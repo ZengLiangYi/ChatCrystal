@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { getDatabase } from '../db/index.js';
 import { resultToObjects } from '../db/utils.js';
+import { materializeConversationById } from '../services/import.js';
 
 export async function conversationRoutes(app: FastifyInstance) {
   // List conversations with filters
@@ -68,26 +69,52 @@ export async function conversationRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string };
     const db = getDatabase();
 
-    const convResult = db.exec(
-      'SELECT * FROM conversations WHERE id = ?',
-      [id],
-    );
-    if (!convResult.length || !convResult[0].values.length) {
+    const loadConversation = () => {
+      const convResult = db.exec('SELECT * FROM conversations WHERE id = ?', [
+        id,
+      ]);
+      if (!convResult.length || !convResult[0].values.length) return null;
+      const messageResult = db.exec(
+        'SELECT * FROM messages WHERE conversation_id = ? ORDER BY sort_order ASC',
+        [id],
+      );
+      return {
+        conversation: resultToObjects(convResult)[0],
+        messages: resultToObjects(messageResult),
+      };
+    };
+
+    let loaded = loadConversation();
+    if (!loaded) {
       reply.status(404);
       return { success: false, error: 'Conversation not found' };
     }
 
-    const conversation = resultToObjects(convResult)[0];
-
-    const msgResult = db.exec(
-      'SELECT * FROM messages WHERE conversation_id = ? ORDER BY sort_order ASC',
-      [id],
-    );
-    const messages = resultToObjects(msgResult);
+    // Index-first syncs can leave a conversation without its transcript; parse it
+    // now (through the transcript cache / worker pool) instead of showing an
+    // empty conversation.
+    if (
+      loaded.conversation.transcript_status &&
+      loaded.conversation.transcript_status !== 'materialized'
+    ) {
+      const materialized = await materializeConversationById(id);
+      if (materialized === 'error') {
+        reply.status(500);
+        return {
+          success: false,
+          error: 'Failed to load the conversation transcript',
+        };
+      }
+      loaded = loadConversation();
+      if (!loaded) {
+        reply.status(404);
+        return { success: false, error: 'Conversation not found' };
+      }
+    }
 
     return {
       success: true,
-      data: { ...conversation, messages },
+      data: { ...loaded.conversation, messages: loaded.messages },
     };
   });
 

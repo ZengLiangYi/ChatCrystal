@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { getDatabase, saveDatabase } from '../db/index.js';
 import { withTransaction } from '../db/transaction.js';
 import { getLanguageModel } from './llm.js';
+import { materializeConversationById } from './import.js';
 import { prepareTranscript } from './transcript.js';
 import { generateEmbeddings } from './embedding.js';
 import { discoverRelations } from './relations.js';
@@ -206,6 +207,16 @@ export async function triggerSummarize(
   const [status, gateReason] = convResult[0].values[0];
   if (status === 'filtered' && gateReason === 'user-rejected-note') {
     return null;
+  }
+
+  // Index-first rows have no messages yet: parse the transcript on demand
+  // (through the same cache/worker path as a normal import) before summarizing.
+  const materialized = await materializeConversationById(conversationId, db);
+  if (materialized === 'skipped') {
+    return null;
+  }
+  if (materialized === 'missing' || materialized === 'error') {
+    throw new Error('Conversation transcript could not be loaded');
   }
 
   // Check if already summarized
