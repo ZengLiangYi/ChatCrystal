@@ -25,13 +25,11 @@ export const en = {
     ],
   },
   integrations: {
-    heading: 'Works with your favorite AI coding tools',
-    claudeCode: { name: 'Claude Code', desc: 'JSONL conversations' },
-    cursor: { name: 'Cursor', desc: 'Workspace history' },
-    codex: { name: 'Codex CLI', desc: 'Session events' },
-    trae: { name: 'Trae', desc: 'Agent task history' },
-    copilot: { name: 'GitHub Copilot', desc: 'Chat sessions' },
-    more: 'Also imports Claude Desktop, Gemini CLI, Qwen Code, OpenCode, Cline, Roo Code, Kilo Code, Copilot CLI, Continue, DeepSeek Harness, WorkBuddy, CodeBuddy, Pi, omp, Raft, Cindy, Qoder, ZCode, Hermes, Alma, Grok Build, Kimi Code, and MiniMax Code — locally and from WSL distros.',
+    heading: 'Works with the agents you build with',
+    subheading: 'Every conversation is imported locally — from Windows, WSL distros and VS Code Remote workspaces.',
+    loopAriaA: 'AI coding agents and IDE assistants',
+    loopAriaB: 'More AI coding agents, CLI and desktop harnesses',
+    caption: '32 agent harnesses · local, WSL and VS Code Remote histories',
   },
   howItWorks: {
     heading: 'From chat history to reusable knowledge',

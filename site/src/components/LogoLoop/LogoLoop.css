@@ -1,0 +1,208 @@
+.logoloop {
+  --logoloop-gap: 32px;
+  --logoloop-logoHeight: 28px;
+  --logoloop-pad: 0px;
+  position: relative;
+  overflow: hidden;
+  overflow: clip;
+  padding-top: var(--logoloop-pad);
+  padding-bottom: var(--logoloop-pad);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.logoloop--vertical {
+  display: inline-block;
+  height: 100%;
+  padding: 0 var(--logoloop-pad);
+}
+
+.logoloop[data-draggable] {
+  cursor: grab;
+  touch-action: pan-y pinch-zoom;
+}
+
+.logoloop--vertical[data-draggable] {
+  touch-action: pan-x pinch-zoom;
+}
+
+.logoloop[data-dragging],
+.logoloop[data-dragging] * {
+  cursor: grabbing;
+}
+
+.logoloop__track {
+  position: relative;
+  z-index: 0;
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.logoloop--vertical .logoloop__track {
+  flex-direction: column;
+  width: 100%;
+  height: max-content;
+}
+
+.logoloop__list {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.logoloop--vertical .logoloop__list {
+  flex-direction: column;
+}
+
+.logoloop__item {
+  position: relative;
+  flex: 0 0 auto;
+  margin-right: var(--logoloop-gap);
+  font-size: var(--logoloop-logoHeight);
+  line-height: 1;
+}
+
+.logoloop--vertical .logoloop__item {
+  margin-right: 0;
+  margin-bottom: var(--logoloop-gap);
+}
+
+.logoloop[data-intro] .logoloop__item {
+  opacity: 0;
+}
+
+.logoloop__content {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--logoloop-logoHeight) * 0.3);
+  border-radius: 4px;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    opacity 0.35s ease,
+    filter 0.35s ease,
+    color 0.35s ease;
+}
+
+.logoloop[data-labels='below'] .logoloop__content {
+  flex-direction: column;
+  gap: calc(var(--logoloop-logoHeight) * 0.22);
+}
+
+.logoloop__content:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.logoloop__node {
+  display: inline-flex;
+  align-items: center;
+}
+
+.logoloop__item img {
+  display: block;
+  width: auto;
+  height: var(--logoloop-logoHeight);
+  object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+.logoloop__node,
+.logoloop__item img {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.logoloop--scale-hover .logoloop__item:hover img,
+.logoloop--scale-hover .logoloop__item:hover .logoloop__node {
+  transform: scale(1.2);
+}
+
+.logoloop__label {
+  font-size: max(12px, calc(var(--logoloop-logoHeight) * 0.5));
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.logoloop[data-labels='below'] .logoloop__label {
+  font-size: max(11px, calc(var(--logoloop-logoHeight) * 0.26));
+  font-weight: 500;
+  letter-spacing: 0;
+  opacity: 0.72;
+}
+
+.logoloop__tip {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-top: calc(var(--logoloop-logoHeight) * 0.2);
+  font-size: max(11px, calc(var(--logoloop-logoHeight) * 0.26));
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  opacity: 0;
+  translate: -50% 4px;
+  pointer-events: none;
+  transition:
+    opacity 0.25s ease,
+    translate 0.25s ease;
+}
+
+.logoloop--vertical .logoloop__tip {
+  top: 50%;
+  left: 100%;
+  margin-top: 0;
+  margin-left: calc(var(--logoloop-logoHeight) * 0.25);
+  translate: 4px -50%;
+}
+
+.logoloop__item:hover .logoloop__tip,
+.logoloop__item:focus-within .logoloop__tip,
+.logoloop__item[data-active] .logoloop__tip {
+  opacity: 0.8;
+  translate: -50% 0;
+}
+
+.logoloop--vertical .logoloop__item:hover .logoloop__tip,
+.logoloop--vertical .logoloop__item:focus-within .logoloop__tip,
+.logoloop--vertical .logoloop__item[data-active] .logoloop__tip {
+  translate: 0 -50%;
+}
+
+.logoloop[data-muted] .logoloop__content {
+  filter: grayscale(var(--logoloop-gray, 1));
+  opacity: var(--logoloop-dim, 0.5);
+}
+
+.logoloop[data-muted] .logoloop__item:hover .logoloop__content,
+.logoloop[data-muted] .logoloop__item:focus-within .logoloop__content,
+.logoloop[data-muted] .logoloop__item[data-active] .logoloop__content {
+  filter: none;
+  opacity: 1;
+}
+
+.logoloop__item[data-color]:hover .logoloop__content,
+.logoloop__item[data-color]:focus-within .logoloop__content,
+.logoloop__item[data-color][data-active] .logoloop__content {
+  color: var(--logoloop-item-color);
+}
+
+.logoloop:not([data-muted]) .logoloop__item:not([data-color]) a.logoloop__content:hover {
+  opacity: 0.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logoloop__content,
+  .logoloop__node,
+  .logoloop__item img,
+  .logoloop__tip {
+    transition: none;
+  }
+}

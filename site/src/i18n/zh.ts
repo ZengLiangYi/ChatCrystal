@@ -27,13 +27,11 @@ export const zh: Translations = {
     ],
   },
   integrations: {
-    heading: '支持你常用的 AI 编程工具',
-    claudeCode: { name: 'Claude Code', desc: 'JSONL 对话记录' },
-    cursor: { name: 'Cursor', desc: '工作区历史' },
-    codex: { name: 'Codex CLI', desc: '会话事件' },
-    trae: { name: 'Trae', desc: 'Agent 任务记录' },
-    copilot: { name: 'GitHub Copilot', desc: '聊天会话' },
-    more: '同时支持 Claude Desktop、Gemini CLI、Qwen Code、OpenCode、Cline、Roo Code、Kilo Code、Copilot CLI、Continue、DeepSeek Harness、WorkBuddy、CodeBuddy、Pi、omp、Raft、Cindy、Qoder、ZCode、Hermes、Alma、Grok Build、Kimi Code、MiniMax Code，并可从 WSL 发行版导入。',
+    heading: '支持你正在使用的 AI Agent',
+    subheading: '所有对话都在本地导入 —— 来自 Windows、WSL 发行版与 VS Code Remote 工作区。',
+    loopAriaA: 'AI 编程 Agent 与 IDE 助手',
+    loopAriaB: '更多 AI 编程 Agent、CLI 与桌面 Harness',
+    caption: '32 个 Agent Harness · 本地、WSL 与 VS Code Remote 历史',
   },
   howItWorks: {
     heading: '从对话历史到可复用知识',
