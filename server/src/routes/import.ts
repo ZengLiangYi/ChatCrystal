@@ -21,6 +21,16 @@ function rejectNonLocalImportOrigin(req: FastifyRequest, reply: FastifyReply): b
   return false;
 }
 
+function requestedSources(body: unknown): string[] | undefined {
+  if (!body || typeof body !== 'object') return undefined;
+  const value = (body as { sources?: unknown }).sources;
+  if (!Array.isArray(value)) return undefined;
+  const sources = value.filter(
+    (item): item is string => typeof item === 'string' && item.length > 0,
+  );
+  return sources.length > 0 ? sources : undefined;
+}
+
 export async function importRoutes(app: FastifyInstance) {
   app.post('/api/import/ingest', async (req, reply) => {
     if (!isCloudMode()) {
@@ -59,7 +69,7 @@ export async function importRoutes(app: FastifyInstance) {
     if (rejectNonLocalImportOrigin(req, reply)) return;
 
     try {
-      const result = await importAll();
+      const result = await importAll({ sources: requestedSources(req.body) });
       return { success: true, data: result };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Import failed';
@@ -85,20 +95,50 @@ export async function importRoutes(app: FastifyInstance) {
       Connection: 'keep-alive',
     });
 
+    const controller = new AbortController();
+    let closed = false;
+    const closeHandler = () => {
+      closed = true;
+      controller.abort();
+    };
+    reply.raw.on('close', closeHandler);
+
     const send = (event: string, data: unknown) => {
-      reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      if (closed) return;
+      try {
+        reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      } catch {
+        closed = true;
+        controller.abort();
+      }
     };
 
+    const heartbeat = setInterval(() => {
+      if (closed) return;
+      try {
+        reply.raw.write(': heartbeat\n\n');
+      } catch {
+        closed = true;
+        controller.abort();
+      }
+    }, 15_000);
+
     try {
-      const result = await importAll((progress) => {
-        send('progress', progress);
+      const result = await importAll({
+        sources: requestedSources(req.body),
+        signal: controller.signal,
+        onProgress: (progress) => {
+          send('progress', progress);
+        },
       });
       send('done', result);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Import failed';
       send('error', { error: message });
+    } finally {
+      clearInterval(heartbeat);
+      reply.raw.off('close', closeHandler);
+      if (!closed) reply.raw.end();
     }
-
-    reply.raw.end();
   });
 }
