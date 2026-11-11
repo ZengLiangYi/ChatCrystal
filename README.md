@@ -31,7 +31,7 @@
 
 <br>
 
-ChatCrystal is a local-first AI PKM app for developers who solve real problems with Claude Code, Cursor, Codex CLI, Trae, and GitHub Copilot.
+ChatCrystal is a local-first AI PKM app for developers who solve real problems with AI coding agents: Claude Code, Claude Desktop, Codex CLI, Cursor, Trae, GitHub Copilot Chat and CLI, Gemini CLI, Qwen Code, OpenCode, Cline, Roo Code, Kilo Code, Continue, DeepSeek Harness, WorkBuddy, CodeBuddy, Antigravity, Droid, Goose, Pi, omp, Raft, Cindy, Qoder/Qoder CN, ZCode, Hermes, Alma, Grok Build, Kimi Code, and MiniMax Code — 32 agent harnesses in total.
 
 It turns scattered AI coding conversations into structured notes, semantic search, a tag knowledge graph, Markdown exports, and MCP memory your agents can reuse. If this fits your workflow, a star helps more builders find a private, local-first way to keep their AI work memory.
 
@@ -57,7 +57,8 @@ Prefer self-hosting ChatCrystal for multiple devices? See [Docker Cloud Deployme
 
 ## What It Does
 
-- **Imports AI coding conversations** from local tool data directories.
+- **Imports AI coding conversations** from 32 agent harnesses: Claude Code, Claude Desktop, Codex CLI, Cursor, Trae, GitHub Copilot Chat and CLI, Gemini CLI, Qwen Code, OpenCode, Cline, Roo Code, Kilo Code, Continue, DeepSeek Harness, WorkBuddy, CodeBuddy, Antigravity, Droid, Goose, Pi, omp, Raft, Cindy, Qoder/Qoder CN, ZCode, Hermes, Alma, Grok Build, Kimi Code, and MiniMax Code.
+- **Reads WSL sessions on Windows** — Claude Code, Codex, Gemini CLI, Qwen Code, OpenCode, Cline, Continue, DeepSeek Harness and other agents installed inside a WSL distro are imported from the distro home (running distros are scanned by default).
 - **Distills conversations into structured notes** with titles, summaries, conclusions, snippets, and tags.
 - **Searches knowledge semantically** with embeddings and relation-aware result expansion.
 - **Builds a tag knowledge graph** where knowledge points are tags and edges show normalized co-occurrence.
@@ -193,7 +194,7 @@ To use an existing Ollama or external API, configure provider URLs in the Web UI
 
 ### Import from a Device into the Cloud Instance
 
-Install or run the CLI on the device that has Claude Code, Cursor, Codex CLI, Trae, or GitHub Copilot history:
+Install or run the CLI on the device that has AI coding agent history (Claude Code, Codex CLI, Gemini CLI, OpenCode, Cline, and 27 more supported sources):
 
 ```bash
 crystal connect https://chatcrystal.example.com --token "your-long-token"

@@ -115,9 +115,12 @@ Add a new source by implementing `SourceAdapter`:
 interface SourceAdapter {
   name: string;
   displayName: string;
+  parserVersion?: string;
   detect(): Promise<SourceInfo | null>;
   scan(): Promise<ConversationMeta[]>;
   parse(meta: ConversationMeta): Promise<ParsedConversation>;
+  /** Optional chokidar targets for live auto-import. */
+  watchPaths?(): string[];
 }
 ```
 
@@ -126,12 +129,54 @@ Built-in adapters:
 | Adapter | Data Source | Format |
 |---|---|---|
 | `claude-code` | `~/.claude/projects/**/*.jsonl` | JSONL conversation log |
-| `codex` | `~/.codex/sessions/**/rollout-*.jsonl` | JSONL event stream |
+| `codex` | `~/.codex/sessions/**/rollout-*.jsonl[.zst]` + `archived_sessions/` | JSONL event stream (old `event_msg` and 0.160+ `item_completed` formats, multi-frame zstd) |
 | `cursor` | Cursor `workspaceStorage/state.vscdb` | SQLite KV store |
 | `trae` | Trae `workspaceStorage/state.vscdb` | SQLite KV store |
 | `copilot` | VS Code `workspaceStorage/chatSessions/*.jsonl` | JSONL snapshots |
+| `gemini` | `~/.gemini/tmp/*/chats/session-*.{json,jsonl}` | Session JSON / replay JSONL |
+| `qwen` | `~/.qwen/projects/*/chats/*.jsonl` | Claude-style JSONL |
+| `opencode` | `~/.local/share/opencode/opencode.db` (or `storage/**/*.json`) | SQLite / JSON documents |
+| `cline` | `~/.cline/data/sessions/*/*.messages.json`, VS Code extension `tasks/*` | Whole-file JSON |
+| `roo` | `<VS Code User>/globalStorage/rooveterinaryinc.roo-cline/tasks/*` | Whole-file JSON |
+| `kilo` | `<VS Code User>/globalStorage/kilocode.kilo-code/tasks/*` | Whole-file JSON |
+| `copilot-cli` | `~/.copilot/session-state/*/events.jsonl` | Event JSONL |
+| `continue` | `~/.continue/sessions/*.json` | Whole-file JSON |
+| `dsh` | `~/.dsh/sessions/**/session.v<N>.jsonl[.zstd]` | JSONL (multi-frame zstd) |
+| `workbuddy` | `~/.workbuddy(-ai)/projects/*/*.jsonl` | JSONL (OpenAI Agents items) |
+| `antigravity` | `~/.gemini/antigravity/brain/*/.system_generated/logs/transcript.jsonl` | Step JSONL |
+| `droid` | `~/.factory/sessions/**/*.jsonl` | Event JSONL |
+| `goose` | `~/.local/share/goose/sessions/sessions.db` (or `*.jsonl`) | SQLite / JSONL |
+| `pi` | `~/.pi/agent/sessions/*/*.jsonl` | JSONL entries (session header + messages) |
+| `omp` | `~/.omp/agent/sessions/*` + profiles | Pi-format JSONL |
+| `raft` | `~/.slock/agents/*/.pi-sessions|.builtin-sessions/*.jsonl` | Pi-format JSONL |
+| `cindy` | `<config>/Cindy*/pi-agent-home/sessions/*.jsonl` | Pi-format JSONL |
+| `qoder` / `qoder-cn` | `~/.qoder(-cn)/projects/*/*.jsonl` | Claude-style JSONL |
+| `codebuddy` | `~/.codebuddy/projects/*/*.jsonl` | JSONL (OpenAI Agents items, same as WorkBuddy) |
+| `claude-desktop` | `<Claude data>/local-agent-mode-sessions/*/*/local_*/.claude/projects/*` | Claude-style JSONL |
+| `zcode` | `~/.zcode/cli/db/db.sqlite` | OpenCode schema (SQLite) |
+| `hermes` | `~/.hermes/state.db` | SQLite sessions/messages |
+| `alma` | `<config>/alma/chat_threads.db` | SQLite threads/messages |
+| `grok` | `~/.grok/sessions/<cwd>/<id>/updates.jsonl` | ACP update JSONL + summary.json |
+| `kimi` | `~/.kimi-code/sessions/*/*/agents/main/wire.jsonl` | Wire JSONL + state.json |
+| `minimax-code` | `~/.minimax/v2/sessions/**/messages*.jsonl` | JSONL messages |
 
-Create the adapter under `server/src/parser/adapters/` and register it in `server/src/parser/index.ts`.
+Create the adapter under `server/src/parser/adapters/`, register it in `server/src/parser/index.ts`, and add its id to `ALL_SOURCE_NAMES` in `server/src/config.ts` (that list also drives `enabledSources` migration and remote import validation).
+
+### WSL roots on Windows
+
+File-based adapters can also read the same agent installed inside a WSL distro. `parser/wsl.ts` discovers the homes of running distros (`\\wsl.localhost\<distro>\home\<user>`), and `parser/sourceRoots.ts` exposes `withWslRoots(primaryDir, '<relative path>')` / `wslRootsFor('<relative path>')`:
+
+```typescript
+const roots = withWslRoots(appConfig.codexSessionsDir, '.codex/sessions');
+for (const root of roots) {
+  // scan root
+}
+```
+
+- `withWslRoots` always returns the primary root first; WSL roots are added only when `<distro home>/<relative path>` exists.
+- `scan()` should set `rootDir: root` on every `ConversationMeta`; `parse()` uses `meta.rootDir ?? appConfig.<primary>` when it needs root-level metadata (Gemini `projects.json`, Antigravity summary DB, Continue `sessions.json`, Cline extension `taskHistory.json`, ...).
+- `watchPaths()` should only return local roots: the watcher never watches UNC paths (slow, and it can start a stopped distro).
+- Discovery honors `CHATCRYSTAL_WSL=0` (disable), `CHATCRYSTAL_WSL_DISTROS` (opt specific distros in, they may start on access), and `CHATCRYSTAL_WSL_HOMES` (forced homes). Tests inject fixture homes with `setWslHomesForTesting([...])`.
 
 ## API Surface
 

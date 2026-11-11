@@ -39,12 +39,20 @@ pnpm build:electron
 
 ## 使用流程
 
-1. 点击 **Import**，扫描 Claude Code、Codex CLI、Cursor、Trae、GitHub Copilot 对话。
+1. 点击 **Import**，扫描本地所有已检测到的 Agent Harness 对话——共 32 种，包括 Claude Code、Claude Desktop、Codex CLI、Cursor、Trae、GitHub Copilot Chat 与 CLI、Gemini CLI、Qwen Code、OpenCode、Cline、Roo Code、Kilo Code、Continue、DeepSeek Harness、WorkBuddy、CodeBuddy、Antigravity、Droid、Goose、Pi、omp、Raft、Cindy、Qoder/Qoder CN、ZCode、Hermes、Alma、Grok Build、Kimi Code、MiniMax Code（Windows 上包含 WSL 发行版 home）。
 2. 在 **Conversations** 页面浏览原始对话。
 3. 点击 **Summarize** 或批量摘要，生成结构化笔记。
 4. 在 **Search** 页面搜索知识；需要更完整上下文时开启关联笔记扩展。
 5. 打开图谱视图，浏览 tag 形成的知识点，以及每个知识点下的笔记。
 6. 在 **Settings** 页面切换 LLM 和 Embedding Provider。
+
+### WSL 会话（Windows）
+
+装在 WSL 发行版里的 Agent 会把历史保存在发行版 home 中。Windows 上 ChatCrystal 会通过 `\\wsl.localhost` 读取，并从 WSL 发行版导入 Claude Code、Codex、Gemini CLI、Qwen Code、OpenCode、Cline、Roo Code、Kilo Code、Continue、DeepSeek Harness 等受支持 Agent 的会话。
+
+- 默认只扫描**正在运行**的发行版，不会为了导入而启动已停止的发行版。可用 `CHATCRYSTAL_WSL_DISTROS=Ubuntu-24.04` 指定发行版，或用 `CHATCRYSTAL_WSL=0` 关闭 WSL 扫描。
+- WSL 与 VS Code Remote 的会话在**手动 Import** 时同步；实时 watcher 只监听 Windows 本地目录。
+- 首次导入较大的 WSL 历史（例如 Codex 会话）会稍慢，因为 `\\wsl.localhost` 读取速度低于本地磁盘。
 
 ## CLI 命令
 
@@ -95,7 +103,13 @@ ChatCrystal 将运行时配置保存在当前数据目录的 `config.json` 中�
     "model": "nomic-embed-text",
     "apiKey": ""
   },
-  "enabledSources": ["claude-code", "codex", "cursor", "trae", "copilot"]
+  "enabledSources": [
+    "claude-code", "codex", "cursor", "trae", "copilot",
+    "gemini", "qwen", "opencode", "cline", "roo", "kilo",
+    "copilot-cli", "continue", "dsh", "workbuddy", "antigravity", "droid", "goose",
+    "pi", "omp", "raft", "cindy", "qoder", "qoder-cn", "codebuddy", "claude-desktop",
+    "zcode", "hermes", "alma", "grok", "kimi", "minimax-code"
+  ]
 }
 ```
 

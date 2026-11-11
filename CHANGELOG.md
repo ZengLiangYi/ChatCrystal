@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+### Sources
+
+- Added 13 conversation-source adapters, so ChatCrystal now imports local history from 18 AI coding agents: Gemini CLI, Qwen Code, OpenCode, Cline, Roo Code, Kilo Code, GitHub Copilot CLI, Continue, DeepSeek Harness, WorkBuddy, Antigravity, Factory Droid, and Goose.
+- Added 14 more conversation-source adapters to match and exceed magpie's 26 session readers, taking the total to 32 sources: Claude Desktop (Cowork/local-agent sessions), Pi, omp, Raft, Cindy, Qoder, Qoder CN, CodeBuddy, ZCode (OpenCode schema), Hermes, Alma, Grok Build, Kimi Code, and MiniMax Code.
+- **WSL support (Windows)**: file-based adapters now read the same agents installed inside WSL distros through `\\wsl.localhost`, plus VS Code Remote Copilot Chat / Cline / Roo Code / Kilo Code sessions from `~/.vscode-server`. Running distros are scanned by default; a stopped distro is never started just to import. `CHATCRYSTAL_WSL=0` disables discovery, `CHATCRYSTAL_WSL_DISTROS` opts distros in, and `CHATCRYSTAL_WSL_HOMES` forces homes (also the test hook).
+- Added multi-frame zstd decoding for DeepSeek Harness session logs (`parser/zstd.ts`) and reused it for zstd-compressed Codex rollouts (`.jsonl.zst`).
+- Codex imports now include `archived_sessions/`, and resumed rollouts no longer collide on the shared thread id (`codex@2` parser version).
+- Codex parsing now also understands the `event_msg/item_completed` conversation format used by Codex 0.160+ (`codex@4`), the format WSL Codex installs write: user and assistant turns are read from `UserMessage` / `AgentMessage` items, and tool items mark the preceding reply as tool-using.
+- Antigravity reading also covers the Antigravity CLI layout (`~/.gemini/antigravity-cli`), locally and inside WSL.
+- Extended `ALL_SOURCE_NAMES` so existing `config.json` files automatically opt into the new sources, remote import accepts them, and memory writeback maps them to source agents.
+- Reworked the watcher to collect watch targets from every adapter (`watchPaths()`) and to reduce globs to their static directory, which chokidar v4+ requires.
+- Per-source directories and storage roots are overridable with environment variables (see `.env.example`).
+
 ## [0.6.1] - 2026-09-20
 
 ### Runtime & Dependencies

@@ -14,7 +14,7 @@
 
 ---
 
-ChatCrystal collects conversations from AI coding tools (Claude Code, Cursor, Codex CLI, Trae, GitHub Copilot), uses LLM to distill them into searchable structured notes, and builds your personal knowledge base.
+ChatCrystal collects conversations from 32 AI coding agent harnesses (Claude Code, Claude Desktop, Codex CLI, Cursor, Trae, GitHub Copilot Chat and CLI, Gemini CLI, Qwen Code, OpenCode, Cline, Roo Code, Kilo Code, Continue, DeepSeek Harness, WorkBuddy, CodeBuddy, Antigravity, Droid, Goose, Pi, omp, Raft, Cindy, Qoder/Qoder CN, ZCode, Hermes, Alma, Grok Build, Kimi Code, MiniMax Code — locally and from WSL distros on Windows), uses LLM to distill them into searchable structured notes, and builds your personal knowledge base.
 
 ## Install
 

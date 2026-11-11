@@ -115,9 +115,12 @@ ChatCrystal 在摘要前使用 turn-based 对话预处理：
 interface SourceAdapter {
   name: string;
   displayName: string;
+  parserVersion?: string;
   detect(): Promise<SourceInfo | null>;
   scan(): Promise<ConversationMeta[]>;
   parse(meta: ConversationMeta): Promise<ParsedConversation>;
+  /** 可选：供 watcher 使用的 chokidar 监听目标。 */
+  watchPaths?(): string[];
 }
 ```
 
@@ -126,12 +129,54 @@ interface SourceAdapter {
 | Adapter | 数据源 | 格式 |
 |---|---|---|
 | `claude-code` | `~/.claude/projects/**/*.jsonl` | JSONL 对话日志 |
-| `codex` | `~/.codex/sessions/**/rollout-*.jsonl` | JSONL 事件流 |
+| `codex` | `~/.codex/sessions/**/rollout-*.jsonl[.zst]` + `archived_sessions/` | JSONL 事件流（旧 `event_msg` 与 0.160+ `item_completed` 两种格式，支持多帧 zstd） |
 | `cursor` | Cursor `workspaceStorage/state.vscdb` | SQLite KV store |
 | `trae` | Trae `workspaceStorage/state.vscdb` | SQLite KV store |
 | `copilot` | VS Code `workspaceStorage/chatSessions/*.jsonl` | JSONL 快照 |
+| `gemini` | `~/.gemini/tmp/*/chats/session-*.{json,jsonl}` | 会话 JSON / 回放 JSONL |
+| `qwen` | `~/.qwen/projects/*/chats/*.jsonl` | Claude 风格 JSONL |
+| `opencode` | `~/.local/share/opencode/opencode.db`（或 `storage/**/*.json`） | SQLite / JSON 文档 |
+| `cline` | `~/.cline/data/sessions/*/*.messages.json`、VS Code 扩展 `tasks/*` | 整文件 JSON |
+| `roo` | `<VS Code User>/globalStorage/rooveterinaryinc.roo-cline/tasks/*` | 整文件 JSON |
+| `kilo` | `<VS Code User>/globalStorage/kilocode.kilo-code/tasks/*` | 整文件 JSON |
+| `copilot-cli` | `~/.copilot/session-state/*/events.jsonl` | 事件 JSONL |
+| `continue` | `~/.continue/sessions/*.json` | 整文件 JSON |
+| `dsh` | `~/.dsh/sessions/**/session.v<N>.jsonl[.zstd]` | JSONL（多帧 zstd） |
+| `workbuddy` | `~/.workbuddy(-ai)/projects/*/*.jsonl` | JSONL（OpenAI Agents items） |
+| `antigravity` | `~/.gemini/antigravity/brain/*/.system_generated/logs/transcript.jsonl` | 步骤 JSONL |
+| `droid` | `~/.factory/sessions/**/*.jsonl` | 事件 JSONL |
+| `goose` | `~/.local/share/goose/sessions/sessions.db`（或 `*.jsonl`） | SQLite / JSONL |
+| `pi` | `~/.pi/agent/sessions/*/*.jsonl` | JSONL（session header + messages） |
+| `omp` | `~/.omp/agent/sessions/*` + profiles | Pi 格式 JSONL |
+| `raft` | `~/.slock/agents/*/.pi-sessions|.builtin-sessions/*.jsonl` | Pi 格式 JSONL |
+| `cindy` | `<config>/Cindy*/pi-agent-home/sessions/*.jsonl` | Pi 格式 JSONL |
+| `qoder` / `qoder-cn` | `~/.qoder(-cn)/projects/*/*.jsonl` | Claude 风格 JSONL |
+| `codebuddy` | `~/.codebuddy/projects/*/*.jsonl` | JSONL（OpenAI Agents items，与 WorkBuddy 相同） |
+| `claude-desktop` | `<Claude data>/local-agent-mode-sessions/*/*/local_*/.claude/projects/*` | Claude 风格 JSONL |
+| `zcode` | `~/.zcode/cli/db/db.sqlite` | OpenCode schema（SQLite） |
+| `hermes` | `~/.hermes/state.db` | SQLite sessions/messages |
+| `alma` | `<config>/alma/chat_threads.db` | SQLite threads/messages |
+| `grok` | `~/.grok/sessions/<cwd>/<id>/updates.jsonl` | ACP update JSONL + summary.json |
+| `kimi` | `~/.kimi-code/sessions/*/*/agents/main/wire.jsonl` | Wire JSONL + state.json |
+| `minimax-code` | `~/.minimax/v2/sessions/**/messages*.jsonl` | JSONL messages |
 
-在 `server/src/parser/adapters/` 下创建适配器，并注册到 `server/src/parser/index.ts`。
+在 `server/src/parser/adapters/` 下创建适配器，注册到 `server/src/parser/index.ts`，并把 source id 加入 `server/src/config.ts` 的 `ALL_SOURCE_NAMES`（该列表同时驱动 `enabledSources` 迁移与远端导入校验）。
+
+### Windows 上的 WSL 多根扫描
+
+基于文件的适配器还能读取装在 WSL 发行版里的同一个 Agent。`parser/wsl.ts` 会发现正在运行的发行版 home（`\\wsl.localhost\<distro>\home\<user>`），`parser/sourceRoots.ts` 提供 `withWslRoots(primaryDir, '<相对路径>')` / `wslRootsFor('<相对路径>')`：
+
+```typescript
+const roots = withWslRoots(appConfig.codexSessionsDir, '.codex/sessions');
+for (const root of roots) {
+  // 扫描 root
+}
+```
+
+- `withWslRoots` 永远把主根放在第一位；只有当 `<发行版 home>/<相对路径>` 存在时才追加 WSL 根。
+- `scan()` 应为每个 `ConversationMeta` 设置 `rootDir: root`；`parse()` 需要根级元数据时用 `meta.rootDir ?? appConfig.<主根>`（Gemini `projects.json`、Antigravity 摘要 DB、Continue `sessions.json`、Cline 扩展 `taskHistory.json` 等）。
+- `watchPaths()` 只返回本地根：watcher 不监听 UNC 路径（慢，且可能启动已停止的发行版）。
+- 发现逻辑支持 `CHATCRYSTAL_WSL=0`（禁用）、`CHATCRYSTAL_WSL_DISTROS`（指定发行版，访问时可能启动）、`CHATCRYSTAL_WSL_HOMES`（强制 home）。测试用 `setWslHomesForTesting([...])` 注入 fixture home。
 
 ## API 面
 

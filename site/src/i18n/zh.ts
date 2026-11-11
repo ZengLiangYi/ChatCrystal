@@ -3,8 +3,8 @@ import type { Translations } from './en';
 export const zh: Translations = {
   meta: {
     title: 'ChatCrystal — 将 AI 对话提炼为你的知识库',
-    description: '开源本地优先 AI PKM / 个人知识管理工具，将 Claude Code、Cursor、Codex CLI、Trae、GitHub Copilot 对话提炼为可搜索笔记、标签图谱和 MCP 记忆。',
-    keywords: 'AI PKM, 个人知识管理, personal knowledge management, personal knowledge base, 本地优先, 语义搜索, MCP, Claude Code, Cursor, Codex CLI, AI memory',
+    description: '开源本地优先 AI PKM / 个人知识管理工具，把 32 个 AI 编程 Agent（Claude Code、Claude Desktop、Codex CLI、Cursor、Copilot、Gemini CLI、OpenCode、Pi、Kimi Code 等）的对话提炼为可搜索笔记、标签图谱和 MCP 记忆，并支持 Windows 上的 WSL 会话。',
+    keywords: 'AI PKM, 个人知识管理, personal knowledge management, personal knowledge base, 本地优先, 语义搜索, MCP, Claude Code, Cursor, Codex CLI, Gemini CLI, AI memory',
   },
   nav: {
     features: '功能',
@@ -21,7 +21,7 @@ export const zh: Translations = {
     downloadDesktop: '下载桌面应用',
     starOnGitHub: '在 GitHub 上 Star',
     highlights: [
-      { value: '5', label: 'AI 编程来源' },
+      { value: '32', label: 'AI Agent Harness' },
       { value: '本地', label: 'SQLite + 向量索引' },
       { value: 'MCP', label: '让 Agent 召回知识' },
     ],
@@ -33,11 +33,12 @@ export const zh: Translations = {
     codex: { name: 'Codex CLI', desc: '会话事件' },
     trae: { name: 'Trae', desc: 'Agent 任务记录' },
     copilot: { name: 'GitHub Copilot', desc: '聊天会话' },
+    more: '同时支持 Claude Desktop、Gemini CLI、Qwen Code、OpenCode、Cline、Roo Code、Kilo Code、Copilot CLI、Continue、DeepSeek Harness、WorkBuddy、CodeBuddy、Pi、omp、Raft、Cindy、Qoder、ZCode、Hermes、Alma、Grok Build、Kimi Code、MiniMax Code，并可从 WSL 发行版导入。',
   },
   howItWorks: {
     heading: '从对话历史到可复用知识',
     steps: [
-      { title: '导入', desc: '扫描 Claude Code、Cursor、Codex CLI、Trae 与 Copilot 的本地历史。' },
+      { title: '导入', desc: '扫描 Claude Code、Codex CLI、Cursor、Copilot、Gemini CLI 等 Agent 的本地历史。' },
       { title: '提炼', desc: '由 LLM 抽取摘要、决策、代码片段、来源信息与标签。' },
       { title: '探索', desc: '语义搜索笔记，并在标签知识图谱里查看知识点关系。' },
       { title: '回流', desc: '导出 Markdown，或通过 MCP 把任务记忆带回 Agent 工作流。' },

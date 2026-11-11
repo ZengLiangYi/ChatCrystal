@@ -39,12 +39,20 @@ The installer is generated under `release/`. The desktop app uses the same defau
 
 ## Workflow
 
-1. Click **Import** to scan Claude Code, Codex CLI, Cursor, Trae, and GitHub Copilot conversations.
+1. Click **Import** to scan local conversation history from all detected agent harnesses — 32 sources including Claude Code, Claude Desktop, Codex CLI, Cursor, Trae, GitHub Copilot Chat and CLI, Gemini CLI, Qwen Code, OpenCode, Cline, Roo Code, Kilo Code, Continue, DeepSeek Harness, WorkBuddy, CodeBuddy, Antigravity, Droid, Goose, Pi, omp, Raft, Cindy, Qoder/Qoder CN, ZCode, Hermes, Alma, Grok Build, Kimi Code, and MiniMax Code (WSL distro homes on Windows included).
 2. Browse raw conversations on the **Conversations** page.
 3. Click **Summarize** or run batch summarization to create notes.
 4. Search on the **Search** page; enable related-note expansion when you want broader context.
 5. Open the graph view to explore tag-based knowledge points and the notes behind each tag.
 6. Use the **Settings** page to switch LLM and embedding providers.
+
+### WSL sessions (Windows)
+
+Agents installed inside a WSL distro keep their history in the distro home. On Windows, ChatCrystal reads those over `\\wsl.localhost` and imports Claude Code, Codex, Gemini CLI, Qwen Code, OpenCode, Cline, Roo Code, Kilo Code, Continue, DeepSeek Harness and other supported agents from your WSL distros.
+
+- Only **running** distros are scanned by default, so a stopped distro is never started just to import. Set `CHATCRYSTAL_WSL_DISTROS=Ubuntu-24.04` to opt specific distros in, or `CHATCRYSTAL_WSL=0` to disable WSL scanning.
+- WSL and VS Code Remote sessions are synced on **Import**; the live file watcher only watches the local Windows folders.
+- The first import of a large WSL history (for example Codex sessions) can take a little longer because `\\wsl.localhost` reads are slower than local disk.
 
 ## CLI Commands
 
@@ -95,7 +103,13 @@ Typical `config.json`:
     "model": "nomic-embed-text",
     "apiKey": ""
   },
-  "enabledSources": ["claude-code", "codex", "cursor", "trae", "copilot"]
+  "enabledSources": [
+    "claude-code", "codex", "cursor", "trae", "copilot",
+    "gemini", "qwen", "opencode", "cline", "roo", "kilo",
+    "copilot-cli", "continue", "dsh", "workbuddy", "antigravity", "droid", "goose",
+    "pi", "omp", "raft", "cindy", "qoder", "qoder-cn", "codebuddy", "claude-desktop",
+    "zcode", "hermes", "alma", "grok", "kimi", "minimax-code"
+  ]
 }
 ```
 

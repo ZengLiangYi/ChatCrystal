@@ -4,7 +4,7 @@
   "version": "0.6.1",
   "private": true,
   "license": "Apache-2.0",
-  "description": "Local-first AI PKM for coding conversations — supports Claude Code, Cursor, Codex CLI, Trae, GitHub Copilot",
+  "description": "Local-first AI PKM for coding conversations — imports 32 AI coding agent harnesses (Claude Code, Claude Desktop, Codex CLI, Cursor, Copilot, Gemini CLI, Qwen Code, OpenCode, Pi, Kimi Code and more), locally and from WSL",
   "keywords": [
     "claude",
     "claude-code",

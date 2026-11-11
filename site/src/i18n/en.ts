@@ -1,8 +1,8 @@
 export const en = {
   meta: {
     title: 'ChatCrystal — Turn AI Conversations into Searchable Knowledge',
-    description: 'Open-source, local-first AI PKM and personal knowledge management app that turns Claude Code, Cursor, Codex CLI, Trae, and GitHub Copilot conversations into searchable notes, a tag graph, and MCP memory.',
-    keywords: 'AI PKM, personal knowledge management, personal knowledge base, local-first, semantic search, MCP, Claude Code, Cursor, Codex CLI, AI memory',
+    description: 'Open-source, local-first AI PKM and personal knowledge management app that turns conversations from 32 AI coding agents — Claude Code, Claude Desktop, Codex CLI, Cursor, Copilot, Gemini CLI, OpenCode, Pi, Kimi Code and more — into searchable notes, a tag graph, and MCP memory.',
+    keywords: 'AI PKM, personal knowledge management, personal knowledge base, local-first, semantic search, MCP, Claude Code, Codex CLI, Cursor, Gemini CLI, AI memory',
   },
   nav: {
     features: 'Features',
@@ -19,7 +19,7 @@ export const en = {
     downloadDesktop: 'Download Desktop App',
     starOnGitHub: 'Star on GitHub',
     highlights: [
-      { value: '5', label: 'AI coding sources' },
+      { value: '32', label: 'AI agent harnesses' },
       { value: 'Local', label: 'SQLite + vector index' },
       { value: 'MCP', label: 'Recall knowledge from agents' },
     ],
@@ -31,11 +31,12 @@ export const en = {
     codex: { name: 'Codex CLI', desc: 'Session events' },
     trae: { name: 'Trae', desc: 'Agent task history' },
     copilot: { name: 'GitHub Copilot', desc: 'Chat sessions' },
+    more: 'Also imports Claude Desktop, Gemini CLI, Qwen Code, OpenCode, Cline, Roo Code, Kilo Code, Copilot CLI, Continue, DeepSeek Harness, WorkBuddy, CodeBuddy, Pi, omp, Raft, Cindy, Qoder, ZCode, Hermes, Alma, Grok Build, Kimi Code, and MiniMax Code — locally and from WSL distros.',
   },
   howItWorks: {
     heading: 'From chat history to reusable knowledge',
     steps: [
-      { title: 'Import', desc: 'Scan Claude Code, Cursor, Codex CLI, Trae, and Copilot histories from your machine.' },
+      { title: 'Import', desc: 'Scan Claude Code, Codex CLI, Cursor, Copilot, Gemini CLI and other agent histories from your machine.' },
       { title: 'Crystallize', desc: 'LLMs extract summaries, decisions, code snippets, source metadata, and tags.' },
       { title: 'Explore', desc: 'Search semantically, browse notes, and inspect the tag-based knowledge graph.' },
       { title: 'Reuse', desc: 'Export Markdown or let MCP recall the right memories inside your agent workflow.' },

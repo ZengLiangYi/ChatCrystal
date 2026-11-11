@@ -31,7 +31,7 @@
 
 <br>
 
-ChatCrystal 是一个本地优先的 AI PKM / 个人知识管理工具，面向每天使用 Claude Code、Cursor、Codex CLI、Trae、GitHub Copilot 解决问题的开发者。
+ChatCrystal 是一个本地优先的 AI PKM / 个人知识管理工具，面向每天使用 AI 编程 Agent 解决问题的开发者：Claude Code、Claude Desktop、Codex CLI、Cursor、Trae、GitHub Copilot Chat 与 CLI、Gemini CLI、Qwen Code、OpenCode、Cline、Roo Code、Kilo Code、Continue、DeepSeek Harness、WorkBuddy、CodeBuddy、Antigravity、Droid、Goose、Pi、omp、Raft、Cindy、Qoder/Qoder CN、ZCode、Hermes、Alma、Grok Build、Kimi Code、MiniMax Code —— 共 32 个 Agent Harness。
 
 它会把散落在 AI 编程工具里的对话沉淀为结构化笔记、语义搜索、标签知识图谱、Markdown 备份和可供 Agent 复用的 MCP 记忆。如果它也解决了你的工作流痛点，Star 可以帮助更多开发者发现这种私有、本地优先的 AI 工作记忆方式。
 
@@ -57,7 +57,8 @@ crystal import
 
 ## 它能做什么
 
-- **导入 AI 编程对话**，从本地工具数据目录扫描历史记录。
+- **导入 AI 编程对话**，覆盖 32 个 Agent Harness：Claude Code、Claude Desktop、Codex CLI、Cursor、Trae、GitHub Copilot Chat 与 CLI、Gemini CLI、Qwen Code、OpenCode、Cline、Roo Code、Kilo Code、Continue、DeepSeek Harness、WorkBuddy、CodeBuddy、Antigravity、Droid、Goose、Pi、omp、Raft、Cindy、Qoder/Qoder CN、ZCode、Hermes、Alma、Grok Build、Kimi Code、MiniMax Code。
+- **支持 Windows 上的 WSL 会话**——装在 WSL 发行版里的 Claude Code、Codex、Gemini CLI、Qwen Code、OpenCode、Cline、Continue、DeepSeek Harness 等也会从发行版 home 导入（默认只扫描正在运行的发行版）。
 - **提炼结构化笔记**，包含标题、摘要、结论、代码片段和标签。
 - **语义搜索知识**，支持 Embedding 检索和关联笔记扩展。
 - **构建知识点图谱**，以 tag 作为知识点节点，用归一化共现关系连接相关知识点。
@@ -193,7 +194,7 @@ docker compose exec chatcrystal cat /data/setup-code
 
 ### 从本机设备导入到云端实例
 
-在保存 Claude Code、Cursor、Codex CLI、Trae 或 GitHub Copilot 历史记录的设备上安装或运行 CLI：
+在保存 AI 编程 Agent 历史记录的设备上安装或运行 CLI（支持 Claude Code、Codex CLI、Gemini CLI、OpenCode、Cline 等 32 种来源）：
 
 ```bash
 crystal connect https://chatcrystal.example.com --token "your-long-token"

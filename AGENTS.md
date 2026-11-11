@@ -4,7 +4,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## Project Overview
 
-ChatCrystal is an AI conversation knowledge crystallization tool. It imports conversations from AI coding tools (Claude Code, Cursor, Codex CLI, Trae, GitHub Copilot), uses LLM to generate structured notes (title, summary, key conclusions, code snippets, tags), and provides semantic search via embeddings. The UI is in Simplified Chinese.
+ChatCrystal is an AI conversation knowledge crystallization tool. It imports conversations from 32 AI agent harnesses (Claude Code, Claude Desktop, Codex CLI, Cursor, Trae, GitHub Copilot, Copilot CLI, Gemini CLI, Qwen Code, OpenCode, Cline, Roo Code, Kilo Code, Continue, DeepSeek Harness, WorkBuddy, CodeBuddy, Antigravity, Droid, Goose, Pi, omp, Raft, Cindy, Qoder, Qoder CN, ZCode, Hermes, Alma, Grok Build, Kimi Code, MiniMax Code), reads them locally **and from WSL distros on Windows**, uses LLM to generate structured notes (title, summary, key conclusions, code snippets, tags), and provides semantic search via embeddings. The UI is in Simplified Chinese.
 
 ## Commands
 
@@ -123,19 +123,20 @@ Monorepo with three npm workspaces:
 - **Database:** sql.js (WASM SQLite), stored under the active runtime data directory as `chatcrystal.db`, auto-saved every 30s
 - **Key modules:**
   - `db/` — Schema (7 tables), utils (`resultToObjects`)
-  - `parser/` — Plugin architecture via `SourceAdapter`. Five built-in adapters:
-    - `adapters/claude-code.ts` — JSONL from `~/.claude/projects/`. Sanitizes `<system-reminder>`, `<command-name>` tags.
-    - `adapters/codex.ts` — JSONL event stream from `~/.codex/sessions/`. Reconstructs conversation from event_msg/response_item events.
-    - `adapters/cursor.ts` — SQLite `state.vscdb` from Cursor's workspaceStorage/globalStorage. Reads composer metadata + bubble data via sql.js.
-    - `adapters/trae.ts` — SQLite `state.vscdb` from Trae's workspaceStorage. Reads `memento/icube-ai-agent-storage` key; extracts content from agentTaskContent for agent responses.
-    - `adapters/copilot.ts` — JSONL from VS Code's workspaceStorage/chatSessions + globalStorage/emptyWindowChatSessions. Parses session snapshots (kind:0) with requests/response arrays.
+  - `parser/` — Plugin architecture via `SourceAdapter`; 32 built-in adapters registered in `parser/index.ts`. Source ids live in `ALL_SOURCE_NAMES` (`config.ts`) and drive `enabledSources` migration and remote-import validation.
+    - JSONL families: `claude-code` (`~/.claude/projects/`), `codex` (`~/.codex/sessions/` + `archived_sessions/`, old and 0.160+ formats, plain or multi-frame zstd), `copilot-cli` (`~/.copilot/session-state/*/events.jsonl`), `droid` (`~/.factory/sessions/**/*.jsonl`), `qwen` (`~/.qwen/projects/*/chats/*.jsonl`, Claude-style), `workbuddy` (`~/.workbuddy(-ai)/projects/*/*.jsonl`, OpenAI Agents items), `codebuddy` (`~/.codebuddy/projects/*`, same items), `qoder`/`qoder-cn` (`~/.qoder(-cn)/projects/*`, Claude-style), `claude-desktop` (Claude Desktop Cowork/local-agent `.claude` trees, Claude-style), `pi` (`~/.pi/agent/sessions/*`), `omp` (`~/.omp/agent` + profiles), `raft` (`~/.slock/agents/*/.pi-sessions|.builtin-sessions`), `cindy` (`<config>/Cindy*/pi-agent-home/sessions`), `grok` (`~/.grok/sessions/<cwd>/<id>/updates.jsonl`), `kimi` (`~/.kimi-code/sessions/*/*/agents/main/wire.jsonl`), `minimax-code` (`~/.minimax/v2/sessions/**/messages*.jsonl`), `antigravity` (`~/.gemini/antigravity` + CLI `.gemini/antigravity-cli` brain logs), `gemini` (`~/.gemini/tmp/*/chats/session-*.{json,jsonl}`).
+    - JSONL with multi-frame zstd: `dsh` (`~/.dsh/sessions/**/session.v<N>.jsonl[.zstd]`; see `parser/zstd.ts`).
+    - Whole-file JSON: `continue` (`~/.continue/sessions/*.json`), `cline` (CLI sessions + VS Code extension `tasks/*`), `roo`/`kilo` (VS Code extension `tasks/*`; shared `parser/adapters/vscode-tasks.ts`).
+    - SQLite: `cursor`/`trae` (`state.vscdb`), `opencode` (`opencode.db`, v1/v2 schema + legacy JSON storage), `zcode` (`~/.zcode/cli/db/db.sqlite`, OpenCode schema), `goose` (`sessions/sessions.db`, or legacy JSONL), `hermes` (`~/.hermes/state.db`), `alma` (`<config>/alma/chat_threads.db`), `copilot` (VS Code chatSession snapshots).
+    - Adapters that support live import expose `watchPaths()`; `watcher/` debounces and auto-imports.
+    - WSL (Windows): file-based adapters scan each running WSL distro home as an extra root through `parser/wsl.ts` + `parser/sourceRoots.ts` (`withWslRoots(primary, '.codex/sessions')`), set `ConversationMeta.rootDir`, and read root-level metadata with `meta.rootDir ?? appConfig.<primary>`. WSL and VS Code Remote (`.vscode-server/data/User`) sessions are imported on manual Import; the watcher only watches local Windows paths.
   - `services/llm.ts` — Provider factory via Vercel AI SDK (Ollama, OpenAI, OrcaRouter, Anthropic, Google, Azure, Custom)
   - `services/summarize.ts` — Conversation preprocessing (truncate ~8000 tokens) + LLM call + JSON parsing + DB persistence. Auto-generates embeddings after summarization.
   - `services/embedding.ts` — Embedding model factory + vectra LocalIndex + text chunking
   - `services/import.ts` — Scan + dedup (file size + mtime) + batch insert
   - `routes/` — REST endpoints: status, config, import, conversations CRUD, notes CRUD, tags, search, queue status, batch operations
   - `queue/` — p-queue singleton (concurrency=1, 1 req/sec, 429 retry)
-  - `watcher/` — chokidar watches all configured data source paths (Claude Code, Codex CLI, Cursor, Trae, GitHub Copilot), debounced auto-import
+  - `watcher/` — chokidar watches every adapter's `watchPaths()` plus the legacy source dirs, debounced auto-import (globs are reduced to their static directory because chokidar v4+ dropped glob support)
 
 ### `client/` — React SPA
 - **Build:** Vite v8 + `@vitejs/plugin-react`
@@ -166,10 +167,35 @@ Monorepo with three npm workspaces:
 
 ```
 ~/.claude/projects/**/*.jsonl       → Claude Code Adapter (JSONL parse + sanitize)
-~/.codex/sessions/**/*.jsonl        → Codex Adapter (event stream → conversation)
+~/.codex/sessions|archived_sessions/** → Codex Adapter (event stream, plain/zstd)
 Cursor workspaceStorage/state.vscdb → Cursor Adapter (SQLite KV → messages)
 Trae workspaceStorage/state.vscdb   → Trae Adapter (SQLite KV → agent task content)
 Code workspaceStorage/chatSessions  → Copilot Adapter (JSONL session snapshots)
+~/.gemini/tmp/*/chats/*             → Gemini CLI Adapter (session JSON / replay JSONL)
+~/.qwen/projects/*/chats/*.jsonl    → Qwen Code Adapter (Claude-style JSONL)
+~/.local/share/opencode/            → OpenCode Adapter (SQLite v1/v2 or legacy JSON)
+<VS Code User>/globalStorage/*/tasks → Cline / Roo / Kilo Adapters (whole-file JSON)
+~/.copilot/session-state/*/*.jsonl  → Copilot CLI Adapter (event JSONL)
+~/.continue/sessions/*.json         → Continue Adapter (whole-file JSON)
+~/.dsh/sessions/**/*.jsonl[.zstd]   → DeepSeek Harness Adapter (zstd frames → events)
+~/.workbuddy(-ai)/projects/*/*.jsonl→ WorkBuddy Adapter (OpenAI Agents items)
+~/.gemini/antigravity/brain/*/logs  → Antigravity Adapter (step JSONL)
+~/.factory/sessions/**/*.jsonl      → Droid Adapter (event JSONL)
+~/.local/share/goose/sessions/      → Goose Adapter (SQLite or legacy JSONL)
+~/.claude | .codex | ... under WSL   → same adapters scan each WSL distro home as an extra root
+~/.pi/agent/sessions/*              → Pi Adapter (JSONL entries)
+~/.omp/agent (+profiles)            → omp Adapter (Pi format + titles)
+~/.slock/agents/*/.pi-sessions      → Raft Adapter (Pi format)
+<Cindy>/pi-agent-home/sessions      → Cindy Adapter (Pi format)
+~/.qoder(-cn)/projects/*            → Qoder / Qoder CN Adapters (Claude-style JSONL)
+~/.codebuddy/projects/*             → CodeBuddy Adapter (WorkBuddy items)
+%APPDATA%/Claude/.../local_*/.claude → Claude Desktop Adapter (Claude-style JSONL)
+~/.zcode/cli/db/db.sqlite           → ZCode Adapter (OpenCode schema)
+~/.hermes/state.db                  → Hermes Adapter (SQLite)
+<config>/alma/chat_threads.db       → Alma Adapter (SQLite)
+~/.grok/sessions/<cwd>/<id>         → Grok Build Adapter (updates.jsonl)
+~/.kimi-code/sessions/*/*/agents/main → Kimi Code Adapter (wire.jsonl)
+~/.minimax/v2/sessions/**           → MiniMax Code Adapter (messages*.jsonl)
   → Import Service (dedup by id+source, insert)
   → SQLite
   → Fastify REST API
@@ -191,6 +217,31 @@ Runtime configuration is stored in `config.json` under the active data directory
 - `CURSOR_DATA_DIR` — path to Cursor data (auto-detected per platform)
 - `TRAE_DATA_DIR` — path to Trae data (auto-detected per platform)
 - `COPILOT_DATA_DIR` — path to VS Code Copilot data (auto-detected per platform)
+- `GEMINI_DATA_DIR` — Gemini CLI home (default `~/.gemini`)
+- `QWEN_DATA_DIR` — Qwen Code home (default `~/.qwen`)
+- `OPENCODE_DATA_DIR` — OpenCode data dir (default `~/.local/share/opencode`)
+- `CLINE_DATA_DIR` / `CLINE_EXT_DATA_DIR` — Cline CLI data / VS Code extension globalStorage
+- `ROO_DATA_DIR` / `KILO_DATA_DIR` — Roo Code / Kilo Code extension globalStorage dirs
+- `COPILOT_CLI_DATA_DIR` — GitHub Copilot CLI home (default `~/.copilot`)
+- `CONTINUE_DATA_DIR` — Continue home (default `~/.continue`)
+- `DSH_SESSIONS_DIR` — DeepSeek Harness sessions (default `~/.dsh/sessions`)
+- `WORKBUDDY_DATA_DIR` / `WORKBUDDY_AI_DATA_DIR` — WorkBuddy / WorkBuddy AI homes
+- `ANTIGRAVITY_DATA_DIR` — Antigravity data (default `~/.gemini/antigravity`)
+- `DROID_DATA_DIR` — Factory Droid home (default `~/.factory`)
+- `GOOSE_DATA_DIR` — Goose data dir (default platform-specific)
+- `VSCODE_USER_DIR` — VS Code per-user data folder, used to locate extension task stores
+- `PI_CODING_AGENT_DIR` — Pi agent folder (default `~/.pi/agent`)
+- `OMP_DATA_DIR` — omp agent folder (default `~/.omp/agent`)
+- `SLOCK_HOME` — Raft folder (default `~/.slock`)
+- `CINDY_CONFIG_DIR` — platform config folder containing `Cindy`/`CindyGlobal`
+- `QODER_CONFIG_DIR` / `QODERCN_CONFIG_DIR` — Qoder / Qoder CN homes
+- `CODEBUDDY_CONFIG_DIR` — CodeBuddy Code home (default `~/.codebuddy`)
+- `CLAUDE_DESKTOP_DATA_DIR` — Claude Desktop data folder (default `<config>/Claude`)
+- `ZCODE_HOME` / `HERMES_HOME` / `GROK_HOME` / `KIMI_CODE_HOME` / `MINIMAX_DATA_DIR` — ZCode / Hermes / Grok Build / Kimi Code / MiniMax Code homes
+- `ALMA_DATA_DIR` — Alma data folder (default `<config>/alma`)
+- `CHATCRYSTAL_WSL` — set to `0`/`false`/`off` to disable WSL session discovery
+- `CHATCRYSTAL_WSL_DISTROS` — comma-separated WSL distros to read (they may be started on access); default is only running distros
+- `CHATCRYSTAL_WSL_HOMES` — semicolon-separated forced homes (also used by tests)
 - `LLM_PROVIDER` / `LLM_MODEL` — for summarization (ollama, openai, orcarouter, anthropic, google, azure, custom)
 - `EMBEDDING_PROVIDER` / `EMBEDDING_MODEL` — for semantic search
 
@@ -203,7 +254,7 @@ Runtime configuration is stored in `config.json` under the active data directory
 
 ## Key Patterns
 
-- **SourceAdapter plugin interface** (`parser/adapter.ts`): implement `detect()`, `scan()`, `parse()` to add new sources. Currently 5 adapters: claude-code (JSONL), codex (JSONL events), cursor (SQLite vscdb), trae (SQLite vscdb), copilot (JSONL sessions)
+- **SourceAdapter plugin interface** (`parser/adapter.ts`): implement `detect()`, `scan()`, `parse()` and optional `watchPaths()` to add new sources. 32 adapters ship today (all 26 magpie session readers plus Trae, Copilot Chat/CLI, Roo, Kilo, Continue, Goose, Qwen and zcode extras); the id list lives in `ALL_SOURCE_NAMES` (`server/src/config.ts`) and must match `server/src/parser/index.ts`. New source tests set their data-dir env var before importing the adapter so `appConfig` picks the fixture root. File-based adapters that can run in WSL scan `withWslRoots(primary, '<distro-home-relative>')` and tag metas with `rootDir`; tests set `CHATCRYSTAL_WSL='0'` and inject fixtures via `setWslHomesForTesting()`.
 - **Shared types are the contract**: both server and client import from `@chatcrystal/shared`
 - **No ORM**: raw SQL via sql.js with parameterized queries
 - **sanitizeContent()**: strips Claude Code system XML tags from message content
