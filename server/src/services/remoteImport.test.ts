@@ -7,7 +7,7 @@ import type {
   RemoteImportItem,
 } from '@chatcrystal/shared';
 import type { SourceAdapter } from '../parser/adapter.js';
-import { appConfig } from '../config.js';
+import { ALL_SOURCE_NAMES, appConfig } from '../config.js';
 import { registerAdapter } from '../parser/index.js';
 import {
   chunkRemoteImportItems,
@@ -131,7 +131,7 @@ test('chunkRemoteImportItems also limits batches by serialized byte size', () =>
 
 
 test('validateRemoteImportSource rejects unsupported sources', () => {
-  for (const source of ['claude-code', 'codex', 'cursor', 'trae', 'copilot']) {
+  for (const source of ALL_SOURCE_NAMES) {
     assert.doesNotThrow(() => validateRemoteImportSource(source));
   }
   assert.throws(
@@ -140,8 +140,8 @@ test('validateRemoteImportSource rejects unsupported sources', () => {
   );
 });
 
-test('collectRemoteImportItems covers all five supported source adapters', async () => {
-  const sources: ChatCrystalSource[] = ['claude-code', 'codex', 'cursor', 'trae', 'copilot'];
+test('collectRemoteImportItems covers all registered source adapters', async () => {
+  const sources: ChatCrystalSource[] = [...ALL_SOURCE_NAMES];
   for (const source of sources) {
     registerAdapter(sourceAdapter(source));
   }

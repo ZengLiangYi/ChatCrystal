@@ -1,9 +1,11 @@
 import { existsSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { watch } from "chokidar";
 import { appConfig } from "../config.js";
 import { getCopilotWatchPaths } from "../parser/adapters/copilot.js";
 import { getCursorGlobalVscdbPath } from "../parser/adapters/cursor.js";
 import { getTraeWatchPaths } from "../parser/adapters/trae.js";
+import { getAllAdapters } from "../parser/index.js";
 import { importAll } from "../services/import.js";
 
 let isImporting = false;
@@ -45,30 +47,65 @@ function debouncedImport() {
 	debounceTimer = setTimeout(runImport, 3000);
 }
 
-export function startWatcher() {
-	const watchTargets: string[] = [];
+const GLOB_CHARS = /[*?[\]{}]/;
 
-	// Claude Code
-	const claudeDir = appConfig.claudeProjectsDir;
-	watchTargets.push(`${claudeDir}/**/*.jsonl`);
-
-	// Codex CLI
-	const codexDir = appConfig.codexSessionsDir;
-	if (existsSync(codexDir)) {
-		watchTargets.push(`${codexDir}/**/*.jsonl`);
+/**
+ * chokidar v4+ dropped glob support, so a target such as
+ * `~/.claude/projects/**\/*.jsonl` would be watched as a literal path and never
+ * fire. Reduce every target to the closest existing file or directory: for a
+ * glob, the static prefix before the first wildcard; chokidar watches
+ * directories recursively.
+ */
+function normalizeWatchTarget(target: string): string | null {
+	const trimmed = target.trim();
+	if (!trimmed) return null;
+	if (!GLOB_CHARS.test(trimmed)) {
+		return existsSync(trimmed) ? trimmed : null;
 	}
+	const wildcardIndex = trimmed.search(GLOB_CHARS);
+	const staticPrefix = trimmed.slice(0, wildcardIndex);
+	const directory = staticPrefix.endsWith("/") || staticPrefix.endsWith("\\")
+		? staticPrefix.slice(0, -1)
+		: dirname(staticPrefix);
+	const resolved = resolve(directory);
+	return existsSync(resolved) ? resolved : null;
+}
 
-	// Cursor (watch the global vscdb file)
+export function collectWatchTargets(): string[] {
+	const rawTargets: string[] = [];
+
+	// Sources whose adapters keep their path helpers local (legacy adapters).
+	rawTargets.push(`${appConfig.claudeProjectsDir}/**/*.jsonl`);
 	const cursorVscdb = getCursorGlobalVscdbPath();
-	if (cursorVscdb) {
-		watchTargets.push(cursorVscdb);
+	if (cursorVscdb) rawTargets.push(cursorVscdb);
+	rawTargets.push(...getTraeWatchPaths());
+	rawTargets.push(...getCopilotWatchPaths());
+
+	// Every adapter that declares its own watch paths (newer sources).
+	for (const adapter of getAllAdapters()) {
+		if (!adapter.watchPaths) continue;
+		try {
+			rawTargets.push(...adapter.watchPaths());
+		} catch (err) {
+			console.warn(
+				`[Watcher] Failed to resolve watch paths for ${adapter.name}:`,
+				err instanceof Error ? err.message : err,
+			);
+		}
 	}
 
-	// Trae (watch workspace vscdb files)
-	watchTargets.push(...getTraeWatchPaths());
+	const targets: string[] = [];
+	for (const target of rawTargets) {
+		const normalized = normalizeWatchTarget(target);
+		if (normalized && !targets.includes(normalized)) {
+			targets.push(normalized);
+		}
+	}
+	return targets;
+}
 
-	// GitHub Copilot (watch chatSessions JSONL files)
-	watchTargets.push(...getCopilotWatchPaths());
+export function startWatcher() {
+	const watchTargets = collectWatchTargets();
 
 	console.log(`[Watcher] Watching ${watchTargets.length} target(s):`);
 	for (const t of watchTargets) {

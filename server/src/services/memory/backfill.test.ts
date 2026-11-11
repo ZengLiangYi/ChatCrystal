@@ -59,3 +59,20 @@ test('backfillImportedNoteMetadata populates metadata for legacy imported notes'
 test('mapConversationSourceToAgent recognizes trae as a first-class source agent', () => {
   assert.equal(mapConversationSourceToAgent('trae'), 'trae');
 });
+
+test('mapConversationSourceToAgent recognizes the 2026 agent harnesses', () => {
+  assert.equal(mapConversationSourceToAgent('gemini'), 'gemini');
+  assert.equal(mapConversationSourceToAgent('qwen'), 'qwen');
+  assert.equal(mapConversationSourceToAgent('opencode'), 'opencode');
+  assert.equal(mapConversationSourceToAgent('cline'), 'cline');
+  assert.equal(mapConversationSourceToAgent('roo'), 'roo');
+  assert.equal(mapConversationSourceToAgent('kilo'), 'kilo');
+  assert.equal(mapConversationSourceToAgent('continue'), 'continue');
+  assert.equal(mapConversationSourceToAgent('dsh'), 'dsh');
+  assert.equal(mapConversationSourceToAgent('workbuddy'), 'workbuddy');
+  assert.equal(mapConversationSourceToAgent('antigravity'), 'antigravity');
+  assert.equal(mapConversationSourceToAgent('droid'), 'droid');
+  assert.equal(mapConversationSourceToAgent('goose'), 'goose');
+  assert.equal(mapConversationSourceToAgent('copilot-cli'), 'copilot');
+  assert.equal(mapConversationSourceToAgent('unknown-agent'), 'unknown');
+});

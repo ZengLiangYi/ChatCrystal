@@ -36,4 +36,10 @@ export interface SourceAdapter {
    * Should filter noise, extract content, and reconstruct thread order.
    */
   parse(meta: ConversationMeta): Promise<ParsedConversation>;
+
+  /**
+   * Optional chokidar watch targets for live auto-import (files or globs).
+   * Return an empty array when the source cannot be watched.
+   */
+  watchPaths?(): string[];
 }

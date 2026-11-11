@@ -1,4 +1,5 @@
 import type { Command } from 'commander';
+import { ALL_SOURCE_NAMES } from '../../config.js';
 import { CrystalClient } from '../client.js';
 import { isLocalBaseUrl } from '../../runtime/cloud.js';
 import { runRemoteImport } from '../../services/remoteImport.js';
@@ -32,7 +33,7 @@ export function registerImportCommand(program: Command) {
   program
     .command('import')
     .description('Scan and import conversations from all sources')
-    .option('-s, --source <source>', 'Import from specific source (claude-code, codex, cursor, trae, copilot)')
+    .option('-s, --source <source>', `Import from specific source (${ALL_SOURCE_NAMES.join(', ')})`)
     .option('-y, --yes', 'Skip confirmation prompt for remote import upload')
     .action(async (opts) => {
       const globalOpts = program.opts();

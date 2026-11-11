@@ -5,14 +5,9 @@ import type {
   ParsedConversation,
   RemoteImportItem,
 } from '@chatcrystal/shared';
+import { ALL_SOURCE_NAMES } from '../config.js';
 
-export const SUPPORTED_IMPORT_SOURCES: ChatCrystalSource[] = [
-  'claude-code',
-  'codex',
-  'cursor',
-  'trae',
-  'copilot',
-];
+export const SUPPORTED_IMPORT_SOURCES: ChatCrystalSource[] = [...ALL_SOURCE_NAMES];
 
 export function isChatCrystalSource(source: string): source is ChatCrystalSource {
   return SUPPORTED_IMPORT_SOURCES.includes(source as ChatCrystalSource);

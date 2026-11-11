@@ -1,15 +1,41 @@
 import type { Database } from 'sql.js';
+import type { SourceAgent } from '@chatcrystal/shared';
 import { deriveProjectKey, resolveProjectIdentity } from './projectKey.js';
 
-export function mapConversationSourceToAgent(
-  source: string,
-): 'codex' | 'claude' | 'copilot' | 'cursor' | 'trae' | 'unknown' {
+export function mapConversationSourceToAgent(source: string): SourceAgent {
   const normalized = String(source);
   if (normalized === 'codex') return 'codex';
   if (normalized === 'claude-code') return 'claude';
   if (normalized === 'copilot') return 'copilot';
+  if (normalized === 'copilot-cli') return 'copilot';
   if (normalized === 'cursor') return 'cursor';
   if (normalized === 'trae') return 'trae';
+  if (normalized === 'gemini') return 'gemini';
+  if (normalized === 'qwen') return 'qwen';
+  if (normalized === 'opencode') return 'opencode';
+  if (normalized === 'cline') return 'cline';
+  if (normalized === 'roo') return 'roo';
+  if (normalized === 'kilo') return 'kilo';
+  if (normalized === 'continue') return 'continue';
+  if (normalized === 'dsh') return 'dsh';
+  if (normalized === 'workbuddy') return 'workbuddy';
+  if (normalized === 'antigravity') return 'antigravity';
+  if (normalized === 'droid') return 'droid';
+  if (normalized === 'goose') return 'goose';
+  if (normalized === 'pi') return 'pi';
+  if (normalized === 'omp') return 'omp';
+  if (normalized === 'raft') return 'raft';
+  if (normalized === 'cindy') return 'cindy';
+  if (normalized === 'qoder') return 'qoder';
+  if (normalized === 'qoder-cn') return 'qoder-cn';
+  if (normalized === 'codebuddy') return 'codebuddy';
+  if (normalized === 'claude-desktop') return 'claude-desktop';
+  if (normalized === 'zcode') return 'zcode';
+  if (normalized === 'hermes') return 'hermes';
+  if (normalized === 'alma') return 'alma';
+  if (normalized === 'grok') return 'grok';
+  if (normalized === 'kimi') return 'kimi';
+  if (normalized === 'minimax-code') return 'minimax-code';
   return 'unknown';
 }
 

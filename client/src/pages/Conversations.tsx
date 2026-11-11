@@ -48,7 +48,7 @@ export function Conversations() {
 			</div>
 
 			{/* Source filter */}
-			<div className="flex items-center gap-2 mb-4">
+			<div className="flex flex-wrap items-center gap-2 mb-4">
 				<span className="text-xs text-muted">{t('label.source')}</span>
 				{[
 					{ key: "", label: t('filter.all') },
