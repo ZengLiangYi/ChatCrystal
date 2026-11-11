@@ -5,7 +5,9 @@ packages:
 
 overrides:
   proxy-addr: ">=2.0.8"
-  follow-redirects: ">=1.16.1"
+  body-parser: ">=2.4.0"
+  follow-redirects: ">=1.16.2"
+  joi: ">=18.3.1"
   source-map-js: ">=1.2.2"
   http-cache-semantics: ">=4.3.0"
   "@grpc/grpc-js": ">=1.14.5"

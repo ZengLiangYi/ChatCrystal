@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Security
+
+- Updated Electron to 44.9.1 and forced patched transitive versions of `body-parser` (2.4.0), `follow-redirects` (1.16.2+), and `joi` (18.3.1+) through pnpm overrides, clearing the high-severity advisories that blocked the 0.7.0 npm publish. `pnpm security:audit` now reports 0 high/critical findings.
+
 ## [0.7.0] - 2026-11-12
 
 ### Import & Sync
