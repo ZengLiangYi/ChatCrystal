@@ -970,7 +970,7 @@ export const LogoLoop = memo(
         Array.from({ length: copies }, (_, copyIndex) => {
           const isPrimary = copyIndex === primary;
           return (
-            <ul className="logoloop__list" key={copyIndex} role="list" aria-hidden={isPrimary ? undefined : true}>
+            <ul className="logoloop__list" key={copyIndex} aria-hidden={isPrimary ? undefined : true}>
               {logos.map((item, itemIndex) => {
                 const key = `${copyIndex}-${itemIndex}`;
                 const isNode = 'node' in item;
@@ -1010,7 +1010,6 @@ export const LogoLoop = memo(
                   <li
                     className="logoloop__item"
                     key={key}
-                    role="listitem"
                     data-color={item.hoverColor ? '' : undefined}
                     style={item.hoverColor ? { '--logoloop-item-color': item.hoverColor } : undefined}
                   >
@@ -1072,11 +1071,10 @@ export const LogoLoop = memo(
       .join(' ');
 
     return (
-      <div
+      <section
         ref={rootRef}
         className={rootClassName}
         style={containerStyle}
-        role="region"
         aria-label={ariaLabel}
         data-intro={introPending ? '' : undefined}
         data-draggable={draggable ? '' : undefined}
@@ -1086,7 +1084,7 @@ export const LogoLoop = memo(
         <div className="logoloop__track" ref={trackRef}>
           {lists}
         </div>
-      </div>
+      </section>
     );
   }
 );

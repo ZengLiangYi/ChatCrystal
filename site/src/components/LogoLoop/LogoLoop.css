@@ -3,7 +3,6 @@
   --logoloop-logoHeight: 28px;
   --logoloop-pad: 0px;
   position: relative;
-  overflow: hidden;
   overflow: clip;
   padding-top: var(--logoloop-pad);
   padding-bottom: var(--logoloop-pad);
