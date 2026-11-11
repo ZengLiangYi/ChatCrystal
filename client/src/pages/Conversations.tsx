@@ -1,4 +1,5 @@
 import { Clock, FolderGit2, MessageSquare } from "lucide-react";
+import type { TFunction } from "i18next";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -8,6 +9,63 @@ import {
 	getSourceLabel,
 	SOURCE_CONFIG,
 } from "@/lib/source-colors.ts";
+
+/** Text from an unknown API value; empty and legacy "null"/"undefined" count as absent. */
+function readableText(value: unknown): string {
+	if (typeof value !== "string") return "";
+	const trimmed = value.trim();
+	if (!trimmed || trimmed === "null" || trimmed === "undefined") return "";
+	return trimmed;
+}
+
+const SHORT_ID_LENGTH = 8;
+
+function shortIdOf(value: unknown): string {
+	const id = readableText(value);
+	if (!id) return "";
+	return id.length > SHORT_ID_LENGTH ? `${id.slice(0, SHORT_ID_LENGTH)}…` : id;
+}
+
+/**
+ * The conversation's title in a list row. A "pending" (index-only) row may have
+ * no slug yet; fall back to the project, the source name, then the id stub so
+ * the cell is never blank.
+ */
+function conversationTitle(
+	conv: Record<string, unknown>,
+	t: TFunction,
+): string {
+	const slug = readableText(conv.slug);
+	if (slug) return slug;
+	const project = readableText(conv.project_name);
+	if (project) return project;
+	const source = readableText(conv.source);
+	if (source) return getSourceLabel(source);
+	const shortId = shortIdOf(conv.id);
+	if (shortId) return shortId;
+	return t("conversation.untitled");
+}
+
+/** The project (subtitle) of a list row, with the same no-blank rules. */
+function conversationProject(
+	conv: Record<string, unknown>,
+	t: TFunction,
+): string {
+	const project = readableText(conv.project_name);
+	if (project) return project;
+	const source = readableText(conv.source);
+	if (source) return getSourceLabel(source);
+	return t("conversation.unknown_project");
+}
+
+/**
+ * A conversation imported from its index may still be marked "pending" while
+ * its transcript is parsed in the background. Old API responses have no
+ * `transcript_status`; only an explicit "pending" shows the indexing badge.
+ */
+function isIndexing(conv: Record<string, unknown>): boolean {
+	return conv.transcript_status === "pending";
+}
 
 export function Conversations() {
 	const { t } = useTranslation();
@@ -87,7 +145,7 @@ export function Conversations() {
 					<table className="w-full text-sm">
 						<thead>
 							<tr className="bg-tertiary text-left text-xs text-muted uppercase tracking-wider">
-								<th className="px-4 py-2">{t('table.project')}</th>
+								<th className="px-4 py-2">{t('table.conversation')}</th>
 								<th className="px-4 py-2">{t('table.source')}</th>
 								<th className="px-4 py-2">{t('table.conversation_id')}</th>
 								<th className="px-4 py-2 text-center">{t('table.message_count')}</th>
@@ -95,42 +153,65 @@ export function Conversations() {
 							</tr>
 						</thead>
 						<tbody>
-							{data?.items.map((conv) => (
-								<tr
-									key={conv.id as string}
-									onClick={() => navigate(`/conversations/${conv.id}`)}
-									className="border-t border-theme hover:bg-tertiary cursor-pointer transition-colors"
-								>
-									<td className="px-4 py-3">
-										<div className="flex items-center gap-2">
-											<FolderGit2 size={14} className="text-info shrink-0" />
-											<span className="text-primary font-medium truncate max-w-48">
-												{conv.project_name as string}
+							{data?.items.map((conv) => {
+								const title = conversationTitle(conv, t);
+								const project = conversationProject(conv, t);
+								const indexing = isIndexing(conv);
+								const idText = readableText(conv.id);
+								return (
+									<tr
+										key={conv.id as string}
+										onClick={() => navigate(`/conversations/${conv.id}`)}
+										className="border-t border-theme hover:bg-tertiary cursor-pointer transition-colors"
+									>
+										<td className="px-4 py-3">
+											<div className="flex min-w-0 items-center gap-1.5">
+												<span className="max-w-56 truncate text-primary font-medium">
+													{title}
+												</span>
+												{indexing && (
+													<span
+														className="inline-flex shrink-0 items-center gap-1 text-[10px] text-muted"
+														title={t('conversation.indexing_hint')}
+													>
+														<span
+															className="h-1.5 w-1.5 animate-pulse rounded-full"
+															style={{ background: 'var(--accent)' }}
+														/>
+														{t('conversation.indexing')}
+													</span>
+												)}
+											</div>
+											{project !== title && (
+												<div className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-muted">
+													<FolderGit2 size={11} className="shrink-0 text-info" />
+													<span className="max-w-56 truncate">{project}</span>
+												</div>
+											)}
+										</td>
+										<td className="px-4 py-3">
+											<SourceBadge source={readableText(conv.source)} />
+										</td>
+										<td className="px-4 py-3">
+											<span className="text-secondary font-mono text-xs" title={idText}>
+												{shortIdOf(conv.id) || '—'}
 											</span>
-										</div>
-									</td>
-									<td className="px-4 py-3">
-										<SourceBadge source={conv.source as string} />
-									</td>
-									<td className="px-4 py-3">
-										<span className="text-secondary font-mono text-xs">
-											{(conv.slug as string) || (conv.id as string).slice(0, 8)}
-										</span>
-									</td>
-									<td className="px-4 py-3 text-center">
-										<div className="flex items-center justify-center gap-1 text-muted">
-											<MessageSquare size={12} />
-											{conv.message_count as number}
-										</div>
-									</td>
-									<td className="px-4 py-3">
-										<div className="flex items-center gap-1 text-muted text-xs">
-											<Clock size={12} />
-											<FormatTime iso={conv.last_message_at as string} />
-										</div>
-									</td>
-								</tr>
-							))}
+										</td>
+										<td className="px-4 py-3 text-center">
+											<div className="flex items-center justify-center gap-1 text-muted">
+												<MessageSquare size={12} />
+												{conv.message_count as number}
+											</div>
+										</td>
+										<td className="px-4 py-3">
+											<div className="flex items-center gap-1 text-muted text-xs">
+												<Clock size={12} />
+												<FormatTime iso={conv.last_message_at as string} />
+											</div>
+										</td>
+									</tr>
+								);
+							})}
 						</tbody>
 					</table>
 				</div>
@@ -175,7 +256,7 @@ function SourceBadge({ source }: { source: string }) {
 				borderRadius: "var(--radius)",
 			}}
 		>
-			{getSourceLabel(source)}
+			{source ? getSourceLabel(source) : "—"}
 		</span>
 	);
 }
@@ -183,6 +264,7 @@ function SourceBadge({ source }: { source: string }) {
 function FormatTime({ iso }: { iso: string }) {
 	const { t } = useTranslation();
 	const d = new Date(iso);
+	if (Number.isNaN(d.getTime())) return <>—</>;
 	const now = new Date();
 	const diffMs = now.getTime() - d.getTime();
 	const diffMin = Math.floor(diffMs / 60000);

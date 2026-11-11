@@ -136,6 +136,7 @@
   "table": {
     "project": "项目",
     "source": "来源",
+    "conversation": "对话",
     "conversation_id": "对话标识",
     "message_count": "消息数",
     "last_active": "最后活跃"
@@ -153,7 +154,12 @@
   "conversation": {
     "messages_count": "{{count}} 条消息",
     "tool_calls_count": "{{count}} 次工具调用",
-    "tool_use_indicator": "此消息使用了工具"
+    "tool_use_indicator": "此消息使用了工具",
+    "untitled": "未命名对话",
+    "unknown_project": "未知项目",
+    "indexing": "索引中",
+    "indexing_hint": "该对话正在后台解析，稍后自动完成",
+    "indexing_messages": "正在解析对话内容…"
   },
   "notes_total": "共 {{count}} 条笔记",
   "notes": {

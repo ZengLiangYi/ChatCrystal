@@ -136,6 +136,7 @@
   "table": {
     "project": "Project",
     "source": "Source",
+    "conversation": "Conversation",
     "conversation_id": "Conversation ID",
     "message_count": "Messages",
     "last_active": "Last Active"
@@ -153,7 +154,12 @@
   "conversation": {
     "messages_count": "{{count}} messages",
     "tool_calls_count": "{{count}} tool calls",
-    "tool_use_indicator": "This message used tools"
+    "tool_use_indicator": "This message used tools",
+    "untitled": "Untitled conversation",
+    "unknown_project": "Unknown project",
+    "indexing": "Indexing",
+    "indexing_hint": "This conversation is being parsed in the background; it finishes shortly.",
+    "indexing_messages": "Parsing conversation messages…"
   },
   "notes_total": "{{count}} notes total",
   "notes": {

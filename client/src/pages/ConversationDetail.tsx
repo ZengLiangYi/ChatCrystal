@@ -1,21 +1,91 @@
-import { memo, useState, useMemo } from 'react';
+import { memo, useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Bot, Wrench, ChevronRight, ChevronDown, Sparkles, FileText, AlertTriangle, Loader2 } from 'lucide-react';
+import type { TFunction } from 'i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useConversation } from '@/hooks/use-conversations.ts';
 import { useSummarize } from '@/hooks/use-notes.ts';
 import { useQueueTasks } from '@/hooks/use-queue.ts';
 import { MarkdownRenderer } from '@/components/MarkdownRenderer.tsx';
+import { getSourceLabel } from '@/lib/source-colors.ts';
+
+/** Text from an unknown API value; empty and legacy "null"/"undefined" count as absent. */
+function readableText(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return '';
+  return trimmed;
+}
+
+const SHORT_ID_LENGTH = 8;
+
+/**
+ * The page title. A "pending" (index-only) conversation may have no slug yet;
+ * fall back to the project, the source name, then the id stub so the header is
+ * never blank.
+ */
+function conversationTitle(
+  conv: Record<string, unknown> | undefined,
+  t: TFunction,
+): string {
+  if (!conv) return t('conversation.untitled');
+  const slug = readableText(conv.slug);
+  if (slug) return slug;
+  const project = readableText(conv.project_name);
+  if (project) return project;
+  const source = readableText(conv.source);
+  if (source) return getSourceLabel(source);
+  const id = readableText(conv.id);
+  if (id) {
+    return id.length > SHORT_ID_LENGTH ? `${id.slice(0, SHORT_ID_LENGTH)}…` : id;
+  }
+  return t('conversation.untitled');
+}
+
+/** The project subtitle of the header, with the same no-blank rules. */
+function conversationProject(
+  conv: Record<string, unknown> | undefined,
+  t: TFunction,
+): string {
+  if (!conv) return t('conversation.unknown_project');
+  const project = readableText(conv.project_name);
+  if (project) return project;
+  const source = readableText(conv.source);
+  if (source) return getSourceLabel(source);
+  return t('conversation.unknown_project');
+}
+
+/**
+ * Old API responses have no `transcript_status`; only an explicit "pending"
+ * means the transcript is still being parsed in the background.
+ */
+function isIndexing(conv: Record<string, unknown> | undefined): boolean {
+  return conv?.transcript_status === 'pending';
+}
 
 export function ConversationDetail() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data, isLoading } = useConversation(id!);
   const summarize = useSummarize();
   const { data: queueData } = useQueueTasks();
 
   const messages = useMemo(() => (data?.messages ?? []) as MessageData[], [data?.messages]);
+  const indexing = isIndexing(data);
+
+  // A conversation opened before its transcript was materialized is polled
+  // until the server has parsed it; the pending state is defensive (the API
+  // normally parses on demand before answering).
+  useEffect(() => {
+    if (!indexing) return;
+    const timer = window.setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: ['conversation', id] });
+    }, 1_500);
+    return () => window.clearInterval(timer);
+  }, [indexing, id, queryClient]);
 
   // Group consecutive tool-use-only messages (must be before early returns)
   const groupedMessages = useMemo(() => {
@@ -42,7 +112,12 @@ export function ConversationDetail() {
   }, [messages]);
 
   if (isLoading) {
-    return <div className="p-6 text-muted">{t('status.loading')}</div>;
+    return (
+      <div className="flex h-full items-center justify-center gap-2 p-6 text-sm text-muted">
+        <Loader2 size={16} className="animate-spin" />
+        {t('status.loading')}
+      </div>
+    );
   }
 
   if (!data) {
@@ -61,11 +136,25 @@ export function ConversationDetail() {
           <ArrowLeft size={18} />
         </button>
         <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-bold truncate">
-            {data.project_name as string}
-          </h2>
-          <p className="text-xs text-muted font-mono">
-            {data.slug as string || (data.id as string).slice(0, 12)}
+          <div className="flex min-w-0 items-center gap-2">
+            <h2 className="text-sm font-bold truncate">
+              {conversationTitle(data, t)}
+            </h2>
+            {indexing && (
+              <span
+                className="inline-flex shrink-0 items-center gap-1 text-[10px] text-muted"
+                title={t('conversation.indexing_hint')}
+              >
+                <span
+                  className="h-1.5 w-1.5 animate-pulse rounded-full"
+                  style={{ background: 'var(--accent)' }}
+                />
+                {t('conversation.indexing')}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted">
+            {conversationProject(data, t)}
             <span className="ml-2">· {t('conversation.messages_count', { count: messages.length })}</span>
           </p>
         </div>
@@ -80,12 +169,20 @@ export function ConversationDetail() {
 
       {/* Messages */}
       <div className="flex-1 overflow-auto p-4 space-y-3">
-        {groupedMessages.map((item) => {
-          if (Array.isArray(item)) {
-            return <ToolCallGroup key={item[0].id} messages={item} />;
-          }
-          return <MessageBubble key={item.id} message={item} />;
-        })}
+        {indexing ? (
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-muted">
+            <Loader2 size={18} className="animate-spin" />
+            <p>{t('conversation.indexing_messages')}</p>
+            <p className="text-xs">{t('conversation.indexing_hint')}</p>
+          </div>
+        ) : (
+          groupedMessages.map((item) => {
+            if (Array.isArray(item)) {
+              return <ToolCallGroup key={item[0].id} messages={item} />;
+            }
+            return <MessageBubble key={item.id} message={item} />;
+          })
+        )}
       </div>
     </div>
   );
