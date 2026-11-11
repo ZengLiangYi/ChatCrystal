@@ -379,8 +379,8 @@ test("parse skips a session without conversation records", async () => {
 test("watchPaths targets both builds' project folders", () => {
 	const { primary, ai } = useRoots();
 	assert.deepEqual(workbuddyAdapter.watchPaths?.(), [
-		resolve(primary, "**/projects/**/*.jsonl"),
-		resolve(ai, "**/projects/**/*.jsonl"),
+		resolve(primary, "projects", "**", "*.jsonl"),
+		resolve(ai, "projects", "**", "*.jsonl"),
 	]);
 });
 
@@ -460,8 +460,8 @@ test("scans and parses sessions from both builds' WSL homes", async () => {
 
 		// The watcher targets the Windows-local roots only; WSL is manual-import.
 		assert.deepEqual(workbuddyAdapter.watchPaths?.(), [
-			resolve(primary, "**/projects/**/*.jsonl"),
-			resolve(ai, "**/projects/**/*.jsonl"),
+			resolve(primary, "projects", "**", "*.jsonl"),
+			resolve(ai, "projects", "**", "*.jsonl"),
 		]);
 	} finally {
 		setWslHomesForTesting(null);

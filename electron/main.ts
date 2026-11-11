@@ -414,7 +414,10 @@ async function startServer(port: number): Promise<ServerInstance> {
 	return serverModule.createServer({
 		port,
 		host: "127.0.0.1",
-		startWatcher: false,
+		// The desktop app is the main place where seamless imports matter: let
+		// the server watch local history folders and sync in the background.
+		// CHATCRYSTAL_AUTO_SYNC=0 keeps a user's machine quiet for debugging.
+		startWatcher: process.env.CHATCRYSTAL_AUTO_SYNC !== "0",
 	});
 }
 

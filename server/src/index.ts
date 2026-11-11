@@ -19,7 +19,10 @@ import { relationRoutes } from './routes/relations.js';
 import { memoryRoutes } from './routes/memory.js';
 import { healthRoutes } from './routes/health.js';
 import { authRoutes, registerCloudAuthHook } from './routes/setup.js';
+import { syncRoutes } from './routes/sync.js';
 import { getOrCreateSetupCode, setupRequired } from './services/auth.js';
+import { closeSharedParsePool } from './services/import.js';
+import { scheduleStartupSync, syncManager } from './services/sync.js';
 import { isCloudMode } from './runtime/cloud.js';
 import { shouldStartWatcher } from './runtime/watcherPolicy.js';
 
@@ -66,6 +69,7 @@ export async function createServer(options?: {
   // Register protected routes
   await app.register(statusRoutes);
   await app.register(importRoutes);
+  await app.register(syncRoutes);
   await app.register(conversationRoutes);
   await app.register(noteRoutes);
   await app.register(configRoutes);
@@ -99,14 +103,36 @@ export async function createServer(options?: {
   console.log(`[LLM] Provider: ${appConfig.llm.provider} / ${appConfig.llm.model}`);
   console.log(`[Embedding] Provider: ${appConfig.embedding.provider} / ${appConfig.embedding.model}`);
 
-  // Start file watcher only when the runtime mode explicitly allows local scans.
+  // Background sync: local mode syncs automatically; cloud mode never touches
+  // this machine's source folders. CHATCRYSTAL_AUTO_SYNC=0 keeps even a local
+  // server quiet (manual `POST /api/sync/start` and `crystal import` still work).
   const cloudMode = isCloudMode();
-  const watcher = shouldStartWatcher({
-    cloudMode,
-    startWatcher: options?.startWatcher,
-  })
-    ? startWatcher()
-    : null;
+  const autoSync = !cloudMode && process.env.CHATCRYSTAL_AUTO_SYNC !== '0';
+  syncManager.setAutoSyncEnabled(autoSync);
+  const startLocalWatcher =
+    autoSync &&
+    shouldStartWatcher({
+      cloudMode,
+      startWatcher: options?.startWatcher,
+    });
+  let watcher: ReturnType<typeof startWatcher> | null = null;
+  const ensureWatcher = () => {
+    if (watcher || !startLocalWatcher) return;
+    watcher = startWatcher();
+  };
+  if (autoSync && startLocalWatcher) {
+    // Do not slow down startup: the first pass runs a few seconds after the
+    // server is listening and is fully incremental (unchanged files are skipped).
+    scheduleStartupSync();
+    // Start watching only once that first pass has settled. chokidar's initial
+    // scan over large histories (a workbuddy home can hold tens of thousands of
+    // plugin files) otherwise competes with the first import's filesystem reads.
+    const unsubscribe = syncManager.subscribe((status) => {
+      if (!status.lastCompletedAt) return;
+      unsubscribe();
+      ensureWatcher();
+    });
+  }
 
   // Start server
   const port = options?.port ?? appConfig.port;
@@ -118,6 +144,8 @@ export async function createServer(options?: {
   async function shutdown() {
     console.log('[Server] Shutting down...');
     await watcher?.close();
+    await syncManager.stop();
+    await closeSharedParsePool();
     closeDatabase();
     await app.close();
   }

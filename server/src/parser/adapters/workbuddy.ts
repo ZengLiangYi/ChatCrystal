@@ -504,8 +504,11 @@ export const workbuddyAdapter: SourceAdapter = {
 	watchPaths(): string[] {
 		// Only the Windows-local builds: `\\wsl.localhost` paths are slow and may
 		// start a stopped distro. WSL conversations sync on the next manual Import.
+		// Watch `<home>/projects` rather than the whole home: the home also holds
+		// plugin marketplaces with tens of thousands of files, and a recursive
+		// watch over them starves the first sync's filesystem reads.
 		return configuredRoots().map((root) =>
-			resolve(root, "**/projects/**/*.jsonl"),
+			resolve(root, "projects", "**", "*.jsonl"),
 		);
 	},
 };
