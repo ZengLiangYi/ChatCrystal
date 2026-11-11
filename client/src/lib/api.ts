@@ -106,6 +106,67 @@ function normalizeProviders(providers: ProviderResponse[]) {
 	}));
 }
 
+// =============================================
+// Background sync (GET /sync/status, POST /sync/start, POST /sync/cancel)
+// =============================================
+
+export type SyncPhase = "idle" | "syncing" | "cancelled" | "error";
+
+export type SyncSourcePhase =
+	| "pending"
+	| "detecting"
+	| "scanning"
+	| "importing"
+	| "done"
+	| "error";
+
+export interface ImportSourceProgress {
+	source: string;
+	displayName?: string;
+	status: SyncSourcePhase;
+	found: number;
+	processed: number;
+	imported: number;
+	replaced: number;
+	skipped: number;
+	errors: number;
+	error?: string;
+}
+
+export interface ImportProgress {
+	total: number;
+	current: number;
+	currentFile: string;
+	phase: string;
+	imported: number;
+	replaced: number;
+	skipped: number;
+	errors: number;
+	sources: ImportSourceProgress[];
+	durationMs: number;
+	cancelled: boolean;
+}
+
+export interface SyncLastResult {
+	total: number;
+	imported: number;
+	replaced: number;
+	skipped: number;
+	errors: number;
+	durationMs: number;
+}
+
+export interface SyncStatus {
+	phase: SyncPhase;
+	autoSyncEnabled: boolean;
+	startedAt?: number;
+	finishedAt?: number;
+	lastCompletedAt?: number;
+	progress?: ImportProgress;
+	lastResult?: SyncLastResult;
+	error?: string;
+}
+
 export const api = {
 	getStatus: () =>
 		request<{
@@ -147,6 +208,20 @@ export const api = {
 			skipped: number;
 			errors: number;
 		}>("/import/scan", { method: "POST" }),
+
+	// Background sync
+	getSyncStatus: () => request<SyncStatus>("/sync/status"),
+
+	startSync: (data?: { sources?: string[] }) =>
+		request<{ started: boolean }>(
+			"/sync/start",
+			data
+				? { method: "POST", body: JSON.stringify(data) }
+				: { method: "POST" },
+		),
+
+	cancelSync: () =>
+		request<{ cancelled: boolean }>("/sync/cancel", { method: "POST" }),
 
 	getConversations: (params?: {
 		source?: string;

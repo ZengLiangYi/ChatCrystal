@@ -199,6 +199,32 @@
     "cloud_upload_complete": "完成：上传 {{uploaded}} 条 / 新增 {{imported}} 条 / 更新 {{replaced}} 条",
     "cloud_upload_error": "上传失败"
   },
+  "sync": {
+    "checking": "检查同步状态...",
+    "waiting": "等待同步",
+    "start": "开始同步",
+    "syncing": "同步中",
+    "last_synced": "已同步 · {{time}}",
+    "last_result": "上次导入 {{imported}} 条 · 跳过 {{skipped}} 条",
+    "cancelled": "同步已取消",
+    "cancelled_with_progress": "同步已取消 · 已导入 {{imported}} 条",
+    "cancel": "取消",
+    "error": "同步失败",
+    "retry": "重试",
+    "unavailable": "同步服务不可用",
+    "auto_enabled": "后台自动同步已开启",
+    "manual_hint": "点击开始扫描本机 AI 对话",
+    "click_to_start": "点击立即同步",
+    "progress": "{{current}}/{{total}}",
+    "progress_counts": "已导入 {{imported}} · 已跳过 {{skipped}}",
+    "phase": {
+      "detecting": "检测数据源",
+      "scanning": "扫描会话",
+      "importing": "导入会话",
+      "done": "完成",
+      "error": "出错"
+    }
+  },
   "data_source_conversations": "{{count}} 个对话",
   "key_conclusions": "关键结论",
   "code_snippets": "代码片段",
@@ -283,7 +309,7 @@
     "error": "认证失败"
   },
   "guide": {
-    "step1": "1. 点击左侧「导入对话」扫描 AI 对话记录",
+    "step1": "1. 启动后会自动同步 AI 对话记录，无需手动导入",
     "step2": "2. 前往「对话」页浏览对话，点击「生成摘要」提炼笔记",
     "step3": "3. 在「搜索」页通过语义搜索查找知识"
   },

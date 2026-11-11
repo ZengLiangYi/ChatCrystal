@@ -199,6 +199,32 @@
     "cloud_upload_complete": "Done: {{uploaded}} uploaded / {{imported}} new / {{replaced}} updated",
     "cloud_upload_error": "Upload failed"
   },
+  "sync": {
+    "checking": "Checking sync status...",
+    "waiting": "Waiting to sync",
+    "start": "Start sync",
+    "syncing": "Syncing",
+    "last_synced": "Synced · {{time}}",
+    "last_result": "Last import: {{imported}} imported · {{skipped}} skipped",
+    "cancelled": "Sync cancelled",
+    "cancelled_with_progress": "Sync cancelled · {{imported}} imported",
+    "cancel": "Cancel",
+    "error": "Sync failed",
+    "retry": "Retry",
+    "unavailable": "Sync service unavailable",
+    "auto_enabled": "Background auto-sync is on",
+    "manual_hint": "Click to scan this machine's AI conversations",
+    "click_to_start": "Sync now",
+    "progress": "{{current}}/{{total}}",
+    "progress_counts": "{{imported}} imported · {{skipped}} skipped",
+    "phase": {
+      "detecting": "Detecting sources",
+      "scanning": "Scanning conversations",
+      "importing": "Importing conversations",
+      "done": "Done",
+      "error": "Error"
+    }
+  },
   "data_source_conversations": "{{count}} conversations",
   "key_conclusions": "Key Conclusions",
   "code_snippets": "Code Snippets",
@@ -283,7 +309,7 @@
     "error": "Authentication failed"
   },
   "guide": {
-    "step1": "1. Click \"Import\" in the sidebar to scan AI conversations",
+    "step1": "1. AI conversations sync automatically after startup — no manual import needed",
     "step2": "2. Go to \"Conversations\" to browse and click \"Generate Summary\"",
     "step3": "3. Use \"Search\" for semantic knowledge discovery"
   },
