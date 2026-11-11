@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.7.0] - 2026-11-12
 
 ### Import & Sync
 
@@ -16,6 +16,11 @@
 
 - Fixed the packaged Windows app opening a blank onboarding window on a fresh install: Vite emitted absolute `/assets/...` URLs for the onboarding page, which resolve to the drive root when the page is loaded from inside the ASAR via `file://`. The client build now rewrites the onboarding entry's asset URLs to relative paths (`client/scripts/rewrite-onboarding-assets.mjs`).
 - Fixed packaged onboarding buttons failing with `Rejected onboarding IPC from unexpected origin`: `file://` frames report their origin as `file://` (or `null`), while `new URL(fileUrl).origin` is `null`. The IPC guard now accepts the file-origin spellings for file URLs while still requiring the exact onboarding document URL.
+
+### Website
+
+- Added official logos for all 32 agent harnesses to the site's integrations strip.
+- Replaced the static logo row with an animated React Bits `LogoLoop` marquee, flattened its sticky/rounded layout, and deduplicated shared brand marks (for example the GitHub Copilot variants) so each brand appears once.
 
 ### Sources
 
