@@ -1,5 +1,6 @@
 /**
- * Convert sql.js exec result (columns + values arrays) to array of objects.
+ * Convert an exec result (columns + values arrays, the shape both sql.js and the
+ * node:sqlite compatibility layer return) to an array of objects.
  */
 export function resultToObjects(
   result: { columns: string[]; values: unknown[][] }[],

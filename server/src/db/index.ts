@@ -1,12 +1,25 @@
-import initSqlJs, { type Database } from 'sql.js';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+/**
+ * Database lifecycle for the server.
+ *
+ * The database is a real file-backed SQLite database (`node:sqlite`
+ * `DatabaseSync`) in WAL mode. `sqlite-compat.ts` mirrors the sql.js API the
+ * codebase uses (`exec`/`run`/`prepare`/`export`/`getRowsModified`), so every
+ * caller keeps receiving the same sql.js-typed `Database` while reads and
+ * writes go straight to disk. `saveDatabase()` is now a WAL checkpoint instead
+ * of serializing the whole in-memory database to `chatcrystal.db`.
+ */
+import { existsSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+import type { Database } from 'sql.js';
 import { backfillImportedNoteMetadata } from '../services/memory/backfill.js';
 import { runtimePaths } from '../runtime/paths.js';
 import { cleanupOrphanTags } from './cleanup.js';
 import { SCHEMA_SQL } from './schema.js';
+import { SqliteCompatDatabase } from './sqlite-compat.js';
 
 let db: Database | null = null;
+/** The real node:sqlite connection behind `db`, for checkpoint/close. */
+let sqlite: SqliteCompatDatabase | null = null;
 
 const DB_PATH = runtimePaths.dbPath;
 const POST_MIGRATION_SQL = `
@@ -127,36 +140,37 @@ export async function initDatabase(): Promise<Database> {
     mkdirSync(dataDir, { recursive: true });
   }
 
-  // In packaged Electron, WASM is in extraResources; otherwise use default from node_modules
-  const sqlJsOptions = process.env.ELECTRON_PACKAGED
-    ? { locateFile: () => join((process as NodeJS.Process & { resourcesPath: string }).resourcesPath, 'sql-wasm.wasm') }
-    : undefined;
-  const SQL = await initSqlJs(sqlJsOptions);
+  // A real file-backed SQLite connection (WAL mode) instead of the old
+  // in-memory sql.js database that was serialized to disk on every save.
+  const compat = new SqliteCompatDatabase(DB_PATH);
+  const activeDb = compat as unknown as Database;
 
-  // Load existing database or create new one
-  if (existsSync(DB_PATH)) {
-    const buffer = readFileSync(DB_PATH);
-    db = new SQL.Database(buffer);
-  } else {
-    db = new SQL.Database();
+  // Publish the connection before running migrations/backfill, so anything they
+  // reach through getDatabase() sees an initialized database (same ordering as
+  // the previous in-memory implementation).
+  db = activeDb;
+  sqlite = compat;
+
+  try {
+    // Run schema migration
+    applySchemaMigrations(activeDb);
+
+    // Mark notes that already have embeddings as done
+    activeDb.run(`UPDATE notes SET embedding_status = 'done'
+            WHERE id IN (SELECT DISTINCT note_id FROM embeddings)`);
+    backfillImportedNoteMetadata(activeDb);
+  } catch (error) {
+    // Never leave a half-initialized connection holding the database file.
+    db = null;
+    sqlite = null;
+    compat.close();
+    throw error;
   }
 
-  // Enable WAL mode and foreign keys
-  db.run('PRAGMA journal_mode = WAL;');
-  db.run('PRAGMA foreign_keys = ON;');
-
-  // Run schema migration
-  applySchemaMigrations(db);
-
-  // Mark notes that already have embeddings as done
-  db.run(`UPDATE notes SET embedding_status = 'done'
-          WHERE id IN (SELECT DISTINCT note_id FROM embeddings)`);
-  backfillImportedNoteMetadata(db);
-
-  // Persist to disk
+  // Flush the startup writes into the main database file.
   saveDatabase();
 
-  console.log(`[DB] Database initialized at ${DB_PATH}`);
+  console.log(`[DB] Database initialized at ${DB_PATH} (node:sqlite, WAL)`);
   return db;
 }
 
@@ -172,15 +186,20 @@ export function exportDatabasePreservingForeignKeys(activeDb: Database): Uint8Ar
     return activeDb.export();
   } finally {
     // sql.js export resets connection pragmas, so restore the invariant used by deletions.
+    // (The node:sqlite compatibility export leaves the connection untouched, so
+    // this is a no-op for the real file-backed database.)
     activeDb.run('PRAGMA foreign_keys = ON;');
   }
 }
 
+/**
+ * Persist pending writes. With a file-backed WAL database the committed rows are
+ * already durable, so a save only flushes the WAL into the main database file
+ * (replacing the old full-database serialization).
+ */
 export function saveDatabase(): void {
-  if (!db) return;
-  const data = exportDatabasePreservingForeignKeys(db);
-  const buffer = Buffer.from(data);
-  writeFileSync(DB_PATH, buffer);
+  if (!sqlite) return;
+  sqlite.checkpoint();
 }
 
 /** Auto-save to disk periodically */
@@ -200,10 +219,17 @@ export function stopAutoSave(): void {
 
 export function closeDatabase(): void {
   stopAutoSave();
-  if (db) {
-    saveDatabase();
-    db.close();
+  if (sqlite) {
+    // Checkpoints the WAL and releases the file handle (needed on Windows so a
+    // removed temp data dir is not left locked).
+    sqlite.close();
+    sqlite = null;
     db = null;
     console.log('[DB] Database closed.');
+    return;
+  }
+  if (db) {
+    db.close();
+    db = null;
   }
 }

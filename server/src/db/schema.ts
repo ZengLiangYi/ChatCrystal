@@ -1,6 +1,6 @@
 /**
  * SQLite schema definitions for ChatCrystal.
- * Uses sql.js (WASM-based SQLite, no native compilation).
+ * Applied to the server's node:sqlite (file-backed, WAL) database.
  */
 
 export const SCHEMA_SQL = `
