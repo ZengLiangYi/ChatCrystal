@@ -11,6 +11,7 @@ import type {
 } from '@chatcrystal/shared';
 import type { SourceAdapter } from '../adapter.js';
 import { appConfig } from '../../config.js';
+import { withWslRoots } from '../sourceRoots.js';
 
 // =============================================
 // Raw JSONL message types from Claude Code
@@ -181,35 +182,51 @@ function extractProjectName(dirName: string): string {
 // Claude Code Adapter
 // =============================================
 
+/**
+ * Project roots to scan: the local install plus any WSL distro home that has
+ * a `.claude/projects` folder.
+ */
+function projectsRoots(): string[] {
+	return withWslRoots(appConfig.claudeProjectsDir, '.claude/projects');
+}
+
 export const claudeCodeAdapter: SourceAdapter = {
   name: 'claude-code',
   displayName: 'Claude Code',
-  parserVersion: 'claude-code@1',
+  parserVersion: 'claude-code@2',
 
   async detect(): Promise<SourceInfo | null> {
-    const dir = appConfig.claudeProjectsDir;
-    if (!existsSync(dir)) return null;
-
     try {
-      const entries = await readdir(dir);
-      const projectDirs = entries.filter(
-        (e) => !e.startsWith('.') && !e.endsWith('.json'),
-      );
-
       let conversationCount = 0;
-      for (const projectDir of projectDirs) {
-        const projectPath = resolve(dir, projectDir);
-        const s = await stat(projectPath);
-        if (!s.isDirectory()) continue;
+      let found = false;
+      for (const dir of projectsRoots()) {
+        if (!existsSync(dir)) continue;
+        found = true;
 
-        const files = await readdir(projectPath);
-        conversationCount += files.filter((f) => f.endsWith('.jsonl')).length;
+        const entries = await readdir(dir);
+        const projectDirs = entries.filter(
+          (e) => !e.startsWith('.') && !e.endsWith('.json'),
+        );
+
+        for (const projectDir of projectDirs) {
+          const projectPath = resolve(dir, projectDir);
+          try {
+            const s = await stat(projectPath);
+            if (!s.isDirectory()) continue;
+            const files = await readdir(projectPath);
+            conversationCount += files.filter((f) => f.endsWith('.jsonl')).length;
+          } catch {
+            // Project folder may disappear while a WSL distro stops.
+          }
+        }
       }
+
+      if (!found) return null;
 
       return {
         name: 'claude-code',
         displayName: 'Claude Code',
-        dataDir: dir,
+        dataDir: appConfig.claudeProjectsDir,
         conversationCount,
       };
     } catch {
@@ -218,37 +235,58 @@ export const claudeCodeAdapter: SourceAdapter = {
   },
 
   async scan(): Promise<ConversationMeta[]> {
-    const dir = appConfig.claudeProjectsDir;
-    if (!existsSync(dir)) return [];
-
     const metas: ConversationMeta[] = [];
-    const entries = await readdir(dir);
 
-    for (const projectDir of entries) {
-      const projectPath = resolve(dir, projectDir);
-      const s = await stat(projectPath);
-      if (!s.isDirectory()) continue;
+    for (const dir of projectsRoots()) {
+      if (!existsSync(dir)) continue;
+      try {
+        const entries = await readdir(dir);
 
-      const files = await readdir(projectPath);
-      for (const file of files) {
-        if (!file.endsWith('.jsonl')) continue;
+        for (const projectDir of entries) {
+          const projectPath = resolve(dir, projectDir);
+          let projectStat: Awaited<ReturnType<typeof stat>>;
+          try {
+            projectStat = await stat(projectPath);
+          } catch {
+            continue;
+          }
+          if (!projectStat.isDirectory()) continue;
 
-        const filePath = resolve(projectPath, file);
-        const fileStat = await stat(filePath);
+          let files: string[];
+          try {
+            files = await readdir(projectPath);
+          } catch {
+            continue;
+          }
+          for (const file of files) {
+            if (!file.endsWith('.jsonl')) continue;
 
-        // Skip very small files (< 100 bytes, likely empty/corrupt)
-        if (fileStat.size < 100) continue;
+            const filePath = resolve(projectPath, file);
+            let fileStat: Awaited<ReturnType<typeof stat>>;
+            try {
+              fileStat = await stat(filePath);
+            } catch {
+              continue;
+            }
 
-        const sessionId = basename(file, '.jsonl');
+            // Skip very small files (< 100 bytes, likely empty/corrupt)
+            if (fileStat.size < 100) continue;
 
-        metas.push({
-          id: sessionId,
-          source: 'claude-code',
-          filePath,
-          fileSize: fileStat.size,
-          fileMtime: fileStat.mtime.toISOString(),
-          projectDir,
-        });
+            const sessionId = basename(file, '.jsonl');
+
+            metas.push({
+              id: sessionId,
+              source: 'claude-code',
+              filePath,
+              fileSize: fileStat.size,
+              fileMtime: fileStat.mtime.toISOString(),
+              projectDir,
+              rootDir: dir,
+            });
+          }
+        }
+      } catch {
+        // The distro may stop between roots; keep the conversations we have.
       }
     }
 

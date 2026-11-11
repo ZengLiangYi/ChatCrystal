@@ -7,7 +7,7 @@
 export interface Conversation {
   id: string;
   slug: string | null;
-  source: string; // 'claude-code' | 'codex' | 'cursor' | 'trae' | 'copilot'
+  source: string; // see ChatCrystalSource
   project_dir: string;
   project_name: string;
   cwd: string | null;
@@ -38,7 +38,34 @@ export type ChatCrystalSource =
   | 'codex'
   | 'cursor'
   | 'trae'
-  | 'copilot';
+  | 'copilot'
+  | 'gemini'
+  | 'qwen'
+  | 'opencode'
+  | 'cline'
+  | 'roo'
+  | 'kilo'
+  | 'copilot-cli'
+  | 'continue'
+  | 'dsh'
+  | 'workbuddy'
+  | 'antigravity'
+  | 'droid'
+  | 'goose'
+  | 'pi'
+  | 'omp'
+  | 'raft'
+  | 'cindy'
+  | 'qoder'
+  | 'qoder-cn'
+  | 'codebuddy'
+  | 'claude-desktop'
+  | 'zcode'
+  | 'hermes'
+  | 'alma'
+  | 'grok'
+  | 'kimi'
+  | 'minimax-code';
 
 export interface Message {
   id: string;
@@ -92,6 +119,32 @@ export type SourceAgent =
   | 'copilot'
   | 'cursor'
   | 'trae'
+  | 'gemini'
+  | 'qwen'
+  | 'opencode'
+  | 'cline'
+  | 'roo'
+  | 'kilo'
+  | 'continue'
+  | 'dsh'
+  | 'workbuddy'
+  | 'antigravity'
+  | 'droid'
+  | 'goose'
+  | 'pi'
+  | 'omp'
+  | 'raft'
+  | 'cindy'
+  | 'qoder'
+  | 'qoder-cn'
+  | 'codebuddy'
+  | 'claude-desktop'
+  | 'zcode'
+  | 'hermes'
+  | 'alma'
+  | 'grok'
+  | 'kimi'
+  | 'minimax-code'
   | 'unknown';
 
 export type TaskKind =
@@ -354,6 +407,12 @@ export interface ConversationMeta {
   fileSize: number;
   fileMtime: string;
   projectDir: string;
+  /**
+   * Root folder the conversation was found under when it is not the adapter's
+   * primary data dir (e.g. a WSL distro home). `parse()` may need it to read
+   * sibling metadata files.
+   */
+  rootDir?: string;
 }
 
 export interface ParsedConversation {

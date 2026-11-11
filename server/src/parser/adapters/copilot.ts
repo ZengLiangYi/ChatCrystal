@@ -11,6 +11,7 @@ import type {
 } from "@chatcrystal/shared";
 import { appConfig } from "../../config.js";
 import type { SourceAdapter } from "../adapter.js";
+import { withWslRoots } from "../sourceRoots.js";
 
 // =============================================
 // Platform-specific paths
@@ -97,25 +98,38 @@ interface SessionFileInfo {
 	projectDir: string;
 	fileSize: number;
 	fileMtime: string;
+	rootDir: string;
 }
 
 // Brief cache to avoid double scan during detect() → scan() cycle
-let scanCache: { result: SessionFileInfo[]; expiry: number } | null = null;
+let scanCache: { key: string; result: SessionFileInfo[]; expiry: number } | null =
+	null;
+
+/**
+ * VS Code user-data folders to scan: the local install plus VS Code Remote
+ * installs inside WSL distros (`~/.vscode-server/data/User`), so Copilot Chat
+ * sessions from remote workspaces are imported too.
+ */
+function getUserDataDirs(): string[] {
+	return withWslRoots(getCopilotBasePath(), ".vscode-server/data/User");
+}
 
 async function scanChatSessions(): Promise<SessionFileInfo[]> {
-	if (scanCache && Date.now() < scanCache.expiry) {
+	const key = getUserDataDirs().join("|");
+	if (scanCache && scanCache.key === key && Date.now() < scanCache.expiry) {
 		return scanCache.result;
 	}
 	const result = await scanChatSessionsImpl();
-	scanCache = { result, expiry: Date.now() + 5000 }; // 5s TTL
+	scanCache = { key, result, expiry: Date.now() + 5000 }; // 5s TTL
 	return result;
 }
 
-async function scanChatSessionsImpl(): Promise<SessionFileInfo[]> {
-	const results: SessionFileInfo[] = [];
-
+async function scanUserDataDir(
+	userDir: string,
+	results: SessionFileInfo[],
+): Promise<void> {
 	// 1. Workspace-specific sessions
-	const wsPath = getWorkspaceStoragePath();
+	const wsPath = resolve(userDir, "workspaceStorage");
 	if (existsSync(wsPath)) {
 		const entries = await readdir(wsPath);
 		for (const hash of entries) {
@@ -153,6 +167,7 @@ async function scanChatSessionsImpl(): Promise<SessionFileInfo[]> {
 						projectDir: folder,
 						fileSize: s.size,
 						fileMtime: s.mtime.toISOString(),
+						rootDir: userDir,
 					});
 				} catch {
 					// skip
@@ -162,7 +177,7 @@ async function scanChatSessionsImpl(): Promise<SessionFileInfo[]> {
 	}
 
 	// 2. Global (empty window) sessions
-	const globalDir = getGlobalChatSessionsPath();
+	const globalDir = resolve(userDir, "globalStorage", "emptyWindowChatSessions");
 	if (existsSync(globalDir)) {
 		const files = await readdir(globalDir);
 		for (const file of files) {
@@ -182,13 +197,25 @@ async function scanChatSessionsImpl(): Promise<SessionFileInfo[]> {
 					projectDir: "",
 					fileSize: s.size,
 					fileMtime: s.mtime.toISOString(),
+					rootDir: userDir,
 				});
 			} catch {
 				// skip
 			}
 		}
 	}
+}
 
+async function scanChatSessionsImpl(): Promise<SessionFileInfo[]> {
+	const results: SessionFileInfo[] = [];
+	for (const userDir of getUserDataDirs()) {
+		if (!existsSync(userDir)) continue;
+		try {
+			await scanUserDataDir(userDir, results);
+		} catch {
+			// A WSL distro can stop mid-scan; keep what was already found.
+		}
+	}
 	return results;
 }
 
@@ -264,6 +291,9 @@ function extractProjectName(folder: string): string {
 export function getCopilotWatchPaths(): string[] {
 	const paths: string[] = [];
 
+	// Watch the local VS Code install only: watching UNC WSL paths is slow and
+	// would start stopped distros. WSL Remote sessions are picked up on the next
+	// manual import.
 	const wsPath = getWorkspaceStoragePath();
 	if (existsSync(wsPath)) {
 		paths.push(`${wsPath}/*/chatSessions/*.jsonl`);
@@ -286,7 +316,7 @@ export function getCopilotWatchPaths(): string[] {
 export const copilotAdapter: SourceAdapter = {
 	name: "copilot",
 	displayName: "GitHub Copilot",
-	parserVersion: "copilot@1",
+	parserVersion: "copilot@2",
 
 	async detect(): Promise<SourceInfo | null> {
 		try {
@@ -313,6 +343,7 @@ export const copilotAdapter: SourceAdapter = {
 			fileSize: s.fileSize,
 			fileMtime: s.fileMtime,
 			projectDir: s.projectDir,
+			rootDir: s.rootDir,
 		}));
 	},
 
