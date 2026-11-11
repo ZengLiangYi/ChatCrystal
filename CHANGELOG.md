@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Import & Sync
+
+- **Background sync replaces the manual import step.** A startup pass runs a few seconds after launch and the file watcher triggers targeted per-source passes when agent session files change. The sidebar shows a persistent sync state (waiting / syncing with progress / last synced) instead of a one-shot import button with a 5-second toast, and the conversation list refreshes while a pass runs. New endpoints: `GET /api/sync/status`, `POST /api/sync/start`, `POST /api/sync/cancel`, `GET /api/sync/stream` (SSE).
+- `importAll()` now reports phases (`detecting` → `scanning` → `importing`), per-source counters and error details, accepts a `sources` filter and an `AbortSignal`, and is still callable with the old progress-callback signature. The SSE import route accepts `sources`, sends heartbeats and aborts the pass when the client disconnects.
+- Conversation parsing runs in a worker-thread pool (`CHATCRYSTAL_PARSE_WORKERS`, default `min(4, CPUs-1)`; `0` or `CHATCRYSTAL_PARSE_POOL=off` parses in-process). The Node test runner keeps parsing inline because tests register fake adapters in-process.
+- Persistence moved from sql.js (WASM SQLite, whole-database snapshot every 30s) to Node.js 24's built-in `node:sqlite` with WAL. `saveDatabase()` is now a WAL checkpoint, existing `chatcrystal.db` files open directly, and parser-side SQLite readers (Cursor, Trae, OpenCode, ZCode, Goose, Hermes, Alma) keep using sql.js for their own databases.
+- The desktop app enables background sync and the watcher (`CHATCRYSTAL_AUTO_SYNC=0` opts out). The watcher only starts after the first sync pass so chokidar's initial scan cannot starve it, events are debounced for 1.8s, and each changed path is mapped to its owning source. WorkBuddy now watches `<home>/projects` instead of the whole home (its plugin marketplaces hold tens of thousands of files), and chokidar skips `node_modules`/`.git`/`.cache`.
+
 ### Sources
 
 - Added 13 conversation-source adapters, so ChatCrystal now imports local history from 18 AI coding agents: Gemini CLI, Qwen Code, OpenCode, Cline, Roo Code, Kilo Code, GitHub Copilot CLI, Continue, DeepSeek Harness, WorkBuddy, Antigravity, Factory Droid, and Goose.

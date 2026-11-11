@@ -29,7 +29,7 @@ ChatCrystal/
 | 后端 | Node.js, Fastify v5, TypeScript |
 | 前端 | Vite v8, React 19, Tailwind CSS v4, TanStack React Query v5 |
 | 桌面 | Electron, electron-builder |
-| 数据库 | sql.js WASM SQLite |
+| 数据库 | `node:sqlite`（内置 SQLite，WAL）；parser 侧 SQLite 读取仍用 sql.js |
 | LLM | Vercel AI SDK v7 |
 | Embeddings | vectra 本地向量索引 |
 | 队列 | p-queue |
@@ -84,15 +84,25 @@ Electron 会按需设置 `ELECTRON=true`、`DATA_DIR` 和 `ELECTRON_PACKAGED`。
 
 ```
 AI 工具对话文件
-  -> SourceAdapter scan/parse
+  -> SourceAdapter detect/scan（只读元数据，不读正文）
+  -> 后台同步引擎（启动一次 + watcher 定向触发；同一时间只跑一轮）
+  -> SourceAdapter 在 worker 线程池中 parse
   -> Import service 去重
-  -> SQLite conversations/messages
+  -> SQLite（node:sqlite, WAL）conversations/messages
   -> Summarization queue
   -> LLM 结构化笔记生成
   -> Embedding 生成
   -> vectra 语义索引
   -> REST API, UI, CLI, MCP
 ```
+
+## 后台同步与解析
+
+- `services/sync.ts` 是唯一的导入入口：一个小型状态机（`idle`/`syncing`/`cancelled`/`error`），带每源进度和触发合并。`createServer` 在启动 2.5s 后调度一轮；watcher 触发时只请求受影响的源。客户端轮询 `GET /api/sync/status`；`POST /api/sync/start`、`POST /api/sync/cancel` 可手动控制，`GET /api/sync/stream` 是 SSE 版本。
+- watcher 在第一轮启动同步结束后才开始。否则 chokidar 对超大目录（例如 workbuddy home 里的 7 万个插件文件）的首次扫描会与导入的 fs 读取争抢线程池。事件按最长前缀映射到所属 source，并 debounce 1.8s。
+- `importAll()` 接受 `{ sources?, signal?, onProgress?, parsePool? }`，发出阶段/每源进度与错误明细；旧的 `importAll(callback)` 仍兼容 CLI/SSE。
+- 解析默认走共享的 `services/parse-pool.ts` worker 池（`CHATCRYSTAL_PARSE_WORKERS`，默认 `min(4, CPUs-1)`；`0` 或 `CHATCRYSTAL_PARSE_POOL=off` 则主线程解析）。测试在 `NODE_TEST_CONTEXT` 下始终 inline，因为测试注册的 fake adapter 不在 worker 里。
+- `CHATCRYSTAL_AUTO_SYNC=0` 可关闭启动/watcher 自动同步；手动同步和 `crystal import` 不受影响。
 
 ## 摘要流水线
 
@@ -176,6 +186,7 @@ for (const root of roots) {
 - `withWslRoots` 永远把主根放在第一位；只有当 `<发行版 home>/<相对路径>` 存在时才追加 WSL 根。
 - `scan()` 应为每个 `ConversationMeta` 设置 `rootDir: root`；`parse()` 需要根级元数据时用 `meta.rootDir ?? appConfig.<主根>`（Gemini `projects.json`、Antigravity 摘要 DB、Continue `sessions.json`、Cline 扩展 `taskHistory.json` 等）。
 - `watchPaths()` 只返回本地根：watcher 不监听 UNC 路径（慢，且可能启动已停止的发行版）。
+- `watchPaths()` 应指向最窄的会话目录而不是 Agent home。chokidar 必须先扫描 target 才能监听；过宽的 target（例如带插件市场的 `~/.workbuddy`）会拖垮首轮导入的 fs 读取。
 - 发现逻辑支持 `CHATCRYSTAL_WSL=0`（禁用）、`CHATCRYSTAL_WSL_DISTROS`（指定发行版，访问时可能启动）、`CHATCRYSTAL_WSL_HOMES`（强制 home）。测试用 `setWslHomesForTesting([...])` 注入 fixture home。
 
 ## API 面

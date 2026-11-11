@@ -120,7 +120,7 @@ Monorepo with three npm workspaces:
 ### `server/` — Fastify Backend (`@chatcrystal/server`)
 - **Runtime:** tsx (dev + prod)
 - **Framework:** Fastify v5 with CORS and static file serving (production SPA fallback)
-- **Database:** sql.js (WASM SQLite), stored under the active runtime data directory as `chatcrystal.db`, auto-saved every 30s
+- **Database:** `node:sqlite` (Node.js 24 built-in SQLite) with WAL, stored under the active runtime data directory as `chatcrystal.db`. Saves are WAL checkpoints instead of the old sql.js whole-file snapshot; parser-side SQLite readers (Cursor, Trae, OpenCode, ZCode, Goose, Hermes, Alma) still open their own databases with sql.js.
 - **Key modules:**
   - `db/` — Schema (7 tables), utils (`resultToObjects`)
   - `parser/` — Plugin architecture via `SourceAdapter`; 32 built-in adapters registered in `parser/index.ts`. Source ids live in `ALL_SOURCE_NAMES` (`config.ts`) and drive `enabledSources` migration and remote-import validation.
@@ -128,15 +128,17 @@ Monorepo with three npm workspaces:
     - JSONL with multi-frame zstd: `dsh` (`~/.dsh/sessions/**/session.v<N>.jsonl[.zstd]`; see `parser/zstd.ts`).
     - Whole-file JSON: `continue` (`~/.continue/sessions/*.json`), `cline` (CLI sessions + VS Code extension `tasks/*`), `roo`/`kilo` (VS Code extension `tasks/*`; shared `parser/adapters/vscode-tasks.ts`).
     - SQLite: `cursor`/`trae` (`state.vscdb`), `opencode` (`opencode.db`, v1/v2 schema + legacy JSON storage), `zcode` (`~/.zcode/cli/db/db.sqlite`, OpenCode schema), `goose` (`sessions/sessions.db`, or legacy JSONL), `hermes` (`~/.hermes/state.db`), `alma` (`<config>/alma/chat_threads.db`), `copilot` (VS Code chatSession snapshots).
-    - Adapters that support live import expose `watchPaths()`; `watcher/` debounces and auto-imports.
+    - Adapters that support live import expose `watchPaths()`; `watcher/` maps changed folders to their sources and asks the background sync engine for a targeted sync (it starts only after the first startup pass, so chokidar's initial scan cannot starve it).
     - WSL (Windows): file-based adapters scan each running WSL distro home as an extra root through `parser/wsl.ts` + `parser/sourceRoots.ts` (`withWslRoots(primary, '.codex/sessions')`), set `ConversationMeta.rootDir`, and read root-level metadata with `meta.rootDir ?? appConfig.<primary>`. WSL and VS Code Remote (`.vscode-server/data/User`) sessions are imported on manual Import; the watcher only watches local Windows paths.
   - `services/llm.ts` — Provider factory via Vercel AI SDK (Ollama, OpenAI, OrcaRouter, Anthropic, Google, Azure, Custom)
   - `services/summarize.ts` — Conversation preprocessing (truncate ~8000 tokens) + LLM call + JSON parsing + DB persistence. Auto-generates embeddings after summarization.
   - `services/embedding.ts` — Embedding model factory + vectra LocalIndex + text chunking
-  - `services/import.ts` — Scan + dedup (file size + mtime) + batch insert
-  - `routes/` — REST endpoints: status, config, import, conversations CRUD, notes CRUD, tags, search, queue status, batch operations
+  - `routes/` — REST endpoints: status, config, import, sync, conversations CRUD, notes CRUD, tags, search, queue status, batch operations
   - `queue/` — p-queue singleton (concurrency=1, 1 req/sec, 429 retry)
-  - `watcher/` — chokidar watches every adapter's `watchPaths()` plus the legacy source dirs, debounced auto-import (globs are reduced to their static directory because chokidar v4+ dropped glob support)
+  - `services/sync.ts` — background sync state machine (`idle`/`syncing`/`cancelled`/`error`, per-source progress, pending-trigger merging). `syncManager` is the process-wide singleton; `createServer` schedules a startup pass and the watcher feeds it. Exposed as `GET /api/sync/status`, `POST /api/sync/start`, `POST /api/sync/cancel`, `GET /api/sync/stream` (SSE).
+  - `services/parse-pool.ts` — worker-thread parser pool used by `importAll` by default (`CHATCRYSTAL_PARSE_WORKERS`, `0`/`CHATCRYSTAL_PARSE_POOL=off` parses in-process; tests always parse inline).
+  - `services/import.ts` — incremental import: detect → scan → parse in the pool → dedup by size/mtime/content hash → insert/replace. Emits phase and per-source progress, supports `sources` filtering and `AbortSignal` cancellation.
+  - `watcher/` — chokidar watches every adapter's `watchPaths()` plus the legacy source dirs, after the first startup sync; events are debounced (1.8s), mapped to the owning source by longest-prefix and handed to `syncManager.requestSources`. WSL UNC paths are never watched.
 
 ### `client/` — React SPA
 - **Build:** Vite v8 + `@vitejs/plugin-react`
@@ -149,7 +151,7 @@ Monorepo with three npm workspaces:
 
 ### `electron/` — Electron Desktop App
 - **Not an npm workspace** — compiled separately via `tsc -p electron/tsconfig.json`
-- `main.ts` — Main process: single-instance lock, port detection, Fastify server startup (embedded), BrowserWindow creation, system tray, window state persistence
+- `main.ts` — Main process: single-instance lock, port detection, Fastify server startup (embedded, with background sync and the file watcher enabled), BrowserWindow creation, system tray, window state persistence
 - `preload.ts` — Minimal contextBridge exposing `electronAPI.isElectron` and version info
 - `tray.ts` — System tray icon + context menu (open window, open in browser, quit)
 - `icon.svg/png/ico` — Application icon (crystal gem + chat bubble)
@@ -242,6 +244,9 @@ Runtime configuration is stored in `config.json` under the active data directory
 - `CHATCRYSTAL_WSL` — set to `0`/`false`/`off` to disable WSL session discovery
 - `CHATCRYSTAL_WSL_DISTROS` — comma-separated WSL distros to read (they may be started on access); default is only running distros
 - `CHATCRYSTAL_WSL_HOMES` — semicolon-separated forced homes (also used by tests)
+- `CHATCRYSTAL_AUTO_SYNC` — set to `0` to disable the startup/watcher background sync (manual `POST /api/sync/start` and `crystal import` still work)
+- `CHATCRYSTAL_PARSE_WORKERS` — worker-thread parser count (default `min(4, cpus-1)`; `0` parses in-process)
+- `CHATCRYSTAL_PARSE_POOL` — set to `off`/`0`/`false` to force in-process parsing (alias of `CHATCRYSTAL_PARSE_WORKERS=0`)
 - `LLM_PROVIDER` / `LLM_MODEL` — for summarization (ollama, openai, orcarouter, anthropic, google, azure, custom)
 - `EMBEDDING_PROVIDER` / `EMBEDDING_MODEL` — for semantic search
 
@@ -256,7 +261,10 @@ Runtime configuration is stored in `config.json` under the active data directory
 
 - **SourceAdapter plugin interface** (`parser/adapter.ts`): implement `detect()`, `scan()`, `parse()` and optional `watchPaths()` to add new sources. 32 adapters ship today (all 26 magpie session readers plus Trae, Copilot Chat/CLI, Roo, Kilo, Continue, Goose, Qwen and zcode extras); the id list lives in `ALL_SOURCE_NAMES` (`server/src/config.ts`) and must match `server/src/parser/index.ts`. New source tests set their data-dir env var before importing the adapter so `appConfig` picks the fixture root. File-based adapters that can run in WSL scan `withWslRoots(primary, '<distro-home-relative>')` and tag metas with `rootDir`; tests set `CHATCRYSTAL_WSL='0'` and inject fixtures via `setWslHomesForTesting()`.
 - **Shared types are the contract**: both server and client import from `@chatcrystal/shared`
-- **No ORM**: raw SQL via sql.js with parameterized queries
+- **No ORM**: raw SQL via `node:sqlite` with parameterized queries
+- **Background sync is the import UX**: `syncManager` (services/sync.ts) owns the only import pass; the watcher and startup schedule feed it targeted source lists, and the client renders its state instead of running a one-shot import. `importAll()` still supports the old callback form for the CLI/SSE route.
+- **Parsing scales with worker threads**: `importAll` defaults to the shared `parse-pool.ts`; in the Node test runner it parses inline because fake adapters are registered in-process (`NODE_TEST_CONTEXT`).
+- **DB is a real SQLite file now**: WAL + checkpointed saves (`saveDatabase()`); a backup/copy must include `chatcrystal.db-wal` if taken while the server is running.
 - **sanitizeContent()**: strips Claude Code system XML tags from message content
 - **Consecutive tool-use messages**: grouped and collapsed in frontend (ToolCallGroup component)
 - **Production SPA fallback**: Fastify serves `client/dist`, non-API 404s return `index.html`

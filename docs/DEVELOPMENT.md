@@ -29,7 +29,7 @@ ChatCrystal/
 | Backend | Node.js, Fastify v5, TypeScript |
 | Frontend | Vite v8, React 19, Tailwind CSS v4, TanStack React Query v5 |
 | Desktop | Electron, electron-builder |
-| Database | sql.js WASM SQLite |
+| Database | `node:sqlite` (built-in SQLite, WAL); parser-side SQLite readers use sql.js |
 | LLM | Vercel AI SDK v7 |
 | Embeddings | vectra local vector index |
 | Queue | p-queue |
@@ -84,15 +84,25 @@ Electron sets `ELECTRON=true`, `DATA_DIR`, and `ELECTRON_PACKAGED` when applicab
 
 ```
 AI tool conversation files
-  -> SourceAdapter scan/parse
+  -> SourceAdapter detect/scan (metadata only, no file contents)
+  -> Background sync engine (startup pass + targeted watcher; one pass at a time)
+  -> SourceAdapter parse in the worker-thread pool
   -> Import service deduplication
-  -> SQLite conversations/messages
+  -> SQLite (node:sqlite, WAL) conversations/messages
   -> Summarization queue
   -> LLM structured note generation
   -> Embedding generation
   -> vectra semantic index
   -> REST API, UI, CLI, MCP
 ```
+
+## Background Sync & Parsing
+
+- `services/sync.ts` is the only importer: a small state machine (`idle`, `syncing`, `cancelled`, `error`) with per-source progress and pending-trigger merging. `createServer` schedules one pass 2.5s after boot; the watcher feeds targeted source lists. The client polls `GET /api/sync/status`; `POST /api/sync/start` and `POST /api/sync/cancel` drive it manually, and `GET /api/sync/stream` is the SSE variant.
+- The watcher starts only after the first startup pass settles. chokidar's initial scan over a large history (a workbuddy home can hold ~70k plugin files) otherwise competes with the import's filesystem reads. Events are mapped to the owning source by longest-prefix target binding and debounced for 1.8s.
+- `importAll()` takes `{ sources?, signal?, onProgress?, parsePool? }` and emits phase/per-source progress plus error details. It is still callable as `importAll(callback)` for the legacy CLI/SSE route.
+- Parsing defaults to the shared `services/parse-pool.ts` worker pool (`CHATCRYSTAL_PARSE_WORKERS`, default `min(4, cpus-1)`; `0` or `CHATCRYSTAL_PARSE_POOL=off` parses in-process). Tests parse inline because they register fake adapters in-process (`NODE_TEST_CONTEXT`).
+- `CHATCRYSTAL_AUTO_SYNC=0` disables the startup/watcher passes; manual sync and `crystal import` still work.
 
 ## Summarization Pipeline
 
@@ -176,6 +186,7 @@ for (const root of roots) {
 - `withWslRoots` always returns the primary root first; WSL roots are added only when `<distro home>/<relative path>` exists.
 - `scan()` should set `rootDir: root` on every `ConversationMeta`; `parse()` uses `meta.rootDir ?? appConfig.<primary>` when it needs root-level metadata (Gemini `projects.json`, Antigravity summary DB, Continue `sessions.json`, Cline extension `taskHistory.json`, ...).
 - `watchPaths()` should only return local roots: the watcher never watches UNC paths (slow, and it can start a stopped distro).
+- Point `watchPaths()` at the narrowest session folder, not the agent home. chokidar has to scan a target before it can watch it; a broad target (for example `~/.workbuddy` with its plugin marketplaces) starves the first import's filesystem reads.
 - Discovery honors `CHATCRYSTAL_WSL=0` (disable), `CHATCRYSTAL_WSL_DISTROS` (opt specific distros in, they may start on access), and `CHATCRYSTAL_WSL_HOMES` (forced homes). Tests inject fixture homes with `setWslHomesForTesting([...])`.
 
 ## API Surface

@@ -39,7 +39,7 @@ pnpm build:electron
 
 ## 使用流程
 
-1. 点击 **Import**，扫描本地所有已检测到的 Agent Harness 对话——共 32 种，包括 Claude Code、Claude Desktop、Codex CLI、Cursor、Trae、GitHub Copilot Chat 与 CLI、Gemini CLI、Qwen Code、OpenCode、Cline、Roo Code、Kilo Code、Continue、DeepSeek Harness、WorkBuddy、CodeBuddy、Antigravity、Droid、Goose、Pi、omp、Raft、Cindy、Qoder/Qoder CN、ZCode、Hermes、Alma、Grok Build、Kimi Code、MiniMax Code（Windows 上包含 WSL 发行版 home）。
+1. 本地历史会自动同步：启动几秒后跑一次，之后会话文件变化时按源定向同步，不需要手动导入。侧边栏会显示同步状态（等待同步 / 同步中带进度 / 上次同步时间），也可以手动触发或取消。全部 32 种 Agent Harness 都会被检测，包括 Claude Code、Claude Desktop、Codex CLI、Cursor、Trae、GitHub Copilot Chat 与 CLI、Gemini CLI、Qwen Code、OpenCode、Cline、Roo Code、Kilo Code、Continue、DeepSeek Harness、WorkBuddy、CodeBuddy、Antigravity、Droid、Goose、Pi、omp、Raft、Cindy、Qoder/Qoder CN、ZCode、Hermes、Alma、Grok Build、Kimi Code、MiniMax Code（Windows 上包含 WSL 发行版 home）。
 2. 在 **Conversations** 页面浏览原始对话。
 3. 点击 **Summarize** 或批量摘要，生成结构化笔记。
 4. 在 **Search** 页面搜索知识；需要更完整上下文时开启关联笔记扩展。
@@ -51,8 +51,9 @@ pnpm build:electron
 装在 WSL 发行版里的 Agent 会把历史保存在发行版 home 中。Windows 上 ChatCrystal 会通过 `\\wsl.localhost` 读取，并从 WSL 发行版导入 Claude Code、Codex、Gemini CLI、Qwen Code、OpenCode、Cline、Roo Code、Kilo Code、Continue、DeepSeek Harness 等受支持 Agent 的会话。
 
 - 默认只扫描**正在运行**的发行版，不会为了导入而启动已停止的发行版。可用 `CHATCRYSTAL_WSL_DISTROS=Ubuntu-24.04` 指定发行版，或用 `CHATCRYSTAL_WSL=0` 关闭 WSL 扫描。
-- WSL 与 VS Code Remote 的会话在**手动 Import** 时同步；实时 watcher 只监听 Windows 本地目录。
-- 首次导入较大的 WSL 历史（例如 Codex 会话）会稍慢，因为 `\\wsl.localhost` 读取速度低于本地磁盘。
+- 启动同步和手动同步会读取 WSL 与 VS Code Remote 会话；实时 watcher 只监听 Windows 本地目录，运行中 WSL 发行版里的变化会在下次启动或手动同步时被读入。
+- 首次同步较大的 WSL 历史（例如 Codex 会话）会稍慢，因为 `\\wsl.localhost` 读取速度低于本地磁盘；同步在后台进行，对话可以边同步边浏览。
+- 如只想按需同步，可设 `CHATCRYSTAL_AUTO_SYNC=0` 关闭启动/watcher 自动同步。
 
 ## CLI 命令
 
