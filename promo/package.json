@@ -11,13 +11,13 @@
     "@remotion/cli": "^4.0.543",
     "@remotion/google-fonts": "^4.0.543",
     "@remotion/transitions": "^4.0.543",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "remotion": "^4.0.543"
   },
   "devDependencies": {
     "@remotion/eslint-config": "^4.0.543",
-    "@types/react": "^19.0.0",
+    "@types/react": "^19.3.0",
     "typescript": "^5.9.0"
   }
 }
