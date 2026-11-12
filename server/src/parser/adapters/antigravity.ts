@@ -265,8 +265,15 @@ function extractUserRequest(content: string): string {
 	const requestMatch = /<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/.exec(text);
 	if (requestMatch) return (requestMatch[1] ?? "").trim();
 
-	// No wrapper: strip whatever XML-ish tags are left.
-	return text.replace(/<[^>]*>/g, "").trim();
+	// No wrapper: strip whatever XML-ish tags are left. Repeat until stable so
+	// nested fragments cannot reassemble a tag after a single pass.
+	let sanitized = text;
+	for (let pass = 0; pass < 5; pass += 1) {
+		const next = sanitized.replace(/<[^>]*>/g, "");
+		if (next === sanitized) break;
+		sanitized = next;
+	}
+	return sanitized.trim();
 }
 
 /** Last path segment, accepting both Windows and POSIX separators. */

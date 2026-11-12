@@ -138,8 +138,14 @@ export async function discoverProviderModels(
   }
 }
 
+function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === '/') end -= 1;
+  return value.slice(0, end);
+}
+
 export function buildOpenAICompatibleModelUrlCandidates(baseURL: string): string[] {
-  const trimmed = baseURL.trim().replace(/\/+$/, '');
+  const trimmed = stripTrailingSlashes(baseURL.trim());
   if (!trimmed) {
     throw new ModelDiscoveryError('missing_base_url', 'Base URL is required.');
   }
@@ -156,7 +162,7 @@ export function buildOpenAICompatibleModelUrlCandidates(baseURL: string): string
 
   const stripped = stripCompatSuffix(trimmed);
   if (stripped) {
-    const root = stripped.replace(/\/+$/, '');
+    const root = stripTrailingSlashes(stripped);
     if (root && root.includes('://')) {
       candidates.push(`${root}/v1/models`);
       candidates.push(`${root}/models`);
@@ -187,7 +193,7 @@ async function discoverOllamaModels(
   fetchImpl: FetchLike,
 ): Promise<DiscoveredModel[]> {
   const baseURL = input.baseURL?.trim() || DEFAULT_OLLAMA_BASE_URL;
-  const url = `${baseURL.replace(/\/+$/, '')}/api/tags`;
+  const url = `${stripTrailingSlashes(baseURL)}/api/tags`;
   const response = await fetchWithTimeout(fetchImpl, url);
   const data = await parseJson<OllamaTagsResponse>(response);
   return sortModels(

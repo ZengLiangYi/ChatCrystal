@@ -55,7 +55,12 @@ export async function noteRoutes(app: FastifyInstance) {
 
     // Fire-and-forget — don't await, let the queue handle it
     enqueueWithRetry(id, title, () => triggerSummarize(id)).catch((err) => {
-      console.error(`[Summarize] Error for ${id}:`, err instanceof Error ? err.message : err);
+      console.error(
+      '[Summarize] Error for conversation',
+      id,
+      ':',
+      err instanceof Error ? err.message : err,
+    );
     });
 
     return {
@@ -77,7 +82,12 @@ export async function noteRoutes(app: FastifyInstance) {
       const title = `${pn} / ${sl || id.slice(0, 8)}`;
 
       enqueueWithRetry(id, title, () => triggerSummarize(id)).catch((err) => {
-        console.error(`[Summarize] Error for ${id}:`, err instanceof Error ? err.message : err);
+        console.error(
+      '[Summarize] Error for conversation',
+      id,
+      ':',
+      err instanceof Error ? err.message : err,
+    );
       });
       queued++;
     }
@@ -119,7 +129,12 @@ export async function noteRoutes(app: FastifyInstance) {
 
       const title = `${projectName} / ${slug || id.slice(0, 8)}`;
       enqueueWithRetry(id, title, () => triggerSummarize(id)).catch((err) => {
-        console.error(`[Summarize] Error for ${id}:`, err instanceof Error ? err.message : err);
+        console.error(
+      '[Summarize] Error for conversation',
+      id,
+      ':',
+      err instanceof Error ? err.message : err,
+    );
       });
       queued++;
     }

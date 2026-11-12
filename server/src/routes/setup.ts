@@ -1,4 +1,5 @@
 import type { CompleteSetupRequest, RotateTokenRequest } from '@chatcrystal/shared';
+import rateLimit from '@fastify/rate-limit';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { getProviderWarnings, isCloudMode, isPublicApiPath } from '../runtime/cloud.js';
 import {
@@ -17,8 +18,9 @@ const SETUP_COMPLETE_BODY_LIMIT_BYTES = 8 * 1024;
 function bearerToken(req: FastifyRequest): string | undefined {
   const header = req.headers.authorization;
   if (!header) return undefined;
-  const match = /^Bearer\s+(.+)$/i.exec(header);
-  return match?.[1];
+  if (!header.toLowerCase().startsWith('bearer ')) return undefined;
+  const token = header.slice('bearer '.length).trim();
+  return token || undefined;
 }
 
 export function registerCloudAuthHook(app: FastifyInstance) {
@@ -80,6 +82,13 @@ function isTokenValidationError(err: unknown): boolean {
 }
 
 export async function authRoutes(app: FastifyInstance) {
+  // Throttle the unauthenticated setup/auth endpoints (setup-code guesses and
+  // token verification) before registering the routes they protect.
+  await app.register(rateLimit, {
+    max: 60,
+    timeWindow: '1 minute',
+  });
+
   app.get('/api/setup/status', async (req) => {
     const token = bearerToken(req);
     const authenticated = !isCloudMode() || (token ? await verifyToken(token, req.ip) : false);
