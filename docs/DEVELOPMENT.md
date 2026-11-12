@@ -68,10 +68,18 @@ The root workspace requires Node.js 24 and pnpm 11 through Corepack. `site/` and
 - Registry trust downgrades are rejected for recently published packages, exotic subdependencies are blocked, and dependency lifecycle scripts use an explicit allowlist.
 - `pnpm security:audit` prints the complete audit report and fails on high or critical findings. `pnpm security:signatures` verifies registry signatures.
 - Dependabot checks workspace packages and GitHub Actions weekly. Minor and patch updates are grouped; major updates remain separate for review.
+- Security-driven transitive overrides live in `pnpm-workspace.yaml` under `overrides:` (for example `body-parser`, `follow-redirects`, `joi`); add the advisory context to `CHANGELOG.md` when you bump one.
 
 ## Runtime Data
 
-Runtime data is stored in `config.json` and `chatcrystal.db` under the active data directory.
+Runtime data lives under the active data directory:
+
+| Path | Contents |
+|---|---|
+| `chatcrystal.db` | SQLite database in WAL mode (`node:sqlite`). `chatcrystal.db-wal`/`-shm` are part of it while a process holds the DB — back them up together or close the server first. |
+| `transcript-cache/` | Gzip JSON snapshots of parsed conversations (see Background Sync). Safe to delete; entries are rebuilt on demand. |
+| `vectra-index/` | Local embedding index used for semantic search. |
+| `config.json` | Providers, enabled sources and runtime configuration. |
 
 Default data directory:
 
@@ -105,6 +113,8 @@ AI tool conversation files
 - **Transcript cache**: parsed conversations are stored under `<dataDir>/transcript-cache/<source>/<sha1>.json.gz`, keyed by source/id/parser version/file path/size/mtime/rootDir. Both the import loop and lazy materialization read it first, so re-reading a session after a DB reset or interrupt skips parsing; size/age caps prune it in the background.
 - Parsing defaults to the shared `services/parse-pool.ts` worker pool (`CHATCRYSTAL_PARSE_WORKERS`, default `min(4, cpus-1)`; `0` or `CHATCRYSTAL_PARSE_POOL=off` parses in-process). Tests parse inline because they register fake adapters in-process (`NODE_TEST_CONTEXT`).
 - `CHATCRYSTAL_AUTO_SYNC=0` disables the startup/watcher passes; manual sync and `crystal import` still work.
+- Client side: `client/src/hooks/use-sync.ts` polls `GET /api/sync/status` (2s while syncing, 10s idle, 30s when the server is unreachable) and invalidates the conversations/status/notes/tags queries, with an extra progressive refresh keyed on the progress signature. `Sidebar.tsx` renders the `SyncPanel` states (checking, waiting, syncing with per-source counters, cancelled with retry, error) and exposes start/cancel/retry.
+- Index-first UX: the conversation list renders pending rows immediately with an "Indexing" marker; `GET /api/conversations/:id` calls `materializeConversationById()` when `transcript_status !== 'materialized'`, so opening a pending conversation parses and returns its transcript in the same request. The summarizer does the same before building its transcript.
 
 ## Summarization Pipeline
 
@@ -200,9 +210,16 @@ Key REST endpoints:
 | GET | `/api/status` | Server status and statistics |
 | GET | `/api/config` | Current config with secrets redacted |
 | POST | `/api/config` | Update provider config |
-| POST | `/api/import/scan` | Trigger import |
-| GET | `/api/conversations` | List conversations |
-| GET | `/api/conversations/:id` | Conversation detail |
+| GET | `/api/sync/status` | Sync phase, progress, last result, errors |
+| POST | `/api/sync/start` | Start a manual pass (202; local-only, 403 for non-local origins) |
+| POST | `/api/sync/cancel` | Cancel the active pass |
+| GET | `/api/sync/stream` | Sync status as SSE |
+| POST | `/api/import/scan` | Legacy one-shot import trigger |
+| POST | `/api/import/scan/stream` | One-shot import with SSE progress |
+| POST | `/api/import/ingest` | Ingest normalized conversations (cloud/remote import) |
+| GET | `/api/conversations` | Index-first list; rows carry `transcript_status` |
+| GET | `/api/conversations/:id` | Detail; materializes a pending transcript before responding |
+| DELETE | `/api/conversations/:id` | Delete a conversation and its messages |
 | POST | `/api/conversations/:id/summarize` | Summarize one conversation |
 | POST | `/api/summarize/batch` | Batch summarization |
 | GET | `/api/notes` | List notes |
@@ -211,6 +228,13 @@ Key REST endpoints:
 | GET | `/api/graph/projection` | Bounded graph projection for the UI |
 | GET | `/api/relations/graph` | Legacy note relation graph data |
 | GET | `/api/queue/status` | Queue status |
+
+## Desktop Packaging & Onboarding
+
+- `electron/main.ts` embeds the Fastify server (`createServer()`), enables the watcher/auto-sync in the packaged app, and switches between the onboarding, local, and cloud windows.
+- The packaged onboarding page is loaded from `file://` inside the ASAR (`client/dist/electron-onboarding/index.html`). Vite emits absolute `/assets/...` URLs for the web build, so `client/scripts/rewrite-onboarding-assets.mjs` runs at the end of `client build` and rewrites them to `../assets/...`; without it the page is blank in packaged builds.
+- `electron/ipc.ts` guards onboarding IPC: it accepts the `file://`/`null` origin spellings for file URLs while still pinning the exact onboarding document URL.
+- Onboarding supports local (embedded core) and cloud (remote URL + token) modes; `electron/state.ts` persists the choice in `onboarding-state.json` under the Electron user-data directory. `pnpm dev:electron` uses the Vite dev server, where the relative-URL rewrite is not needed.
 
 ## Knowledge Graph
 
@@ -247,7 +271,7 @@ pnpm security:audit
 pnpm security:signatures
 ```
 
-Use a focused layer while iterating, then run the full commands before committing. The MCP smoke test uses compiled output, so run `pnpm build` first.
+Use a focused layer while iterating, then run the full commands before committing. The MCP smoke test uses compiled output, so run `pnpm build` first. Phase B behavior is covered by `server/src/services/materialize.test.ts` (index-first rows, cancellation, lazy materialization, cache hits) and `server/src/services/transcript-cache.test.ts`.
 
 ## Release
 
@@ -268,3 +292,4 @@ Release tag behavior:
 - `electron-v*` tags trigger Electron-only GitHub Release builds. Use this for desktop-only changes, including Electron main/preload/tray/packaging changes and Electron-gated client UI.
 - `npm-v*` tags publish only the npm package. Use this for CLI, server, MCP, or package-content changes.
 - The npm package version comes from `server/package.json`, not the root package. A `v*` release will fail with npm `E403` if `server/package.json` still points to an already-published version.
+- Release CI runs `pnpm security:audit` before publishing. If a newly disclosed advisory blocks the npm job after the tag was pushed, patch the dependency on `main`, then either rerun the publish workflow with `gh workflow run release.yml -f publish_npm=true -f build_electron=false` (same version) or cut a patch release. `gh run list --workflow release.yml` shows the relevant runs.

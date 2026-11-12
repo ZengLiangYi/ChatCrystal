@@ -30,12 +30,16 @@ pnpm dev
 
 ### 桌面应用
 
+从 [GitHub Releases](https://github.com/ZengLiangYi/ChatCrystal/releases) 下载 Windows 安装包并启动。本地构建：
+
 ```bash
 pnpm dev:electron
 pnpm build:electron
 ```
 
-安装包会生成到 `release/`。桌面应用与 CLI、MCP server 使用同一个默认数据目录：`~/.chatcrystal/data`。
+安装包会生成到 `release/`。首次启动时，引导页会让你选择连接**本地核心**（推荐，数据全部留在本机）或已有的**云端核心**（地址 + 访问 token）。选择本地核心，跳过可选的导入/摘要/MCP 步骤并进入应用，启动同步会自动开始。
+
+桌面应用与 CLI、MCP server 使用同一个默认数据目录：`~/.chatcrystal/data`。
 
 ## 使用流程
 
@@ -45,6 +49,14 @@ pnpm build:electron
 4. 在 **Search** 页面搜索知识；需要更完整上下文时开启关联笔记扩展。
 5. 打开图谱视图，浏览 tag 形成的知识点，以及每个知识点下的笔记。
 6. 在 **Settings** 页面切换 LLM 和 Embedding Provider。
+
+### 同步状态、索引与懒解析
+
+- **索引优先列表**：某个数据源扫描完成后，每个会话文件立即变成一条对话行，即使正文还在解析。尚未解析完的行会在标题旁显示「索引中」，并且仍然可以点击。
+- **懒解析详情**：打开一条「索引中」的行时，会按需解析该会话（本机通常一秒内完成，超大文件或 WSL 文件会稍慢），随后渲染完整对话。行变为 materialized 后标记自动消失。
+- **取消也保留进度**：点击侧边栏的**取消**会停止本轮同步，索引行和已解析的对话都会保留；点**重试**可以继续，或直接打开某条 pending 对话单独补全。
+- **watcher 是增量的**：首轮同步结束后才开始监听，之后会话文件变化时只触发对应来源的小同步。退出应用才会停止同步，关闭窗口到托盘不会。
+- **首轮最耗时**：大历史只在首次完整解析一次，后续启动只处理新增或变化的会话。
 
 ### WSL 会话（Windows）
 
@@ -75,7 +87,7 @@ crystal serve stop                      # 停止后台服务器
 crystal mcp                             # 启动 MCP stdio 服务
 ```
 
-需要服务器的命令会在服务未运行时自动后台启动。输出会适配终端：交互式终端显示表格，被管道消费时输出 JSON。
+桌面版不需要手动导入；`crystal import` 仍适用于 CLI/CI 工作流，以及把本地历史上传到云端实例。需要服务器的命令会在服务未运行时自动后台启动。输出会适配终端：交互式终端显示表格，被管道消费时输出 JSON。
 
 ## 配置
 
@@ -113,6 +125,20 @@ ChatCrystal 将运行时配置保存在当前数据目录的 `config.json` 中�
   ]
 }
 ```
+
+### 同步、解析与缓存
+
+可选环境变量，用于调节后台同步管线：
+
+| 变量 | 默认值 | 说明 |
+|---|---|---|
+| `CHATCRYSTAL_AUTO_SYNC` | 开启 | 设为 `0` 关闭启动与 watcher 自动同步；手动同步和 `crystal import` 仍可用。 |
+| `CHATCRYSTAL_PARSE_WORKERS` | `min(4, CPU-1)` | 解析 transcript 的 worker 线程数；`0` 表示在主线程解析。 |
+| `CHATCRYSTAL_TRANSCRIPT_CACHE` | 开启 | 设为 `off` 禁用解析缓存。 |
+| `CHATCRYSTAL_TRANSCRIPT_CACHE_DIR` | `<dataDir>/transcript-cache` | 缓存目录。 |
+| `CHATCRYSTAL_TRANSCRIPT_CACHE_MAX_MB` | `512` | 缓存大小上限，超出后从最旧条目开始清理。 |
+| `CHATCRYSTAL_TRANSCRIPT_CACHE_MAX_AGE_DAYS` | `30` | 缓存保留天数上限。 |
+| `CHATCRYSTAL_WSL` / `CHATCRYSTAL_WSL_DISTROS` | 运行中的发行版 | WSL 扫描控制（见上文）。 |
 
 ### Provider 示例
 
@@ -160,6 +186,19 @@ LLM 和 Embedding 模型必须分别配置。语义搜索需要支持 `/v1/embed
 
 Claude、GPT、Qwen 等大语言模型不是 Embedding 模型。
 
+## 数据目录
+
+所有数据都保存在当前数据目录（默认 `~/.chatcrystal/data`，可用 `DATA_DIR` 覆盖）：
+
+| 路径 | 内容 |
+|---|---|
+| `chatcrystal.db` | WAL 模式的 SQLite 数据库。应用运行期间 `chatcrystal.db-wal` 和 `chatcrystal.db-shm` 也属于它；备份时请退出应用，或三个文件一起复制。 |
+| `transcript-cache/` | 已解析 transcript 的 gzip JSON 快照，按来源、会话、解析器版本和文件元信息索引。可以安全删除，需要时会从原始 Agent 会话文件重新解析。 |
+| `config.json` | Provider、启用的数据源和应用配置。 |
+| `vectra-index/` | 语义搜索使用的本地向量索引（首次生成笔记后创建）。 |
+
+transcript 缓存只是可选加速：它让后续读取、懒解析详情和中断同步的恢复更快，并会按上面的容量/时间上限在后台清理，不会替代原始 Agent 会话文件。
+
 ## 常见问题
 
 ### 语义搜索返回 500 "Not Found"
@@ -178,6 +217,22 @@ ollama pull nomic-embed-text
 ### 导入时没有发现对话
 
 检查 Settings 页面或 `config.json` 里的数据源路径。如果仍在使用 `.env` 覆盖，也要一起检查。
+
+### 首次安装后引导窗口是空白
+
+0.7.1 之前的打包版本可能打开空白引导页：页面无法从应用包内加载资源，按钮也会报 origin 错误。请升级到 0.7.1 或更新版本。源码/开发模式不受影响。
+
+### 对话一直显示「索引中」
+
+说明同步在该会话解析完成前被取消、中断或失败了。查看侧边栏的上次结果，然后点**重试**（或**开始同步**）；直接打开该对话也会按需补全。如果某个文件反复失败，可能是原始 Agent 会话文件格式异常，或正被写作中的 Agent 占用。
+
+### 首次同步很慢或 CPU 占用高
+
+首轮会解析全部历史，之后只处理新增或变化的文件。可以取消后先浏览已索引的对话，调低 `CHATCRYSTAL_PARSE_WORKERS`，或设 `CHATCRYSTAL_AUTO_SYNC=0` 改用手动同步。WSL 历史因通过 `\\wsl.localhost` 读取会更慢。
+
+### 磁盘占用持续增长
+
+主要是 transcript 缓存。它默认自动清理到 512 MB / 30 天；可以调低 `CHATCRYSTAL_TRANSCRIPT_CACHE_MAX_MB` 或 `CHATCRYSTAL_TRANSCRIPT_CACHE_MAX_AGE_DAYS`，或设 `CHATCRYSTAL_TRANSCRIPT_CACHE=off` 并在关闭应用后删除 `transcript-cache` 目录。SQLite 数据库会随导入消息和笔记增长；不需要的旧对话可以在 Conversations 页面删除。
 
 ### 知识图谱为空
 

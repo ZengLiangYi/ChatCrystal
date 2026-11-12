@@ -68,10 +68,18 @@ pnpm security:signatures              # 校验 registry 签名
 - 最近发布包若发生 registry 信任降级会被拒绝，exotic 子依赖会被阻断，依赖生命周期脚本使用显式白名单。
 - `pnpm security:audit` 会打印完整审计结果，并在 high 或 critical 发现时失败；`pnpm security:signatures` 用于校验 registry 签名。
 - Dependabot 每周检查 workspace 依赖与 GitHub Actions。minor/patch 合并更新，major 保持单独评估。
+- 安全相关的传递依赖覆盖放在 `pnpm-workspace.yaml` 的 `overrides:` 下（例如 `body-parser`、`follow-redirects`、`joi`）；升级时把 advisory 背景补进 `CHANGELOG.md`。
 
 ## 运行时数据
 
-运行时数据保存在当前数据目录下的 `config.json` 和 `chatcrystal.db`。
+运行时数据都在当前数据目录下：
+
+| 路径 | 内容 |
+|---|---|
+| `chatcrystal.db` | WAL 模式的 SQLite 数据库（`node:sqlite`）。进程持有数据库期间 `chatcrystal.db-wal`/`-shm` 也属于它——备份时一起复制，或先关闭服务。 |
+| `transcript-cache/` | 已解析对话的 gzip JSON 快照（见后台同步）。可以安全删除，需要时自动重建。 |
+| `vectra-index/` | 语义搜索使用的本地向量索引。 |
+| `config.json` | Provider、启用的数据源与运行时配置。 |
 
 默认数据目录：
 
@@ -105,6 +113,8 @@ AI 工具对话文件
 - **解析缓存**：解析结果写入 `<dataDir>/transcript-cache/<source>/<sha1>.json.gz`，key 包含 source/id/parserVersion/文件路径/大小/mtime/rootDir。import 循环和懒解析都先查缓存，DB 重置或中断后重新读取同一会话时无需再 parse；缓存按大小/时间后台清理。
 - 解析默认走共享的 `services/parse-pool.ts` worker 池（`CHATCRYSTAL_PARSE_WORKERS`，默认 `min(4, CPUs-1)`；`0` 或 `CHATCRYSTAL_PARSE_POOL=off` 则主线程解析）。测试在 `NODE_TEST_CONTEXT` 下始终 inline，因为测试注册的 fake adapter 不在 worker 里。
 - `CHATCRYSTAL_AUTO_SYNC=0` 可关闭启动/watcher 自动同步；手动同步和 `crystal import` 不受影响。
+- 客户端：`client/src/hooks/use-sync.ts` 轮询 `GET /api/sync/status`（同步中 2s、空闲 10s、服务不可达 30s），并 invalidate conversations/status/notes/tags；另外按 progress 签名做渐进刷新。`Sidebar.tsx` 渲染 `SyncPanel` 的各个状态（检查中、等待、同步中带每源计数、已取消可重试、错误），并提供开始/取消/重试。
+- 索引优先 UX：对话列表立即渲染 pending 行并带「索引中」标记；`GET /api/conversations/:id` 在 `transcript_status !== 'materialized'` 时调用 `materializeConversationById()`，所以打开 pending 对话会在同一请求内解析并返回正文。摘要服务在构建 transcript 前也做同样处理。
 
 ## 摘要流水线
 
@@ -200,9 +210,16 @@ for (const root of roots) {
 | GET | `/api/status` | 服务状态与统计 |
 | GET | `/api/config` | 当前配置，密钥已脱敏 |
 | POST | `/api/config` | 更新 Provider 配置 |
-| POST | `/api/import/scan` | 触发导入 |
-| GET | `/api/conversations` | 对话列表 |
-| GET | `/api/conversations/:id` | 对话详情 |
+| GET | `/api/sync/status` | 同步阶段、进度、上次结果与错误 |
+| POST | `/api/sync/start` | 手动开始一轮同步（202；仅限本地，非本地来源返回 403） |
+| POST | `/api/sync/cancel` | 取消当前同步 |
+| GET | `/api/sync/stream` | 以 SSE 推送同步状态 |
+| POST | `/api/import/scan` | 旧的一次性导入入口 |
+| POST | `/api/import/scan/stream` | 旧的一次性导入（SSE 进度） |
+| POST | `/api/import/ingest` | 接收规范化对话（云端/远程导入） |
+| GET | `/api/conversations` | 索引优先列表；每行带 `transcript_status` |
+| GET | `/api/conversations/:id` | 详情；pending 对话会先补全 transcript 再返回 |
+| DELETE | `/api/conversations/:id` | 删除对话及其消息 |
 | POST | `/api/conversations/:id/summarize` | 摘要单条对话 |
 | POST | `/api/summarize/batch` | 批量摘要 |
 | GET | `/api/notes` | 笔记列表 |
@@ -211,6 +228,13 @@ for (const root of roots) {
 | GET | `/api/graph/projection` | 面向 UI 的有界图谱投影 |
 | GET | `/api/relations/graph` | 旧版笔记关系图数据 |
 | GET | `/api/queue/status` | 队列状态 |
+
+## 桌面打包与首次引导
+
+- `electron/main.ts` 内嵌 Fastify server（`createServer()`），打包版会启用 watcher/自动同步，并在 onboarding、local、cloud 三种窗口间切换。
+- 打包版引导页从 ASAR 内的 `file://` 加载（`client/dist/electron-onboarding/index.html`）。Vite 给 Web 产物生成绝对 `/assets/...` 路径，因此 `client/scripts/rewrite-onboarding-assets.mjs` 会在 `client build` 末尾把它们改写成 `../assets/...`；否则打包版页面会是空白。
+- `electron/ipc.ts` 校验 onboarding IPC：对 file URL 接受 `file://`/`null` 两种 origin 写法，但仍精确校验 onboarding 文档 URL。
+- 引导流程支持本地核心（内嵌 server）与云端核心（远程 URL + token）；`electron/state.ts` 把选择持久化到 Electron userData 下的 `onboarding-state.json`。`pnpm dev:electron` 使用 Vite dev server，不需要相对路径改写。
 
 ## 知识图谱
 
@@ -247,7 +271,7 @@ pnpm security:audit
 pnpm security:signatures
 ```
 
-开发时可以先跑单层聚焦测试，提交前再跑完整命令。MCP 冒烟测试使用编译产物，因此需要先执行 `pnpm build`。
+开发时可以先跑单层聚焦测试，提交前再跑完整命令。MCP 冒烟测试使用编译产物，因此需要先执行 `pnpm build`。 Phase B 的行为由 `server/src/services/materialize.test.ts`（索引行、取消、懒解析、缓存命中）和 `server/src/services/transcript-cache.test.ts` 覆盖。
 
 ## 发布
 
@@ -268,3 +292,4 @@ pnpm release:npm -- 1.0.1       # 仅 npm 发布，tag npm-v*
 - `electron-v*` 只触发 Electron GitHub Release 构建。桌面端专属变更应使用它，包括 Electron main/preload/tray/packaging 变更，以及只有 Electron 会启用的 client UI。
 - `npm-v*` 只发布 npm 包。CLI、server、MCP 或 npm 包内容变更应使用它。
 - npm 包版本来自 `server/package.json`，不是 root `package.json`。如果 `v*` 发布时 `server/package.json` 仍指向已经发布过的版本，npm job 会因 `E403` 失败。
+- 发布 CI 在 publish 前会跑 `pnpm security:audit`。如果 tag 已推送后 npm job 被新披露的 advisory 拦下：先在 `main` 修依赖，然后用 `gh workflow run release.yml -f publish_npm=true -f build_electron=false` 重跑同一版本的 npm 发布，或发一个 patch 版本。`gh run list --workflow release.yml` 可查看相关 run。

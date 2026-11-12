@@ -30,12 +30,16 @@ Development mode starts the API server on http://localhost:3721 and the Vite cli
 
 ### Desktop App
 
+Download the Windows installer from [GitHub Releases](https://github.com/ZengLiangYi/ChatCrystal/releases) and launch it. To build it locally:
+
 ```bash
 pnpm dev:electron
 pnpm build:electron
 ```
 
-The installer is generated under `release/`. The desktop app uses the same default data directory as the CLI and MCP server: `~/.chatcrystal/data`.
+The installer is generated under `release/`. On first launch, onboarding asks whether to connect a **local core** (recommended; everything stays on this machine) or an existing **cloud core** (URL + access token). Choose the local core, skip the optional import/summary/MCP steps, and open the app — the startup sync then runs automatically.
+
+The desktop app uses the same default data directory as the CLI and MCP server: `~/.chatcrystal/data`.
 
 ## Workflow
 
@@ -45,6 +49,14 @@ The installer is generated under `release/`. The desktop app uses the same defau
 4. Search on the **Search** page; enable related-note expansion when you want broader context.
 5. Open the graph view to explore tag-based knowledge points and the notes behind each tag.
 6. Use the **Settings** page to switch LLM and embedding providers.
+
+### Sync states, indexing, and lazy transcripts
+
+- **Index-first list.** As soon as a source scan finishes, every session file appears as a conversation row, even while its transcript is still parsing. Rows that are not parsed yet show an **Indexing** marker next to the title and are still clickable.
+- **Lazy detail.** Opening an indexing row parses that transcript on demand (usually well under a second locally, longer for very large or WSL-hosted files) and then renders the full conversation. The marker disappears once the row is materialized.
+- **Cancelling keeps progress.** Click **Cancel** in the sidebar to stop a pass. Index rows and already-parsed conversations stay; click **Retry** to resume, or open a pending conversation to materialize just that one.
+- **The watcher is incremental.** It starts after the first startup pass and then triggers small per-source syncs when session files change. Quitting the app stops sync; hiding the window to the tray does not.
+- **The first run is the expensive one.** A large history is parsed once; later starts only parse new or changed sessions.
 
 ### WSL sessions (Windows)
 
@@ -75,7 +87,7 @@ crystal serve stop                      # Stop background server
 crystal mcp                             # Start MCP stdio server
 ```
 
-Commands that need the server can auto-start it in the background when it is not running. Terminal output is TTY-aware: tables for interactive terminals, JSON when piped.
+The desktop app needs no manual import; `crystal import` remains useful for CLI/CI workflows and for uploading local history to a cloud instance. Commands that need the server can auto-start it in the background when it is not running. Terminal output is TTY-aware: tables for interactive terminals, JSON when piped.
 
 ## Configuration
 
@@ -113,6 +125,20 @@ Typical `config.json`:
   ]
 }
 ```
+
+### Sync, parsing and cache
+
+Optional environment variables that tune the background sync pipeline:
+
+| Variable | Default | Description |
+|---|---|---|
+| `CHATCRYSTAL_AUTO_SYNC` | enabled | Set to `0` to disable startup and watcher syncs; manual sync and `crystal import` still work. |
+| `CHATCRYSTAL_PARSE_WORKERS` | `min(4, CPUs-1)` | Worker threads used to parse transcripts; `0` parses in-process. |
+| `CHATCRYSTAL_TRANSCRIPT_CACHE` | enabled | `off` disables the parsed-transcript cache. |
+| `CHATCRYSTAL_TRANSCRIPT_CACHE_DIR` | `<dataDir>/transcript-cache` | Cache folder. |
+| `CHATCRYSTAL_TRANSCRIPT_CACHE_MAX_MB` | `512` | Cache size cap; oldest entries are pruned first. |
+| `CHATCRYSTAL_TRANSCRIPT_CACHE_MAX_AGE_DAYS` | `30` | Cache age cap. |
+| `CHATCRYSTAL_WSL` / `CHATCRYSTAL_WSL_DISTROS` | running distros | WSL scanning controls (see above). |
 
 ### Provider Examples
 
@@ -160,6 +186,19 @@ LLM and embedding models must be configured separately. Semantic search requires
 
 Large language models such as Claude, GPT, and Qwen are not embedding models.
 
+## Data Directory
+
+Everything is stored under the active data directory (`~/.chatcrystal/data` by default; override with `DATA_DIR`):
+
+| Path | Contents |
+|---|---|
+| `chatcrystal.db` | SQLite database in WAL mode. While the app runs, `chatcrystal.db-wal` and `chatcrystal.db-shm` belong to it — quit the app or copy all three files together when backing up. |
+| `transcript-cache/` | Gzip JSON snapshots of parsed transcripts, keyed by source, conversation, parser version, and file metadata. Safe to delete; conversations are re-parsed from the original agent files when needed. |
+| `config.json` | Providers, enabled sources, and app configuration. |
+| `vectra-index/` | Local embedding index used by semantic search (created after the first summary). |
+
+The transcript cache is optional acceleration: it keeps later reads, lazy detail loads, and interrupted-sync recovery fast. It is pruned in the background to the size and age caps above and never replaces the original agent session files.
+
 ## Troubleshooting
 
 ### Semantic search returns 500 "Not Found"
@@ -178,6 +217,22 @@ ollama pull nomic-embed-text
 ### Import finds no conversations
 
 Check the source paths in the Settings page or `config.json`. If you still use `.env` overrides, check those paths too.
+
+### The onboarding window is blank on first install
+
+Packaged builds before 0.7.1 could open a blank setup window because the page could not load its assets from inside the app bundle, and its buttons failed with an origin error. Update to 0.7.1 or newer. Source/dev builds were not affected.
+
+### Conversations stay marked "Indexing"
+
+The sync was cancelled, interrupted, or failed before that transcript finished. Check the sidebar for the last result, then click **Retry** (or **Start sync**). Opening the conversation also materializes it on demand. If one specific file keeps failing, the original agent session file may be malformed or locked by the agent that is still writing it.
+
+### The first sync is slow or uses a lot of CPU
+
+The first pass parses your entire history; later passes only parse new or changed files. You can cancel it and browse the indexed rows, lower `CHATCRYSTAL_PARSE_WORKERS`, or set `CHATCRYSTAL_AUTO_SYNC=0` and sync manually. WSL histories are slower because files are read over `\\wsl.localhost`.
+
+### Disk usage keeps growing
+
+Most of the extra space is the transcript cache. It self-prunes to 512 MB / 30 days by default; lower `CHATCRYSTAL_TRANSCRIPT_CACHE_MAX_MB` or `CHATCRYSTAL_TRANSCRIPT_CACHE_MAX_AGE_DAYS`, or set `CHATCRYSTAL_TRANSCRIPT_CACHE=off` and delete the `transcript-cache` folder while the app is closed. The SQLite database grows with imported messages and notes; delete old conversations from the Conversations page when you no longer need them.
 
 ### The knowledge graph is empty
 

@@ -39,7 +39,7 @@ ChatCrystal 是一个本地优先的 AI PKM / 个人知识管理工具，面向�
 
 ### 桌面应用（推荐）
 
-从 [GitHub Releases](https://github.com/ZengLiangYi/ChatCrystal/releases) 下载最新 Windows 安装包。安装后启动 ChatCrystal，在设置页配置 LLM 和 Embedding Provider 即可。对话历史会在启动时和 Agent 会话文件变化后自动在后台同步，不需要手动导入等待；侧边栏会显示同步状态，也可以手动触发或取消同步。
+从 [GitHub Releases](https://github.com/ZengLiangYi/ChatCrystal/releases) 下载最新 Windows 安装包。安装后启动 ChatCrystal，在设置页配置 LLM 和 Embedding Provider 即可。对话历史会在启动时和 Agent 会话文件变化后自动在后台同步，不需要手动导入等待；侧边栏会显示同步状态，也可以手动触发或取消同步。仍在解析的对话会立即出现在列表中并带「索引中」标记，打开时按需加载完整正文。
 
 ### CLI / Web
 
@@ -59,6 +59,7 @@ crystal import
 
 - **导入 AI 编程对话**，覆盖 32 个 Agent Harness：Claude Code、Claude Desktop、Codex CLI、Cursor、Trae、GitHub Copilot Chat 与 CLI、Gemini CLI、Qwen Code、OpenCode、Cline、Roo Code、Kilo Code、Continue、DeepSeek Harness、WorkBuddy、CodeBuddy、Antigravity、Droid、Goose、Pi、omp、Raft、Cindy、Qoder/Qoder CN、ZCode、Hermes、Alma、Grok Build、Kimi Code、MiniMax Code。
 - **后台自动同步**——启动时同步一次，之后文件变化时按源定向同步，无需手动点击导入；每个源扫描完成后列表立即出现，正文由 worker 线程解析并缓存，同步进度在侧边栏可见。
+- **保持高速**——已解析的正文会以 gzip 快照缓存在本地，后续读取、中断恢复和详情加载都不必重复解析；缓存会自动清理到 512 MB / 30 天。
 - **支持 Windows 上的 WSL 会话**——装在 WSL 发行版里的 Claude Code、Codex、Gemini CLI、Qwen Code、OpenCode、Cline、Continue、DeepSeek Harness 等也会从发行版 home 导入（默认只扫描正在运行的发行版）。
 - **提炼结构化笔记**，包含标题、摘要、结论、代码片段和标签。
 - **语义搜索知识**，支持 Embedding 检索和关联笔记扩展。
@@ -154,7 +155,7 @@ pnpm dev
 - API/server: http://localhost:3721
 - Vite client: http://localhost:13721
 
-架构、测试、构建和发布说明见[开发者指南](docs/DEVELOPMENT.zh-CN.md)。
+架构、测试、构建和发布说明见[开发者指南](docs/DEVELOPMENT.zh-CN.md)，版本历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## Docker 云端部署
 
