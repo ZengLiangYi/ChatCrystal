@@ -7,6 +7,7 @@
 **Local-first AI PKM for coding conversations**
 
 [![GitHub release](https://img.shields.io/github/v/release/ZengLiangYi/ChatCrystal?style=flat-square)](https://github.com/ZengLiangYi/ChatCrystal/releases)
+[![CI](https://github.com/ZengLiangYi/ChatCrystal/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ZengLiangYi/ChatCrystal/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/chatcrystal?style=flat-square)](https://www.npmjs.com/package/chatcrystal)
 [![ChatCrystal MCP server](https://glama.ai/mcp/servers/ZengLiangYi/ChatCrystal/badges/score.svg)](https://glama.ai/mcp/servers/ZengLiangYi/ChatCrystal)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
