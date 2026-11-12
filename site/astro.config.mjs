@@ -1,7 +1,6 @@
 import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
 import sitemap from '@astrojs/sitemap';
-import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   site: 'https://zengliangyi.github.io',
@@ -17,7 +16,6 @@ export default defineConfig({
     }),
   ],
   vite: {
-    plugins: [tailwindcss()],
     build: {
       // Agent logos are small SVGs; keeping them as files instead of inlining
       // them into every copy of the marquee markup keeps the HTML light and
@@ -33,3 +31,4 @@ export default defineConfig({
     },
   },
 });
+

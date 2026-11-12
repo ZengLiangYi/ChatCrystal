@@ -1,4 +1,7 @@
-@import "tailwindcss";
+/* Tailwind v4 entry. Astro 7 builds on Vite 8, whose CSS pipeline does not
+   resolve the bare "tailwindcss" specifier here, so point at the package file
+   directly; @tailwindcss/postcss expands the directives. */
+@import "../../node_modules/tailwindcss/index.css";
 
 :root {
   --color-bg: #F6F4F0;
@@ -118,3 +121,5 @@ body::before {
   box-shadow: var(--shadow-soft), var(--shadow-line);
   backdrop-filter: blur(18px);
 }
+
+
