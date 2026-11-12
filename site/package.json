@@ -9,7 +9,7 @@
     "preview": "astro preview"
   },
   "dependencies": {
-    "@astrojs/react": "^5.0.4",
+    "@astrojs/react": "^7.1.4",
     "@astrojs/sitemap": "^3.7.2",
     "astro": "^6.1.9",
     "framer-motion": "^12.38.0",
