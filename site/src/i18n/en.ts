@@ -11,16 +11,16 @@ export const en = {
     github: 'GitHub',
   },
   hero: {
-    badge: '0.5.2 · Dawn Haze UI refresh',
+    badge: '0.7.0 · Seamless import',
     title: 'ChatCrystal',
-    subtitle: 'A calm local workspace that turns AI coding conversations into notes, tag graphs, Markdown exports, and reusable context for your next agent session.',
+    subtitle: 'A calm local workspace that syncs AI coding conversations automatically, then turns them into notes, tag graphs, Markdown exports, and reusable context for your next agent session.',
     installCmd: 'npm i -g chatcrystal',
     copied: 'Copied!',
     downloadDesktop: 'Download Desktop App',
     starOnGitHub: 'Star on GitHub',
     highlights: [
       { value: '32', label: 'AI agent harnesses' },
-      { value: 'Local', label: 'SQLite + vector index' },
+      { value: 'Local', label: 'Native SQLite + WAL' },
       { value: 'MCP', label: 'Recall knowledge from agents' },
     ],
   },
@@ -34,22 +34,23 @@ export const en = {
   howItWorks: {
     heading: 'From chat history to reusable knowledge',
     steps: [
-      { title: 'Import', desc: 'Scan Claude Code, Codex CLI, Cursor, Copilot, Gemini CLI and other agent histories from your machine.' },
+      { title: 'Sync', desc: 'ChatCrystal syncs Claude Code, Codex CLI, Cursor, Copilot, Gemini CLI and 32 harnesses automatically — no import step, and the list appears as soon as a scan finishes.' },
       { title: 'Crystallize', desc: 'LLMs extract summaries, decisions, code snippets, source metadata, and tags.' },
       { title: 'Explore', desc: 'Search semantically, browse notes, and inspect the tag-based knowledge graph.' },
       { title: 'Reuse', desc: 'Export Markdown or let MCP recall the right memories inside your agent workflow.' },
     ],
   },
   features: {
-    eyebrow: 'What changed in 0.5.x',
-    heading: 'A brighter workspace for serious recall',
+    eyebrow: 'What changed in 0.7.0',
+    heading: 'Seamless import and a faster local engine',
     items: [
-      { title: 'Dawn Haze interface', desc: 'A light desktop workspace with warm paper surfaces, compact controls, and shadcn/ui polish.' },
+      { title: 'Seamless background sync', desc: 'Startup and file-watch passes keep every agent history current — no import button, no waiting for a full scan.' },
+      { title: 'Instant index-first list', desc: 'Conversation rows appear as soon as a source scan finishes; transcripts fill in as they parse and can be opened while they load.' },
       { title: 'Tag knowledge graph', desc: 'Tags become knowledge-point nodes with readable neighborhoods, details, and project context.' },
       { title: 'Sharper semantic search', desc: 'Natural-language results now balance embeddings with lexical signal so weak hits stay out.' },
       { title: 'Markdown export', desc: 'Save a note as clean Markdown with localized headings and minimal frontmatter.' },
       { title: 'Agent memory loop', desc: 'MCP tools recall and write reusable task memories from the same local knowledge base.' },
-      { title: 'Desktop and cloud controls', desc: 'Use the tray app, manual update checks, token access, and optional personal cloud deployment.' },
+      { title: 'Reliable desktop setup', desc: 'First-run onboarding connects a local core or cloud instance, and packaged builds load the setup page correctly.' },
     ],
   },
   localFirst: {
@@ -66,7 +67,7 @@ export const en = {
     heading: 'Keep the workflow close to the terminal',
     subheading: 'The same local server powers the desktop app, REST API, CLI, and MCP memory tools.',
     commands: [
-      { command: 'crystal import --source codex', note: 'scan local sessions' },
+      { command: 'crystal import --source codex', note: 'manual / CI import' },
       { command: 'crystal search "jwt cache strategy"', note: 'semantic recall' },
       { command: 'crystal mcp', note: 'serve agent tools' },
     ],

@@ -34,7 +34,7 @@ function TerminalVisual() {
   const lines = [
     ['$', 'crystal mcp'],
     ['tool', 'recall_for_task  project=ChatCrystal'],
-    ['match', 'Dawn Haze theme tokens · 0.92'],
+    ['match', 'transcript cache hit · 0.6 ms'],
     ['write', 'task memory saved locally'],
   ];
 

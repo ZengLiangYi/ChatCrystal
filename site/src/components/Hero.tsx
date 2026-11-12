@@ -132,7 +132,7 @@ export default function Hero({ t, lang, basePath }: Props) {
 
           <div className="mt-4 grid grid-cols-[0.7fr_1fr] gap-4">
             <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-paper)] p-4 shadow-sm">
-              <p className="font-mono text-xs uppercase tracking-[0.12em] text-[var(--color-muted)]">Dawn Haze</p>
+              <p className="font-mono text-xs uppercase tracking-[0.12em] text-[var(--color-muted)]">{lang === 'zh' ? '无感同步' : 'Seamless sync'}</p>
               <p className="mt-2 text-sm font-semibold text-[var(--color-primary-deep)]">SQLite · Vector · MCP</p>
             </div>
             <div className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-paper)] shadow-sm">
