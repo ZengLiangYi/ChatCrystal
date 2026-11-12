@@ -8,16 +8,16 @@
     "render": "bash render.sh"
   },
   "dependencies": {
-    "@remotion/cli": "4.0.438",
-    "@remotion/google-fonts": "4.0.438",
-    "@remotion/transitions": "4.0.438",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5",
-    "remotion": "4.0.438"
+    "@remotion/cli": "4.0.541",
+    "@remotion/google-fonts": "4.0.541",
+    "@remotion/transitions": "4.0.541",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "remotion": "4.0.541"
   },
   "devDependencies": {
-    "@remotion/eslint-config": "4.0.438",
-    "@types/react": "^19.0.0",
+    "@remotion/eslint-config": "4.0.541",
+    "@types/react": "^19.3.0",
     "typescript": "^5.9.0"
   }
 }
