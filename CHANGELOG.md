@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Security
+
+- Hardened transitive runtime dependencies through pnpm overrides: `fast-uri` 3.1.9 / 4.2.3, `ip-address` 10.7.6, `hono` 4.13.17, and `@hono/node-server` 2.1.6. The workspace audit now reports 0 high/critical findings and only two dev-only moderates (`glob` and `minimatch` via electron-builder), while the landing site and promo tooling each audit clean.
+
 ## [0.7.1] - 2026-11-12
 
 ### Security
