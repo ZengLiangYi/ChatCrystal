@@ -9,14 +9,6 @@ function readSource(relativePath: string) {
 	return readFileSync(path.join(root, relativePath), "utf-8");
 }
 
-function readFunctionBlock(source: string, startPattern: string, endPattern: string) {
-	const start = source.indexOf(startPattern);
-	const end = source.indexOf(endPattern, start);
-	assert.notEqual(start, -1, `Missing source block start: ${startPattern}`);
-	assert.notEqual(end, -1, `Missing source block end: ${endPattern}`);
-	return source.slice(start, end);
-}
-
 test("NoteDetail gates original conversation navigation on API availability", () => {
 	const source = readSource("src/pages/NoteDetail.tsx");
 
@@ -218,8 +210,8 @@ test("RelationGraph keeps Sigma stable while node hover updates the tooltip", ()
 	assert.match(graphSource, /useCallback/);
 	assert.match(graphSource, /handleNodeHover/);
 	assert.match(graphSource, /handleNodeClick/);
-	assert.match(canvasSource, /const sigmaSettings = useMemo/);
-	assert.match(canvasSource, /settings=\{sigmaSettings\}/);
+	assert.match(canvasSource, /const sigmaOptions = useMemo/);
+	assert.match(canvasSource, /options=\{sigmaOptions\}/);
 	assert.match(canvasSource, /memo\(RelationGraphCanvasComponent\)/);
 });
 
@@ -310,36 +302,24 @@ test("RelationGraph keeps hover and selected tag focus active in the Sigma canva
 
 test("RelationGraphCanvas dims unrelated graph items and highlights the focused neighborhood", () => {
 	const canvasSource = readSource("src/components/RelationGraphCanvas.tsx");
-	const hoverRendererSource = readFunctionBlock(
-		canvasSource,
-		"function drawThemeNodeHover",
-		"function SigmaGraphReducers",
-	);
 
-	assert.match(canvasSource, /useSetSettings/);
+	assert.match(canvasSource, /setGraphState/);
+	assert.match(canvasSource, /setNodeState/);
+	assert.match(canvasSource, /setEdgeState/);
 	assert.match(canvasSource, /focusedNodeKey/);
 	assert.match(canvasSource, /focusedNeighborKeys/);
 	assert.match(canvasSource, /focusedEdgeKeys/);
 	assert.match(canvasSource, /graph\.edges\(focusedNodeKey\)/);
 	assert.match(canvasSource, /graph\.extremities\(edge\)/);
-	assert.match(canvasSource, /const isFocused = hasFocus && node === focusedNodeKey/);
-	assert.match(canvasSource, /const isRelated = hasFocus && focusedNeighborKeys\.has\(node\)/);
-	assert.match(canvasSource, /isDimmed/);
+	assert.match(canvasSource, /isFocused: hasFocus && node === focusedNodeKey/);
+	assert.match(canvasSource, /isRelated: hasFocus && focusedNeighborKeys\.has\(node\)/);
 	assert.match(canvasSource, /withAlpha\(colors\.dimmedNode/);
 	assert.match(canvasSource, /withAlpha\(colors\.dimmedEdge/);
 	assert.match(canvasSource, /withAlpha\(colors\.activeEdge/);
-	assert.match(canvasSource, /highlighted: isFocused/);
-	assert.match(canvasSource, /forceLabel: !isDimmed && \(isFocused \|\| shouldShowLabel\)/);
-	assert.match(canvasSource, /label: isDimmed \? null : data\.title/);
-	assert.match(canvasSource, /defaultDrawNodeHover/);
-	assert.match(canvasSource, /defaultDrawNodeLabel/);
-	assert.match(canvasSource, /drawThemeNodeHover/);
-	assert.match(canvasSource, /drawThemeNodeLabel/);
+	assert.match(canvasSource, /labelVisibility:/);
+	assert.match(canvasSource, /backdropVisibility:/);
+	assert.match(canvasSource, /labelBackgroundColor:/);
 	assert.match(canvasSource, /colors\.hoverBackground/);
-	assert.match(canvasSource, /measureText/);
-	assert.match(canvasSource, /fillText/);
-	assert.doesNotMatch(hoverRendererSource, /measureText/);
-	assert.doesNotMatch(hoverRendererSource, /fillText/);
 });
 
 test("RelationGraph removes the top header and moves tools to the lower left canvas controls", () => {
@@ -367,7 +347,8 @@ test("RelationGraphCanvas renders full tag labels instead of truncated note titl
 	const canvasSource = readSource("src/components/RelationGraphCanvas.tsx");
 
 	assert.match(canvasSource, /kind: 'tag'/);
-	assert.match(canvasSource, /label: isDimmed \? null : data\.title/);
+	assert.match(canvasSource, /label: node\.title/);
+	assert.match(canvasSource, /label: \{ attribute: 'label' \}/);
 	assert.doesNotMatch(canvasSource, /formatNodeLabel/);
 	assert.doesNotMatch(canvasSource, /slice\(0,/);
 });
