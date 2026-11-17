@@ -25,7 +25,7 @@
     "radix-ui": "^1.8.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "react-i18next": "^17.0.18",
+    "react-i18next": "^18.0.1",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.18.5",
     "remark-gfm": "^4.0.1",
