@@ -4,15 +4,13 @@ import {
   useCamera,
   useLoadGraph,
   useRegisterEvents,
-  useSetSettings,
   useSigma,
 } from '@react-sigma/core';
 import '@react-sigma/core/lib/style.css';
 import { MultiDirectedGraph } from 'graphology';
 import circular from 'graphology-layout/circular';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
-import type { Settings } from 'sigma/settings';
-import type { NodeHoverDrawingFunction, NodeLabelDrawingFunction } from 'sigma/rendering';
+import type { SigmaOptions } from 'sigma/types';
 import { withAlpha } from '@/lib/graph-colors.ts';
 
 export interface GraphNode {
@@ -65,6 +63,21 @@ type SigmaEdgeAttributes = GraphLink & {
   weight: number;
 };
 
+type SigmaGraphAttributes = Record<string, never>;
+
+type CustomNodeState = {
+  isFocused: boolean;
+  isRelated: boolean;
+};
+
+type CustomEdgeState = {
+  isFocused: boolean;
+};
+
+type CustomGraphState = {
+  hasFocus: boolean;
+};
+
 type GraphCanvasColors = {
   background: string;
   foreground: string;
@@ -100,7 +113,7 @@ function edgeKey(id: number | string) {
 }
 
 function buildGraph(graphData: RelationGraphCanvasProps['graphData']) {
-  const graph = new MultiDirectedGraph<SigmaNodeAttributes, SigmaEdgeAttributes>();
+  const graph = new MultiDirectedGraph<SigmaNodeAttributes, SigmaEdgeAttributes, SigmaGraphAttributes>();
   const nodeKeyById = new Map<number, string>();
 
   graphData.nodes.forEach((node, index) => {
@@ -153,96 +166,27 @@ function shouldForceNodeLabel(data: SigmaNodeAttributes) {
     : data.degree > 0 || data.degree >= 3;
 }
 
-function drawLabelBackground(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number,
-) {
-  const r = Math.min(radius, width / 2, height / 2);
-  context.beginPath();
-  context.moveTo(x + r, y);
-  context.lineTo(x + width - r, y);
-  context.quadraticCurveTo(x + width, y, x + width, y + r);
-  context.lineTo(x + width, y + height - r);
-  context.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
-  context.lineTo(x + r, y + height);
-  context.quadraticCurveTo(x, y + height, x, y + height - r);
-  context.lineTo(x, y + r);
-  context.quadraticCurveTo(x, y, x + r, y);
-  context.closePath();
+function resolveBodyFont() {
+  if (typeof document === 'undefined') return 'system-ui, sans-serif';
+  const fontBody = getComputedStyle(document.documentElement).getPropertyValue('--font-body').trim();
+  return fontBody || 'system-ui, sans-serif';
 }
 
-function drawThemeNodeLabel(colors: GraphCanvasColors): NodeLabelDrawingFunction<SigmaNodeAttributes, SigmaEdgeAttributes> {
-  return (context, data, settings) => {
-    const label = typeof data.label === 'string' ? data.label : '';
-    if (!label) return;
-
-    const labelSize = settings.labelSize;
-    const x = data.x + data.size + 6;
-    const y = data.y;
-    const paddingX = data.highlighted ? 7 : 5;
-    const paddingY = data.highlighted ? 3 : 2;
-    const boxHeight = labelSize + paddingY * 2;
-
-    context.save();
-    context.font = `${settings.labelWeight} ${labelSize}px ${settings.labelFont}`;
-    context.textAlign = 'left';
-    context.textBaseline = 'middle';
-
-    const boxWidth = context.measureText(label).width + paddingX * 2;
-    drawLabelBackground(context, x - paddingX, y - boxHeight / 2, boxWidth, boxHeight, 4);
-    context.fillStyle = withAlpha(colors.hoverBackground, data.highlighted ? 0.92 : 0.78);
-    context.fill();
-    context.strokeStyle = withAlpha(colors.hoverBorder, data.highlighted ? 0.92 : 0.62);
-    context.lineWidth = 1;
-    context.stroke();
-
-    context.fillStyle = colors.hoverForeground;
-    context.fillText(label, x, y);
-    context.restore();
-  };
-}
-
-function drawThemeNodeHover(colors: GraphCanvasColors): NodeHoverDrawingFunction<SigmaNodeAttributes, SigmaEdgeAttributes> {
-  return (context, data) => {
-    const nodeRadius = data.size + 3;
-
-    context.save();
-    context.shadowOffsetX = 0;
-    context.shadowOffsetY = 2;
-    context.shadowBlur = 10;
-    context.shadowColor = colors.hoverShadow;
-
-    context.fillStyle = colors.hoverBackground;
-    context.strokeStyle = colors.hoverBorder;
-    context.lineWidth = 1;
-    context.beginPath();
-    context.arc(data.x, data.y, nodeRadius, 0, Math.PI * 2);
-    context.fill();
-    context.stroke();
-
-    context.fillStyle = data.color;
-    context.beginPath();
-    context.arc(data.x, data.y, data.size + 1, 0, Math.PI * 2);
-    context.fill();
-
-    context.restore();
-  };
-}
-
-function SigmaGraphReducers({
+function SigmaGraphStateSync({
   graph,
-  colors,
   focusedNodeKey,
 }: {
-  graph: MultiDirectedGraph<SigmaNodeAttributes, SigmaEdgeAttributes>;
-  colors: GraphCanvasColors;
+  graph: MultiDirectedGraph<SigmaNodeAttributes, SigmaEdgeAttributes, SigmaGraphAttributes>;
   focusedNodeKey: string | null;
 }) {
-  const setSettings = useSetSettings<SigmaNodeAttributes, SigmaEdgeAttributes>();
+  const sigma = useSigma<
+    SigmaNodeAttributes,
+    SigmaEdgeAttributes,
+    SigmaGraphAttributes,
+    CustomNodeState,
+    CustomEdgeState,
+    CustomGraphState
+  >();
 
   const { focusedNeighborKeys, focusedEdgeKeys } = useMemo(() => {
     const focusedNeighborKeys = new Set<string>();
@@ -262,51 +206,24 @@ function SigmaGraphReducers({
   }, [focusedNodeKey, graph]);
 
   useEffect(() => {
-    setSettings({
-      nodeReducer: (node: string, data: SigmaNodeAttributes) => {
-        const hasFocus = Boolean(focusedNodeKey);
-        const isFocused = hasFocus && node === focusedNodeKey;
-        const isRelated = hasFocus && focusedNeighborKeys.has(node);
-        const isDimmed = hasFocus && !isRelated;
-        const shouldShowLabel = shouldForceNodeLabel(data);
+    const sigmaGraph = sigma.getGraph();
+    const hasFocus = Boolean(focusedNodeKey && sigmaGraph.hasNode(focusedNodeKey));
 
-        return {
-          color: isDimmed ? withAlpha(colors.dimmedNode, 0.28) : data.color,
-          forceLabel: !isDimmed && (isFocused || shouldShowLabel),
-          highlighted: isFocused,
-          label: isDimmed ? null : data.title,
-          size: isFocused ? data.size * 1.18 : isRelated ? data.size * 1.06 : data.size,
-          x: data.x,
-          y: data.y,
-          zIndex: isFocused ? data.zIndex + 1000 : data.zIndex,
-        };
-      },
-      edgeReducer: (edge: string, data: SigmaEdgeAttributes) => {
-        const hasFocus = Boolean(focusedNodeKey);
-        const isFocused = hasFocus && focusedEdgeKeys.has(edge);
-        const isDimmed = hasFocus && !isFocused;
+    sigma.setGraphState({ hasFocus });
 
-        return {
-          color: isFocused
-            ? withAlpha(colors.activeEdge, 0.86)
-            : isDimmed
-              ? withAlpha(colors.dimmedEdge, 0.14)
-              : data.color,
-          label: data.type,
-          size: isFocused ? data.size + 1.1 : isDimmed ? Math.max(0.35, data.size * 0.5) : data.size,
-          zIndex: isFocused ? 1000 : 0,
-        };
-      },
-    });
-  }, [
-    colors.activeEdge,
-    colors.dimmedEdge,
-    colors.dimmedNode,
-    focusedEdgeKeys,
-    focusedNeighborKeys,
-    focusedNodeKey,
-    setSettings,
-  ]);
+    for (const node of sigmaGraph.nodes()) {
+      sigma.setNodeState(node, {
+        isFocused: hasFocus && node === focusedNodeKey,
+        isRelated: hasFocus && focusedNeighborKeys.has(node),
+      });
+    }
+
+    for (const edge of sigmaGraph.edges()) {
+      sigma.setEdgeState(edge, {
+        isFocused: hasFocus && focusedEdgeKeys.has(edge),
+      });
+    }
+  }, [focusedEdgeKeys, focusedNeighborKeys, focusedNodeKey, graph, sigma]);
 
   return null;
 }
@@ -316,18 +233,23 @@ function SigmaGraphEvents({
   onNodeHover,
   onNodeClick,
 }: {
-  graph: MultiDirectedGraph<SigmaNodeAttributes, SigmaEdgeAttributes>;
+  graph: MultiDirectedGraph<SigmaNodeAttributes, SigmaEdgeAttributes, SigmaGraphAttributes>;
   onNodeHover: (node: GraphNode | null) => void;
   onNodeClick: (node: GraphNode) => void;
 }) {
-  const loadGraph = useLoadGraph<SigmaNodeAttributes, SigmaEdgeAttributes>();
-  const registerEvents = useRegisterEvents<SigmaNodeAttributes, SigmaEdgeAttributes>();
-  const sigma = useSigma<SigmaNodeAttributes, SigmaEdgeAttributes>();
+  const loadGraph = useLoadGraph<SigmaNodeAttributes, SigmaEdgeAttributes, SigmaGraphAttributes>();
+  const registerEvents = useRegisterEvents<
+    SigmaNodeAttributes,
+    SigmaEdgeAttributes,
+    SigmaGraphAttributes,
+    CustomNodeState,
+    CustomEdgeState,
+    CustomGraphState
+  >();
 
   useEffect(() => {
     loadGraph(graph);
-    sigma.refresh();
-  }, [graph, loadGraph, sigma]);
+  }, [graph, loadGraph]);
 
   useEffect(() => {
     registerEvents({
@@ -367,39 +289,109 @@ const RelationGraphCanvasComponent = forwardRef<RelationGraphHandle, RelationGra
     onNodeClick,
   }, ref) {
     const graph = useMemo(() => buildGraph(graphData), [graphData]);
-    const sigmaSettings = useMemo(() => ({
-      allowInvalidContainer: true,
-      autoCenter: true,
-      autoRescale: true,
-      defaultNodeColor: colors.muted,
-      defaultEdgeColor: colors.dimmedEdge,
-      defaultEdgeType: 'line',
-      defaultDrawNodeLabel: drawThemeNodeLabel(colors),
-      defaultDrawNodeHover: drawThemeNodeHover(colors),
-      edgeLabelColor: { attribute: 'color' },
-      enableEdgeEvents: false,
-      hideEdgesOnMove: false,
-      hideLabelsOnMove: true,
-      itemSizesReference: 'screen',
-      labelColor: { color: colors.foreground },
-      labelFont: 'var(--font-body), system-ui, sans-serif',
-      labelRenderedSizeThreshold: 9,
-      labelSize: 11,
-      minEdgeThickness: 0.8,
-      renderEdgeLabels: false,
-      renderLabels: true,
-      stagePadding: 48,
-      zIndex: true,
-    } satisfies Partial<Settings<SigmaNodeAttributes, SigmaEdgeAttributes>>), [colors]);
+    const sigmaOptions = useMemo<
+      Partial<
+        SigmaOptions<
+          SigmaNodeAttributes,
+          SigmaEdgeAttributes,
+          SigmaGraphAttributes,
+          CustomNodeState,
+          CustomEdgeState,
+          CustomGraphState
+        >
+      >
+    >(() => {
+      const labelFont = resolveBodyFont();
+
+      return {
+        customNodeState: { isFocused: false, isRelated: false },
+        customEdgeState: { isFocused: false },
+        customGraphState: { hasFocus: false },
+        settings: {
+          allowInvalidContainer: true,
+          autoRescale: true,
+          enableEdgeEvents: false,
+          hideEdgesOnMove: false,
+          hideLabelsOnMove: true,
+          itemSizesReference: 'screen',
+          labelRenderedSizeThreshold: 9,
+          minEdgeThickness: 0.8,
+          renderEdgeLabels: false,
+          renderLabels: true,
+          stagePadding: 48,
+        },
+        styles: {
+          nodes: {
+            x: { attribute: 'x' },
+            y: { attribute: 'y' },
+            depth: (_attrs, state, graphState) => (graphState.hasFocus && state.isFocused ? 'topNodes' : 'nodes'),
+            zIndex: (attrs, state, graphState) => (graphState.hasFocus && state.isFocused ? attrs.zIndex + 1000 : attrs.zIndex),
+            color: (attrs, state, graphState) =>
+              graphState.hasFocus && !state.isRelated
+                ? withAlpha(colors.dimmedNode, 0.28)
+                : attrs.color || colors.muted,
+            size: (attrs, state, graphState) => {
+              if (graphState.hasFocus && state.isFocused) return attrs.size * 1.18;
+              if (graphState.hasFocus && state.isRelated) return attrs.size * 1.06;
+              return attrs.size;
+            },
+            label: { attribute: 'label' },
+            labelColor: colors.hoverForeground,
+            labelFont,
+            labelSize: 11,
+            labelBackgroundColor: (_attrs, state, graphState) =>
+              withAlpha(colors.hoverBackground, graphState.hasFocus && state.isFocused ? 0.92 : 0.78),
+            labelBackgroundPadding: 3,
+            labelVisibility: (attrs, state, graphState) => {
+              if (graphState.hasFocus && !state.isRelated) return 'hidden';
+              if ((graphState.hasFocus && state.isFocused) || shouldForceNodeLabel(attrs)) return 'visible';
+              return 'auto';
+            },
+            backdropVisibility: (_attrs, state, graphState) =>
+              graphState.hasFocus && state.isFocused ? 'visible' : 'hidden',
+            backdropArea: 'node',
+            backdropColor: colors.hoverBackground,
+            backdropBorderColor: colors.hoverBorder,
+            backdropBorderWidth: 1,
+            backdropShadowColor: colors.hoverShadow,
+            backdropShadowBlur: 10,
+            backdropPadding: 3,
+          },
+          edges: {
+            depth: (_attrs, state, graphState) => (graphState.hasFocus && state.isFocused ? 'topEdges' : 'edges'),
+            zIndex: (_attrs, state, graphState) => (graphState.hasFocus && state.isFocused ? 1000 : 0),
+            color: (attrs, state, graphState) => {
+              if (graphState.hasFocus && state.isFocused) return withAlpha(colors.activeEdge, 0.86);
+              if (graphState.hasFocus) return withAlpha(colors.dimmedEdge, 0.14);
+              return attrs.color || colors.dimmedEdge;
+            },
+            size: (attrs, state, graphState) => {
+              if (graphState.hasFocus && state.isFocused) return attrs.size + 1.1;
+              if (graphState.hasFocus) return Math.max(0.35, attrs.size * 0.5);
+              return attrs.size;
+            },
+            label: { attribute: 'label' },
+            labelColor: { attribute: 'color' },
+          },
+        },
+      };
+    }, [colors]);
 
     return (
-      <SigmaContainer<SigmaNodeAttributes, SigmaEdgeAttributes>
+      <SigmaContainer<
+        SigmaNodeAttributes,
+        SigmaEdgeAttributes,
+        SigmaGraphAttributes,
+        CustomNodeState,
+        CustomEdgeState,
+        CustomGraphState
+      >
         className="h-full w-full"
-        settings={sigmaSettings}
+        options={sigmaOptions}
         style={{ height: '100%', width: '100%', background: 'transparent' }}
       >
-        <SigmaGraphReducers graph={graph} colors={colors} focusedNodeKey={focusedNodeKey} />
         <SigmaGraphEvents graph={graph} onNodeHover={onNodeHover} onNodeClick={onNodeClick} />
+        <SigmaGraphStateSync graph={graph} focusedNodeKey={focusedNodeKey} />
         <SigmaCameraBridge ref={ref} />
       </SigmaContainer>
     );
