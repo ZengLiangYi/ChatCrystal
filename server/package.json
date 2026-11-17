@@ -65,7 +65,7 @@
     "@fastify/static": "^10.1.10",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "ai": "7.0.171",
-    "chokidar": "^5.0.0",
+    "chokidar": "^6.0.0",
     "commander": "^15.1.0",
     "dotenv": "^18.0.10",
     "fastify": "5.12.8",
