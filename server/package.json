@@ -56,15 +56,15 @@
     "eval:experience": "tsx scripts/evaluate-experience-gate.ts"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "4.0.103",
-    "@ai-sdk/azure": "4.0.124",
-    "@ai-sdk/google": "4.0.119",
-    "@ai-sdk/openai": "4.0.116",
-    "@fastify/cors": "^11.4.2",
+    "@ai-sdk/anthropic": "4.0.106",
+    "@ai-sdk/azure": "4.0.129",
+    "@ai-sdk/google": "4.0.122",
+    "@ai-sdk/openai": "4.0.121",
+    "@fastify/cors": "^11.4.3",
     "@fastify/rate-limit": "^11.2.2",
-    "@fastify/static": "^10.1.10",
+    "@fastify/static": "^10.1.12",
     "@modelcontextprotocol/sdk": "^1.32.2",
-    "ai": "7.0.171",
+    "ai": "7.0.177",
     "chokidar": "^6.0.0",
     "commander": "^15.1.0",
     "dotenv": "^18.0.10",
@@ -72,7 +72,7 @@
     "ink": "^8.0.0",
     "p-queue": "^10.0.0",
     "react": "^19.3.1",
-    "sql.js": "^1.16.0",
+    "sql.js": "^1.17.0",
     "vectra": "^0.15.0",
     "zod": "^4.6.7"
   },
@@ -80,7 +80,7 @@
     "@chatcrystal/shared": "workspace:*",
     "@types/node": "24.19.2",
     "@types/react": "^19.3.0",
-    "@types/sql.js": "^1.4.11",
+    "@types/sql.js": "^1.16.0",
     "@typescript/native": "npm:typescript@7.0.2",
     "tsx": "^4.23.15"
   }
